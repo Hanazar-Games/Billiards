@@ -44,17 +44,7 @@ export class BallsManager {
     // Standard 8-ball rack rules:
     // - 8-ball must be in center of row 3
     // - One solid and one stripe must be at each bottom corner (row 5)
-    // - Others can be any, but we alternate for visual balance
     const rackOrder = [
-      1,                    // row 1 (apex)
-      9, 10,                // row 2 (stripe, stripe)
-      2, 8, 3,              // row 3 (solid, 8-ball, solid)
-      11, 4, 5, 12,         // row 4 (stripe, solid, solid, stripe)
-      13, 6, 7, 14, 15,     // row 5 (stripe, solid, solid, stripe, stripe)
-    ];
-    // Row 5 corners: 13(stripe) and 15(stripe) -- WRONG! Need one solid corner.
-    // Let me fix: 6(solid) and 15(stripe) as corners.
-    const rackOrderFixed = [
       1,                    // row 1
       9, 10,                // row 2
       2, 8, 3,              // row 3
@@ -73,7 +63,7 @@ export class BallsManager {
 
     for (let i = 0; i < positions.length; i++) {
       const [col, row] = positions[i];
-      const ballId = rackOrderFixed[i];
+      const ballId = rackOrder[i];
       const x = startX + col * d;
       const z = rackZ + (row - 1) * d * Math.sin(Math.PI / 3);
       this.balls[ballId].setPosition(x, r, z);

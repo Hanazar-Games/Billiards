@@ -28,6 +28,10 @@ A browser-based 3D 8-ball pool game built with **Three.js** and **cannon-es** ph
 - Green line = target ball path to pocket (if available)
 - White line = cue ball path
 
+### Sound
+- **"Sound"** toggle enables ambient background atmosphere + SFX
+- All audio is procedurally generated via Web Audio API (no external files)
+
 ## 🚀 Quick Start
 
 ```bash
@@ -46,15 +50,23 @@ Then open `http://localhost:5173`
 | Build Tool | Vite |
 | Language | JavaScript (ES2022) |
 
-## 📢 Current Version: v0.3.0
+## 📢 Current Version: v0.4.0
 
-### v0.3.0 — "Smart Opponent" (Latest)
-- ✅ **AI Opponent** with 3 difficulty levels (Easy/Normal/Hard)
-- ✅ **Trajectory Prediction** — aim line + ghost ball visualization
-- ✅ AI thinks, aims, charges, and shoots autonomously
-- ✅ AI difficulty affects angle accuracy, power consistency, and mistake rate
-- ✅ AI falls back to safety shots when no direct pocket is available
-- ✅ Top control bar: AI toggle, difficulty selector, aim line toggle
+### v0.4.0 — "Polished Table" (Latest)
+- ✅ Fixed trajectory predictor crash when `toPocket` was used as Vector3 instead of `.dir`
+- ✅ Fixed ghost ball clamping logic that placed it at wrong position on angled shots
+- ✅ Fixed too-permissive collision threshold in trajectory raycast (`proj < r` → `proj < 2r`)
+- ✅ Added **ambient background atmosphere** (drone + noise floor) with on/off toggle
+- ✅ Cleaned unused/redundant variables (`rackOrder` duplicate, `player2Label`, `toCue`)
+- ✅ UI control bar now includes: vs AI, Difficulty, Aim Line, Sound
+
+### v0.3.0 — "Smart Opponent"
+- **AI Opponent** with 3 difficulty levels (Easy/Normal/Hard)
+- **Trajectory Prediction** — aim line + ghost ball visualization
+- AI thinks, aims, charges, and shoots autonomously
+- AI difficulty affects angle accuracy, power consistency, and mistake rate
+- AI falls back to safety shots when no direct pocket is available
+- Top control bar: AI toggle, difficulty selector, aim line toggle
 
 ### v0.2.0 — "First Playable"
 - Complete 8-ball rule engine (group assignment, fouls, win/lose)

@@ -65,7 +65,7 @@ export class TrajectoryPredictor {
 
       const toBall = new THREE.Vector3().subVectors(ball.mesh.position, rayOrigin);
       const proj = toBall.dot(rayDir);
-      if (proj < r) continue; // behind cue ball
+      if (proj < r * 2) continue; // too close or behind cue ball
 
       const closest = new THREE.Vector3().copy(rayDir).multiplyScalar(proj).add(rayOrigin);
       // Note: copy(rayDir) prevents modifying rayDir
@@ -80,7 +80,6 @@ export class TrajectoryPredictor {
     if (hitBall) {
       // Draw line to ghost ball position
       const ballPos = hitBall.mesh.position;
-      const toCue = new THREE.Vector3().subVectors(rayOrigin, ballPos);
       const toPocket = this.findBestPocketDirection(ballPos, pocketPositions, balls, hitBall.id);
 
       let ghostPos;
@@ -92,21 +91,15 @@ export class TrajectoryPredictor {
         ghostPos = new THREE.Vector3().copy(ballPos).addScaledVector(rayDir, -2 * r);
       }
 
-      // Clamp ghost pos to be reachable from cue
-      const cueToGhost = new THREE.Vector3().subVectors(ghostPos, rayOrigin);
-      const actualDist = cueToGhost.length();
-      const clampedDist = Math.min(actualDist, hitDist);
-      const clampedGhost = new THREE.Vector3().copy(rayDir).multiplyScalar(clampedDist).add(rayOrigin);
-
-      this.drawLine(rayOrigin, clampedGhost, this.lineMaterial);
+      this.drawLine(rayOrigin, ghostPos, this.lineMaterial);
 
       // Draw target ball trajectory after hit
       if (toPocket) {
-        const pocketTarget = new THREE.Vector3().copy(ballPos).addScaledVector(toPocket, 60);
+        const pocketTarget = new THREE.Vector3().copy(ballPos).addScaledVector(toPocket.dir, 60);
         this.drawLine(ballPos, pocketTarget, this.hitLineMaterial);
       }
 
-      this.ghostBall.position.copy(clampedGhost);
+      this.ghostBall.position.copy(ghostPos);
       this.ghostBall.visible = true;
     } else {
       // No ball hit: draw line to table edge

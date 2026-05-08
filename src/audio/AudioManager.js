@@ -3,6 +3,8 @@ export class AudioManager {
     this.ctx = null;
     this.enabled = false;
     this.initialized = false;
+    this.bgmNodes = [];
+    this.bgmEnabled = false;
   }
 
   init() {
@@ -14,6 +16,83 @@ export class AudioManager {
     } catch (e) {
       console.warn('Web Audio API not supported');
     }
+  }
+
+  toggleBGM(enabled) {
+    this.bgmEnabled = enabled;
+    if (enabled) {
+      this.startBGM();
+    } else {
+      this.stopBGM();
+    }
+  }
+
+  startBGM() {
+    if (!this.enabled || !this.ctx || this.bgmNodes.length > 0) return;
+    this.resume();
+
+    const t = this.ctx.currentTime;
+
+    // Ambient drone: two low sine waves with slight detune
+    const freqs = [55, 82.5]; // A1 + E2, warm room tone
+    freqs.forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+
+      // Slow vibrato
+      const lfo = this.ctx.createOscillator();
+      const lfoGain = this.ctx.createGain();
+      lfo.frequency.value = 0.15 + i * 0.1;
+      lfoGain.gain.value = 1.5;
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+      lfo.start(t);
+
+      gain.gain.setValueAtTime(0.04, t);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+
+      this.bgmNodes.push(osc, gain, lfo, lfoGain);
+    });
+
+    // Very quiet noise floor (air conditioning feel)
+    const bufferSize = this.ctx.sampleRate * 2;
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * 0.3;
+    }
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+    noise.loop = true;
+
+    const noiseFilter = this.ctx.createBiquadFilter();
+    noiseFilter.type = 'lowpass';
+    noiseFilter.frequency.value = 300;
+
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.015, t);
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(this.ctx.destination);
+    noise.start(t);
+
+    this.bgmNodes.push(noise, noiseFilter, noiseGain);
+  }
+
+  stopBGM() {
+    const t = this.ctx ? this.ctx.currentTime : 0;
+    for (const node of this.bgmNodes) {
+      try {
+        if (node.stop) node.stop(t);
+        if (node.disconnect) node.disconnect();
+      } catch (e) {}
+    }
+    this.bgmNodes = [];
   }
 
   resume() {

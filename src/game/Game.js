@@ -65,7 +65,8 @@ export class Game {
     this.ui.setMessage('Aim with mouse, hold LEFT CLICK to charge, release to shoot. RIGHT CLICK to rotate camera.');
     this.ui.setupAIControls(
       (enabled) => this.setAIEnabled(enabled),
-      (difficulty) => this.setAIDifficulty(difficulty)
+      (difficulty) => this.setAIDifficulty(difficulty),
+      (enabled) => this.audio.toggleBGM(enabled)
     );
     window.addEventListener('toggleTrajectory', (e) => {
       if (this.trajectory) this.trajectory.setVisible(e.detail);

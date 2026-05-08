@@ -2,7 +2,6 @@ export class UI {
   constructor() {
     this.player1Badge = document.getElementById('player1');
     this.player2Badge = document.getElementById('player2');
-    this.player2Label = this.player2Badge.childNodes[0];
     this.message = document.getElementById('message');
     this.powerFill = document.getElementById('power-bar-fill');
 
@@ -73,10 +72,19 @@ export class UI {
     `;
     this.aiPanel.appendChild(this.trajToggle);
 
+    // BGM toggle
+    this.bgmToggle = document.createElement('label');
+    this.bgmToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;cursor:pointer;margin-left:4px;border-left:1px solid rgba(255,255,255,0.2);padding-left:10px;';
+    this.bgmToggle.innerHTML = `
+      <input type="checkbox" id="bgm-toggle" style="cursor:pointer;">
+      <span>Sound</span>
+    `;
+    this.aiPanel.appendChild(this.bgmToggle);
+
     document.getElementById('ui-layer').appendChild(this.aiPanel);
   }
 
-  setupAIControls(onAIToggle, onDiffChange) {
+  setupAIControls(onAIToggle, onDiffChange, onBGMToggle) {
     const checkbox = this.aiToggle.querySelector('input');
     checkbox.addEventListener('change', (e) => {
       const enabled = e.target.checked;
@@ -93,6 +101,11 @@ export class UI {
     const trajCheckbox = this.trajToggle.querySelector('input');
     trajCheckbox.addEventListener('change', (e) => {
       window.dispatchEvent(new CustomEvent('toggleTrajectory', { detail: e.target.checked }));
+    });
+
+    const bgmCheckbox = this.bgmToggle.querySelector('input');
+    bgmCheckbox.addEventListener('change', (e) => {
+      if (onBGMToggle) onBGMToggle(e.target.checked);
     });
   }
 
