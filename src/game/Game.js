@@ -6,6 +6,8 @@ import { Cue } from './Cue.js';
 import { Rules } from './Rules.js';
 import { UI } from '../ui/UI.js';
 import { AudioManager } from '../audio/AudioManager.js';
+import { AIPlayer, AI_DIFFICULTY } from '../ai/AIPlayer.js';
+import { TrajectoryPredictor } from './TrajectoryPredictor.js';
 import { SHOT, BALL } from '../config.js';
 
 export class Game {
@@ -22,16 +24,15 @@ export class Game {
     this.rules = new Rules();
     this.ui = new UI();
     this.audio = new AudioManager();
+    this.aiPlayer = null;
+    this.trajectory = null;
 
-    this.state = 'AIM'; // AIM, CHARGING, SHOOTING, RESOLVING
+    this.state = 'AIM'; // AIM, CHARGING, SHOOTING, RESOLVING, AI_THINKING, GAME_OVER
     this.power = 0;
     this.charging = false;
     this.currentPlayer = 1;
     this.aimDirection = new THREE.Vector3(0, 0, 1);
-
-    // Collision tracking for SFX and rules
-    this.lastVelocities = new Map();
-    this.ballCollisions = [];
+    this.aiEnabled = false;
 
     this._tmpVec2 = new THREE.Vector2();
     this._tmpVec3a = new THREE.Vector3();
@@ -58,13 +59,40 @@ export class Game {
     this.cue = new Cue();
     this.scene.add(this.cue.mesh);
 
+    this.trajectory = new TrajectoryPredictor(this.scene);
+
     this.ui.setPlayerTurn(1);
     this.ui.setMessage('Aim with mouse, hold LEFT CLICK to charge, release to shoot. RIGHT CLICK to rotate camera.');
-
-    // Setup collision events
-    this.setupCollisionEvents();
-
+    this.ui.setupAIControls(
+      (enabled) => this.setAIEnabled(enabled),
+      (difficulty) => this.setAIDifficulty(difficulty)
+    );
+    window.addEventListener('toggleTrajectory', (e) => {
+      if (this.trajectory) this.trajectory.setVisible(e.detail);
+    });
     this.ui.showResetButton(() => this.resetGame());
+
+    this.setupCollisionEvents();
+  }
+
+  setAIEnabled(enabled) {
+    this.aiEnabled = enabled;
+    if (enabled && !this.aiPlayer) {
+      this.aiPlayer = new AIPlayer(AI_DIFFICULTY.NORMAL);
+    }
+    if (this.currentPlayer === 2 && enabled && this.state === 'AIM') {
+      this.startAITurn();
+    }
+    if (!enabled && this.state === 'AI_THINKING') {
+      this.state = 'AIM';
+      this.power = 0;
+      this.ui.setPower(0);
+      this.cue.show();
+    }
+  }
+
+  setAIDifficulty(difficulty) {
+    this.aiPlayer = new AIPlayer(difficulty);
   }
 
   setupCollisionEvents() {
@@ -72,23 +100,17 @@ export class Game {
       ball.body.addEventListener('collide', (e) => {
         const otherBody = e.body === e.contact.bi ? e.contact.bj : e.contact.bi;
         const otherBall = this.ballsManager.balls.find(b => b.body === otherBody);
-
         const v = ball.body.velocity.length();
 
         if (otherBall) {
-          // Ball-ball collision
           const relVel = Math.abs(v - otherBall.body.velocity.length());
-
-          // First hit tracking (only for cue ball)
           if (ball.id === 0 && otherBall.id !== 0) {
             this.rules.recordFirstHit(otherBall.id);
           }
-
           if (relVel > 0.5) {
             this.audio.playBallCollision(relVel);
           }
         } else if (otherBody.material === this.physics.cushionMaterial) {
-          // Ball-cushion collision
           if (v > 0.8) {
             this.audio.playCushionBounce(v);
           }
@@ -100,14 +122,17 @@ export class Game {
   onMouseMove() {
     if (this.state !== 'AIM' && this.state !== 'CHARGING') return;
     this.updateAimDirection();
+    this.updateTrajectory();
   }
 
   onMouseDown() {
     if (this.state !== 'AIM') return;
-    this.audio.resume(); // ensure audio context is active
+    if (this.aiEnabled && this.currentPlayer === 2) return; // AI turn
+    this.audio.resume();
     this.state = 'CHARGING';
     this.charging = true;
     this.power = 0;
+    this.trajectory.setVisible(false);
   }
 
   onMouseUp() {
@@ -150,6 +175,21 @@ export class Game {
     this.cue.setAim(ballPos, this.aimDirection);
   }
 
+  updateTrajectory() {
+    if (!this.trajectory || !this.trajectory.visible) return;
+    if (this.state !== 'AIM' && this.state !== 'CHARGING') return;
+
+    const cueBall = this.ballsManager.getCueBall();
+    if (!cueBall || cueBall.pocketed) return;
+
+    this.trajectory.update(
+      cueBall,
+      this.aimDirection,
+      this.ballsManager.balls,
+      this.table.getPocketPositions()
+    );
+  }
+
   shoot() {
     const cueBall = this.ballsManager.getCueBall();
     if (!cueBall) return;
@@ -163,9 +203,67 @@ export class Game {
 
     this.audio.playCueHit(force);
     this.cue.hide();
+    this.trajectory.setVisible(false);
 
-    // Start tracking shot
     this.rules.startShot(this.currentPlayer);
+  }
+
+  async startAITurn() {
+    if (this.state === 'AI_THINKING') return;
+    this.state = 'AI_THINKING';
+    this.ui.setMessage('AI is thinking...');
+    this.trajectory.setVisible(false);
+    this.cue.hide();
+
+    const decision = await this.aiPlayer.takeTurn(this);
+
+    if (this.state !== 'AI_THINKING') return; // player may have cancelled
+
+    // Set aim
+    this.aimDirection.set(decision.aimDirection.x, 0, decision.aimDirection.z).normalize();
+    this.cue.setAim(this.ballsManager.getCueBall().mesh.position, this.aimDirection);
+    this.cue.show();
+
+    // Show trajectory briefly for visual feedback
+    this.trajectory.setVisible(true);
+    this.updateTrajectory();
+
+    await this.aiPlayer.delay(400); // brief aim pause
+
+    // Charge
+    this.state = 'CHARGING';
+    this.charging = true;
+    this.power = 0;
+    this.trajectory.setVisible(false);
+    this.cue.hide();
+
+    // Animate charging
+    const targetPower = decision.power;
+    const chargeStart = performance.now();
+    const chargeDuration = (targetPower / SHOT.chargeRate) * 1000;
+
+    await new Promise(resolve => {
+      const tick = () => {
+        const elapsed = performance.now() - chargeStart;
+        const progress = Math.min(elapsed / chargeDuration, 1);
+        this.power = targetPower * progress;
+        this.ui.setPower((this.power / SHOT.maxPower) * 100);
+
+        if (progress < 1 && this.state === 'CHARGING') {
+          requestAnimationFrame(tick);
+        } else {
+          resolve();
+        }
+      };
+      tick();
+    });
+
+    if (this.state !== 'CHARGING') return;
+
+    // Shoot
+    this.state = 'SHOOTING';
+    this.charging = false;
+    this.shoot();
   }
 
   update(dt) {
@@ -176,7 +274,6 @@ export class Game {
 
     this.ballsManager.sync();
 
-    // Pocket detection during SHOOTING
     if (this.state === 'SHOOTING') {
       const pocketed = this.ballsManager.checkPockets(this.table.getPocketPositions());
       if (pocketed.length > 0) {
@@ -190,9 +287,9 @@ export class Game {
       }
     }
 
-    // Keep cue updated while aiming
     if ((this.state === 'AIM' || this.state === 'CHARGING') && this.cue.visible) {
       this.updateAimDirection();
+      this.updateTrajectory();
     }
   }
 
@@ -214,7 +311,6 @@ export class Game {
       return;
     }
 
-    // Update UI
     this.ui.setMessage(result.message, 4000);
     this.currentPlayer = result.nextPlayer;
     this.ui.setPlayerTurn(this.currentPlayer);
@@ -226,7 +322,6 @@ export class Game {
       this.audio.playFoul();
     }
 
-    // Reset cue ball if scratched
     if (result.scratch) {
       this.ballsManager.resetCueBallIfPocketed();
     }
@@ -235,10 +330,15 @@ export class Game {
     this.power = 0;
     this.ui.setPower(0);
     this.cue.show();
+    this.trajectory.setVisible(true);
+
+    // Trigger AI if needed
+    if (this.aiEnabled && this.currentPlayer === 2) {
+      this.startAITurn();
+    }
   }
 
   resetGame() {
-    // Remove old balls from scene and physics
     for (const ball of this.ballsManager.balls) {
       this.scene.remove(ball.mesh);
       this.physics.removeBody(ball.body);
@@ -259,10 +359,11 @@ export class Game {
     this.ui.setPower(0);
     this.ui.setPlayerTurn(1);
     this.ui.setPlayerGroups(null, null);
-    this.ui.setMessage('New game! Player 1 breaks.');
+    this.ui.setMessage(this.aiEnabled ? 'New game! Player 1 breaks (vs AI).' : 'New game! Player 1 breaks.');
     this.ui.hideResetButton();
     this.ui.showResetButton(() => this.resetGame());
     this.cue.show();
+    this.trajectory.setVisible(true);
   }
 
   render(renderer) {

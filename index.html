@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Billiards v0.2.0</title>
+  <title>3D Billiards v0.3.0</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #app {
@@ -29,6 +29,7 @@
       justify-content: space-between;
       align-items: flex-start;
       gap: 16px;
+      margin-top: 48px;
     }
     #power-bar-container {
       position: absolute;
@@ -67,7 +68,7 @@
       text-shadow: 0 1px 2px rgba(0,0,0,0.8);
       text-align: center;
       transition: all 0.3s ease;
-      min-width: 100px;
+      min-width: 110px;
       border: 2px solid transparent;
     }
     #player1 { background: rgba(220, 20, 60, 0.75); }
@@ -97,7 +98,7 @@
     <div id="power-bar-container">
       <div id="power-bar-fill"></div>
     </div>
-    <div id="version-tag">v0.2.0</div>
+    <div id="version-tag">v0.3.0</div>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>

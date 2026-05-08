@@ -2,6 +2,7 @@ export class UI {
   constructor() {
     this.player1Badge = document.getElementById('player1');
     this.player2Badge = document.getElementById('player2');
+    this.player2Label = this.player2Badge.childNodes[0];
     this.message = document.getElementById('message');
     this.powerFill = document.getElementById('power-bar-fill');
 
@@ -23,11 +24,76 @@ export class UI {
       padding: 8px 20px; font-size: 14px; font-weight: bold;
       background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3);
       border-radius: 6px; cursor: pointer; pointer-events: auto; backdrop-filter: blur(4px);
-      display: none;
+      display: none; transition: background 0.2s;
     `;
     this.resetBtn.onmouseenter = () => this.resetBtn.style.background = 'rgba(255,255,255,0.3)';
     this.resetBtn.onmouseleave = () => this.resetBtn.style.background = 'rgba(255,255,255,0.15)';
     document.getElementById('ui-layer').appendChild(this.resetBtn);
+
+    // AI controls container
+    this.aiPanel = document.createElement('div');
+    this.aiPanel.style.cssText = `
+      position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 10px; align-items: center;
+      pointer-events: auto; background: rgba(0,0,0,0.45);
+      padding: 8px 16px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.15);
+      backdrop-filter: blur(6px);
+    `;
+
+    // AI toggle
+    this.aiToggle = document.createElement('label');
+    this.aiToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;cursor:pointer;';
+    this.aiToggle.innerHTML = `
+      <input type="checkbox" id="ai-toggle" style="cursor:pointer;">
+      <span>vs AI</span>
+    `;
+    this.aiPanel.appendChild(this.aiToggle);
+
+    // Difficulty select
+    this.diffSelect = document.createElement('select');
+    this.diffSelect.id = 'ai-difficulty';
+    this.diffSelect.style.cssText = `
+      background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 4px; padding: 3px 8px; font-size: 12px; cursor: pointer;
+    `;
+    this.diffSelect.innerHTML = `
+      <option value="easy" style="background:#333;">Easy</option>
+      <option value="normal" style="background:#333;" selected>Normal</option>
+      <option value="hard" style="background:#333;">Hard</option>
+    `;
+    this.aiPanel.appendChild(this.diffSelect);
+
+    // Trajectory toggle
+    this.trajToggle = document.createElement('label');
+    this.trajToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;cursor:pointer;margin-left:4px;';
+    this.trajToggle.innerHTML = `
+      <input type="checkbox" id="traj-toggle" checked style="cursor:pointer;">
+      <span>Aim Line</span>
+    `;
+    this.aiPanel.appendChild(this.trajToggle);
+
+    document.getElementById('ui-layer').appendChild(this.aiPanel);
+  }
+
+  setupAIControls(onAIToggle, onDiffChange) {
+    const checkbox = this.aiToggle.querySelector('input');
+    checkbox.addEventListener('change', (e) => {
+      const enabled = e.target.checked;
+      onAIToggle(enabled);
+      this.diffSelect.disabled = !enabled;
+      this.diffSelect.style.opacity = enabled ? '1' : '0.4';
+      this.player2Badge.childNodes[0].textContent = enabled ? 'AI' : 'Player 2';
+    });
+
+    this.diffSelect.addEventListener('change', (e) => {
+      onDiffChange(e.target.value);
+    });
+
+    const trajCheckbox = this.trajToggle.querySelector('input');
+    trajCheckbox.addEventListener('change', (e) => {
+      window.dispatchEvent(new CustomEvent('toggleTrajectory', { detail: e.target.checked }));
+    });
   }
 
   setPower(pct) {
