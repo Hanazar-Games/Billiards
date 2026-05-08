@@ -50,9 +50,18 @@ Then open `http://localhost:5173`
 | Build Tool | Vite |
 | Language | JavaScript (ES2022) |
 
-## 📢 Current Version: v0.6.3
+## 📢 Current Version: v0.7.0
 
-### v0.6.3 — "Collision System Restoration" (Latest)
+### v0.7.0 — "Shot Trail System" (Latest)
+- **Cue ball trail visualization** — a glowing cyan line traces the cue ball's path during every shot, helping players learn ball control and making spectacular shots more satisfying to watch
+- **Real-time growth animation** — the trail visibly extends frame-by-frame as the ball moves, creating a satisfying "laser draw" effect
+- **Smart distance filtering** — points are only recorded when the ball moves fast enough (`> 0.15`) and far enough from the last point, preventing clutter from tiny jitters
+- **Smooth fade-out** — trails linger for 5 seconds after the shot ends, then ease-out cubic fade to transparent; old trails are automatically cleaned up
+- **Max 3 trails retained** — prevents visual overload during long rallies
+- **UI toggle** — "Trail" checkbox in the top control bar lets players enable/disable trails on demand
+- **Robust edge-case handling** — gracefully stops recording when the cue ball is pocketed, reaches the point buffer limit, or the game is reset
+
+### v0.6.3 — "Collision System Restoration"
 - ✅ **Fixed ball collision SFX double-play** — moved `playBallCollision()` inside the `ball.id < otherBall.id` dedup branch so each collision plays exactly once (was playing twice, once per body)
 - ✅ **Fixed relative velocity calculation** — replaced `Math.abs(v - vOther)` (scalar difference) with `ball.body.velocity.distanceTo(otherBall.body.velocity)` (true vector magnitude). Head-on collisions now correctly report high relative velocity instead of 0
 - ✅ **Fixed accidental shot when releasing mouse over UI** — `InputHandler.handleMouseUp()` now ignores releases over BUTTON/INPUT/SELECT/LABEL elements, preventing unintended shots when the user clicks the stats toggle or AI controls mid-charge

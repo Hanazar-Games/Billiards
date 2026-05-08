@@ -72,6 +72,15 @@ export class UI {
     `;
     this.aiPanel.appendChild(this.trajToggle);
 
+    // Shot trail toggle
+    this.trailToggle = document.createElement('label');
+    this.trailToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;cursor:pointer;margin-left:4px;';
+    this.trailToggle.innerHTML = `
+      <input type="checkbox" id="trail-toggle" checked style="cursor:pointer;">
+      <span>Trail</span>
+    `;
+    this.aiPanel.appendChild(this.trailToggle);
+
     // Sound toggle
     this.soundToggle = document.createElement('label');
     this.soundToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;cursor:pointer;margin-left:4px;border-left:1px solid rgba(255,255,255,0.2);padding-left:10px;';
@@ -101,6 +110,11 @@ export class UI {
     const trajCheckbox = this.trajToggle.querySelector('input');
     trajCheckbox.addEventListener('change', (e) => {
       window.dispatchEvent(new CustomEvent('toggleTrajectory', { detail: e.target.checked }));
+    });
+
+    const trailCheckbox = this.trailToggle.querySelector('input');
+    trailCheckbox.addEventListener('change', (e) => {
+      window.dispatchEvent(new CustomEvent('toggleShotTrail', { detail: e.target.checked }));
     });
 
     const soundCheckbox = this.soundToggle.querySelector('input');

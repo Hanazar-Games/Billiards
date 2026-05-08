@@ -11,6 +11,7 @@ import { TrajectoryPredictor } from './TrajectoryPredictor.js';
 import { StatsTracker } from '../stats/StatsTracker.js';
 import { StatsPanel } from '../stats/StatsPanel.js';
 import { ParticleSystem } from '../fx/ParticleSystem.js';
+import { ShotTrailSystem } from '../fx/ShotTrail.js';
 import { SHOT } from '../config.js';
 
 export class Game {
@@ -32,6 +33,7 @@ export class Game {
     this.statsTracker = new StatsTracker();
     this.statsPanel = new StatsPanel();
     this.particles = new ParticleSystem(this.scene);
+    this.trails = new ShotTrailSystem(this.scene);
 
     this.state = 'AIM'; // AIM, CHARGING, SHOOTING, RESOLVING, AI_THINKING, GAME_OVER
     this.power = 0;
@@ -82,6 +84,9 @@ export class Game {
     );
     window.addEventListener('toggleTrajectory', (e) => {
       if (this.trajectory) this.trajectory.setVisible(e.detail);
+    });
+    window.addEventListener('toggleShotTrail', (e) => {
+      if (this.trails) this.trails.setEnabled(e.detail);
     });
     this.ui.showResetButton(() => this.resetGame());
 
@@ -248,6 +253,7 @@ export class Game {
       this.aimDirection,
       force
     );
+    this.trails.startRecording(cueBall);
 
     this.cue.hide();
     this.trajectory.setVisible(false);
@@ -350,12 +356,18 @@ export class Game {
         }
       }
 
+      const cueBall = this.ballsManager.getCueBall();
+      if (cueBall && !cueBall.pocketed) {
+        this.trails.recordPoint(cueBall);
+      }
+
       if (this.ballsManager.allStopped()) {
         this.resolveTurn(this.turnPocketedIds);
       }
     }
 
-    // Update particles
+    // Update visual effects
+    this.trails.update(dt);
     this.particles.update(dt);
 
     if ((this.state === 'AIM' || this.state === 'CHARGING') && this.cue.visible) {
@@ -365,6 +377,8 @@ export class Game {
   }
 
   resolveTurn(pocketedIds) {
+    this.trails.stopRecording();
+
     const cueBall = this.ballsManager.getCueBall();
     const cuePocketed = cueBall.pocketed;
 
@@ -445,6 +459,7 @@ export class Game {
     this.rules.reset();
     this.statsTracker.reset();
     this.particles.clear();
+    this.trails.clear();
     this.statsPanel.reset();
     this.currentPlayer = 1;
     this.state = 'AIM';
