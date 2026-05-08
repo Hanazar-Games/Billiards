@@ -98,24 +98,29 @@ export class BallsManager {
     return true;
   }
 
+  /**
+   * Check for pocketed balls. Returns array of {id, pocketIndex} objects
+   * so callers know exactly which pocket each ball fell into.
+   */
   checkPockets(pocketPositions) {
-    const pocketedIds = [];
+    const pocketed = [];
     const detectDist = POCKET.radius + POCKET.detectMargin;
 
     for (const ball of this.balls) {
       if (ball.pocketed) continue;
-      for (const pocket of pocketPositions) {
+      for (let pi = 0; pi < pocketPositions.length; pi++) {
+        const pocket = pocketPositions[pi];
         const dx = ball.mesh.position.x - pocket.x;
         const dz = ball.mesh.position.z - pocket.z;
         const distSq = dx * dx + dz * dz;
         if (distSq < detectDist * detectDist) {
           ball.remove();
-          pocketedIds.push(ball.id);
+          pocketed.push({ id: ball.id, pocketIndex: pi });
           break;
         }
       }
     }
-    return pocketedIds;
+    return pocketed;
   }
 
   resetCueBallIfPocketed(preferredX = 0, preferredZ = null) {

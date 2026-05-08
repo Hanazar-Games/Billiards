@@ -44,6 +44,9 @@ export class Game {
     this._tmpVec3a = new THREE.Vector3();
     this._tmpVec3b = new THREE.Vector3();
     this._tmpVec3c = new THREE.Vector3();
+    this._tmpVec3d = new THREE.Vector3();
+
+    this.turnPocketedIds = [];
   }
 
   async init() {
@@ -126,13 +129,14 @@ export class Game {
           }
 
           // Stats & particles during active shot
-          if (this.state === 'SHOOTING' && relVel > 1.0) {
+          // Deduplicate: only record once per collision pair (lower ID is canonical)
+          if (this.state === 'SHOOTING' && relVel > 1.0 && ball.id < otherBall.id) {
             this.statsTracker.recordBallCollision(this.currentPlayer);
-            const contactPos = new THREE.Vector3()
+            this._tmpVec3d
               .copy(ball.mesh.position)
               .add(otherBall.mesh.position)
               .multiplyScalar(0.5);
-            this.particles.spawnCollisionSparks(contactPos, relVel);
+            this.particles.spawnCollisionSparks(this._tmpVec3d, relVel);
           }
         } else if (otherBody.material === this.physics.cushionMaterial) {
           // Ball-cushion collision
@@ -233,6 +237,7 @@ export class Game {
     this.audio.playCueHit(force);
 
     // Stats & effects
+    this.turnPocketedIds = [];
     this.statsTracker.startTurn(this.currentPlayer);
     this.statsTracker.recordShot(this.currentPlayer, force);
     this.particles.spawnChalkDust(
@@ -314,32 +319,30 @@ export class Game {
     this.ballsManager.sync();
 
     if (this.state === 'SHOOTING') {
-      const pocketed = this.ballsManager.checkPockets(this.table.getPocketPositions());
-      if (pocketed.length > 0) {
+      const newlyPocketed = this.ballsManager.checkPockets(this.table.getPocketPositions());
+
+      // Accumulate pocketed ball IDs across frames of a single shot
+      for (const entry of newlyPocketed) {
+        if (!this.turnPocketedIds.includes(entry.id)) {
+          this.turnPocketedIds.push(entry.id);
+        }
+      }
+
+      if (newlyPocketed.length > 0) {
         this.audio.playPocket();
 
-        // Pocket flash particles
+        // Pocket flash particles — use the exact pocket from checkPockets
         const pockets = this.table.getPocketPositions();
-        for (const ballId of pocketed) {
-          const ball = this.ballsManager.getBall(ballId);
-          if (!ball) continue;
-          let nearest = null;
-          let nearestDist = Infinity;
-          for (const p of pockets) {
-            const d = ball.mesh.position.distanceToSquared(p);
-            if (d < nearestDist) {
-              nearestDist = d;
-              nearest = p;
-            }
-          }
-          if (nearest) {
-            this.particles.spawnPocketFlash(nearest);
+        for (const entry of newlyPocketed) {
+          const pocket = pockets[entry.pocketIndex];
+          if (pocket) {
+            this.particles.spawnPocketFlash(pocket);
           }
         }
       }
 
       if (this.ballsManager.allStopped()) {
-        this.resolveTurn(pocketed);
+        this.resolveTurn(this.turnPocketedIds);
       }
     }
 
@@ -358,9 +361,11 @@ export class Game {
 
     const result = this.rules.resolveShot(pocketedIds, cuePocketed);
 
-    // Record stats for this turn
+    // Record stats for this turn (filter out cue ball from pocket stats)
     for (const id of pocketedIds) {
-      this.statsTracker.recordPocket(this.currentPlayer, id);
+      if (id !== 0) {
+        this.statsTracker.recordPocket(this.currentPlayer, id);
+      }
     }
     if (result.foul) {
       this.statsTracker.recordFoul(this.currentPlayer, result.scratch);
@@ -431,7 +436,7 @@ export class Game {
     this.rules.reset();
     this.statsTracker.reset();
     this.particles.clear();
-    this.statsPanel.hide();
+    this.statsPanel.reset();
     this.currentPlayer = 1;
     this.state = 'AIM';
     this.power = 0;

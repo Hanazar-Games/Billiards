@@ -50,9 +50,28 @@ Then open `http://localhost:5173`
 | Build Tool | Vite |
 | Language | JavaScript (ES2022) |
 
-## 📢 Current Version: v0.5.1
+## 📢 Current Version: v0.6.1
 
-### v0.5.1 — "Final Polish" (Latest)
+### v0.6.1 — "Stats & FX Bug-Fix Sweep" (Latest)
+- ✅ **Fixed pocketed balls lost across frames** — `turnPocketedIds` now accumulates all pocketed balls throughout a shot, preventing missed pockets when balls stop at different times
+- ✅ **Fixed pocket flash wrong position** — `checkPockets()` now returns exact `pocketIndex`; flash spawns at the correct pocket instead of using post-removal ball position
+- ✅ **Fixed double-counted ball collisions** — stats and sparks now use `ball.id < otherBall.id` deduplication (cannon-es fires collide on both bodies)
+- ✅ **Fixed cue ball counted as pocketed** — filtered `id !== 0` from `recordPocket` so scratches no longer inflate pocket stats
+- ✅ **Fixed collision sparks white** — each burst now picks a random color from the palette instead of defaulting to white
+- ✅ **Fixed negative/NaN dt crash** — `ParticleSystem.update()` clamps `dt` to `[0, 0.05]` with finiteness check
+- ✅ **Fixed StatsPanel null-reference crashes** — all public methods now guard against missing DOM elements
+- ✅ **Fixed stale stats on new game** — `reset()` clears panel content and collapses it after every `resetGame()`
+- ✅ **Fixed StatsPanel overlapping power bar** — toggle button moved to `bottom: 90px` to clear the power bar container
+- ✅ **Added `user-select: none` to stats panel** — prevents accidental text selection during gameplay
+- ✅ **Added input validation to StatsTracker** — rejects invalid `player` and `power` values with warnings
+- ✅ **Removed unused `sizes`/`colors` arrays from ParticleSystem** — cleans dead allocation code
+
+### v0.6.0 — "Stats & Visual FX Overhaul"
+- **Match Statistics Tracker** — comprehensive stats: shots, pockets, fouls, scratches, power averages, streaks, collisions
+- **Live Stats Panel** — collapsible bottom-right HUD showing real-time match data; auto-expands on game over with winner summary
+- **Visual Particle Effects** — Three.js Points-based FX: chalk dust on cue hit, colorful sparks on ball-ball collisions, golden flash on pocketed balls
+
+### v0.5.1 — "Final Polish"
 - ✅ Removed redundant `trajectoryEnabled` flag — trajectory visibility now directly synced with toggle state
 - ✅ Pocket SFX deduplication — single `playPocket()` call regardless of how many balls drop simultaneously
 - ✅ Removed unused `BALL` import from Game.js

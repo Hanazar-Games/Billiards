@@ -55,7 +55,7 @@ export class ParticleSystem {
 
       data.lifetimes.push(0.25 + Math.random() * 0.35);
       data.maxLifetimes.push(data.lifetimes[i]);
-      data.sizes[i] = 1.2 + Math.random() * 2.0;
+      // size is handled by PointsMaterial.size, not per-particle
     }
 
     const material = new THREE.PointsMaterial({
@@ -79,6 +79,8 @@ export class ParticleSystem {
     if (!this.enabled) return;
 
     const count = Math.min(6 + Math.floor(intensity * 2), 20);
+    if (count <= 0) return;
+
     const data = this._allocParticleData(count);
 
     for (let i = 0; i < count; i++) {
@@ -97,18 +99,17 @@ export class ParticleSystem {
 
       data.lifetimes.push(0.15 + Math.random() * 0.2);
       data.maxLifetimes.push(data.lifetimes[i]);
-      data.sizes[i] = 0.8 + Math.random() * 1.2;
-      data.colors.push(SPARK_COLORS[Math.floor(Math.random() * SPARK_COLORS.length)]);
     }
 
+    // Random color per spark burst
+    const burstColor = SPARK_COLORS[Math.floor(Math.random() * SPARK_COLORS.length)];
     const material = new THREE.PointsMaterial({
-      color: 0xffffff,
+      color: burstColor,
       size: 1.5,
       transparent: true,
       opacity: 0.8,
       depthWrite: false,
       sizeAttenuation: true,
-      vertexColors: false,
     });
 
     this._spawnPoints(data, material, 'spark');
@@ -139,7 +140,7 @@ export class ParticleSystem {
 
       data.lifetimes.push(0.4 + Math.random() * 0.3);
       data.maxLifetimes.push(data.lifetimes[i]);
-      data.sizes[i] = 1.5 + Math.random() * 2;
+      // size is handled by PointsMaterial.size, not per-particle
     }
 
     const material = new THREE.PointsMaterial({
@@ -160,8 +161,6 @@ export class ParticleSystem {
       velocities: [],
       lifetimes: [],
       maxLifetimes: [],
-      sizes: new Float32Array(count),
-      colors: [],
     };
   }
 
@@ -185,7 +184,8 @@ export class ParticleSystem {
     if (this.systems.length === 0) return;
 
     // Clamp dt to prevent explosion on frame drops
-    const safeDt = Math.min(dt, 0.05);
+    const safeDt = Math.max(0, Math.min(Number.isFinite(dt) ? dt : 0, 0.05));
+    if (safeDt === 0) return;
 
     for (let i = this.systems.length - 1; i >= 0; i--) {
       const sys = this.systems[i];

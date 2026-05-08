@@ -42,14 +42,28 @@ export class StatsTracker {
     };
   }
 
+  _validatePlayer(player) {
+    if (player !== 1 && player !== 2) {
+      console.warn('StatsTracker: invalid player', player);
+      return false;
+    }
+    return true;
+  }
+
   /** Call when a player begins their turn (start of aiming). */
   startTurn(player) {
+    if (!this._validatePlayer(player)) return;
     this.currentTurnStart = performance.now();
     this.totalTurns++;
   }
 
   /** Call when a shot is actually taken (ball struck). */
   recordShot(player, power) {
+    if (!this._validatePlayer(player)) return;
+    if (!Number.isFinite(power) || power < 0) {
+      console.warn('StatsTracker: invalid power', power);
+      return;
+    }
     const stats = this.playerStats[player];
     stats.shots++;
     stats.totalPower += power;
@@ -60,6 +74,7 @@ export class StatsTracker {
 
   /** Call for each ball pocketed during a turn. */
   recordPocket(player, ballId) {
+    if (!this._validatePlayer(player)) return;
     const stats = this.playerStats[player];
     stats.ballsPocketed++;
     stats.consecutivePockets++;
@@ -84,12 +99,14 @@ export class StatsTracker {
 
   /** Call when a turn ends with no balls pocketed (not a foul). */
   recordMiss(player) {
+    if (!this._validatePlayer(player)) return;
     this.playerStats[player].consecutivePockets = 0;
     this.matchStats.currentStreak = { player: null, count: 0 };
   }
 
   /** Call when a foul occurs. */
   recordFoul(player, isScratch = false) {
+    if (!this._validatePlayer(player)) return;
     const stats = this.playerStats[player];
     stats.fouls++;
     if (isScratch) {
@@ -101,12 +118,14 @@ export class StatsTracker {
 
   /** Call on ball-ball collision. */
   recordBallCollision(player) {
+    if (!this._validatePlayer(player)) return;
     this.matchStats.totalBallCollisions++;
     this.playerStats[player].ballCollisions++;
   }
 
   /** Call on ball-cushion collision. */
   recordCushionCollision(player) {
+    if (!this._validatePlayer(player)) return;
     this.matchStats.totalCushionCollisions++;
     this.playerStats[player].cushionCollisions++;
   }
@@ -176,7 +195,7 @@ export class StatsTracker {
         pocketRate: fmtPct(p2.shots > 0 ? (p2.ballsPocketed / p2.shots) * 100 : 0),
         streak: p2.maxConsecutivePockets,
       },
-      longestStreak: this.matchStats.longestStreak,
+      longestStreak: { ...this.matchStats.longestStreak },
       totalCollisions: this.matchStats.totalBallCollisions + this.matchStats.totalCushionCollisions,
     };
   }

@@ -21,7 +21,7 @@ export class StatsPanel {
     this.toggleBtn.title = 'Match Statistics';
     this.toggleBtn.style.cssText = `
       position: absolute;
-      bottom: 44px;
+      bottom: 90px;
       right: 12px;
       width: 36px;
       height: 36px;
@@ -52,7 +52,7 @@ export class StatsPanel {
     this.panel = document.createElement('div');
     this.panel.style.cssText = `
       position: absolute;
-      bottom: 58px;
+      bottom: 132px;
       right: 12px;
       width: 260px;
       max-height: 0;
@@ -69,6 +69,7 @@ export class StatsPanel {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       font-size: 13px;
       z-index: 10;
+      user-select: none;
     `;
     uiLayer.appendChild(this.panel);
 
@@ -89,6 +90,7 @@ export class StatsPanel {
   }
 
   toggle() {
+    if (!this.panel || !this.toggleBtn) return;
     this.visible = !this.visible;
     if (this.visible) {
       this.panel.style.maxHeight = '420px';
@@ -104,7 +106,14 @@ export class StatsPanel {
   }
 
   hide() {
+    if (!this.panel) return;
     if (this.visible) this.toggle();
+  }
+
+  reset() {
+    this.lastStats = null;
+    if (this.content) this._renderEmpty();
+    if (this.visible) this.hide();
   }
 
   /**
@@ -112,8 +121,9 @@ export class StatsPanel {
    * @param {Object} stats - output from StatsTracker.getLiveStats()
    */
   update(stats) {
+    if (!this.content) return;
     this.lastStats = stats;
-    if (!stats) return;
+    if (!stats || !stats.player1 || !stats.player2) return;
 
     const p1 = stats.player1;
     const p2 = stats.player2;
@@ -189,6 +199,11 @@ export class StatsPanel {
 
   /** Show end-of-game summary with highlighted winner. */
   showGameOver(summary, aiEnabled) {
+    if (!this.content) return;
+    if (!summary || !summary.player1 || !summary.player2 || !summary.match) {
+      console.warn('StatsPanel.showGameOver: invalid summary', summary);
+      return;
+    }
     this.lastStats = summary;
     if (!this.visible) this.toggle();
 
@@ -242,10 +257,16 @@ export class StatsPanel {
 
   destroy() {
     if (this.toggleBtn && this.toggleBtn.parentNode) {
+      this.toggleBtn.onmouseenter = null;
+      this.toggleBtn.onmouseleave = null;
+      this.toggleBtn.onclick = null;
       this.toggleBtn.parentNode.removeChild(this.toggleBtn);
     }
     if (this.panel && this.panel.parentNode) {
       this.panel.parentNode.removeChild(this.panel);
     }
+    this.toggleBtn = null;
+    this.panel = null;
+    this.content = null;
   }
 }
