@@ -4,7 +4,7 @@ export class AudioManager {
     this.enabled = false;
     this.initialized = false;
     this.bgmNodes = [];
-    this.bgmEnabled = false;
+    this.soundEnabled = false; // unified master switch for all audio
   }
 
   init() {
@@ -18,8 +18,8 @@ export class AudioManager {
     }
   }
 
-  toggleBGM(enabled) {
-    this.bgmEnabled = enabled;
+  toggleSound(enabled) {
+    this.soundEnabled = enabled;
     if (enabled) {
       this.startBGM();
     } else {
@@ -101,8 +101,13 @@ export class AudioManager {
     }
   }
 
+  // Check if sound is enabled before playing any SFX
+  _canPlay() {
+    return this.enabled && this.ctx && this.soundEnabled;
+  }
+
   playCueHit(power = 0.5) {
-    if (!this.enabled || !this.ctx) return;
+    if (!this._canPlay()) return;
     this.resume();
 
     const t = this.ctx.currentTime;
@@ -124,7 +129,7 @@ export class AudioManager {
   }
 
   playBallCollision(velocity = 5) {
-    if (!this.enabled || !this.ctx) return;
+    if (!this._canPlay()) return;
     this.resume();
 
     const intensity = Math.min(velocity / 20, 1);
@@ -148,7 +153,7 @@ export class AudioManager {
   }
 
   playCushionBounce(velocity = 5) {
-    if (!this.enabled || !this.ctx) return;
+    if (!this._canPlay()) return;
     this.resume();
 
     const intensity = Math.min(velocity / 15, 1);
@@ -180,7 +185,7 @@ export class AudioManager {
   }
 
   playPocket() {
-    if (!this.enabled || !this.ctx) return;
+    if (!this._canPlay()) return;
     this.resume();
 
     const t = this.ctx.currentTime;
@@ -214,7 +219,7 @@ export class AudioManager {
   }
 
   playWin() {
-    if (!this.enabled || !this.ctx) return;
+    if (!this._canPlay()) return;
     this.resume();
 
     const notes = [523.25, 659.25, 783.99, 1046.50];
@@ -234,7 +239,7 @@ export class AudioManager {
   }
 
   playFoul() {
-    if (!this.enabled || !this.ctx) return;
+    if (!this._canPlay()) return;
     this.resume();
 
     const t = this.ctx.currentTime;

@@ -122,8 +122,7 @@ export class Rules {
     // Check 8-ball pocketed
     if (pocketedEight) {
       const currentList = this.currentPlayer === 1 ? this.player1Pocketed : this.player2Pocketed;
-      const needed = currentGroup === 'solid' ? 7 : 7;
-      const hasAll = currentList.length >= needed;
+      const hasAll = currentList.length >= 7;
 
       if (!hasAll || this.foul) {
         // Pocketed 8-ball too early or on foul = lose

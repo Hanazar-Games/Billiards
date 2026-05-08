@@ -60,15 +60,17 @@ export class Game {
     this.scene.add(this.cue.mesh);
 
     this.trajectory = new TrajectoryPredictor(this.scene);
+    this.trajectoryEnabled = true;
 
     this.ui.setPlayerTurn(1);
     this.ui.setMessage('Aim with mouse, hold LEFT CLICK to charge, release to shoot. RIGHT CLICK to rotate camera.');
     this.ui.setupAIControls(
       (enabled) => this.setAIEnabled(enabled),
       (difficulty) => this.setAIDifficulty(difficulty),
-      (enabled) => this.audio.toggleBGM(enabled)
+      (enabled) => this.audio.toggleSound(enabled)
     );
     window.addEventListener('toggleTrajectory', (e) => {
+      this.trajectoryEnabled = e.detail;
       if (this.trajectory) this.trajectory.setVisible(e.detail);
     });
     this.ui.showResetButton(() => this.resetGame());
@@ -331,7 +333,7 @@ export class Game {
     this.power = 0;
     this.ui.setPower(0);
     this.cue.show();
-    this.trajectory.setVisible(true);
+    if (this.trajectory) this.trajectory.setVisible(this.trajectoryEnabled);
 
     // Trigger AI if needed
     if (this.aiEnabled && this.currentPlayer === 2) {
@@ -364,7 +366,7 @@ export class Game {
     this.ui.hideResetButton();
     this.ui.showResetButton(() => this.resetGame());
     this.cue.show();
-    this.trajectory.setVisible(true);
+    if (this.trajectory) this.trajectory.setVisible(this.trajectoryEnabled);
   }
 
   render(renderer) {

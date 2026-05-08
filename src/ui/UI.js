@@ -32,7 +32,7 @@ export class UI {
     // AI controls container
     this.aiPanel = document.createElement('div');
     this.aiPanel.style.cssText = `
-      position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
+      position: absolute; top: 135px; left: 50%; transform: translateX(-50%);
       display: flex; gap: 10px; align-items: center;
       pointer-events: auto; background: rgba(0,0,0,0.45);
       padding: 8px 16px; border-radius: 10px;
@@ -72,19 +72,19 @@ export class UI {
     `;
     this.aiPanel.appendChild(this.trajToggle);
 
-    // BGM toggle
-    this.bgmToggle = document.createElement('label');
-    this.bgmToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;cursor:pointer;margin-left:4px;border-left:1px solid rgba(255,255,255,0.2);padding-left:10px;';
-    this.bgmToggle.innerHTML = `
-      <input type="checkbox" id="bgm-toggle" style="cursor:pointer;">
+    // Sound toggle
+    this.soundToggle = document.createElement('label');
+    this.soundToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;cursor:pointer;margin-left:4px;border-left:1px solid rgba(255,255,255,0.2);padding-left:10px;';
+    this.soundToggle.innerHTML = `
+      <input type="checkbox" id="sound-toggle" style="cursor:pointer;">
       <span>Sound</span>
     `;
-    this.aiPanel.appendChild(this.bgmToggle);
+    this.aiPanel.appendChild(this.soundToggle);
 
     document.getElementById('ui-layer').appendChild(this.aiPanel);
   }
 
-  setupAIControls(onAIToggle, onDiffChange, onBGMToggle) {
+  setupAIControls(onAIToggle, onDiffChange, onSoundToggle) {
     const checkbox = this.aiToggle.querySelector('input');
     checkbox.addEventListener('change', (e) => {
       const enabled = e.target.checked;
@@ -103,9 +103,9 @@ export class UI {
       window.dispatchEvent(new CustomEvent('toggleTrajectory', { detail: e.target.checked }));
     });
 
-    const bgmCheckbox = this.bgmToggle.querySelector('input');
-    bgmCheckbox.addEventListener('change', (e) => {
-      if (onBGMToggle) onBGMToggle(e.target.checked);
+    const soundCheckbox = this.soundToggle.querySelector('input');
+    soundCheckbox.addEventListener('change', (e) => {
+      if (onSoundToggle) onSoundToggle(e.target.checked);
     });
   }
 

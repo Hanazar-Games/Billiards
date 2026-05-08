@@ -29,7 +29,7 @@ A browser-based 3D 8-ball pool game built with **Three.js** and **cannon-es** ph
 - White line = cue ball path
 
 ### Sound
-- **"Sound"** toggle enables ambient background atmosphere + SFX
+- **"Sound"** toggle controls all audio: ambient atmosphere + SFX
 - All audio is procedurally generated via Web Audio API (no external files)
 
 ## 🚀 Quick Start
@@ -50,15 +50,23 @@ Then open `http://localhost:5173`
 | Build Tool | Vite |
 | Language | JavaScript (ES2022) |
 
-## 📢 Current Version: v0.4.0
+## 📢 Current Version: v0.5.0
 
-### v0.4.0 — "Polished Table" (Latest)
-- ✅ Fixed trajectory predictor crash when `toPocket` was used as Vector3 instead of `.dir`
-- ✅ Fixed ghost ball clamping logic that placed it at wrong position on angled shots
-- ✅ Fixed too-permissive collision threshold in trajectory raycast (`proj < r` → `proj < 2r`)
-- ✅ Added **ambient background atmosphere** (drone + noise floor) with on/off toggle
-- ✅ Cleaned unused/redundant variables (`rackOrder` duplicate, `player2Label`, `toCue`)
-- ✅ UI control bar now includes: vs AI, Difficulty, Aim Line, Sound
+### v0.5.0 — "Audio & AI Polish" (Latest)
+- ✅ **Sound toggle now controls ALL audio** (BGM + SFX) via master gain node with fade
+- ✅ Fixed AI safety shot logic — AI now only hits legally reachable balls, avoiding self-fouls
+- ✅ Fixed UI overlap between control bar and player badges (`top: 80px` → `top: 135px`)
+- ✅ Aim Line toggle state is now persisted across turns and game resets
+- ✅ Added master gain node to prevent audio clipping when multiple SFX overlap
+- ✅ Cleaned redundant code in Rules (`needed = 7`) and BallsManager (unused THREE import)
+
+### v0.4.0 — "Polished Table"
+- Fixed trajectory predictor crash when `toPocket` was used as Vector3 instead of `.dir`
+- Fixed ghost ball clamping logic that placed it at wrong position on angled shots
+- Fixed too-permissive collision threshold in trajectory raycast (`proj < r` → `proj < 2r`)
+- Added ambient background atmosphere (drone + noise floor) with on/off toggle
+- Cleaned unused/redundant variables
+- UI control bar now includes: vs AI, Difficulty, Aim Line, Sound
 
 ### v0.3.0 — "Smart Opponent"
 - **AI Opponent** with 3 difficulty levels (Easy/Normal/Hard)

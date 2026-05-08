@@ -80,7 +80,7 @@ export class AIPlayer {
 
     if (allShots.length === 0) {
       // No direct shot: try safety or random hit
-      chosenShot = this.planner.findSafetyShot(ballsManager.balls, cueBall, pocketPositions);
+      chosenShot = this.planner.findSafetyShot(ballsManager.balls, cueBall, pocketPositions, playerGroup, isBreak);
       if (!chosenShot) {
         // Desperate: just hit the closest ball
         chosenShot = this.findDesperateShot(ballsManager.balls, cueBall);

@@ -22,15 +22,15 @@ export class ShotPlanner {
 
       const targetType = getBallType(target.id);
 
-      // During break, any ball except 8-ball is valid target for planning
-      // After break, only own group or 8-ball (if cleared)
+      // 8-ball is never a valid target during break
+      if (targetType === BALL_TYPE.EIGHT) continue;
+
+      // After break, only own group balls are valid targets
       if (!isBreak && playerGroup) {
         const ownGroup = playerGroup === 'solid' ? BALL_TYPE.SOLID : BALL_TYPE.STRIPE;
         const hasCleared = this.hasClearedGroup(balls, playerGroup);
 
-        if (targetType === BALL_TYPE.EIGHT) {
-          if (!hasCleared) continue; // can't hit 8-ball yet
-        } else if (targetType !== ownGroup) {
+        if (targetType !== ownGroup) {
           continue; // can't hit opponent's ball first
         }
       }
@@ -40,6 +40,25 @@ export class ShotPlanner {
         const shot = this.evaluateShot(cuePos, target, pocket, balls, pi);
         if (shot) {
           candidates.push(shot);
+        }
+      }
+    }
+
+    // Also consider 8-ball shot if player has cleared their group (and not on break)
+    if (!isBreak && playerGroup) {
+      const hasCleared = this.hasClearedGroup(balls, playerGroup);
+      if (hasCleared) {
+        const eightBall = balls.find(b => b.id === 8 && !b.pocketed);
+        if (eightBall) {
+          for (let pi = 0; pi < pocketPositions.length; pi++) {
+            const pocket = pocketPositions[pi];
+            const shot = this.evaluateShot(cuePos, eightBall, pocket, balls, pi);
+            if (shot) {
+              // Boost 8-ball shot score slightly so AI prioritizes it
+              shot.score += 15;
+              candidates.push(shot);
+            }
+          }
         }
       }
     }

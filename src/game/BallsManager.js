@@ -1,6 +1,5 @@
 import { Ball } from './Ball.js';
 import { BALL, BALL_COLORS, TABLE, POCKET, getBallType, BALL_TYPE } from '../config.js';
-import * as THREE from 'three';
 
 export class BallsManager {
   constructor(physics) {
