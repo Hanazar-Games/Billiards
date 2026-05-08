@@ -8,6 +8,9 @@ import { UI } from '../ui/UI.js';
 import { AudioManager } from '../audio/AudioManager.js';
 import { AIPlayer, AI_DIFFICULTY } from '../ai/AIPlayer.js';
 import { TrajectoryPredictor } from './TrajectoryPredictor.js';
+import { StatsTracker } from '../stats/StatsTracker.js';
+import { StatsPanel } from '../stats/StatsPanel.js';
+import { ParticleSystem } from '../fx/ParticleSystem.js';
 import { SHOT } from '../config.js';
 
 export class Game {
@@ -26,6 +29,9 @@ export class Game {
     this.audio = new AudioManager();
     this.aiPlayer = null;
     this.trajectory = null;
+    this.statsTracker = new StatsTracker();
+    this.statsPanel = new StatsPanel();
+    this.particles = new ParticleSystem(this.scene);
 
     this.state = 'AIM'; // AIM, CHARGING, SHOOTING, RESOLVING, AI_THINKING, GAME_OVER
     this.power = 0;
@@ -60,6 +66,9 @@ export class Game {
     this.scene.add(this.cue.mesh);
 
     this.trajectory = new TrajectoryPredictor(this.scene);
+
+    this.statsTracker.reset();
+    this.particles.clear();
 
     this.ui.setPlayerTurn(1);
     this.ui.setMessage('Aim with mouse, hold LEFT CLICK to charge, release to shoot. RIGHT CLICK to rotate camera.');
@@ -115,10 +124,24 @@ export class Game {
           if (relVel > 0.5) {
             this.audio.playBallCollision(relVel);
           }
+
+          // Stats & particles during active shot
+          if (this.state === 'SHOOTING' && relVel > 1.0) {
+            this.statsTracker.recordBallCollision(this.currentPlayer);
+            const contactPos = new THREE.Vector3()
+              .copy(ball.mesh.position)
+              .add(otherBall.mesh.position)
+              .multiplyScalar(0.5);
+            this.particles.spawnCollisionSparks(contactPos, relVel);
+          }
         } else if (otherBody.material === this.physics.cushionMaterial) {
           // Ball-cushion collision
           if (v > 0.8) {
             this.audio.playCushionBounce(v);
+          }
+
+          if (this.state === 'SHOOTING' && v > 0.5) {
+            this.statsTracker.recordCushionCollision(this.currentPlayer);
           }
         }
       });
@@ -208,6 +231,16 @@ export class Game {
     );
 
     this.audio.playCueHit(force);
+
+    // Stats & effects
+    this.statsTracker.startTurn(this.currentPlayer);
+    this.statsTracker.recordShot(this.currentPlayer, force);
+    this.particles.spawnChalkDust(
+      cueBall.mesh.position,
+      this.aimDirection,
+      force
+    );
+
     this.cue.hide();
     this.trajectory.setVisible(false);
 
@@ -284,12 +317,34 @@ export class Game {
       const pocketed = this.ballsManager.checkPockets(this.table.getPocketPositions());
       if (pocketed.length > 0) {
         this.audio.playPocket();
+
+        // Pocket flash particles
+        const pockets = this.table.getPocketPositions();
+        for (const ballId of pocketed) {
+          const ball = this.ballsManager.getBall(ballId);
+          if (!ball) continue;
+          let nearest = null;
+          let nearestDist = Infinity;
+          for (const p of pockets) {
+            const d = ball.mesh.position.distanceToSquared(p);
+            if (d < nearestDist) {
+              nearestDist = d;
+              nearest = p;
+            }
+          }
+          if (nearest) {
+            this.particles.spawnPocketFlash(nearest);
+          }
+        }
       }
 
       if (this.ballsManager.allStopped()) {
         this.resolveTurn(pocketed);
       }
     }
+
+    // Update particles
+    this.particles.update(dt);
 
     if ((this.state === 'AIM' || this.state === 'CHARGING') && this.cue.visible) {
       this.updateAimDirection();
@@ -303,10 +358,24 @@ export class Game {
 
     const result = this.rules.resolveShot(pocketedIds, cuePocketed);
 
+    // Record stats for this turn
+    for (const id of pocketedIds) {
+      this.statsTracker.recordPocket(this.currentPlayer, id);
+    }
+    if (result.foul) {
+      this.statsTracker.recordFoul(this.currentPlayer, result.scratch);
+    } else if (pocketedIds.length === 0) {
+      this.statsTracker.recordMiss(this.currentPlayer);
+    }
+
     if (result.gameOver) {
       this.state = 'GAME_OVER';
       this.ui.setMessage(result.message);
       this.ui.showResetButton(() => this.resetGame());
+
+      const summary = this.statsTracker.endGame(result.winner);
+      this.statsPanel.showGameOver(summary, this.aiEnabled);
+
       if (result.winner === this.currentPlayer) {
         this.audio.playWin();
       } else {
@@ -336,6 +405,9 @@ export class Game {
     this.cue.show();
     this.trajectory.setVisible(true);
 
+    // Update live stats panel
+    this.statsPanel.update(this.statsTracker.getLiveStats());
+
     // Trigger AI if needed
     if (this.aiEnabled && this.currentPlayer === 2) {
       this.startAITurn();
@@ -357,6 +429,9 @@ export class Game {
     this.setupCollisionEvents();
 
     this.rules.reset();
+    this.statsTracker.reset();
+    this.particles.clear();
+    this.statsPanel.hide();
     this.currentPlayer = 1;
     this.state = 'AIM';
     this.power = 0;
