@@ -135,7 +135,7 @@ export class ShotTrailSystem {
       } else {
         // Ease-out cubic for smoother visual disappearance
         const eased = 1 - (progress * progress * progress);
-        trail.material.opacity = Math.max(0, eased * 0.85);
+        trail.material.opacity = Math.max(0, eased);
       }
     }
   }
@@ -168,11 +168,13 @@ export class ShotTrailSystem {
     const material = new THREE.LineBasicMaterial({
       color: TRAIL_COLOR,
       transparent: true,
-      opacity: 0.85,
+      opacity: 1.0,
       depthWrite: false,
     });
 
     const line = new THREE.Line(geometry, material);
+    line.frustumCulled = false; // bounding sphere is wrong due to sparse buffer
+    line.renderOrder = 10;      // draw on top of most transparent objects
     this.scene.add(line);
 
     return {

@@ -160,7 +160,7 @@ export class AudioManager {
     if (intensity < 0.05) return;
 
     const t = this.ctx.currentTime;
-    const bufferSize = this.ctx.sampleRate * 0.08;
+    const bufferSize = Math.ceil(this.ctx.sampleRate * 0.08);
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
@@ -202,7 +202,7 @@ export class AudioManager {
     osc.start(t);
     osc.stop(t + 0.25);
 
-    const bufferSize = this.ctx.sampleRate * 0.15;
+    const bufferSize = Math.ceil(this.ctx.sampleRate * 0.15);
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
