@@ -1,0 +1,93 @@
+// Game constants - using centimeters for physics stability
+export const SCALE = 100; // 1 meter = 100 units
+
+// Table dimensions (scaled)
+export const TABLE = {
+  width: 2.54 * SCALE,       // 254 cm
+  depth: 1.27 * SCALE,       // 127 cm
+  height: 5,                  // table thickness
+  cushionHeight: 5,           // cushion above surface
+  cushionWidth: 4,            // cushion thickness
+  feltColor: 0x0d5c3a,
+  woodColor: 0x5c3a1e,
+  cushionColor: 0x0a4a2e,
+};
+
+// Ball properties
+export const BALL = {
+  radius: 0.028575 * SCALE,  // 2.8575 cm
+  mass: 0.17,                // kg
+  segments: 32,              // sphere geometry detail
+  restitution: 0.85,
+  friction: 0.15,
+  damping: 0.25,             // linear damping (simulate cloth friction)
+  angularDamping: 0.3,
+  sleepSpeedLimit: 0.15,
+  sleepTimeLimit: 0.3,
+};
+
+// Pocket radius = ~1.5x ball radius (standard pool)
+export const POCKET = {
+  radius: BALL.radius * 1.5,  // ~4.29 cm
+  detectMargin: BALL.radius * 0.6,
+};
+
+// Physics world
+export const PHYSICS = {
+  gravity: new Float32Array([0, -9.82 * SCALE, 0]),
+  fixedTimeStep: 1 / 120,
+  maxSubSteps: 10,
+};
+
+// Ball colors (standard 8-ball set)
+// Solids: 1-7, 8-ball: 8, Stripes: 9-15
+export const BALL_COLORS = {
+  0: 0xffffff,   // cue ball
+  1: 0xffd700,   // yellow solid
+  2: 0x0000ff,   // blue solid
+  3: 0xff0000,   // red solid
+  4: 0x800080,   // purple solid
+  5: 0xff8c00,   // orange solid
+  6: 0x006400,   // green solid
+  7: 0x8b0000,   // maroon solid
+  8: 0x111111,   // black 8-ball
+  9: 0xffd700,   // yellow stripe
+  10: 0x0000ff,  // blue stripe
+  11: 0xff0000,  // red stripe
+  12: 0x800080,  // purple stripe
+  13: 0xff8c00,  // orange stripe
+  14: 0x006400,  // green stripe
+  15: 0x8b0000,  // maroon stripe
+};
+
+// Ball types
+export const BALL_TYPE = {
+  CUE: 0,
+  SOLID: 1,    // 1-7
+  EIGHT: 2,    // 8
+  STRIPE: 3,   // 9-15
+};
+
+export function getBallType(id) {
+  if (id === 0) return BALL_TYPE.CUE;
+  if (id === 8) return BALL_TYPE.EIGHT;
+  if (id >= 1 && id <= 7) return BALL_TYPE.SOLID;
+  if (id >= 9 && id <= 15) return BALL_TYPE.STRIPE;
+  return null;
+}
+
+// Camera
+export const CAMERA = {
+  fov: 45,
+  near: 0.1,
+  far: 10000,
+  defaultPos: [0, 320, 280],
+  lookAt: [0, 0, 0],
+};
+
+// Shooting
+export const SHOT = {
+  maxPower: 100,
+  chargeRate: 150,  // power units per second
+  minPower: 2,
+};

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Billiards v0.2.0</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #app {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #111;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    canvas { display: block; }
+    #ui-layer {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 20px;
+      user-select: none;
+    }
+    #top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    #power-bar-container {
+      position: absolute;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 320px;
+      height: 28px;
+      background: rgba(0,0,0,0.5);
+      border: 2px solid rgba(255,255,255,0.6);
+      border-radius: 14px;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    #power-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #00e676, #ffea00, #ff1744);
+    }
+    #message {
+      text-align: center;
+      font-size: 18px;
+      color: #fff;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+      min-height: 28px;
+      flex: 1;
+      padding: 0 20px;
+      line-height: 1.4;
+    }
+    .player-badge {
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 15px;
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+      text-align: center;
+      transition: all 0.3s ease;
+      min-width: 100px;
+      border: 2px solid transparent;
+    }
+    #player1 { background: rgba(220, 20, 60, 0.75); }
+    #player2 { background: rgba(30, 144, 255, 0.75); }
+    .player-badge.active {
+      border-color: rgba(255,255,255,0.9);
+      box-shadow: 0 0 16px rgba(255,255,255,0.3);
+    }
+    #version-tag {
+      position: absolute;
+      bottom: 10px;
+      right: 14px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="ui-layer">
+    <div id="top-bar">
+      <div id="player1" class="player-badge active">Player 1</div>
+      <div id="message">Aim with mouse, hold LEFT CLICK to charge, release to shoot.<br>RIGHT CLICK to rotate camera.</div>
+      <div id="player2" class="player-badge">Player 2</div>
+    </div>
+    <div id="power-bar-container">
+      <div id="power-bar-fill"></div>
+    </div>
+    <div id="version-tag">v0.2.0</div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
