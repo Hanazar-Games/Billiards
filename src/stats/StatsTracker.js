@@ -152,12 +152,12 @@ export class StatsTracker {
       player1: {
         ...p1,
         avgPower: p1.shots > 0 ? p1.totalPower / p1.shots : 0,
-        pocketRate: p1.shots > 0 ? (p1.ballsPocketed / p1.shots) * 100 : 0,
+        pocketRate: p1.shots > 0 ? Math.min(100, (p1.ballsPocketed / p1.shots) * 100) : 0,
       },
       player2: {
         ...p2,
         avgPower: p2.shots > 0 ? p2.totalPower / p2.shots : 0,
-        pocketRate: p2.shots > 0 ? (p2.ballsPocketed / p2.shots) * 100 : 0,
+        pocketRate: p2.shots > 0 ? Math.min(100, (p2.ballsPocketed / p2.shots) * 100) : 0,
       },
       match: { ...this.matchStats },
     };
@@ -182,7 +182,7 @@ export class StatsTracker {
         scratches: p1.scratches,
         avgPower: fmt(p1.shots > 0 ? p1.totalPower / p1.shots : 0),
         maxPower: Math.round(p1.maxPower),
-        pocketRate: fmtPct(p1.shots > 0 ? (p1.ballsPocketed / p1.shots) * 100 : 0),
+        pocketRate: fmtPct(p1.shots > 0 ? Math.min(100, (p1.ballsPocketed / p1.shots) * 100) : 0),
         streak: p1.maxConsecutivePockets,
       },
       player2: {
@@ -192,7 +192,7 @@ export class StatsTracker {
         scratches: p2.scratches,
         avgPower: fmt(p2.shots > 0 ? p2.totalPower / p2.shots : 0),
         maxPower: Math.round(p2.maxPower),
-        pocketRate: fmtPct(p2.shots > 0 ? (p2.ballsPocketed / p2.shots) * 100 : 0),
+        pocketRate: fmtPct(p2.shots > 0 ? Math.min(100, (p2.ballsPocketed / p2.shots) * 100) : 0),
         streak: p2.maxConsecutivePockets,
       },
       longestStreak: { ...this.matchStats.longestStreak },

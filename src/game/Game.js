@@ -111,7 +111,8 @@ export class Game {
   setupCollisionEvents() {
     for (const ball of this.ballsManager.balls) {
       ball.body.addEventListener('collide', (e) => {
-        const otherBody = e.body === e.contact.bi ? e.contact.bj : e.contact.bi;
+        // In cannon-es, e.body is ALREADY the other body involved in the collision
+        const otherBody = e.body;
         const otherBall = this.ballsManager.balls.find(b => b.body === otherBody);
         const v = ball.body.velocity.length();
 
@@ -274,6 +275,8 @@ export class Game {
 
     await this.aiPlayer.delay(400); // brief aim pause
 
+    if (this.state !== 'AI_THINKING') return; // game may have been reset
+
     // Charge
     this.state = 'CHARGING';
     this.charging = true;
@@ -332,8 +335,12 @@ export class Game {
         this.audio.playPocket();
 
         // Pocket flash particles — use the exact pocket from checkPockets
+        // Deduplicate: multiple balls in same pocket = one flash
         const pockets = this.table.getPocketPositions();
+        const flashed = new Set();
         for (const entry of newlyPocketed) {
+          if (flashed.has(entry.pocketIndex)) continue;
+          flashed.add(entry.pocketIndex);
           const pocket = pockets[entry.pocketIndex];
           if (pocket) {
             this.particles.spawnPocketFlash(pocket);

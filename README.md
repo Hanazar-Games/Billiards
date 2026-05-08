@@ -50,9 +50,23 @@ Then open `http://localhost:5173`
 | Build Tool | Vite |
 | Language | JavaScript (ES2022) |
 
-## 📢 Current Version: v0.6.1
+## 📢 Current Version: v0.6.2
 
-### v0.6.1 — "Stats & FX Bug-Fix Sweep" (Latest)
+### v0.6.2 — "The Silent Killer Fix" (Latest)
+- 🚨 **FIXED: collision `otherBody` computation was completely inverted** — In cannon-es, `e.body` is ALREADY the other body. The ternary `e.body === e.contact.bi ? e.contact.bj : e.contact.bi` was returning the listener's own body 100% of the time. This meant:
+  - **Ball-ball collision SFX never played** (relVel was always 0)
+  - **First-hit tracking never worked** — `recordFirstHit()` was never called, so "hit wrong group first" fouls were never detected
+  - **Collision sparks never spawned**
+  - **Ball-cushion SFX never played** — the cushion branch was unreachable
+  - **Stats collision counters were always zero**
+- ✅ **Fixed: `const otherBody = e.body`** — All SFX, first-hit detection, sparks, and collision stats now work correctly for the first time
+- ✅ **Fixed AI turn race condition** — `startAITurn()` now guards against `resetGame()` being called during the 400ms aim pause
+- ✅ **Fixed pocket flash stacking** — multiple balls dropping into the same pocket now trigger only one flash (prevents opaque gold blob)
+- ✅ **Fixed StatsPanel content overflow** — `max-height` increased from 420px to 520px so all stats rows are visible
+- ✅ **Fixed "Turns:" label → "Shots:"** — accurately reflects that `totalTurns` counts shots, not turns
+- ✅ **Fixed pocketRate cap** — capped at 100% display (previously could show 200%+ after multi-ball shots)
+
+### v0.6.1 — "Stats & FX Bug-Fix Sweep"
 - ✅ **Fixed pocketed balls lost across frames** — `turnPocketedIds` now accumulates all pocketed balls throughout a shot, preventing missed pockets when balls stop at different times
 - ✅ **Fixed pocket flash wrong position** — `checkPockets()` now returns exact `pocketIndex`; flash spawns at the correct pocket instead of using post-removal ball position
 - ✅ **Fixed double-counted ball collisions** — stats and sparks now use `ball.id < otherBall.id` deduplication (cannon-es fires collide on both bodies)

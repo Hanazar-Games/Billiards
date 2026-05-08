@@ -62,7 +62,7 @@ export class StatsPanel {
       border-radius: 12px;
       backdrop-filter: blur(10px);
       pointer-events: auto;
-      transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.25s ease;
+      transition: max-height 0.35s ease, opacity 0.25s ease;
       opacity: 0;
       padding: 0 14px;
       color: #fff;
@@ -93,7 +93,7 @@ export class StatsPanel {
     if (!this.panel || !this.toggleBtn) return;
     this.visible = !this.visible;
     if (this.visible) {
-      this.panel.style.maxHeight = '420px';
+      this.panel.style.maxHeight = '520px';
       this.panel.style.opacity = '1';
       this.panel.style.padding = '0 14px';
       this.toggleBtn.style.background = 'rgba(255,255,255,0.25)';
@@ -160,7 +160,7 @@ export class StatsPanel {
 
       <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1);">
         <div style="display:flex;justify-content:space-between;font-size:11px;">
-          <span style="color:rgba(255,255,255,0.5);">Turns:</span>
+          <span style="color:rgba(255,255,255,0.5);">Shots:</span>
           <span>${stats.totalTurns}</span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:3px;">
@@ -231,7 +231,7 @@ export class StatsPanel {
       </div>
 
       <div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.4);">
-        Total turns: ${summary.totalTurns} · Collisions: ${summary.match.totalBallCollisions + summary.match.totalCushionCollisions}
+        Total shots: ${summary.totalTurns} · Collisions: ${summary.match.totalBallCollisions + summary.match.totalCushionCollisions}
       </div>
     `;
   }
