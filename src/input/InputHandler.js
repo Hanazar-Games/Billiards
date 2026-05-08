@@ -47,7 +47,11 @@ export class InputHandler {
   handleMouseUp(e) {
     if (e.button === 0 && this.isDown) {
       this.isDown = false;
-      if (this.onMouseUp) this.onMouseUp();
+      // Don't trigger shot if released over interactive UI elements (buttons, inputs, selects)
+      const tag = e.target.tagName;
+      if (tag !== 'BUTTON' && tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'LABEL') {
+        if (this.onMouseUp) this.onMouseUp();
+      }
     } else if (e.button === 2 && this.rightDown) {
       this.rightDown = false;
       if (this.onRightMouseUp) this.onRightMouseUp();

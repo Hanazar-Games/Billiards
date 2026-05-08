@@ -118,26 +118,28 @@ export class Game {
 
         if (otherBall) {
           // Ball-ball collision
-          const relVel = Math.abs(v - otherBall.body.velocity.length());
+          // True relative velocity = vector difference magnitude (not scalar diff)
+          const relVel = ball.body.velocity.distanceTo(otherBall.body.velocity);
 
           // First hit tracking (only for cue ball)
           if (ball.id === 0 && otherBall.id !== 0) {
             this.rules.recordFirstHit(otherBall.id);
           }
 
-          if (relVel > 0.5) {
-            this.audio.playBallCollision(relVel);
-          }
-
-          // Stats & particles during active shot
-          // Deduplicate: only record once per collision pair (lower ID is canonical)
-          if (this.state === 'SHOOTING' && relVel > 1.0 && ball.id < otherBall.id) {
-            this.statsTracker.recordBallCollision(this.currentPlayer);
-            this._tmpVec3d
-              .copy(ball.mesh.position)
-              .add(otherBall.mesh.position)
-              .multiplyScalar(0.5);
-            this.particles.spawnCollisionSparks(this._tmpVec3d, relVel);
+          // Deduplicate: cannon-es fires collide on BOTH bodies.
+          // Use lower ID as canonical to process each pair exactly once.
+          if (ball.id < otherBall.id) {
+            if (relVel > 0.5) {
+              this.audio.playBallCollision(relVel);
+            }
+            if (this.state === 'SHOOTING' && relVel > 1.0) {
+              this.statsTracker.recordBallCollision(this.currentPlayer);
+              this._tmpVec3d
+                .copy(ball.mesh.position)
+                .add(otherBall.mesh.position)
+                .multiplyScalar(0.5);
+              this.particles.spawnCollisionSparks(this._tmpVec3d, relVel);
+            }
           }
         } else if (otherBody.material === this.physics.cushionMaterial) {
           // Ball-cushion collision

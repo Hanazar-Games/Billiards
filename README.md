@@ -50,9 +50,14 @@ Then open `http://localhost:5173`
 | Build Tool | Vite |
 | Language | JavaScript (ES2022) |
 
-## 📢 Current Version: v0.6.2
+## 📢 Current Version: v0.6.3
 
-### v0.6.2 — "The Silent Killer Fix" (Latest)
+### v0.6.3 — "Collision System Restoration" (Latest)
+- ✅ **Fixed ball collision SFX double-play** — moved `playBallCollision()` inside the `ball.id < otherBall.id` dedup branch so each collision plays exactly once (was playing twice, once per body)
+- ✅ **Fixed relative velocity calculation** — replaced `Math.abs(v - vOther)` (scalar difference) with `ball.body.velocity.distanceTo(otherBall.body.velocity)` (true vector magnitude). Head-on collisions now correctly report high relative velocity instead of 0
+- ✅ **Fixed accidental shot when releasing mouse over UI** — `InputHandler.handleMouseUp()` now ignores releases over BUTTON/INPUT/SELECT/LABEL elements, preventing unintended shots when the user clicks the stats toggle or AI controls mid-charge
+
+### v0.6.2 — "The Silent Killer Fix"
 - 🚨 **FIXED: collision `otherBody` computation was completely inverted** — In cannon-es, `e.body` is ALREADY the other body. The ternary `e.body === e.contact.bi ? e.contact.bj : e.contact.bi` was returning the listener's own body 100% of the time. This meant:
   - **Ball-ball collision SFX never played** (relVel was always 0)
   - **First-hit tracking never worked** — `recordFirstHit()` was never called, so "hit wrong group first" fouls were never detected
