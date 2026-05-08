@@ -45,7 +45,6 @@ export class Rules {
 
     const currentGroup = this.currentPlayer === 1 ? this.player1Group : this.player2Group;
     const opponent = this.currentPlayer === 1 ? 2 : 1;
-    const opponentGroup = this.currentPlayer === 1 ? this.player2Group : this.player1Group;
 
     let pocketedOwn = 0;
     let pocketedOpponent = 0;
@@ -58,13 +57,6 @@ export class Rules {
       } else if (type === BALL_TYPE.SOLID) {
         if (currentGroup === 'solid') pocketedOwn++;
         else if (currentGroup === 'stripe') pocketedOpponent++;
-        else {
-          // Group not yet assigned
-          if (this.breakShot) {
-            // On break, assign groups based on who pockets what first
-            // We handle assignment after the loop
-          }
-        }
       } else if (type === BALL_TYPE.STRIPE) {
         if (currentGroup === 'stripe') pocketedOwn++;
         else if (currentGroup === 'solid') pocketedOpponent++;
@@ -147,9 +139,9 @@ export class Rules {
         this.foul = true;
       }
 
-      if (pocketedIds.length === 0 && !this.foul) {
-        // No ball pocketed and no cushion contact after hit = foul
-        // (Simplified: we skip cushion contact check for now)
+      // No ball hit at all = foul (simplified: no cushion contact check)
+      if (this.firstBallHit === null && pocketedIds.length === 0 && !this.foul) {
+        this.foul = true;
       }
     }
 

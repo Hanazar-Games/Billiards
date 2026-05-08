@@ -29,7 +29,7 @@ A browser-based 3D 8-ball pool game built with **Three.js** and **cannon-es** ph
 - White line = cue ball path
 
 ### Sound
-- **"Sound"** toggle controls all audio: ambient atmosphere + SFX
+- **"Sound"** toggle enables all audio: ambient background atmosphere + SFX
 - All audio is procedurally generated via Web Audio API (no external files)
 
 ## 🚀 Quick Start
@@ -50,23 +50,28 @@ Then open `http://localhost:5173`
 | Build Tool | Vite |
 | Language | JavaScript (ES2022) |
 
-## 📢 Current Version: v0.5.0
+## 📢 Current Version: v0.5.1
 
-### v0.5.0 — "Audio & AI Polish" (Latest)
-- ✅ **Sound toggle now controls ALL audio** (BGM + SFX) via master gain node with fade
-- ✅ Fixed AI safety shot logic — AI now only hits legally reachable balls, avoiding self-fouls
-- ✅ Fixed UI overlap between control bar and player badges (`top: 80px` → `top: 135px`)
-- ✅ Aim Line toggle state is now persisted across turns and game resets
-- ✅ Added master gain node to prevent audio clipping when multiple SFX overlap
-- ✅ Cleaned redundant code in Rules (`needed = 7`) and BallsManager (unused THREE import)
+### v0.5.1 — "Final Polish" (Latest)
+- ✅ Removed redundant `trajectoryEnabled` flag — trajectory visibility now directly synced with toggle state
+- ✅ Pocket SFX deduplication — single `playPocket()` call regardless of how many balls drop simultaneously
+- ✅ Removed unused `BALL` import from Game.js
+- ✅ Removed unused `opponentGroup` variable from Rules.js
+- ✅ Cleaned empty comment block in break shot handling
+- ✅ Added "no ball hit" foul rule — cue ball missing all balls with no pocket now correctly awards foul
+
+### v0.5.0 — "Audio & AI Polish"
+- **Sound toggle now controls ALL audio** — BGM ambience + all SFX unified under one master switch with `_canPlay()` guard
+- **Fixed AI break shot targeting 8-ball** — break shot correctly excludes 8-ball; AI only attempts 8-ball after clearing its group
+- **Fixed AI safety shot awareness** — `safetyAwareness` difficulty setting now actually used
+- **Fixed UI overlap** — top control bar stays clear of player badges on all screen sizes
+- **Trajectory state persistence** — aim line toggle state preserved across turns and resets
 
 ### v0.4.0 — "Polished Table"
 - Fixed trajectory predictor crash when `toPocket` was used as Vector3 instead of `.dir`
 - Fixed ghost ball clamping logic that placed it at wrong position on angled shots
-- Fixed too-permissive collision threshold in trajectory raycast (`proj < r` → `proj < 2r`)
+- Fixed too-permissive collision threshold in trajectory raycast
 - Added ambient background atmosphere (drone + noise floor) with on/off toggle
-- Cleaned unused/redundant variables
-- UI control bar now includes: vs AI, Difficulty, Aim Line, Sound
 
 ### v0.3.0 — "Smart Opponent"
 - **AI Opponent** with 3 difficulty levels (Easy/Normal/Hard)
@@ -74,7 +79,6 @@ Then open `http://localhost:5173`
 - AI thinks, aims, charges, and shoots autonomously
 - AI difficulty affects angle accuracy, power consistency, and mistake rate
 - AI falls back to safety shots when no direct pocket is available
-- Top control bar: AI toggle, difficulty selector, aim line toggle
 
 ### v0.2.0 — "First Playable"
 - Complete 8-ball rule engine (group assignment, fouls, win/lose)
@@ -87,7 +91,6 @@ Then open `http://localhost:5173`
 - Table legs and improved lighting (3-point setup)
 - Cue ball respawn with collision avoidance
 - "New Game" reset button
-- Physics: linear factor locked to Y=0 to prevent ball jumping
 
 ---
 
