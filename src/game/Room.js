@@ -1,11 +1,7 @@
 /**
  * Room — Environmental geometry surrounding the pool table.
  *
- * Creates:
- *  - Floor (dark wood)
- *  - 4 walls with subtle texture
- *  - Ceiling with a hanging lamp fixture
- *  - Baseboards along walls
+ * Creates an open studio floor and a row of table lights.
  */
 import * as THREE from 'three';
 import { TABLE } from '../config.js';
@@ -14,8 +10,7 @@ export class Room {
   constructor() {
     this.meshGroup = new THREE.Group();
     this.createFloor();
-    this.createWalls();
-    this.createCeilingLamp();
+    this.createTableLights();
   }
 
   addToScene(scene) {
@@ -23,12 +18,12 @@ export class Room {
   }
 
   createFloor() {
-    const width = TABLE.width * 3;
-    const depth = TABLE.depth * 3;
+    const width = TABLE.width * 4.2;
+    const depth = TABLE.depth * 4.2;
     const geometry = new THREE.PlaneGeometry(width, depth);
     const material = new THREE.MeshStandardMaterial({
-      color: 0x1a1a1a,
-      roughness: 0.9,
+      color: 0x141414,
+      roughness: 0.72,
       metalness: 0.05,
     });
     const mesh = new THREE.Mesh(geometry, material);
@@ -36,111 +31,65 @@ export class Room {
     mesh.position.y = -TABLE.height - 60; // below table legs
     mesh.receiveShadow = true;
     this.meshGroup.add(mesh);
+
+    this.createFloorLines(width, depth);
   }
 
-  createWalls() {
-    const wallH = 200;
-    const wallThickness = 5;
-    const roomW = TABLE.width * 2.5;
-    const roomD = TABLE.depth * 2.5;
-    const floorY = -TABLE.height - 60;
-
-    const wallMat = new THREE.MeshStandardMaterial({
-      color: 0x2a2a2a,
-      roughness: 0.95,
+  createFloorLines(width, depth) {
+    const lineMat = new THREE.MeshStandardMaterial({
+      color: 0x262626,
+      roughness: 0.8,
       metalness: 0.0,
     });
 
-    // Back wall (negative Z)
-    const backWall = new THREE.Mesh(
-      new THREE.BoxGeometry(roomW, wallH, wallThickness),
-      wallMat
-    );
-    backWall.position.set(0, floorY + wallH / 2, -roomD / 2);
-    backWall.receiveShadow = true;
-    this.meshGroup.add(backWall);
+    for (let x = -width / 2; x <= width / 2; x += 48) {
+      const line = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.2, depth), lineMat);
+      line.position.set(x, -TABLE.height - 59.85, 0);
+      this.meshGroup.add(line);
+    }
 
-    // Front wall (positive Z)
-    const frontWall = new THREE.Mesh(
-      new THREE.BoxGeometry(roomW, wallH, wallThickness),
-      wallMat
-    );
-    frontWall.position.set(0, floorY + wallH / 2, roomD / 2);
-    frontWall.receiveShadow = true;
-    this.meshGroup.add(frontWall);
-
-    // Left wall
-    const leftWall = new THREE.Mesh(
-      new THREE.BoxGeometry(wallThickness, wallH, roomD),
-      wallMat
-    );
-    leftWall.position.set(-roomW / 2, floorY + wallH / 2, 0);
-    leftWall.receiveShadow = true;
-    this.meshGroup.add(leftWall);
-
-    // Right wall
-    const rightWall = new THREE.Mesh(
-      new THREE.BoxGeometry(wallThickness, wallH, roomD),
-      wallMat
-    );
-    rightWall.position.set(roomW / 2, floorY + wallH / 2, 0);
-    rightWall.receiveShadow = true;
-    this.meshGroup.add(rightWall);
-
-    // Baseboards
-    const baseH = 12;
-    const baseMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f, roughness: 0.8 });
-
-    [
-      [0, floorY + baseH / 2, -roomD / 2 + wallThickness / 2, roomW, baseH, wallThickness],
-      [0, floorY + baseH / 2, roomD / 2 - wallThickness / 2, roomW, baseH, wallThickness],
-      [-roomW / 2 + wallThickness / 2, floorY + baseH / 2, 0, wallThickness, baseH, roomD],
-      [roomW / 2 - wallThickness / 2, floorY + baseH / 2, 0, wallThickness, baseH, roomD],
-    ].forEach(([x, y, z, w, h, d]) => {
-      const base = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), baseMat);
-      base.position.set(x, y, z);
-      this.meshGroup.add(base);
-    });
+    for (let z = -depth / 2; z <= depth / 2; z += 48) {
+      const line = new THREE.Mesh(new THREE.BoxGeometry(width, 0.2, 0.8), lineMat);
+      line.position.set(0, -TABLE.height - 59.8, z);
+      this.meshGroup.add(line);
+    }
   }
 
-  createCeilingLamp() {
-    const lampY = 180;
-    const roomW = TABLE.width * 2.5;
-    const roomD = TABLE.depth * 2.5;
-
-    // Ceiling plane
-    const ceilingGeo = new THREE.PlaneGeometry(roomW, roomD);
-    const ceilingMat = new THREE.MeshStandardMaterial({
-      color: 0x222222,
-      roughness: 0.9,
-      side: THREE.DoubleSide,
+  createTableLights() {
+    const railY = 178;
+    const glowMat = new THREE.MeshStandardMaterial({
+      color: 0xfff1cc,
+      emissive: 0xffd98a,
+      emissiveIntensity: 1.8,
+      roughness: 0.2,
     });
-    const ceiling = new THREE.Mesh(ceilingGeo, ceilingMat);
-    ceiling.rotation.x = Math.PI / 2;
-    ceiling.position.y = lampY + 20;
-    this.meshGroup.add(ceiling);
 
-    // Lamp fixture (simple box)
-    const fixtureMat = new THREE.MeshStandardMaterial({
-      color: 0x111111,
-      roughness: 0.4,
-      metalness: 0.6,
+    const crossbarMat = new THREE.MeshStandardMaterial({
+      color: 0x2b2418,
+      emissive: 0x4a3214,
+      emissiveIntensity: 0.35,
+      roughness: 0.45,
+      metalness: 0.25,
     });
-    const fixture = new THREE.Mesh(
-      new THREE.BoxGeometry(80, 8, 140),
-      fixtureMat
-    );
-    fixture.position.set(0, lampY, 0);
-    fixture.castShadow = true;
-    this.meshGroup.add(fixture);
+    const crossbar = new THREE.Mesh(new THREE.BoxGeometry(4, 3, TABLE.depth * 0.68), crossbarMat);
+    crossbar.position.set(0, railY + 14, 0);
+    this.meshGroup.add(crossbar);
 
-    // Warm point light from lamp
-    const lampLight = new THREE.PointLight(0xffddaa, 0.8, 500);
-    lampLight.position.set(0, lampY - 10, 0);
-    lampLight.castShadow = true;
-    lampLight.shadow.mapSize.width = 1024;
-    lampLight.shadow.mapSize.height = 1024;
-    this.meshGroup.add(lampLight);
+    const lampZs = [-TABLE.depth * 0.3, 0, TABLE.depth * 0.3];
+    for (const z of lampZs) {
+      const diffuser = new THREE.Mesh(new THREE.CylinderGeometry(13, 13, 1.5, 32), glowMat);
+      diffuser.position.set(0, railY - 8.5, z);
+      this.meshGroup.add(diffuser);
+
+      const spot = new THREE.SpotLight(0xffe4b0, 1.25, 420, Math.PI / 4.8, 0.55, 1.4);
+      spot.position.set(0, railY - 8, z);
+      spot.target.position.set(0, 0, z * 0.18);
+      spot.castShadow = false;
+      spot.shadow.mapSize.width = 1024;
+      spot.shadow.mapSize.height = 1024;
+      this.meshGroup.add(spot);
+      this.meshGroup.add(spot.target);
+    }
   }
 
   dispose() {

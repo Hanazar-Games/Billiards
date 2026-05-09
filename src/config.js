@@ -3,8 +3,8 @@ export const SCALE = 100; // 1 meter = 100 units
 
 // Table dimensions (scaled)
 export const TABLE = {
-  width: 2.54 * SCALE,       // 254 cm
-  depth: 1.27 * SCALE,       // 127 cm
+  width: 1.27 * SCALE,       // 127 cm across the short rail (X axis)
+  depth: 2.54 * SCALE,       // 254 cm along the break direction (Z axis)
   height: 5,                  // table thickness
   cushionHeight: 5,           // cushion above surface
   cushionWidth: 4,            // cushion thickness
@@ -20,10 +20,15 @@ export const BALL = {
   segments: 32,              // sphere geometry detail
   restitution: 0.85,
   friction: 0.15,
-  damping: 0.25,             // linear damping (simulate cloth friction)
-  angularDamping: 0.3,
-  sleepSpeedLimit: 0.15,
-  sleepTimeLimit: 0.3,
+  damping: 0.42,             // linear damping (simulate cloth friction)
+  angularDamping: 0.5,
+  sleepSpeedLimit: 0.18,
+  sleepTimeLimit: 0.22,
+  slowBrakeSpeed: 1.15,       // extra braking below this speed to avoid long crawling
+  slowBrakeStrength: 3.8,
+  stopSpeedLimit: 0.28,
+  maxSpeed: 520,
+  boundaryRestitution: 0.48,
 };
 
 // Pocket radius = ~1.5x ball radius (standard pool)
@@ -35,8 +40,8 @@ export const POCKET = {
 // Physics world
 export const PHYSICS = {
   gravity: new Float32Array([0, -9.82 * SCALE, 0]),
-  fixedTimeStep: 1 / 120,
-  maxSubSteps: 10,
+  fixedTimeStep: 1 / 240,
+  maxSubSteps: 20,
 };
 
 // Ball colors (standard 8-ball set)

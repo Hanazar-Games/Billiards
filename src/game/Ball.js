@@ -87,6 +87,7 @@ export class Ball {
   applyImpulse(x, y, z, spinX = 0, spinZ = 0) {
     this.body.wakeUp();
     this.body.applyImpulse(new CANNON.Vec3(x, y, z), this.body.position);
+    this.limitSpeed();
 
     // Apply spin as angular velocity
     // spinX and spinZ are in range [-1, 1]
@@ -94,6 +95,44 @@ export class Ball {
     const maxSpin = 15;
     this.body.angularVelocity.x += spinZ * maxSpin;
     this.body.angularVelocity.z -= spinX * maxSpin;
+  }
+
+  limitSpeed() {
+    const v = this.body.velocity;
+    const speedSq = v.x * v.x + v.z * v.z;
+    const maxSq = BALL.maxSpeed * BALL.maxSpeed;
+    if (speedSq > maxSq) {
+      const scale = BALL.maxSpeed / Math.sqrt(speedSq);
+      v.x *= scale;
+      v.z *= scale;
+    }
+    v.y = 0;
+  }
+
+  applyLowSpeedBrake(dt) {
+    if (this.pocketed) return;
+
+    this.limitSpeed();
+
+    const v = this.body.velocity;
+    const av = this.body.angularVelocity;
+    const speed = Math.sqrt(v.x * v.x + v.z * v.z);
+
+    if (speed > 0 && speed < BALL.slowBrakeSpeed) {
+      const factor = Math.max(0, 1 - BALL.slowBrakeStrength * dt);
+      v.x *= factor;
+      v.z *= factor;
+      av.x *= factor;
+      av.y *= factor;
+      av.z *= factor;
+    }
+
+    const angularSpeed = av.length();
+    if (speed < BALL.stopSpeedLimit && angularSpeed < 1.2) {
+      v.set(0, 0, 0);
+      av.set(0, 0, 0);
+      this.body.sleep();
+    }
   }
 
   sync() {

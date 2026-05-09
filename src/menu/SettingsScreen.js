@@ -22,27 +22,28 @@ export class SettingsScreen {
       display: none; flex-direction: column;
       align-items: center; justify-content: center;
       width: 100%; height: 100%;
-      transition: opacity 0.3s ease;
+      transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.2,0.8,0.2,1);
+      position: relative;
+      z-index: 1;
     `;
 
     // Title
     const title = document.createElement('div');
     title.style.cssText = `
-      font-size: 36px; font-weight: 700; color: #fff;
-      margin-bottom: 48px; letter-spacing: 2px;
+      font-size: 34px; font-weight: 850; color: #f4f7f4;
+      margin-bottom: 28px; letter-spacing: 1px;
+      text-shadow: 0 12px 34px rgba(0,0,0,0.42);
     `;
     title.textContent = '设置';
     this.container.appendChild(title);
 
     // Settings panel
     const panel = document.createElement('div');
+    panel.className = 'panel-surface';
     panel.style.cssText = `
-      width: 360px; padding: 28px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 16px;
-      backdrop-filter: blur(12px);
+      width: min(380px, calc(100vw - 48px)); padding: 24px;
       display: flex; flex-direction: column; gap: 20px;
+      animation: panelIn 260ms cubic-bezier(0.2,0.8,0.2,1) both;
     `;
 
     // Sound toggle row
@@ -53,7 +54,7 @@ export class SettingsScreen {
     `;
 
     const soundLabel = document.createElement('span');
-    soundLabel.style.cssText = 'font-size: 16px; color: #fff;';
+    soundLabel.style.cssText = 'font-size: 15px; color: #f4f7f4; font-weight: 700;';
     soundLabel.textContent = '游戏音效';
     soundRow.appendChild(soundLabel);
 
@@ -62,7 +63,7 @@ export class SettingsScreen {
     this.soundToggle.checked = false;
     this.soundToggle.style.cssText = `
       width: 44px; height: 24px; cursor: pointer;
-      accent-color: #00e676;
+      accent-color: #18a46a;
     `;
     this.soundToggle.addEventListener('change', (e) => {
       if (this.audio) {
@@ -74,27 +75,18 @@ export class SettingsScreen {
 
     // Divider
     const divider = document.createElement('div');
-    divider.style.cssText = 'height: 1px; background: rgba(255,255,255,0.1);';
+    divider.style.cssText = 'height: 1px; background: rgba(255,255,255,0.12);';
     panel.appendChild(divider);
 
     // Back button
     const backBtn = document.createElement('button');
     backBtn.textContent = '返回';
+    backBtn.className = 'ui-action';
     backBtn.style.cssText = `
       width: 100%; padding: 14px 0;
-      font-size: 16px; font-weight: 600; color: #fff;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 10px;
-      cursor: pointer; transition: all 0.2s;
+      font-size: 15px; font-weight: 750;
       pointer-events: auto;
     `;
-    backBtn.onmouseenter = () => {
-      backBtn.style.background = 'rgba(255,255,255,0.2)';
-    };
-    backBtn.onmouseleave = () => {
-      backBtn.style.background = 'rgba(255,255,255,0.1)';
-    };
     backBtn.onclick = () => {
       this.hide();
       if (this.onBack) this.onBack();
@@ -109,8 +101,10 @@ export class SettingsScreen {
     if (!this.container) return;
     this.container.style.display = 'flex';
     this.container.style.opacity = '0';
+    this.container.style.transform = 'translateY(8px)';
     requestAnimationFrame(() => {
       this.container.style.opacity = '1';
+      this.container.style.transform = 'translateY(0)';
     });
   }
 

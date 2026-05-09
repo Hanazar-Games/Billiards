@@ -44,9 +44,9 @@ export class AchievementPanel {
     toast.style.cssText = `
       display: flex; align-items: center; gap: 14px;
       padding: 14px 20px;
-      background: rgba(20,20,20,0.92);
+      background: rgba(12,15,18,0.9);
       border: 1px solid ${cat.color}66;
-      border-radius: 12px;
+      border-radius: 8px;
       backdrop-filter: blur(12px);
       box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 16px ${cat.color}22;
       transform: translateX(120%);
@@ -112,7 +112,9 @@ export class AchievementPanel {
       position: fixed; inset: 0;
       display: none; flex-direction: column;
       align-items: center;
-      background: rgba(8,8,8,0.97);
+      background:
+        linear-gradient(135deg, rgba(16,100,66,0.22), rgba(9,11,13,0.96) 42%),
+        linear-gradient(25deg, rgba(122,26,38,0.16), rgba(9,11,13,0.96) 38%);
       backdrop-filter: blur(20px);
       z-index: 200;
       padding: 40px 20px;
@@ -128,7 +130,7 @@ export class AchievementPanel {
     `;
 
     const title = document.createElement('div');
-    title.innerHTML = '🏆 <span style="font-size:28px;font-weight:800;color:#fff;">成就墙</span>';
+    title.innerHTML = '<span style="font-size:28px;font-weight:850;color:#f4f7f4;">成就墙</span>';
     header.appendChild(title);
 
     const progress = document.createElement('div');
@@ -138,21 +140,13 @@ export class AchievementPanel {
 
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '✕';
+    closeBtn.className = 'ui-action';
     closeBtn.style.cssText = `
       width: 40px; height: 40px;
-      font-size: 20px; color: #fff;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
+      font-size: 20px;
       border-radius: 50%;
-      cursor: pointer; transition: all 0.2s;
       pointer-events: auto;
     `;
-    closeBtn.onmouseenter = () => {
-      closeBtn.style.background = 'rgba(255,255,255,0.2)';
-    };
-    closeBtn.onmouseleave = () => {
-      closeBtn.style.background = 'rgba(255,255,255,0.1)';
-    };
     closeBtn.onclick = () => this.hideWall();
     header.appendChild(closeBtn);
 
@@ -179,6 +173,7 @@ export class AchievementPanel {
     document.body.appendChild(this.wallContainer);
     this._renderWall();
     this.wallContainer.style.display = 'flex';
+    this.wallContainer.style.animation = 'panelIn 260ms cubic-bezier(0.2,0.8,0.2,1) both';
   }
 
   hideWall() {
@@ -211,8 +206,8 @@ export class AchievementPanel {
         btn.textContent = label;
         btn.style.cssText = `
           padding: 8px 18px; font-size: 13px; font-weight: 600;
-          color: #fff; background: rgba(255,255,255,0.08);
-          border: 1px solid rgba(255,255,255,0.15);
+          color: #f4f7f4; background: rgba(255,255,255,0.08);
+          border: 1px solid rgba(255,255,255,0.14);
           border-radius: 8px; cursor: pointer;
           pointer-events: auto; transition: all 0.2s;
         `;
@@ -249,11 +244,12 @@ export class AchievementPanel {
       card.style.cssText = `
         display: flex; align-items: center; gap: 12px;
         padding: 14px 16px;
-        background: ${isUnlocked ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)'};
+        background: ${isUnlocked ? 'rgba(12,15,18,0.74)' : 'rgba(12,15,18,0.42)'};
         border: 1px solid ${isUnlocked ? cat.color + '44' : 'rgba(255,255,255,0.08)'};
-        border-radius: 12px;
+        border-radius: 8px;
         transition: all 0.2s;
         opacity: ${isUnlocked ? 1 : 0.55};
+        box-shadow: 0 14px 38px rgba(0,0,0,0.22);
       `;
 
       const icon = document.createElement('div');

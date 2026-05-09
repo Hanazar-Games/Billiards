@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { BALL } from '../config.js';
 
 export class Cue {
   constructor() {
@@ -33,13 +34,13 @@ export class Cue {
     this.mesh.visible = true;
   }
 
-  setAim(ballPosition, direction) {
+  setAim(ballPosition, direction, pullback = 0) {
     if (!this.visible) return;
 
     // Position cue behind ball
-    const offset = 8; // distance from ball center
+    const offset = BALL.radius + 13 + pullback; // keep tip outside the cue ball
     const pos = ballPosition.clone().add(direction.clone().multiplyScalar(-offset));
-    pos.y = ballPosition.y;
+    pos.y = ballPosition.y + BALL.radius * 0.18;
 
     this.mesh.position.copy(pos);
 

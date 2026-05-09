@@ -27,7 +27,9 @@ export class ReplayPanel {
       position: fixed; inset: 0;
       display: none; flex-direction: column;
       align-items: center;
-      background: rgba(8,8,8,0.97);
+      background:
+        linear-gradient(135deg, rgba(16,100,66,0.22), rgba(9,11,13,0.96) 42%),
+        linear-gradient(25deg, rgba(122,26,38,0.16), rgba(9,11,13,0.96) 38%);
       backdrop-filter: blur(20px);
       z-index: 200;
       padding: 40px 20px;
@@ -43,7 +45,7 @@ export class ReplayPanel {
     `;
 
     const title = document.createElement('div');
-    title.innerHTML = '🎬 <span style="font-size:28px;font-weight:800;color:#fff;">精彩回放</span>';
+    title.innerHTML = '<span style="font-size:28px;font-weight:850;color:#f4f7f4;">精彩回放</span>';
     header.appendChild(title);
 
     const count = document.createElement('div');
@@ -54,17 +56,13 @@ export class ReplayPanel {
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '✕';
     closeBtn.title = '关闭';
+    closeBtn.className = 'ui-action';
     closeBtn.style.cssText = `
       width: 40px; height: 40px;
-      font-size: 20px; color: #fff;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
+      font-size: 20px;
       border-radius: 50%;
-      cursor: pointer; transition: all 0.2s;
       pointer-events: auto;
     `;
-    closeBtn.onmouseenter = () => closeBtn.style.background = 'rgba(255,255,255,0.2)';
-    closeBtn.onmouseleave = () => closeBtn.style.background = 'rgba(255,255,255,0.1)';
     closeBtn.onclick = () => {
       this.hideList();
       if (this.onHideList) this.onHideList();
@@ -87,6 +85,7 @@ export class ReplayPanel {
 
   showList() {
     this.listContainer.style.display = 'flex';
+    this.listContainer.style.animation = 'panelIn 260ms cubic-bezier(0.2,0.8,0.2,1) both';
     this._renderList();
   }
 
@@ -121,19 +120,24 @@ export class ReplayPanel {
       const card = document.createElement('div');
       card.style.cssText = `
         padding: 18px;
-        background: rgba(255,255,255,0.06);
-        border: 1px solid rgba(255,255,255,0.12);
-        border-radius: 14px;
-        transition: all 0.2s;
+        background: rgba(12,15,18,0.7);
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 8px;
+        transition: transform 180ms cubic-bezier(0.2,0.8,0.2,1), background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
         pointer-events: auto;
+        box-shadow: 0 14px 38px rgba(0,0,0,0.25);
       `;
       card.onmouseenter = () => {
-        card.style.background = 'rgba(255,255,255,0.12)';
-        card.style.borderColor = 'rgba(255,255,255,0.3)';
+        card.style.background = 'rgba(20,26,30,0.86)';
+        card.style.borderColor = 'rgba(216,177,95,0.45)';
+        card.style.transform = 'translateY(-2px)';
+        card.style.boxShadow = '0 20px 54px rgba(0,0,0,0.34)';
       };
       card.onmouseleave = () => {
-        card.style.background = 'rgba(255,255,255,0.06)';
-        card.style.borderColor = 'rgba(255,255,255,0.12)';
+        card.style.background = 'rgba(12,15,18,0.7)';
+        card.style.borderColor = 'rgba(255,255,255,0.14)';
+        card.style.transform = 'translateY(0)';
+        card.style.boxShadow = '0 14px 38px rgba(0,0,0,0.25)';
       };
 
       const topRow = document.createElement('div');
@@ -242,12 +246,13 @@ export class ReplayPanel {
       transform: translateX(-50%);
       display: none; align-items: center; gap: 14px;
       padding: 12px 24px;
-      background: rgba(20,20,20,0.9);
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 14px;
+      background: rgba(12,15,18,0.82);
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 8px;
       backdrop-filter: blur(12px);
       z-index: 150;
       pointer-events: auto;
+      box-shadow: 0 16px 44px rgba(0,0,0,0.36);
     `;
 
     // Play/Pause button
@@ -306,8 +311,8 @@ export class ReplayPanel {
     return `
       padding: 8px 14px;
       font-size: 14px; color: #fff;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.16);
       border-radius: 8px;
       cursor: pointer; transition: all 0.2s;
       pointer-events: auto;

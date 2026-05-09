@@ -19,30 +19,32 @@ export class UI {
     this.resetBtn = document.createElement('button');
     this.resetBtn.textContent = 'New Game';
     this.resetBtn.style.cssText = `
-      position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-      padding: 8px 20px; font-size: 14px; font-weight: bold;
-      background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3);
-      border-radius: 6px; cursor: pointer; pointer-events: auto; backdrop-filter: blur(4px);
+      position: absolute; top: 70px; left: 50%; transform: translateX(-50%);
+      padding: 9px 18px; font-size: 13px; font-weight: 750;
+      background: rgba(18,20,23,0.62); color: #fff; border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 8px; cursor: pointer; pointer-events: auto; backdrop-filter: blur(10px);
       display: none; transition: background 0.2s;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.28);
     `;
-    this.resetBtn.onmouseenter = () => this.resetBtn.style.background = 'rgba(255,255,255,0.3)';
-    this.resetBtn.onmouseleave = () => this.resetBtn.style.background = 'rgba(255,255,255,0.15)';
+    this.resetBtn.onmouseenter = () => this.resetBtn.style.background = 'rgba(255,255,255,0.18)';
+    this.resetBtn.onmouseleave = () => this.resetBtn.style.background = 'rgba(18,20,23,0.62)';
     document.getElementById('ui-layer').appendChild(this.resetBtn);
 
     // AI controls container
     this.aiPanel = document.createElement('div');
     this.aiPanel.style.cssText = `
-      position: absolute; top: 82px; left: 50%; transform: translateX(-50%);
-      display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
-      pointer-events: auto; background: rgba(0,0,0,0.65);
-      padding: 8px 16px; border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.3);
-      backdrop-filter: blur(6px);
+      position: absolute; top: 122px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+      pointer-events: auto; background: rgba(10,12,15,0.58);
+      padding: 9px 14px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.16);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.26);
     `;
 
     // AI toggle
     this.aiToggle = document.createElement('label');
-    this.aiToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;cursor:pointer;';
+    this.aiToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;';
     this.aiToggle.innerHTML = `
       <input type="checkbox" id="ai-toggle" style="cursor:pointer;">
       <span>vs AI</span>
@@ -54,7 +56,7 @@ export class UI {
     this.diffSelect.id = 'ai-difficulty';
     this.diffSelect.style.cssText = `
       background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 4px; padding: 3px 8px; font-size: 12px; cursor: pointer;
+      border-radius: 6px; padding: 4px 9px; font-size: 12px; cursor: pointer;
     `;
     this.diffSelect.innerHTML = `
       <option value="easy" style="background:#333;">Easy</option>
@@ -65,16 +67,16 @@ export class UI {
 
     // Trajectory toggle
     this.trajToggle = document.createElement('label');
-    this.trajToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;cursor:pointer;margin-left:4px;';
+    this.trajToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;margin-left:4px;';
     this.trajToggle.innerHTML = `
-      <input type="checkbox" id="traj-toggle" checked style="cursor:pointer;">
+      <input type="checkbox" id="traj-toggle" style="cursor:pointer;">
       <span>Aim Line</span>
     `;
-    this.aiPanel.appendChild(this.trajToggle);
+    this.trajToggle.style.display = 'none';
 
     // Shot trail toggle
     this.trailToggle = document.createElement('label');
-    this.trailToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;cursor:pointer;margin-left:4px;';
+    this.trailToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;margin-left:4px;';
     this.trailToggle.innerHTML = `
       <input type="checkbox" id="trail-toggle" checked style="cursor:pointer;">
       <span>Trail</span>
@@ -83,7 +85,7 @@ export class UI {
 
     // Sound toggle
     this.soundToggle = document.createElement('label');
-    this.soundToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;cursor:pointer;margin-left:4px;border-left:1px solid rgba(255,255,255,0.2);padding-left:10px;';
+    this.soundToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;margin-left:4px;border-left:1px solid rgba(255,255,255,0.18);padding-left:12px;';
     this.soundToggle.innerHTML = `
       <input type="checkbox" id="sound-toggle" style="cursor:pointer;">
       <span>Sound</span>
@@ -109,7 +111,7 @@ export class UI {
 
     const trajCheckbox = this.trajToggle.querySelector('input');
     trajCheckbox.addEventListener('change', (e) => {
-      window.dispatchEvent(new CustomEvent('toggleTrajectory', { detail: e.target.checked }));
+      window.dispatchEvent(new CustomEvent('toggleTrajectory', { detail: false }));
     });
 
     const trailCheckbox = this.trailToggle.querySelector('input');

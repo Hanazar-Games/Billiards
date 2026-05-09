@@ -45,8 +45,8 @@ export class PhysicsWorld {
     this.world.addContactMaterial(ballTable);
 
     // Default solver iterations
-    this.world.solver.iterations = 20;
-    this.world.solver.tolerance = 0.001;
+    this.world.solver.iterations = 28;
+    this.world.solver.tolerance = 0.0008;
 
     // Create static table body (infinite plane for the felt surface)
     this.createTableBody();

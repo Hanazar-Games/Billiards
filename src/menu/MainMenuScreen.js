@@ -30,7 +30,9 @@ export class MainMenuScreen {
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       width: 100%; height: 100%;
-      transition: opacity 0.4s ease, transform 0.4s ease;
+      transition: opacity 0.35s cubic-bezier(0.2,0.8,0.2,1), transform 0.35s cubic-bezier(0.2,0.8,0.2,1);
+      position: relative;
+      z-index: 1;
     `;
 
     // Title
@@ -42,8 +44,8 @@ export class MainMenuScreen {
     // Subtitle
     const subtitle = document.createElement('div');
     subtitle.style.cssText = `
-      font-size: 14px; color: rgba(255,255,255,0.5);
-      margin-bottom: 48px; letter-spacing: 3px;
+      font-size: 13px; color: rgba(244,247,244,0.58);
+      margin-bottom: 34px; letter-spacing: 3px;
       text-transform: uppercase;
     `;
     subtitle.textContent = 'Hanazar Games';
@@ -53,46 +55,46 @@ export class MainMenuScreen {
     const btnGroup = document.createElement('div');
     btnGroup.style.cssText = `
       display: flex; flex-direction: column;
-      align-items: center; gap: 14px;
+      align-items: center; gap: 10px;
     `;
 
     // Free Play
-    this._addButton(btnGroup, '单人练习', '无限击球 · 无规则限制 · 练习瞄准', () => {
+    this._addButton(btnGroup, '单人练习', '无胜负规则 · 白球自动复位 · 练习瞄准与力度', () => {
       this._fadeOut(() => this.onSelectMode('freeplay'));
     });
 
     // Local 2P
-    this._addButton(btnGroup, '本地双人对战', '标准 8 球规则 · 轮流击球', () => {
+    this._addButton(btnGroup, '本地双人对战', '标准 8 球 · 分组清台 · 同屏轮流击球', () => {
       this._fadeOut(() => this.onSelectMode('local2p'));
     });
 
     // vs AI
-    this._addButton(btnGroup, '对战 AI', '标准 8 球规则 · 挑战电脑', () => {
+    this._addButton(btnGroup, '对战 AI', '标准 8 球 · 内置电脑对手 · 难度可调', () => {
       this._fadeOut(() => this.onSelectMode('vsai'));
     });
 
     // 9-ball
-    this._addButton(btnGroup, '9 球模式', '按顺序击球 · 9号球进袋即胜', () => {
+    this._addButton(btnGroup, '9 球模式', '先碰最小号码球 · 合法打进 9 号球获胜', () => {
       this._fadeOut(() => this.onSelectMode('nineball'));
     });
 
     // Settings
-    this._addButton(btnGroup, '设置', '音效与画面选项', () => {
+    this._addButton(btnGroup, '设置', '音效与显示偏好', () => {
       if (this.onSettings) this.onSettings();
     });
 
     // Achievements
-    this._addButton(btnGroup, '成就', '查看解锁进度与成就墙', () => {
+    this._addButton(btnGroup, '成就', '查看解锁进度与技巧记录', () => {
       if (this.onAchievements) this.onAchievements();
     });
 
     // Replays
-    this._addButton(btnGroup, '精彩回放', '浏览并播放保存的精彩击球', () => {
+    this._addButton(btnGroup, '精彩回放', '浏览并播放自动保存的高分击球', () => {
       if (this.onShowReplays) this.onShowReplays();
     });
 
     // Challenges
-    this._addButton(btnGroup, '挑战模式', '完成特殊条件的技巧挑战', () => {
+    this._addButton(btnGroup, '挑战模式', '完成指定条件，刷新星级评价', () => {
       if (this.onShowChallenges) this.onShowChallenges();
     });
 
@@ -101,11 +103,10 @@ export class MainMenuScreen {
     // Quit button (bottom-right)
     const quitBtn = document.createElement('button');
     quitBtn.textContent = '退出游戏';
+    quitBtn.className = 'ui-action';
     quitBtn.style.cssText = `
       position: absolute; bottom: 40px; right: 40px;
-      padding: 10px 24px; font-size: 14px; color: rgba(255,255,255,0.5);
-      background: transparent; border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 8px; cursor: pointer; transition: all 0.2s;
+      padding: 10px 24px; font-size: 14px; color: rgba(244,247,244,0.62);
       pointer-events: auto;
     `;
     quitBtn.onmouseenter = () => {
@@ -126,7 +127,7 @@ export class MainMenuScreen {
     version.textContent = 'v0.12.0';
     version.style.cssText = `
       position: absolute; bottom: 44px; left: 40px;
-      font-size: 12px; color: rgba(255,255,255,0.25);
+      font-size: 12px; color: rgba(244,247,244,0.32);
     `;
     this.container.appendChild(version);
 
@@ -136,47 +137,18 @@ export class MainMenuScreen {
   _addButton(parent, label, desc, onClick) {
     const btn = document.createElement('button');
     btn.className = 'menu-btn';
-    btn.style.cssText = `
-      width: 340px; padding: 18px 24px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 14px;
-      backdrop-filter: blur(12px);
-      cursor: pointer; transition: all 0.25s ease;
-      text-align: left; pointer-events: auto;
-      display: flex; flex-direction: column; gap: 4px;
-    `;
 
     const titleRow = document.createElement('div');
-    titleRow.style.cssText = `
-      font-size: 18px; font-weight: 700; color: #fff;
-      letter-spacing: 1px;
-    `;
+    titleRow.className = 'menu-btn-title';
     titleRow.textContent = label;
     btn.appendChild(titleRow);
 
     if (desc) {
       const descRow = document.createElement('div');
-      descRow.style.cssText = `
-        font-size: 12px; color: rgba(255,255,255,0.45);
-        letter-spacing: 0.5px;
-      `;
+      descRow.className = 'menu-btn-desc';
       descRow.textContent = desc;
       btn.appendChild(descRow);
     }
-
-    btn.onmouseenter = () => {
-      btn.style.background = 'rgba(255,255,255,0.14)';
-      btn.style.borderColor = 'rgba(255,255,255,0.4)';
-      btn.style.transform = 'scale(1.03)';
-      btn.style.boxShadow = '0 8px 32px rgba(0,0,0,0.3)';
-    };
-    btn.onmouseleave = () => {
-      btn.style.background = 'rgba(255,255,255,0.06)';
-      btn.style.borderColor = 'rgba(255,255,255,0.15)';
-      btn.style.transform = 'scale(1)';
-      btn.style.boxShadow = 'none';
-    };
     btn.onclick = onClick;
 
     parent.appendChild(btn);

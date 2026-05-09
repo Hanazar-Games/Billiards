@@ -47,6 +47,8 @@ export class Game {
     this.charging = false;
     this.currentPlayer = 1;
     this.aimDirection = new THREE.Vector3(0, 0, 1);
+    this.lockedAimDirection = new THREE.Vector3(0, 0, 1);
+    this.dragStart = null;
     this.aiEnabled = false;
 
     // English spin state: [-1, 1] for X (left/right) and Z (top/back)
@@ -97,8 +99,8 @@ export class Game {
 
     this.input = new InputHandler(this.renderer.renderer.domElement);
     this.input.onMouseMove = () => this.onMouseMove();
-    this.input.onMouseDown = () => this.onMouseDown();
-    this.input.onMouseUp = () => this.onMouseUp();
+    this.input.onMouseDown = (e) => this.onMouseDown(e);
+    this.input.onMouseUp = (e) => this.onMouseUp(e);
 
     this.cue = new Cue();
     this.scene.add(this.cue.mesh);
@@ -111,11 +113,11 @@ export class Game {
 
     this.ui.setPlayerTurn(1);
     if (this.mode === 'freeplay') {
-      this.ui.setMessage('练习模式 — 无限击球，白球进袋自动重生');
+      this.ui.setMessage('练习模式：无胜负规则；白球进袋会自动复位，适合练习瞄准和力度。');
     } else if (this.mode === '9ball') {
-      this.ui.setMessage('9-ball 模式 — 按顺序击球，9号球进袋即胜！');
+      this.ui.setMessage('9 球规则：白球必须先碰当前最小号码球；合法打进 9 号球获胜。');
     } else {
-      this.ui.setMessage('Aim with mouse, hold LEFT CLICK to charge, release to shoot. RIGHT CLICK to rotate camera.');
+      this.ui.setMessage('标准 8 球规则：开球后按进球分配全色/花色；清完本组后打进 8 号球获胜。');
     }
     this.ui.setupAIControls(
       (enabled) => this.setAIEnabled(enabled),
@@ -128,7 +130,7 @@ export class Game {
       this.ui.aiPanel.style.display = 'none';
     }
     this._onToggleTrajectory = (e) => {
-      if (this.trajectory) this.trajectory.setVisible(e.detail);
+      if (this.trajectory) this.trajectory.setVisible(false);
     };
     this._onToggleShotTrail = (e) => {
       if (this.trails) this.trails.setEnabled(e.detail);
@@ -225,26 +227,75 @@ export class Game {
   }
 
   onMouseMove() {
-    if (this.state !== 'AIM' && this.state !== 'CHARGING') return;
-    this.updateAimDirection();
-    this.updateTrajectory();
+    if (this.state === 'AIM') {
+      this.updateAimDirection();
+    } else if (this.state === 'CHARGING') {
+      this.updateDragPower();
+    }
   }
 
-  onMouseDown() {
+  onMouseDown(e) {
     if (this.state !== 'AIM') return;
     if (this.aiEnabled && this.currentPlayer === 2) return; // AI turn
     this.audio.resume();
+    this.updateAimDirection();
+    this.lockedAimDirection.copy(this.aimDirection);
+    this.dragStart = {
+      x: e?.clientX ?? this.input.mouseX,
+      y: e?.clientY ?? this.input.mouseY
+    };
     this.state = 'CHARGING';
     this.charging = true;
     this.power = 0;
+    this.ui.setPower(0);
     this.trajectory.setVisible(false);
   }
 
   onMouseUp() {
     if (this.state !== 'CHARGING') return;
+    if (this.power < 1) {
+      this.state = 'AIM';
+      this.charging = false;
+      this.dragStart = null;
+      this.power = 0;
+      this.ui.setPower(0);
+      return;
+    }
     this.state = 'SHOOTING';
     this.charging = false;
+    this.dragStart = null;
     this.shoot();
+  }
+
+  updateDragPower() {
+    const cueBall = this.ballsManager.getCueBall();
+    if (!cueBall || cueBall.pocketed || !this.dragStart) return;
+
+    const rect = this.renderer.renderer.domElement.getBoundingClientRect();
+    const ballScreen = cueBall.mesh.position.clone().project(this.camera);
+    const pullAnchor = cueBall.mesh.position.clone().addScaledVector(this.lockedAimDirection, -24);
+    const anchorScreen = pullAnchor.project(this.camera);
+
+    const ballX = (ballScreen.x * 0.5 + 0.5) * rect.width + rect.left;
+    const ballY = (-ballScreen.y * 0.5 + 0.5) * rect.height + rect.top;
+    const anchorX = (anchorScreen.x * 0.5 + 0.5) * rect.width + rect.left;
+    const anchorY = (-anchorScreen.y * 0.5 + 0.5) * rect.height + rect.top;
+
+    let pullX = anchorX - ballX;
+    let pullY = anchorY - ballY;
+    const pullLen = Math.hypot(pullX, pullY);
+    if (pullLen < 0.001) return;
+    pullX /= pullLen;
+    pullY /= pullLen;
+
+    const dragX = this.input.mouseX - this.dragStart.x;
+    const dragY = this.input.mouseY - this.dragStart.y;
+    const pullDistance = Math.max(0, dragX * pullX + dragY * pullY);
+    this.power = Math.min(SHOT.maxPower, pullDistance * 0.42);
+    this.ui.setPower((this.power / SHOT.maxPower) * 100);
+
+    const cuePullback = (this.power / SHOT.maxPower) * 24;
+    this.cue.setAim(cueBall.mesh.position, this.lockedAimDirection, cuePullback);
   }
 
   updateAimDirection() {
@@ -351,7 +402,7 @@ export class Game {
         this.ui.setPower(0);
         this.ui.setMessage('AI failed to plan a shot. Player control restored.', 4000);
         this.cue.show();
-        this.trajectory.setVisible(true);
+        this.trajectory.setVisible(false);
       }
       return;
     }
@@ -362,7 +413,7 @@ export class Game {
       this.power = 0;
       this.ui.setPower(0);
       this.cue.show();
-      this.trajectory.setVisible(true);
+      this.trajectory.setVisible(false);
       return;
     }
 
@@ -370,10 +421,6 @@ export class Game {
     this.aimDirection.set(decision.aimDirection.x, 0, decision.aimDirection.z).normalize();
     this.cue.setAim(this.ballsManager.getCueBall().mesh.position, this.aimDirection);
     this.cue.show();
-
-    // Show trajectory briefly for visual feedback
-    this.trajectory.setVisible(true);
-    this.updateTrajectory();
 
     await this.aiPlayer.delay(400); // brief aim pause
 
@@ -422,15 +469,12 @@ export class Game {
   }
 
   update(dt) {
-    if (this.charging) {
-      this.power = Math.min(this.power + SHOT.chargeRate * dt, SHOT.maxPower);
-      this.ui.setPower((this.power / SHOT.maxPower) * 100);
-    }
-
+    const pocketPositions = this.table.getPocketPositions();
+    this.ballsManager.updatePhysicsGuards(dt, pocketPositions);
     this.ballsManager.sync();
 
     if (this.state === 'SHOOTING') {
-      const newlyPocketed = this.ballsManager.checkPockets(this.table.getPocketPositions());
+      const newlyPocketed = this.ballsManager.checkPockets(pocketPositions);
 
       // Accumulate pocketed ball IDs across frames of a single shot
       for (const entry of newlyPocketed) {
@@ -442,20 +486,18 @@ export class Game {
       if (newlyPocketed.length > 0) {
         this.audio.playPocket();
         for (const entry of newlyPocketed) {
-          const pockets = this.table.getPocketPositions();
-          this.achievements.onPocket(entry.id, pockets[entry.pocketIndex], this.mode);
+          this.achievements.onPocket(entry.id, pocketPositions[entry.pocketIndex], this.mode);
           this.recorder.recordPocket(entry.id);
           if (this.challengeManager) this.challengeManager.onPocket(entry.id);
         }
 
         // Pocket flash particles — use the exact pocket from checkPockets
         // Deduplicate: multiple balls in same pocket = one flash
-        const pockets = this.table.getPocketPositions();
         const flashed = new Set();
         for (const entry of newlyPocketed) {
           if (flashed.has(entry.pocketIndex)) continue;
           flashed.add(entry.pocketIndex);
-          const pocket = pockets[entry.pocketIndex];
+          const pocket = pocketPositions[entry.pocketIndex];
           if (pocket) {
             this.particles.spawnPocketFlash(pocket);
           }
@@ -493,9 +535,10 @@ export class Game {
     // Camera mode updates
     this._updateCamera();
 
-    if ((this.state === 'AIM' || this.state === 'CHARGING') && this.cue.visible) {
+    if (this.state === 'AIM' && this.cue.visible) {
       this.updateAimDirection();
-      this.updateTrajectory();
+    } else if (this.state === 'CHARGING' && this.cue.visible) {
+      this.updateDragPower();
     }
   }
 
@@ -523,7 +566,7 @@ export class Game {
       this.power = 0;
       this.ui.setPower(0);
       this.cue.show();
-      this.trajectory.setVisible(true);
+      this.trajectory.setVisible(false);
       return;
     }
 
@@ -599,7 +642,7 @@ export class Game {
     this.power = 0;
     this.ui.setPower(0);
     this.cue.show();
-    this.trajectory.setVisible(true);
+    this.trajectory.setVisible(false);
 
     // Update live stats panel
     this.statsPanel.update(this.statsTracker.getLiveStats());
@@ -639,14 +682,18 @@ export class Game {
     this.ui.setPlayerTurn(1);
     this.ui.setPlayerGroups(null, null);
     if (this.mode === 'freeplay') {
-      this.ui.setMessage('练习模式 — 无限击球');
+      this.ui.setMessage('练习模式：无胜负规则；白球进袋会自动复位。');
+    } else if (this.mode === '9ball') {
+      this.ui.setMessage('新 9 球局：白球必须先碰当前最小号码球；合法打进 9 号球获胜。');
     } else {
-      this.ui.setMessage(this.aiEnabled ? 'New game! Player 1 breaks (vs AI).' : 'New game! Player 1 breaks.');
+      this.ui.setMessage(this.aiEnabled
+        ? '新 8 球局：玩家 1 开球，对手为 AI；先清完本组再打 8 号球。'
+        : '新 8 球局：玩家 1 开球；先清完本组再打 8 号球。');
     }
     this.ui.hideResetButton();
     this.ui.showResetButton(() => this.resetGame());
     this.cue.show();
-    this.trajectory.setVisible(true);
+    this.trajectory.setVisible(false);
   }
 
   _addBackToMenuButton() {
@@ -657,12 +704,13 @@ export class Game {
     btn.id = 'back-to-menu';
     btn.textContent = '返回菜单';
     btn.style.cssText = `
-      position: absolute; top: 20px; right: 20px;
-      padding: 8px 18px; font-size: 13px; font-weight: 600;
-      background: rgba(255,255,255,0.1); color: #fff;
-      border: 1px solid rgba(255,255,255,0.25);
+      position: absolute; top: 18px; right: 24px;
+      padding: 10px 17px; font-size: 13px; font-weight: 750;
+      background: rgba(12,14,17,0.6); color: #fff;
+      border: 1px solid rgba(255,255,255,0.18);
       border-radius: 8px; cursor: pointer; pointer-events: auto;
-      backdrop-filter: blur(4px); transition: all 0.2s;
+      backdrop-filter: blur(10px); transition: all 0.2s;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.26);
       z-index: 15;
     `;
     btn.onmouseenter = () => {
@@ -686,14 +734,15 @@ export class Game {
     const container = document.createElement('div');
     container.id = 'spin-indicator';
     container.style.cssText = `
-      position: absolute; bottom: 44px; right: 80px;
-      width: 60px; height: 60px;
-      border: 2px solid rgba(255,255,255,0.3);
+      position: absolute; bottom: 48px; right: 72px;
+      width: 62px; height: 62px;
+      border: 1px solid rgba(255,255,255,0.22);
       border-radius: 50%;
-      background: rgba(0,0,0,0.4);
-      backdrop-filter: blur(4px);
+      background: rgba(10,12,15,0.58);
+      backdrop-filter: blur(10px);
       pointer-events: none;
       display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 12px 34px rgba(0,0,0,0.34), inset 0 0 0 1px rgba(255,255,255,0.06);
       z-index: 15;
     `;
 

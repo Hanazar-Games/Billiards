@@ -144,6 +144,123 @@ export class BallsManager {
     }
   }
 
+  updatePhysicsGuards(dt, pocketPositions = []) {
+    for (const ball of this.balls) {
+      if (ball.pocketed) continue;
+      ball.applyLowSpeedBrake(dt);
+      this._enforceTableBounds(ball, pocketPositions);
+    }
+    this._resolveBallOverlaps();
+  }
+
+  _resolveBallOverlaps() {
+    const minDist = BALL.radius * 2 * 0.98;
+    const minDistSq = minDist * minDist;
+
+    for (let i = 0; i < this.balls.length; i++) {
+      const a = this.balls[i];
+      if (a.pocketed) continue;
+
+      for (let j = i + 1; j < this.balls.length; j++) {
+        const b = this.balls[j];
+        if (b.pocketed) continue;
+
+        const dx = b.body.position.x - a.body.position.x;
+        const dz = b.body.position.z - a.body.position.z;
+        const distSq = dx * dx + dz * dz;
+        if (distSq >= minDistSq) continue;
+
+        const dist = Math.sqrt(distSq) || 0.0001;
+        const nx = dx / dist;
+        const nz = dz / dist;
+        const overlap = minDist - dist;
+        const correction = overlap * 0.5;
+
+        a.body.position.x -= nx * correction;
+        a.body.position.z -= nz * correction;
+        b.body.position.x += nx * correction;
+        b.body.position.z += nz * correction;
+        a.body.position.y = BALL.radius;
+        b.body.position.y = BALL.radius;
+
+        const av = a.body.velocity;
+        const bv = b.body.velocity;
+        const relNormalSpeed = (bv.x - av.x) * nx + (bv.z - av.z) * nz;
+
+        if (relNormalSpeed < 0) {
+          const impulse = -relNormalSpeed * 0.5;
+          av.x -= nx * impulse;
+          av.z -= nz * impulse;
+          bv.x += nx * impulse;
+          bv.z += nz * impulse;
+        }
+
+        a.body.wakeUp();
+        b.body.wakeUp();
+        a.sync();
+        b.sync();
+      }
+    }
+  }
+
+  _enforceTableBounds(ball, pocketPositions) {
+    if (this._isNearPocketMouth(ball, pocketPositions)) return;
+
+    const halfW = TABLE.width / 2;
+    const halfD = TABLE.depth / 2;
+    const railLimitX = halfW - BALL.radius * 0.55;
+    const railLimitZ = halfD - BALL.radius * 0.55;
+    const escapeLimitX = halfW + BALL.radius * 0.35;
+    const escapeLimitZ = halfD + BALL.radius * 0.35;
+
+    const pos = ball.body.position;
+    const vel = ball.body.velocity;
+    let corrected = false;
+
+    if (pos.x > escapeLimitX) {
+      pos.x = railLimitX;
+      vel.x = -Math.abs(vel.x) * BALL.boundaryRestitution;
+      corrected = true;
+    } else if (pos.x < -escapeLimitX) {
+      pos.x = -railLimitX;
+      vel.x = Math.abs(vel.x) * BALL.boundaryRestitution;
+      corrected = true;
+    }
+
+    if (pos.z > escapeLimitZ) {
+      pos.z = railLimitZ;
+      vel.z = -Math.abs(vel.z) * BALL.boundaryRestitution;
+      corrected = true;
+    } else if (pos.z < -escapeLimitZ) {
+      pos.z = -railLimitZ;
+      vel.z = Math.abs(vel.z) * BALL.boundaryRestitution;
+      corrected = true;
+    }
+
+    if (corrected) {
+      pos.y = BALL.radius;
+      vel.y = 0;
+      ball.body.angularVelocity.scale(BALL.boundaryRestitution, ball.body.angularVelocity);
+      ball.body.wakeUp();
+      ball.sync();
+    }
+  }
+
+  _isNearPocketMouth(ball, pocketPositions) {
+    const pos = ball.body.position;
+    const pocketPassRadius = POCKET.radius + BALL.radius * 1.5;
+    const passSq = pocketPassRadius * pocketPassRadius;
+
+    for (const pocket of pocketPositions) {
+      const dx = pos.x - pocket.x;
+      const dz = pos.z - pocket.z;
+      if (dx * dx + dz * dz <= passSq) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   allStopped() {
     for (const ball of this.balls) {
       if (!ball.pocketed && ball.getSpeed() > BALL.sleepSpeedLimit) {

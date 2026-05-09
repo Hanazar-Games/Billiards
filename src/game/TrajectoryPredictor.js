@@ -10,7 +10,8 @@ export class TrajectoryPredictor {
     this.scene = scene;
     this.group = new THREE.Group();
     this.scene.add(this.group);
-    this.visible = true;
+    this.visible = false;
+    this.group.visible = false;
 
     this.lineMaterial = new THREE.LineBasicMaterial({
       color: LINE_COLOR,
@@ -197,9 +198,10 @@ export class TrajectoryPredictor {
   }
 
   setVisible(v) {
-    this.visible = v;
-    this.group.visible = v;
-    if (!v) this.clearLines();
+    this.visible = false;
+    this.group.visible = false;
+    this.clearLines();
+    this.ghostBall.visible = false;
   }
 
   dispose() {

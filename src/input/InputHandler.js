@@ -32,11 +32,13 @@ export class InputHandler {
   }
 
   handleMouseDown(e) {
+    this.mouseX = e.clientX;
+    this.mouseY = e.clientY;
     if (e.button === 0) {
       // Left click: only trigger if target is canvas (not UI)
       if (e.target.tagName === 'CANVAS') {
         this.isDown = true;
-        if (this.onMouseDown) this.onMouseDown();
+        if (this.onMouseDown) this.onMouseDown(e);
       }
     } else if (e.button === 2) {
       this.rightDown = true;
@@ -45,12 +47,14 @@ export class InputHandler {
   }
 
   handleMouseUp(e) {
+    this.mouseX = e.clientX;
+    this.mouseY = e.clientY;
     if (e.button === 0 && this.isDown) {
       this.isDown = false;
       // Don't trigger shot if released over interactive UI elements (buttons, inputs, selects)
       const tag = e.target.tagName;
       if (tag !== 'BUTTON' && tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'LABEL') {
-        if (this.onMouseUp) this.onMouseUp();
+        if (this.onMouseUp) this.onMouseUp(e);
       }
     } else if (e.button === 2 && this.rightDown) {
       this.rightDown = false;

@@ -27,9 +27,11 @@ export class Renderer {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(this.width, this.height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = false;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.08;
     this.container.appendChild(this.renderer.domElement);
 
     // Controls (right-click orbit, middle zoom)
@@ -56,31 +58,31 @@ export class Renderer {
 
   setupLights() {
     // Ambient
-    const ambient = new THREE.AmbientLight(0xffffff, 0.45);
+    const ambient = new THREE.AmbientLight(0xe8f0ff, 0.26);
     this.scene.add(ambient);
 
-    // Main overhead lamp
-    const mainLight = new THREE.DirectionalLight(0xfff5e6, 1.1);
-    mainLight.position.set(80, 450, 120);
-    mainLight.castShadow = true;
+    // Main overhead lamp, aimed at the table.
+    const mainLight = new THREE.DirectionalLight(0xfff0d2, 1.65);
+    mainLight.position.set(60, 520, 90);
+    mainLight.castShadow = false;
     mainLight.shadow.mapSize.width = 2048;
     mainLight.shadow.mapSize.height = 2048;
     mainLight.shadow.camera.near = 10;
     mainLight.shadow.camera.far = 1200;
-    mainLight.shadow.camera.left = -350;
-    mainLight.shadow.camera.right = 350;
-    mainLight.shadow.camera.top = 250;
-    mainLight.shadow.camera.bottom = -250;
+    mainLight.shadow.camera.left = -260;
+    mainLight.shadow.camera.right = 260;
+    mainLight.shadow.camera.top = 180;
+    mainLight.shadow.camera.bottom = -180;
     mainLight.shadow.bias = -0.0005;
     this.scene.add(mainLight);
 
     // Fill light (cool blue from opposite side)
-    const fillLight = new THREE.DirectionalLight(0xcce0ff, 0.35);
+    const fillLight = new THREE.DirectionalLight(0xb9d2ff, 0.22);
     fillLight.position.set(-250, 200, -200);
     this.scene.add(fillLight);
 
     // Rim light (warm, from behind table)
-    const rimLight = new THREE.DirectionalLight(0xffddaa, 0.25);
+    const rimLight = new THREE.DirectionalLight(0xffcf95, 0.38);
     rimLight.position.set(0, 150, -400);
     this.scene.add(rimLight);
   }
