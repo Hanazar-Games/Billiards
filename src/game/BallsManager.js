@@ -147,6 +147,7 @@ export class BallsManager {
   updatePhysicsGuards(dt, pocketPositions = []) {
     for (const ball of this.balls) {
       if (ball.pocketed) continue;
+      ball.applySpinPhysics(dt);
       ball.applyLowSpeedBrake(dt);
       this._enforceTableBounds(ball, pocketPositions);
     }

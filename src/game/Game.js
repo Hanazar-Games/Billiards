@@ -199,6 +199,7 @@ export class Game {
           // Deduplicate: cannon-es fires collide on BOTH bodies.
           // Use lower ID as canonical to process each pair exactly once.
           if (ball.id < otherBall.id) {
+            this._applyCollisionSpinTransfer(ball, otherBall, relVel);
             if (relVel > 0.5) {
               this.audio.playBallCollision(relVel);
             }
@@ -226,6 +227,27 @@ export class Game {
         }
       });
     }
+  }
+
+  _applyCollisionSpinTransfer(ballA, ballB, relVel) {
+    if (relVel < 0.2) return;
+
+    const dx = ballB.body.position.x - ballA.body.position.x;
+    const dz = ballB.body.position.z - ballA.body.position.z;
+    const len = Math.hypot(dx, dz);
+    if (len < 0.001) return;
+
+    const tx = -dz / len;
+    const tz = dx / len;
+    const spinDelta = ballA.body.angularVelocity.y - ballB.body.angularVelocity.y;
+    const throwSpeed = Math.max(-4.5, Math.min(4.5, spinDelta * relVel * 0.015));
+
+    ballA.body.velocity.x -= tx * throwSpeed * 0.35;
+    ballA.body.velocity.z -= tz * throwSpeed * 0.35;
+    ballB.body.velocity.x += tx * throwSpeed;
+    ballB.body.velocity.z += tz * throwSpeed;
+    ballA.body.angularVelocity.y *= 0.82;
+    ballB.body.angularVelocity.y += spinDelta * 0.08;
   }
 
   onMouseMove() {

@@ -30,6 +30,10 @@ export const BALL = {
   maxSpeed: 520,
   boundaryRestitution: 0.48,
   overlapIterations: 4,
+  spinAngularVelocity: 22,
+  rollCoupling: 0.22,
+  sideSpinCurve: 0.010,
+  sideSpinDecay: 0.9,
 };
 
 // Pocket radius = ~1.5x ball radius (standard pool)

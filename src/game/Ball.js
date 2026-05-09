@@ -89,12 +89,11 @@ export class Ball {
     this.body.applyImpulse(new CANNON.Vec3(x, y, z), this.body.position);
     this.limitSpeed();
 
-    // Apply spin as angular velocity
-    // spinX and spinZ are in range [-1, 1]
-    // Max angular velocity ~15 rad/s for realistic effect
-    const maxSpin = 15;
+    // spinX = left/right english around the vertical axis.
+    // spinZ = follow/draw around the local side axis.
+    const maxSpin = BALL.spinAngularVelocity;
+    this.body.angularVelocity.y += spinX * maxSpin;
     this.body.angularVelocity.x += spinZ * maxSpin;
-    this.body.angularVelocity.z -= spinX * maxSpin;
   }
 
   limitSpeed() {
@@ -135,6 +134,41 @@ export class Ball {
       av.set(0, 0, 0);
       this.body.sleep();
     }
+  }
+
+  applySpinPhysics(dt) {
+    if (this.pocketed) return;
+
+    const v = this.body.velocity;
+    const av = this.body.angularVelocity;
+    const speed = Math.sqrt(v.x * v.x + v.z * v.z);
+
+    const rollVx = -av.z * BALL.radius;
+    const rollVz = av.x * BALL.radius;
+    const rollSpeed = Math.sqrt(rollVx * rollVx + rollVz * rollVz);
+
+    if (speed > 0.01 || rollSpeed > 0.01) {
+      const coupling = 1 - Math.exp(-BALL.rollCoupling * dt);
+      const slipX = rollVx - v.x;
+      const slipZ = rollVz - v.z;
+
+      v.x += slipX * coupling;
+      v.z += slipZ * coupling;
+      av.z += (slipX / BALL.radius) * coupling * 0.45;
+      av.x -= (slipZ / BALL.radius) * coupling * 0.45;
+    }
+
+    if (speed > 0.5 && Math.abs(av.y) > 0.02) {
+      const nx = -v.z / speed;
+      const nz = v.x / speed;
+      const curve = av.y * speed * BALL.sideSpinCurve * dt;
+      v.x += nx * curve;
+      v.z += nz * curve;
+    }
+
+    const sideDecay = Math.exp(-BALL.sideSpinDecay * dt);
+    av.y *= sideDecay;
+    this.limitSpeed();
   }
 
   sync() {

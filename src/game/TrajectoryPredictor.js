@@ -79,26 +79,15 @@ export class TrajectoryPredictor {
     }
 
     if (hitBall) {
-      // Draw line to ghost ball position
       const ballPos = hitBall.mesh.position;
-      const toPocket = this.findBestPocketDirection(ballPos, pocketPositions, balls, hitBall.id);
-
-      let ghostPos;
-      if (toPocket && toPocket.score > -500) {
-        // Align ghost ball for pocket
-        ghostPos = new THREE.Vector3().copy(ballPos).addScaledVector(toPocket.dir, -2 * r);
-      } else {
-        // Simple reflection ghost ball
-        ghostPos = new THREE.Vector3().copy(ballPos).addScaledVector(rayDir, -2 * r);
-      }
+      const ghostPos = new THREE.Vector3().copy(rayDir).multiplyScalar(hitDist).add(rayOrigin);
+      const objectDir = new THREE.Vector3().subVectors(ballPos, ghostPos);
+      objectDir.y = 0;
+      objectDir.normalize();
 
       this.drawLine(rayOrigin, ghostPos, this.lineMaterial);
-
-      // Draw target ball trajectory after hit
-      if (toPocket) {
-        const pocketTarget = new THREE.Vector3().copy(ballPos).addScaledVector(toPocket.dir, 60);
-        this.drawLine(ballPos, pocketTarget, this.hitLineMaterial);
-      }
+      const targetEnd = new THREE.Vector3().copy(ballPos).addScaledVector(objectDir, 58);
+      this.drawLine(ballPos, targetEnd, this.hitLineMaterial);
 
       this.ghostBall.position.copy(ghostPos);
       this.ghostBall.visible = true;
@@ -109,55 +98,6 @@ export class TrajectoryPredictor {
       this.drawLine(rayOrigin, edgePoint, this.lineMaterial);
       this.ghostBall.visible = false;
     }
-  }
-
-  findBestPocketDirection(ballPos, pocketPositions, balls, targetBallId) {
-    let best = null;
-    let bestScore = -Infinity;
-    const r = BALL.radius;
-
-    for (const pocket of pocketPositions) {
-      const dir = new THREE.Vector3().subVectors(pocket, ballPos);
-      const dist = dir.length();
-      if (dist < r) continue;
-      dir.normalize();
-
-      // Check if path to pocket is clear
-      let blocked = false;
-      for (const ball of balls) {
-        if (ball.pocketed || ball.id === targetBallId) continue;
-        if (this.isPointNearLine(ball.mesh.position, ballPos, pocket, r * 2.1)) {
-          blocked = true;
-          break;
-        }
-      }
-
-      const score = blocked ? -1000 : (1000 - dist);
-      if (score > bestScore) {
-        bestScore = score;
-        best = { dir, score };
-      }
-    }
-
-    return best;
-  }
-
-  isPointNearLine(point, lineA, lineB, threshold) {
-    const abx = lineB.x - lineA.x;
-    const abz = lineB.z - lineA.z;
-    const lenSq = abx * abx + abz * abz;
-    if (lenSq < 0.001) return false;
-
-    const acx = point.x - lineA.x;
-    const acz = point.z - lineA.z;
-    const t = (acx * abx + acz * abz) / lenSq;
-    if (t < 0 || t > 1) return false;
-
-    const cx = lineA.x + t * abx;
-    const cz = lineA.z + t * abz;
-    const dx = point.x - cx;
-    const dz = point.z - cz;
-    return (dx * dx + dz * dz) < (threshold * threshold);
   }
 
   rayToEdge(origin, dir) {
