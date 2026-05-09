@@ -41,6 +41,8 @@ export class Game {
     this.currentPlayer = 1;
     this.aimDirection = new THREE.Vector3(0, 0, 1);
     this.aiEnabled = false;
+    this.mode = 'local2p'; // 'freeplay' | 'local2p' | 'vsai'
+    this.onReturnToMenu = null;
 
     this._tmpVec2 = new THREE.Vector2();
     this._tmpVec3a = new THREE.Vector3();
@@ -51,7 +53,13 @@ export class Game {
     this.turnPocketedIds = [];
   }
 
-  async init() {
+  async init(modeConfig = {}) {
+    this.mode = modeConfig.mode || 'local2p';
+    this.aiEnabled = modeConfig.aiEnabled || false;
+    if (modeConfig.aiDifficulty) {
+      this.aiPlayer = new AIPlayer(modeConfig.aiDifficulty);
+    }
+
     this.audio.init();
 
     this.table = new Table(this.physics);
@@ -76,19 +84,28 @@ export class Game {
     this.particles.clear();
 
     this.ui.setPlayerTurn(1);
-    this.ui.setMessage('Aim with mouse, hold LEFT CLICK to charge, release to shoot. RIGHT CLICK to rotate camera.');
+    if (this.mode === 'freeplay') {
+      this.ui.setMessage('练习模式 — 无限击球，白球进袋自动重生');
+    } else {
+      this.ui.setMessage('Aim with mouse, hold LEFT CLICK to charge, release to shoot. RIGHT CLICK to rotate camera.');
+    }
     this.ui.setupAIControls(
       (enabled) => this.setAIEnabled(enabled),
       (difficulty) => this.setAIDifficulty(difficulty),
       (enabled) => this.audio.toggleSound(enabled)
     );
-    window.addEventListener('toggleTrajectory', (e) => {
+    this._onToggleTrajectory = (e) => {
       if (this.trajectory) this.trajectory.setVisible(e.detail);
-    });
-    window.addEventListener('toggleShotTrail', (e) => {
+    };
+    this._onToggleShotTrail = (e) => {
       if (this.trails) this.trails.setEnabled(e.detail);
-    });
+    };
+    window.addEventListener('toggleTrajectory', this._onToggleTrajectory);
+    window.addEventListener('toggleShotTrail', this._onToggleShotTrail);
     this.ui.showResetButton(() => this.resetGame());
+
+    // Back-to-menu button
+    this._addBackToMenuButton();
 
     this.setupCollisionEvents();
   }
@@ -382,6 +399,20 @@ export class Game {
     const cueBall = this.ballsManager.getCueBall();
     const cuePocketed = cueBall.pocketed;
 
+    // Free Play mode: no rules, no win/lose, no turn switching
+    if (this.mode === 'freeplay') {
+      if (cuePocketed) {
+        this.ballsManager.resetCueBallIfPocketed();
+        this.audio.playFoul();
+      }
+      this.state = 'AIM';
+      this.power = 0;
+      this.ui.setPower(0);
+      this.cue.show();
+      this.trajectory.setVisible(true);
+      return;
+    }
+
     const result = this.rules.resolveShot(pocketedIds, cuePocketed);
 
     // Record stats for this turn (filter out cue ball from pocket stats)
@@ -467,11 +498,113 @@ export class Game {
     this.ui.setPower(0);
     this.ui.setPlayerTurn(1);
     this.ui.setPlayerGroups(null, null);
-    this.ui.setMessage(this.aiEnabled ? 'New game! Player 1 breaks (vs AI).' : 'New game! Player 1 breaks.');
+    if (this.mode === 'freeplay') {
+      this.ui.setMessage('练习模式 — 无限击球');
+    } else {
+      this.ui.setMessage(this.aiEnabled ? 'New game! Player 1 breaks (vs AI).' : 'New game! Player 1 breaks.');
+    }
     this.ui.hideResetButton();
     this.ui.showResetButton(() => this.resetGame());
     this.cue.show();
     this.trajectory.setVisible(true);
+  }
+
+  _addBackToMenuButton() {
+    const uiLayer = document.getElementById('ui-layer');
+    if (!uiLayer || uiLayer.querySelector('#back-to-menu')) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'back-to-menu';
+    btn.textContent = '返回菜单';
+    btn.style.cssText = `
+      position: absolute; top: 20px; right: 20px;
+      padding: 8px 18px; font-size: 13px; font-weight: 600;
+      background: rgba(255,255,255,0.1); color: #fff;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 8px; cursor: pointer; pointer-events: auto;
+      backdrop-filter: blur(4px); transition: all 0.2s;
+      z-index: 15;
+    `;
+    btn.onmouseenter = () => {
+      btn.style.background = 'rgba(255,255,255,0.2)';
+      btn.style.borderColor = 'rgba(255,255,255,0.5)';
+    };
+    btn.onmouseleave = () => {
+      btn.style.background = 'rgba(255,255,255,0.1)';
+      btn.style.borderColor = 'rgba(255,255,255,0.25)';
+    };
+    btn.onclick = () => {
+      if (this.onReturnToMenu) this.onReturnToMenu();
+    };
+    uiLayer.appendChild(btn);
+  }
+
+  dispose() {
+    // Remove back-to-menu button
+    const backBtn = document.getElementById('back-to-menu');
+    if (backBtn && backBtn.parentNode) {
+      backBtn.parentNode.removeChild(backBtn);
+    }
+
+    // Remove all balls
+    if (this.ballsManager) {
+      for (const ball of this.ballsManager.balls) {
+        this.scene.remove(ball.mesh);
+        this.physics.removeBody(ball.body);
+        ball.geometry.dispose();
+        ball.material.dispose();
+      }
+      this.ballsManager = null;
+    }
+
+    // Remove table (physics bodies first)
+    if (this.physics) {
+      this.physics.removeTableBody();
+    }
+    if (this.table) {
+      this.table.dispose();
+      this.table = null;
+    }
+
+    // Remove cue
+    if (this.cue) {
+      this.scene.remove(this.cue.mesh);
+      this.cue = null;
+    }
+
+    // Remove trajectory
+    if (this.trajectory) {
+      this.trajectory.dispose();
+      this.trajectory = null;
+    }
+
+    // Clear effects
+    if (this.particles) {
+      this.particles.dispose();
+      this.particles = null;
+    }
+    if (this.trails) {
+      this.trails.dispose();
+      this.trails = null;
+    }
+
+    // Remove event listeners
+    window.removeEventListener('toggleTrajectory', this._onToggleTrajectory);
+    window.removeEventListener('toggleShotTrail', this._onToggleShotTrail);
+
+    // Destroy UI elements created by this game session
+    if (this.statsPanel) {
+      this.statsPanel.destroy();
+      this.statsPanel = null;
+    }
+
+    // Clean up input
+    if (this.input) {
+      this.input.dispose();
+      this.input = null;
+    }
+
+    this.state = 'DISPOSED';
   }
 
   render(renderer) {

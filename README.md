@@ -50,14 +50,25 @@ Then open `http://localhost:5173`
 | Build Tool | Vite |
 | Language | JavaScript (ES2022) |
 
-## 📢 Current Version: v0.7.2
+## 📢 Current Version: v0.8.0
 
-### v0.7.2 — "UI Visibility & Layout Fixes" (Latest)
-- ✅ **Fixed control panel completely invisible on dark background** — raised background opacity from `0.45 → 0.65` and border brightness from `0.15 → 0.3` so the top control bar (vs AI / difficulty / Aim Line / Trail / Sound) is clearly visible against the `#111` page background
-- ✅ **Fixed control panel awkward positioning** — moved from `top: 135px` (stuck between badges and message) to `top: 82px` directly beneath the player badges for a cleaner vertical flow
-- ✅ **Fixed top-bar excessive top margin** — reduced `margin-top` from `48px → 36px` to tighten the header spacing and give the control panel breathing room
-- ✅ **Fixed power bar container invisible on dark background** — raised background from `0.5 → 0.65` and border from `0.6 → 0.75` so the charging bar outline is clearly visible before any shot is taken
-- ✅ **Fixed control panel overflow on small screens** — added `flex-wrap: wrap` so 5 toggles reflow gracefully on narrow viewports
+### v0.8.0 — "Main Menu & Game Modes" (Latest)
+- **🎮 Full main menu system** — polished entry screen with animated title, glassmorphism buttons, and smooth fade transitions
+- **🎯 Three game modes:**
+  - **单人练习 (Free Play)** — no rules, no win/lose, unlimited shots; cue ball auto-respawns when pocketed; perfect for practicing aim and power control
+  - **本地双人对战 (Local 2P)** — standard 8-ball rules, two players take turns on the same device
+  - **对战 AI (vs AI)** — standard 8-ball rules against the computer AI with selectable difficulty
+- **⚙️ Settings screen** — in-menu sound toggle with persistent state
+- **🔙 Return to menu** — back button during gameplay to exit current session and return to main menu
+- **🧹 Clean session lifecycle** — `Game.dispose()` properly removes all Three.js meshes, physics bodies, event listeners, and DOM elements when returning to menu; no memory leaks between sessions
+- **🛡️ Physics cleanup** — `Table.dispose()` and `PhysicsWorld.removeTableBody()` ensure cushion bodies and table surface plane are correctly removed between games
+
+### v0.7.2 — "UI Visibility & Layout Fixes"
+- ✅ **Fixed control panel completely invisible on dark background** — raised background opacity from `0.45 → 0.65` and border brightness from `0.15 → 0.3` so the top control bar is clearly visible against the `#111` page background
+- ✅ **Fixed control panel awkward positioning** — moved from `top: 135px` to `top: 82px` directly beneath the player badges
+- ✅ **Fixed top-bar excessive top margin** — reduced `margin-top` from `48px → 36px`
+- ✅ **Fixed power bar container invisible on dark background** — raised background from `0.5 → 0.65` and border from `0.6 → 0.75`
+- ✅ **Fixed control panel overflow on small screens** — added `flex-wrap: wrap`
 
 ### v0.7.1 — "Shot Trail Polish & Bug Fixes"
 - ✅ **Fixed invisible trail bug** — disabled `frustumCulled` on trail lines and set `renderOrder = 10` so trails are always visible and draw on top of other transparent objects (the sparse `Float32Array` buffer caused incorrect bounding sphere calculation, which could randomly cull trails)

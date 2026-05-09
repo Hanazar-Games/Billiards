@@ -198,4 +198,29 @@ export class Table {
   getPocketPositions() {
     return this.pocketPositions;
   }
+
+  dispose() {
+    // Remove Three.js meshes
+    if (this.meshGroup && this.meshGroup.parent) {
+      this.meshGroup.parent.remove(this.meshGroup);
+    }
+    this.meshGroup.traverse((child) => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach((m) => m.dispose());
+        } else {
+          child.material.dispose();
+        }
+      }
+    });
+
+    // Remove physics bodies
+    if (this.physics) {
+      for (const body of this.bodies) {
+        this.physics.removeBody(body);
+      }
+    }
+    this.bodies = [];
+  }
 }

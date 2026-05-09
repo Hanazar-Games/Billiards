@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Billiards v0.7.2</title>
+  <title>3D Billiards v0.8.0</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #app {
@@ -85,10 +85,46 @@
       color: rgba(255,255,255,0.35);
       pointer-events: none;
     }
+    #menu-layer {
+      position: absolute; inset: 0;
+      z-index: 20; pointer-events: auto;
+      background: radial-gradient(ellipse at center, #1a2a1a 0%, #0a0a0a 100%);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .menu-title {
+      font-size: 56px; font-weight: 900;
+      color: #fff; letter-spacing: 6px;
+      text-shadow: 0 0 40px rgba(0,255,136,0.25);
+      margin-bottom: 12px;
+      animation: titleFloat 3s ease-in-out infinite;
+    }
+    @keyframes titleFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .menu-btn {
+      width: 340px; padding: 18px 24px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 14px;
+      backdrop-filter: blur(12px);
+      cursor: pointer; transition: all 0.25s ease;
+      text-align: left; pointer-events: auto;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .menu-btn:hover {
+      background: rgba(255,255,255,0.14);
+      border-color: rgba(255,255,255,0.4);
+      transform: scale(1.03);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    #ui-layer { display: none; }
   </style>
 </head>
 <body>
   <div id="app"></div>
+  <div id="menu-layer"></div>
   <div id="ui-layer">
     <div id="top-bar">
       <div id="player1" class="player-badge active">Player 1</div>
@@ -98,7 +134,7 @@
     <div id="power-bar-container">
       <div id="power-bar-fill"></div>
     </div>
-    <div id="version-tag">v0.7.2</div>
+    <div id="version-tag">v0.8.0</div>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>

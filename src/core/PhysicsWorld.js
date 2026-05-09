@@ -55,13 +55,20 @@ export class PhysicsWorld {
   createTableBody() {
     // Table surface plane
     const shape = new CANNON.Plane();
-    const body = new CANNON.Body({
+    this.tableBody = new CANNON.Body({
       mass: 0,
       material: this.tableMaterial,
     });
-    body.addShape(shape);
-    body.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-    this.world.addBody(body);
+    this.tableBody.addShape(shape);
+    this.tableBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+    this.world.addBody(this.tableBody);
+  }
+
+  removeTableBody() {
+    if (this.tableBody) {
+      this.world.removeBody(this.tableBody);
+      this.tableBody = null;
+    }
   }
 
   step(dt) {
