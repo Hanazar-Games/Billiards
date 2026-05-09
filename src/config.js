@@ -20,28 +20,29 @@ export const BALL = {
   segments: 32,              // sphere geometry detail
   restitution: 0.85,
   friction: 0.15,
-  damping: 0.42,             // linear damping (simulate cloth friction)
-  angularDamping: 0.5,
-  sleepSpeedLimit: 0.18,
-  sleepTimeLimit: 0.22,
-  slowBrakeSpeed: 1.15,       // extra braking below this speed to avoid long crawling
-  slowBrakeStrength: 3.8,
-  stopSpeedLimit: 0.28,
+  damping: 0.24,             // baseline cloth drag; low-speed braking is handled dynamically
+  angularDamping: 0.32,
+  sleepSpeedLimit: 0.12,
+  sleepTimeLimit: 0.18,
+  slowBrakeSpeed: 1.65,       // below this, braking ramps up as speed approaches zero
+  slowBrakeStrength: 9.5,
+  stopSpeedLimit: 0.18,
   maxSpeed: 520,
   boundaryRestitution: 0.48,
+  overlapIterations: 4,
 };
 
 // Pocket radius = ~1.5x ball radius (standard pool)
 export const POCKET = {
   radius: BALL.radius * 1.5,  // ~4.29 cm
-  detectMargin: BALL.radius * 0.6,
+  detectMargin: BALL.radius * 0.9,
 };
 
 // Physics world
 export const PHYSICS = {
   gravity: new Float32Array([0, -9.82 * SCALE, 0]),
-  fixedTimeStep: 1 / 240,
-  maxSubSteps: 20,
+  fixedTimeStep: 1 / 360,
+  maxSubSteps: 24,
 };
 
 // Ball colors (standard 8-ball set)

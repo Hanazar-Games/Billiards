@@ -198,10 +198,12 @@ export class TrajectoryPredictor {
   }
 
   setVisible(v) {
-    this.visible = false;
-    this.group.visible = false;
+    this.visible = Boolean(v);
+    this.group.visible = this.visible;
     this.clearLines();
-    this.ghostBall.visible = false;
+    if (!this.visible) {
+      this.ghostBall.visible = false;
+    }
   }
 
   dispose() {

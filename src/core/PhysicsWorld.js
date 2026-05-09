@@ -6,6 +6,8 @@ export class PhysicsWorld {
     this.world = new CANNON.World({
       gravity: new CANNON.Vec3(PHYSICS.gravity[0], PHYSICS.gravity[1], PHYSICS.gravity[2]),
     });
+    this.world.broadphase = new CANNON.SAPBroadphase(this.world);
+    this.world.allowSleep = true;
 
     // Materials
     this.ballMaterial = new CANNON.Material('ball');
@@ -19,6 +21,8 @@ export class PhysicsWorld {
       {
         friction: 0.1,
         restitution: 0.9,
+        contactEquationStiffness: 1e8,
+        contactEquationRelaxation: 3,
       }
     );
 
@@ -28,6 +32,8 @@ export class PhysicsWorld {
       {
         friction: 0.06,
         restitution: 0.92,
+        contactEquationStiffness: 1e8,
+        contactEquationRelaxation: 3,
       }
     );
 
@@ -37,6 +43,8 @@ export class PhysicsWorld {
       {
         friction: 0.15,
         restitution: 0.1,
+        contactEquationStiffness: 1e8,
+        contactEquationRelaxation: 4,
       }
     );
 
@@ -45,8 +53,8 @@ export class PhysicsWorld {
     this.world.addContactMaterial(ballTable);
 
     // Default solver iterations
-    this.world.solver.iterations = 28;
-    this.world.solver.tolerance = 0.0008;
+    this.world.solver.iterations = 38;
+    this.world.solver.tolerance = 0.00035;
 
     // Create static table body (infinite plane for the felt surface)
     this.createTableBody();

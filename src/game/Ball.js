@@ -119,7 +119,9 @@ export class Ball {
     const speed = Math.sqrt(v.x * v.x + v.z * v.z);
 
     if (speed > 0 && speed < BALL.slowBrakeSpeed) {
-      const factor = Math.max(0, 1 - BALL.slowBrakeStrength * dt);
+      const t = 1 - speed / BALL.slowBrakeSpeed;
+      const brake = BALL.slowBrakeStrength * t * t;
+      const factor = Math.max(0, Math.exp(-brake * dt));
       v.x *= factor;
       v.z *= factor;
       av.x *= factor;

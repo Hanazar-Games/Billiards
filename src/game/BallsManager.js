@@ -150,55 +150,59 @@ export class BallsManager {
       ball.applyLowSpeedBrake(dt);
       this._enforceTableBounds(ball, pocketPositions);
     }
-    this._resolveBallOverlaps();
+    this._resolveBallOverlaps(pocketPositions);
   }
 
-  _resolveBallOverlaps() {
+  _resolveBallOverlaps(pocketPositions = []) {
     const minDist = BALL.radius * 2 * 0.98;
     const minDistSq = minDist * minDist;
 
-    for (let i = 0; i < this.balls.length; i++) {
-      const a = this.balls[i];
-      if (a.pocketed) continue;
+    for (let pass = 0; pass < BALL.overlapIterations; pass++) {
+      for (let i = 0; i < this.balls.length; i++) {
+        const a = this.balls[i];
+        if (a.pocketed) continue;
 
-      for (let j = i + 1; j < this.balls.length; j++) {
-        const b = this.balls[j];
-        if (b.pocketed) continue;
+        for (let j = i + 1; j < this.balls.length; j++) {
+          const b = this.balls[j];
+          if (b.pocketed) continue;
 
-        const dx = b.body.position.x - a.body.position.x;
-        const dz = b.body.position.z - a.body.position.z;
-        const distSq = dx * dx + dz * dz;
-        if (distSq >= minDistSq) continue;
+          const dx = b.body.position.x - a.body.position.x;
+          const dz = b.body.position.z - a.body.position.z;
+          const distSq = dx * dx + dz * dz;
+          if (distSq >= minDistSq) continue;
 
-        const dist = Math.sqrt(distSq) || 0.0001;
-        const nx = dx / dist;
-        const nz = dz / dist;
-        const overlap = minDist - dist;
-        const correction = overlap * 0.5;
+          const dist = Math.sqrt(distSq) || 0.0001;
+          const nx = distSq > 0.000001 ? dx / dist : 1;
+          const nz = distSq > 0.000001 ? dz / dist : 0;
+          const overlap = minDist - dist;
+          const correction = overlap * 0.5;
 
-        a.body.position.x -= nx * correction;
-        a.body.position.z -= nz * correction;
-        b.body.position.x += nx * correction;
-        b.body.position.z += nz * correction;
-        a.body.position.y = BALL.radius;
-        b.body.position.y = BALL.radius;
+          a.body.position.x -= nx * correction;
+          a.body.position.z -= nz * correction;
+          b.body.position.x += nx * correction;
+          b.body.position.z += nz * correction;
+          a.body.position.y = BALL.radius;
+          b.body.position.y = BALL.radius;
 
-        const av = a.body.velocity;
-        const bv = b.body.velocity;
-        const relNormalSpeed = (bv.x - av.x) * nx + (bv.z - av.z) * nz;
+          const av = a.body.velocity;
+          const bv = b.body.velocity;
+          const relNormalSpeed = (bv.x - av.x) * nx + (bv.z - av.z) * nz;
 
-        if (relNormalSpeed < 0) {
-          const impulse = -relNormalSpeed * 0.5;
-          av.x -= nx * impulse;
-          av.z -= nz * impulse;
-          bv.x += nx * impulse;
-          bv.z += nz * impulse;
+          if (relNormalSpeed < 0) {
+            const impulse = -relNormalSpeed * 0.5;
+            av.x -= nx * impulse;
+            av.z -= nz * impulse;
+            bv.x += nx * impulse;
+            bv.z += nz * impulse;
+          }
+
+          this._enforceTableBounds(a, pocketPositions);
+          this._enforceTableBounds(b, pocketPositions);
+          a.body.wakeUp();
+          b.body.wakeUp();
+          a.sync();
+          b.sync();
         }
-
-        a.body.wakeUp();
-        b.body.wakeUp();
-        a.sync();
-        b.sync();
       }
     }
   }
@@ -248,7 +252,7 @@ export class BallsManager {
 
   _isNearPocketMouth(ball, pocketPositions) {
     const pos = ball.body.position;
-    const pocketPassRadius = POCKET.radius + BALL.radius * 1.5;
+    const pocketPassRadius = POCKET.radius + POCKET.detectMargin * 0.95;
     const passSq = pocketPassRadius * pocketPassRadius;
 
     for (const pocket of pocketPositions) {

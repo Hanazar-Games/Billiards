@@ -69,10 +69,10 @@ export class UI {
     this.trajToggle = document.createElement('label');
     this.trajToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;margin-left:4px;';
     this.trajToggle.innerHTML = `
-      <input type="checkbox" id="traj-toggle" style="cursor:pointer;">
+      <input type="checkbox" id="traj-toggle" checked style="cursor:pointer;">
       <span>Aim Line</span>
     `;
-    this.trajToggle.style.display = 'none';
+    this.aiPanel.appendChild(this.trajToggle);
 
     // Shot trail toggle
     this.trailToggle = document.createElement('label');
@@ -111,7 +111,7 @@ export class UI {
 
     const trajCheckbox = this.trajToggle.querySelector('input');
     trajCheckbox.addEventListener('change', (e) => {
-      window.dispatchEvent(new CustomEvent('toggleTrajectory', { detail: false }));
+      window.dispatchEvent(new CustomEvent('toggleTrajectory', { detail: e.target.checked }));
     });
 
     const trailCheckbox = this.trailToggle.querySelector('input');

@@ -49,6 +49,7 @@ export class Game {
     this.aimDirection = new THREE.Vector3(0, 0, 1);
     this.lockedAimDirection = new THREE.Vector3(0, 0, 1);
     this.dragStart = null;
+    this.trajectoryEnabled = true;
     this.aiEnabled = false;
 
     // English spin state: [-1, 1] for X (left/right) and Z (top/back)
@@ -130,7 +131,8 @@ export class Game {
       this.ui.aiPanel.style.display = 'none';
     }
     this._onToggleTrajectory = (e) => {
-      if (this.trajectory) this.trajectory.setVisible(false);
+      this.trajectoryEnabled = Boolean(e.detail);
+      this.setAimTrajectoryVisible(this.state === 'AIM');
     };
     this._onToggleShotTrail = (e) => {
       if (this.trails) this.trails.setEnabled(e.detail);
@@ -229,6 +231,7 @@ export class Game {
   onMouseMove() {
     if (this.state === 'AIM') {
       this.updateAimDirection();
+      this.updateTrajectory();
     } else if (this.state === 'CHARGING') {
       this.updateDragPower();
     }
@@ -259,6 +262,9 @@ export class Game {
       this.dragStart = null;
       this.power = 0;
       this.ui.setPower(0);
+      this.setAimTrajectoryVisible(true);
+      this.updateAimDirection();
+      this.updateTrajectory();
       return;
     }
     this.state = 'SHOOTING';
@@ -331,9 +337,14 @@ export class Game {
     this.cue.setAim(ballPos, this.aimDirection);
   }
 
+  setAimTrajectoryVisible(visible) {
+    if (!this.trajectory) return;
+    this.trajectory.setVisible(Boolean(visible && this.trajectoryEnabled && this.state === 'AIM'));
+  }
+
   updateTrajectory() {
     if (!this.trajectory || !this.trajectory.visible) return;
-    if (this.state !== 'AIM' && this.state !== 'CHARGING') return;
+    if (this.state !== 'AIM') return;
 
     const cueBall = this.ballsManager.getCueBall();
     if (!cueBall || cueBall.pocketed) return;
@@ -402,7 +413,7 @@ export class Game {
         this.ui.setPower(0);
         this.ui.setMessage('AI failed to plan a shot. Player control restored.', 4000);
         this.cue.show();
-        this.trajectory.setVisible(false);
+        this.setAimTrajectoryVisible(true);
       }
       return;
     }
@@ -413,7 +424,7 @@ export class Game {
       this.power = 0;
       this.ui.setPower(0);
       this.cue.show();
-      this.trajectory.setVisible(false);
+      this.setAimTrajectoryVisible(true);
       return;
     }
 
@@ -537,6 +548,8 @@ export class Game {
 
     if (this.state === 'AIM' && this.cue.visible) {
       this.updateAimDirection();
+      this.setAimTrajectoryVisible(true);
+      this.updateTrajectory();
     } else if (this.state === 'CHARGING' && this.cue.visible) {
       this.updateDragPower();
     }
@@ -566,7 +579,7 @@ export class Game {
       this.power = 0;
       this.ui.setPower(0);
       this.cue.show();
-      this.trajectory.setVisible(false);
+      this.setAimTrajectoryVisible(true);
       return;
     }
 
@@ -642,7 +655,7 @@ export class Game {
     this.power = 0;
     this.ui.setPower(0);
     this.cue.show();
-    this.trajectory.setVisible(false);
+    this.setAimTrajectoryVisible(true);
 
     // Update live stats panel
     this.statsPanel.update(this.statsTracker.getLiveStats());
@@ -693,7 +706,7 @@ export class Game {
     this.ui.hideResetButton();
     this.ui.showResetButton(() => this.resetGame());
     this.cue.show();
-    this.trajectory.setVisible(false);
+    this.setAimTrajectoryVisible(true);
   }
 
   _addBackToMenuButton() {
