@@ -2,6 +2,8 @@
 
 A browser-based 3D 8-ball pool game built with **Three.js** and **cannon-es** physics engine.
 
+**Current Version: v0.11.1**
+
 ## 🎮 How to Play
 
 | Control | Action |
@@ -19,17 +21,16 @@ A browser-based 3D 8-ball pool game built with **Three.js** and **cannon-es** ph
 - Scratching or fouling gives opponent ball-in-hand
 
 ### Single Player vs AI
-- Check the **"vs AI"** box in the top control bar to play against the computer
-- Choose difficulty: **Easy / Normal / Hard**
-- AI has different accuracy levels and can make mistakes on Easy
+- Choose **对战 AI** mode to play against the computer
+- AI has different accuracy levels and can make mistakes on lower difficulties
 
 ### Aim Assist
-- The **"Aim Line"** toggle shows a trajectory prediction line and ghost ball
+- Trajectory prediction line and ghost ball are shown by default
 - Green line = target ball path to pocket (if available)
 - White line = cue ball path
 
 ### Sound
-- **"Sound"** toggle enables all audio: ambient background atmosphere + SFX
+- Toggle sound in Settings to enable ambient background atmosphere + SFX
 - All audio is procedurally generated via Web Audio API (no external files)
 
 ## 🚀 Quick Start
@@ -49,166 +50,6 @@ Then open `http://localhost:5173`
 | Physics | cannon-es |
 | Build Tool | Vite |
 | Language | JavaScript (ES2022) |
-
-## 📢 Current Version: v0.11.1
-
-### v0.11.1 — "Replay System Polish" (Latest)
-- ✅ **Fixed replay list / achievement wall overlaying gameplay** — `_startGame` now explicitly hides both panels before transitioning to the game
-- ✅ **Fixed resetGame leaving stale recorder state** — `recorder.reset()` is now called during `Game.resetGame()`, preventing mixed old/new ball position data if reset mid-recording
-- ✅ **Fixed invalid replay data crash** — `_startReplayPlayback` now checks `load()` return value and gracefully aborts back to menu if data is corrupted
-- ✅ **Fixed control panel initial state lag** — `updateControls()` is called immediately after `showControls()` so the UI shows correct duration and button state from frame 0
-- ✅ **Added ESC key support** — press `Escape` to close the replay list or exit playback
-- ✅ **Added button title tooltips** — all replay panel buttons (close, play, delete, speed, exit) now have descriptive `title` attributes for accessibility
-
-### v0.11.0 — "Replay System"
-- **🎬 Automatic Shot Recording** — every shot is automatically recorded at 20fps during gameplay, no manual action needed
-- **🧠 Smart Excitement Scoring** — shots are scored (0-100) based on pockets, collisions, cushion hits, spin usage, power, and duration; only interesting shots (score ≥ 25) are saved
-- **💾 Persistent Replay Library** — up to 30 replays stored in localStorage with automatic quota-safe eviction (lowest-score replays evicted first)
-- **📺 Replay Browser** — main menu "精彩回放" button opens a glassmorphism grid of saved shots with score badges, date, duration, pocket count, collision/cushion stats
-- **▶️ Full Playback Controls** — play/pause, 4 speed levels (0.1x / 0.25x / 0.5x / 1.0x), clickable progress bar scrubbing, exit button; controls overlay at bottom center
-- **🔁 Clean Playback Loop** — replay uses its own `requestAnimationFrame` loop independent of game physics; auto-returns to menu after playback completes
-- **🗑️ Per-Replay Delete** — each replay card has a delete button with hover danger color
-- **📐 Table + Balls Reconstruction** — replay scene rebuilds the table and all 16 balls from saved frame data; pocketed balls are hidden during playback
-- **🎮 All Modes Supported** — replays are saved from Free Play, Local 2P, vs AI, and 9-Ball modes
-
-### v0.10.0 — "Achievement System"
-- **🏆 30 Unlockable Achievements** across 3 categories:
-  - **技术 (10)** — `一杆双响` (3球), `一杆清台` (4球), `长台神射` (>200cm), `旋转大师` (spin进球), `完美开球` (4球), `连环撞击` (3+碰撞), `库边反弹`, `全力一击` (100%), `蜻蜓点水` (≤10%), `库边舞者` (4+库边)
-  - **生涯 (10)** — `百杆高手` (100杆), `千锤百炼` (500杆), `进球机器` (50球), `袋口主宰` (200球), `常胜将军` (10胜), `传奇球手` (50胜), `资深玩家` (20局), `连胜纪录` (5连胜), `AI克星`, `AI终结者` (困难)
-  - **特殊 (10)** — `9球奇迹` (开球进9), `黑八绝杀`, `零封`, `完美比赛` (无犯规), `绝地反击`, `首胜`, `全能球手` (全模式), `艺术轨迹`, `速战速决` (<30秒), `收藏家` (20成就)
-- **🍞 Toast Notification** — slide-in card with icon, name, description, and category color when unlocking
-- **🏛️ Achievement Wall** — full-screen browsable grid with category tabs, unlock status, and dates
-- **💾 localStorage Persistence** — all progress survives browser restarts
-- **🔒 Hidden Achievements** — some achievements remain secret until unlocked
-
-### v0.9.0 — "Gameplay Expansion"
-- **🎱 9-Ball Mode** — diamond rack, hit-lowest-first rules, combo shots legal, 9-ball instant win
-- **🌀 English Spin System** — W/S/A/D for top/back/left/right spin, R to reset, circular HUD indicator
-- **🎥 Camera Modes** — 1=free orbit, 2=top-down, 3=follow ball
-- **🏠 Room Environment** — floor, 4 walls with baseboards, ceiling lamp with warm light
-
-### v0.8.0 — "Main Menu & Game Modes"
-- **🎮 Full main menu system** — polished entry screen with animated title, glassmorphism buttons, and smooth fade transitions
-- **🎯 Three game modes:**
-  - **单人练习 (Free Play)** — no rules, no win/lose, unlimited shots; cue ball auto-respawns when pocketed
-  - **本地双人对战 (Local 2P)** — standard 8-ball rules, two players take turns
-  - **对战 AI (vs AI)** — standard 8-ball rules against the computer AI
-- **⚙️ Settings screen** — in-menu sound toggle with persistent state
-- **🔙 Return to menu** — back button during gameplay to exit current session
-- **🧹 Clean session lifecycle** — `Game.dispose()` properly removes all resources between sessions
-
-### v0.7.2 — "UI Visibility & Layout Fixes"
-- ✅ **Fixed control panel completely invisible on dark background** — raised background opacity from `0.45 → 0.65` and border brightness from `0.15 → 0.3` so the top control bar is clearly visible against the `#111` page background
-- ✅ **Fixed control panel awkward positioning** — moved from `top: 135px` to `top: 82px` directly beneath the player badges
-- ✅ **Fixed top-bar excessive top margin** — reduced `margin-top` from `48px → 36px`
-- ✅ **Fixed power bar container invisible on dark background** — raised background from `0.5 → 0.65` and border from `0.6 → 0.75`
-- ✅ **Fixed control panel overflow on small screens** — added `flex-wrap: wrap`
-
-### v0.7.1 — "Shot Trail Polish & Bug Fixes"
-- ✅ **Fixed invisible trail bug** — disabled `frustumCulled` on trail lines and set `renderOrder = 10` so trails are always visible and draw on top of other transparent objects (the sparse `Float32Array` buffer caused incorrect bounding sphere calculation, which could randomly cull trails)
-- ✅ **Fixed trail opacity too low** — initial opacity raised from 0.85 → 1.0 so trails are crisp and clearly visible against the green felt; fade-out curve now goes from 1.0 → 0.0 for a more satisfying disappearance
-- ✅ **Fixed non-integer AudioBuffer lengths** — `AudioManager` now uses `Math.ceil()` for all `createBuffer()` sizes, preventing edge-case bugs where fractional sample rates could produce invalid buffer lengths
-
-### v0.7.0 — "Shot Trail System"
-- **Cue ball trail visualization** — a glowing cyan line traces the cue ball's path during every shot, helping players learn ball control and making spectacular shots more satisfying to watch
-- **Real-time growth animation** — the trail visibly extends frame-by-frame as the ball moves, creating a satisfying "laser draw" effect
-- **Smart distance filtering** — points are only recorded when the ball moves fast enough (`> 0.15`) and far enough from the last point, preventing clutter from tiny jitters
-- **Smooth fade-out** — trails linger for 5 seconds after the shot ends, then ease-out cubic fade to transparent; old trails are automatically cleaned up
-- **Max 3 trails retained** — prevents visual overload during long rallies
-- **UI toggle** — "Trail" checkbox in the top control bar lets players enable/disable trails on demand
-- **Robust edge-case handling** — gracefully stops recording when the cue ball is pocketed, reaches the point buffer limit, or the game is reset
-
-### v0.6.3 — "Collision System Restoration"
-- ✅ **Fixed ball collision SFX double-play** — moved `playBallCollision()` inside the `ball.id < otherBall.id` dedup branch so each collision plays exactly once (was playing twice, once per body)
-- ✅ **Fixed relative velocity calculation** — replaced `Math.abs(v - vOther)` (scalar difference) with `ball.body.velocity.distanceTo(otherBall.body.velocity)` (true vector magnitude). Head-on collisions now correctly report high relative velocity instead of 0
-- ✅ **Fixed accidental shot when releasing mouse over UI** — `InputHandler.handleMouseUp()` now ignores releases over BUTTON/INPUT/SELECT/LABEL elements, preventing unintended shots when the user clicks the stats toggle or AI controls mid-charge
-
-### v0.6.2 — "The Silent Killer Fix"
-- 🚨 **FIXED: collision `otherBody` computation was completely inverted** — In cannon-es, `e.body` is ALREADY the other body. The ternary `e.body === e.contact.bi ? e.contact.bj : e.contact.bi` was returning the listener's own body 100% of the time. This meant:
-  - **Ball-ball collision SFX never played** (relVel was always 0)
-  - **First-hit tracking never worked** — `recordFirstHit()` was never called, so "hit wrong group first" fouls were never detected
-  - **Collision sparks never spawned**
-  - **Ball-cushion SFX never played** — the cushion branch was unreachable
-  - **Stats collision counters were always zero**
-- ✅ **Fixed: `const otherBody = e.body`** — All SFX, first-hit detection, sparks, and collision stats now work correctly for the first time
-- ✅ **Fixed AI turn race condition** — `startAITurn()` now guards against `resetGame()` being called during the 400ms aim pause
-- ✅ **Fixed pocket flash stacking** — multiple balls dropping into the same pocket now trigger only one flash (prevents opaque gold blob)
-- ✅ **Fixed StatsPanel content overflow** — `max-height` increased from 420px to 520px so all stats rows are visible
-- ✅ **Fixed "Turns:" label → "Shots:"** — accurately reflects that `totalTurns` counts shots, not turns
-- ✅ **Fixed pocketRate cap** — capped at 100% display (previously could show 200%+ after multi-ball shots)
-
-### v0.6.1 — "Stats & FX Bug-Fix Sweep"
-- ✅ **Fixed pocketed balls lost across frames** — `turnPocketedIds` now accumulates all pocketed balls throughout a shot, preventing missed pockets when balls stop at different times
-- ✅ **Fixed pocket flash wrong position** — `checkPockets()` now returns exact `pocketIndex`; flash spawns at the correct pocket instead of using post-removal ball position
-- ✅ **Fixed double-counted ball collisions** — stats and sparks now use `ball.id < otherBall.id` deduplication (cannon-es fires collide on both bodies)
-- ✅ **Fixed cue ball counted as pocketed** — filtered `id !== 0` from `recordPocket` so scratches no longer inflate pocket stats
-- ✅ **Fixed collision sparks white** — each burst now picks a random color from the palette instead of defaulting to white
-- ✅ **Fixed negative/NaN dt crash** — `ParticleSystem.update()` clamps `dt` to `[0, 0.05]` with finiteness check
-- ✅ **Fixed StatsPanel null-reference crashes** — all public methods now guard against missing DOM elements
-- ✅ **Fixed stale stats on new game** — `reset()` clears panel content and collapses it after every `resetGame()`
-- ✅ **Fixed StatsPanel overlapping power bar** — toggle button moved to `bottom: 90px` to clear the power bar container
-- ✅ **Added `user-select: none` to stats panel** — prevents accidental text selection during gameplay
-- ✅ **Added input validation to StatsTracker** — rejects invalid `player` and `power` values with warnings
-- ✅ **Removed unused `sizes`/`colors` arrays from ParticleSystem** — cleans dead allocation code
-
-### v0.6.0 — "Stats & Visual FX Overhaul"
-- **Match Statistics Tracker** — comprehensive stats: shots, pockets, fouls, scratches, power averages, streaks, collisions
-- **Live Stats Panel** — collapsible bottom-right HUD showing real-time match data; auto-expands on game over with winner summary
-- **Visual Particle Effects** — Three.js Points-based FX: chalk dust on cue hit, colorful sparks on ball-ball collisions, golden flash on pocketed balls
-
-### v0.5.1 — "Final Polish"
-- ✅ Removed redundant `trajectoryEnabled` flag — trajectory visibility now directly synced with toggle state
-- ✅ Pocket SFX deduplication — single `playPocket()` call regardless of how many balls drop simultaneously
-- ✅ Removed unused `BALL` import from Game.js
-- ✅ Removed unused `opponentGroup` variable from Rules.js
-- ✅ Cleaned empty comment block in break shot handling
-- ✅ Added "no ball hit" foul rule — cue ball missing all balls with no pocket now correctly awards foul
-
-### v0.5.0 — "Audio & AI Polish"
-- **Sound toggle now controls ALL audio** — BGM ambience + all SFX unified under one master switch with `_canPlay()` guard
-- **Fixed AI break shot targeting 8-ball** — break shot correctly excludes 8-ball; AI only attempts 8-ball after clearing its group
-- **Fixed AI safety shot awareness** — `safetyAwareness` difficulty setting now actually used
-- **Fixed UI overlap** — top control bar stays clear of player badges on all screen sizes
-- **Trajectory state persistence** — aim line toggle state preserved across turns and resets
-
-### v0.4.0 — "Polished Table"
-- Fixed trajectory predictor crash when `toPocket` was used as Vector3 instead of `.dir`
-- Fixed ghost ball clamping logic that placed it at wrong position on angled shots
-- Fixed too-permissive collision threshold in trajectory raycast
-- Added ambient background atmosphere (drone + noise floor) with on/off toggle
-
-### v0.3.0 — "Smart Opponent"
-- **AI Opponent** with 3 difficulty levels (Easy/Normal/Hard)
-- **Trajectory Prediction** — aim line + ghost ball visualization
-- AI thinks, aims, charges, and shoots autonomously
-- AI difficulty affects angle accuracy, power consistency, and mistake rate
-- AI falls back to safety shots when no direct pocket is available
-
-### v0.2.0 — "First Playable"
-- Complete 8-ball rule engine (group assignment, fouls, win/lose)
-- Procedural stripe textures for 9-15 balls
-- Pocket detection with distance-based trigger
-- Full SFX system (cue hit, ball collision, cushion bounce, pocket, win/lose)
-- Player turn indicator with group badges (Solids / Stripes)
-- Power bar with gradient fill
-- Camera orbit controls (right-click)
-- Table legs and improved lighting (3-point setup)
-- Cue ball respawn with collision avoidance
-- "New Game" reset button
-
----
-
-## 📜 Version History
-
-### v0.1.0 — "Hello Table"
-- Basic Three.js scene with camera, lights, shadows
-- cannon-es physics world with materials & contact materials
-- Table mesh with felt, cushions, pockets, rails
-- 16 balls with solid colors
-- Basic cue stick mesh
-- Mouse aim + charge + shoot input
-- Ball physics sync and sleep detection
-- Basic HTML UI overlay
 
 ## 📝 License
 
