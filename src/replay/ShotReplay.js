@@ -6,6 +6,8 @@
  *
  * Playback speeds: 0.1x, 0.25x, 0.5x, 1.0x
  */
+import { POCKETED_SENTINEL } from './ShotRecorder.js';
+
 const SPEEDS = [0.1, 0.25, 0.5, 1.0];
 const FRAME_INTERVAL = 0.05; // original recording interval = 50ms
 
@@ -147,9 +149,7 @@ export class ShotReplay {
       const x = this.frames[base + i * 2];
       const z = this.frames[base + i * 2 + 1];
 
-      // Zeroed position after frame 0 means ball was pocketed during recording.
-      // In the original game, pocketed balls have mesh.visible = false.
-      if (x === 0 && z === 0 && frameIdx > 0) {
+      if (x === POCKETED_SENTINEL && z === POCKETED_SENTINEL) {
         ball.mesh.visible = false;
         continue;
       }

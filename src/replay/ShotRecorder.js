@@ -15,6 +15,7 @@ const MAX_FRAMES = 300; // 15 seconds @ 20fps
 const FRAME_INTERVAL = 0.05; // 50ms
 const BALL_COUNT = 16;
 const FLOATS_PER_FRAME = BALL_COUNT * 2; // x, z for each ball
+export const POCKETED_SENTINEL = 999999;
 
 export class ShotRecorder {
   constructor() {
@@ -71,8 +72,13 @@ export class ShotRecorder {
     for (let i = 0; i < BALL_COUNT; i++) {
       const ball = ballsManager.balls[i];
       if (ball && ball.mesh) {
-        this.frames[base + i * 2] = ball.mesh.position.x;
-        this.frames[base + i * 2 + 1] = ball.mesh.position.z;
+        if (ball.pocketed || !ball.mesh.visible) {
+          this.frames[base + i * 2] = POCKETED_SENTINEL;
+          this.frames[base + i * 2 + 1] = POCKETED_SENTINEL;
+        } else {
+          this.frames[base + i * 2] = ball.mesh.position.x;
+          this.frames[base + i * 2 + 1] = ball.mesh.position.z;
+        }
       } else {
         this.frames[base + i * 2] = 0;
         this.frames[base + i * 2 + 1] = 0;

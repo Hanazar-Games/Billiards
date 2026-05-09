@@ -56,67 +56,73 @@ export class AIPlayer {
     if (this.thinking) return;
     this.thinking = true;
 
-    const { ballsManager, table, rules } = game;
-    const cueBall = ballsManager.getCueBall();
-    const pocketPositions = table.getPocketPositions();
-    const status = rules.getStatus();
-    const playerGroup = rules.getPlayerGroup(2); // AI is always player 2
-    const isBreak = status.breakShot;
+    try {
+      const { ballsManager, table, rules } = game;
+      const cueBall = ballsManager.getCueBall();
+      const pocketPositions = table.getPocketPositions();
+      const status = rules.getStatus();
+      const playerGroup = typeof rules.getPlayerGroup === 'function'
+        ? rules.getPlayerGroup(2) // AI is always player 2
+        : null;
+      const targetBallId = Number.isInteger(status.targetBall) ? status.targetBall : null;
+      const isBreak = status.breakShot;
 
-    // Thinking delay
-    const thinkTime = this.settings.thinkTimeMin + Math.random() * (this.settings.thinkTimeMax - this.settings.thinkTimeMin);
-    await this.delay(thinkTime);
+      // Thinking delay
+      const thinkTime = this.settings.thinkTimeMin + Math.random() * (this.settings.thinkTimeMax - this.settings.thinkTimeMin);
+      await this.delay(thinkTime);
 
-    // Find shots
-    const allShots = this.planner.findAllShots(
-      ballsManager.balls,
-      cueBall,
-      pocketPositions,
-      playerGroup,
-      isBreak
-    );
+      // Find shots
+      const allShots = this.planner.findAllShots(
+        ballsManager.balls,
+        cueBall,
+        pocketPositions,
+        playerGroup,
+        isBreak,
+        targetBallId
+      );
 
-    let chosenShot = null;
+      let chosenShot = null;
 
-    if (allShots.length === 0) {
-      // No direct shot: try safety or random hit
-      chosenShot = this.planner.findSafetyShot(ballsManager.balls, cueBall, pocketPositions, playerGroup, isBreak);
-      if (!chosenShot) {
-        // Desperate: just hit the closest ball
-        chosenShot = this.findDesperateShot(ballsManager.balls, cueBall);
-      }
-    } else {
-      // Pick best shot, sometimes pick 2nd best (mistake)
-      if (Math.random() < this.settings.missChance && allShots.length > 1) {
-        chosenShot = allShots[1 + Math.floor(Math.random() * (allShots.length - 1))];
+      if (allShots.length === 0) {
+        // No direct shot: try safety or random hit
+        chosenShot = this.planner.findSafetyShot(ballsManager.balls, cueBall, pocketPositions, targetBallId);
+        if (!chosenShot) {
+          // Desperate: just hit the closest legal ball
+          chosenShot = this.findDesperateShot(ballsManager.balls, cueBall, targetBallId);
+        }
       } else {
-        chosenShot = allShots[0];
+        // Pick best shot, sometimes pick 2nd best (mistake)
+        if (Math.random() < this.settings.missChance && allShots.length > 1) {
+          chosenShot = allShots[1 + Math.floor(Math.random() * (allShots.length - 1))];
+        } else {
+          chosenShot = allShots[0];
+        }
       }
-    }
 
-    if (!chosenShot) {
-      // Absolute fallback
-      chosenShot = {
-        aimDirection: { x: 0, z: 1 },
-        power: SHOT.minPower * 2,
+      if (!chosenShot) {
+        // Absolute fallback
+        chosenShot = {
+          aimDirection: { x: 0, z: 1 },
+          power: SHOT.minPower * 2,
+        };
+      }
+
+      // Apply noise based on difficulty
+      const finalAim = this.applyNoise(chosenShot.aimDirection);
+      const finalPower = this.applyPowerNoise(chosenShot.power);
+
+      // Charge animation delay
+      const chargeTime = (finalPower / SHOT.maxPower) * 1200 + 300;
+
+      return {
+        aimDirection: finalAim,
+        power: finalPower,
+        chargeTime,
+        originalShot: chosenShot,
       };
+    } finally {
+      this.thinking = false;
     }
-
-    // Apply noise based on difficulty
-    const finalAim = this.applyNoise(chosenShot.aimDirection);
-    const finalPower = this.applyPowerNoise(chosenShot.power);
-
-    // Charge animation delay
-    const chargeTime = (finalPower / SHOT.maxPower) * 1200 + 300;
-
-    this.thinking = false;
-
-    return {
-      aimDirection: finalAim,
-      power: finalPower,
-      chargeTime,
-      originalShot: chosenShot,
-    };
   }
 
   applyNoise(dir) {
@@ -134,13 +140,14 @@ export class AIPlayer {
     return Math.max(SHOT.minPower, Math.min(SHOT.maxPower, power * factor));
   }
 
-  findDesperateShot(balls, cueBall) {
+  findDesperateShot(balls, cueBall, targetBallId = null) {
     const cuePos = cueBall.mesh.position;
     let closest = null;
     let closestDist = Infinity;
 
     for (const ball of balls) {
       if (ball.pocketed || ball.id === 0) continue;
+      if (targetBallId !== null && ball.id !== targetBallId) continue;
       const d = cuePos.distanceTo(ball.mesh.position);
       if (d < closestDist) {
         closestDist = d;

@@ -340,9 +340,31 @@ export class Game {
     this.trajectory.setVisible(false);
     this.cue.hide();
 
-    const decision = await this.aiPlayer.takeTurn(this);
+    let decision = null;
+    try {
+      decision = await this.aiPlayer.takeTurn(this);
+    } catch (err) {
+      console.error('AI turn failed', err);
+      if (this.state === 'AI_THINKING') {
+        this.state = 'AIM';
+        this.power = 0;
+        this.ui.setPower(0);
+        this.ui.setMessage('AI failed to plan a shot. Player control restored.', 4000);
+        this.cue.show();
+        this.trajectory.setVisible(true);
+      }
+      return;
+    }
 
     if (this.state !== 'AI_THINKING') return; // player may have cancelled
+    if (!decision) {
+      this.state = 'AIM';
+      this.power = 0;
+      this.ui.setPower(0);
+      this.cue.show();
+      this.trajectory.setVisible(true);
+      return;
+    }
 
     // Set aim
     this.aimDirection.set(decision.aimDirection.x, 0, decision.aimDirection.z).normalize();

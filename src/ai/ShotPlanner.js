@@ -12,18 +12,19 @@ export class ShotPlanner {
    * Find all possible shots for the current player.
    * Returns array of candidate shots sorted by score (best first).
    */
-  findAllShots(balls, cueBall, pocketPositions, playerGroup, isBreak = false) {
+  findAllShots(balls, cueBall, pocketPositions, playerGroup, isBreak = false, targetBallId = null) {
     const candidates = [];
     const r = BALL.radius;
     const cuePos = cueBall.mesh.position;
 
     for (const target of balls) {
       if (target.pocketed || target.id === 0) continue;
+      if (targetBallId !== null && target.id !== targetBallId) continue;
 
       const targetType = getBallType(target.id);
 
       // 8-ball is never a valid target during break
-      if (targetType === BALL_TYPE.EIGHT) continue;
+      if (targetType === BALL_TYPE.EIGHT && targetBallId === null) continue;
 
       // After break, only own group balls are valid targets
       if (!isBreak && playerGroup) {
@@ -196,13 +197,14 @@ export class ShotPlanner {
    * Find a safety shot when no direct pocket is available.
    * Just hits the best positioned opponent ball toward a cushion.
    */
-  findSafetyShot(balls, cueBall, pocketPositions) {
+  findSafetyShot(balls, cueBall, pocketPositions, targetBallId = null) {
     const cuePos = cueBall.mesh.position;
     let best = null;
     let bestScore = -Infinity;
 
     for (const target of balls) {
       if (target.pocketed || target.id === 0) continue;
+      if (targetBallId !== null && target.id !== targetBallId) continue;
 
       const targetPos = target.mesh.position;
       _v1.subVectors(targetPos, cuePos).normalize();

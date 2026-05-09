@@ -125,6 +125,11 @@ export class AchievementSystem {
       this._checkUnlock('max_power', () => true);
     }
 
+    // Bank shot (simplified: a cushion was hit before at least one ball dropped)
+    if (nonCuePocketed.length > 0 && this.shotCushionHits > 0) {
+      this._checkUnlock('bank_shot', () => true);
+    }
+
     // Soft touch
     if (nonCuePocketed.length > 0 && this.shotPower <= 10) {
       this._checkUnlock('soft_touch', () => true);
@@ -180,7 +185,10 @@ export class AchievementSystem {
       }
 
       // Perfect match (no fouls in this game)
-      if (stats && stats.fouls === 0) {
+      const totalFouls = stats
+        ? (stats.player1?.fouls || 0) + (stats.player2?.fouls || 0)
+        : null;
+      if (totalFouls === 0) {
         this._checkUnlock('no_foul_win', () => true);
       }
 
@@ -198,7 +206,8 @@ export class AchievementSystem {
 
       // 8-ball perfect finish
       const winnerStats = winner === 1 ? (stats && stats.player1) : (stats && stats.player2);
-      if (mode === '8ball' && winnerStats && winnerStats.eightBallPocketed) {
+      const isEightBallMode = mode === 'local2p' || mode === 'vsai';
+      if (isEightBallMode && winnerStats && winnerStats.eightBallPocketed) {
         this._checkUnlock('eight_ball_perfect', () => true);
       }
 
@@ -218,7 +227,8 @@ export class AchievementSystem {
 
     // All modes
     const modesWon = this.store.getModesWon();
-    this._checkUnlock('all_modes', () => modesWon.length >= 4);
+    const requiredWinModes = ['local2p', 'vsai', '9ball'];
+    this._checkUnlock('all_modes', () => requiredWinModes.every((mode) => modesWon.includes(mode)));
 
     // Collector (20 achievements)
     this._checkUnlock('collector', () => this.store.getUnlockedCount() >= 20);
