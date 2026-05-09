@@ -9,9 +9,10 @@
  *  - Back button when returning from settings
  */
 export class MainMenuScreen {
-  constructor(onSelectMode, onSettings, onQuit) {
+  constructor(onSelectMode, onSettings, onAchievements, onQuit) {
     this.onSelectMode = onSelectMode;
     this.onSettings = onSettings;
+    this.onAchievements = onAchievements;
     this.onQuit = onQuit;
     this.container = null;
     this._buildUI();
@@ -76,6 +77,11 @@ export class MainMenuScreen {
     // Settings
     this._addButton(btnGroup, '设置', '音效与画面选项', () => {
       if (this.onSettings) this.onSettings();
+    });
+
+    // Achievements
+    this._addButton(btnGroup, '成就', '查看解锁进度与成就墙', () => {
+      if (this.onAchievements) this.onAchievements();
     });
 
     this.container.appendChild(btnGroup);

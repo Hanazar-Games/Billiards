@@ -6,6 +6,8 @@ import { InputHandler } from '../input/InputHandler.js';
 import { Cue } from './Cue.js';
 import { Rules } from './Rules.js';
 import { NineBallRules } from './NineBallRules.js';
+import { AchievementSystem } from '../achievements/AchievementSystem.js';
+import { AchievementPanel } from '../achievements/AchievementPanel.js';
 import { UI } from '../ui/UI.js';
 import { AudioManager } from '../audio/AudioManager.js';
 import { AIPlayer, AI_DIFFICULTY } from '../ai/AIPlayer.js';
@@ -101,6 +103,7 @@ export class Game {
 
     this.statsTracker.reset();
     this.particles.clear();
+    this.gameStartTime = performance.now();
 
     this.ui.setPlayerTurn(1);
     if (this.mode === 'freeplay') {
@@ -127,6 +130,9 @@ export class Game {
 
     // Back-to-menu button
     this._addBackToMenuButton();
+
+    // Achievement panel
+    this.achievementPanel = new AchievementPanel(this.achievements);
 
     // Spin indicator UI
     this._addSpinIndicator();
@@ -160,6 +166,7 @@ export class Game {
   setupCollisionEvents() {
     for (const ball of this.ballsManager.balls) {
       ball.body.addEventListener('collide', (e) => {
+        this._trackShotDistance(ball);
         // In cannon-es, e.body is ALREADY the other body involved in the collision
         const otherBody = e.body;
         const otherBall = this.ballsManager.balls.find(b => b.body === otherBody);
@@ -173,6 +180,7 @@ export class Game {
           // First hit tracking (only for cue ball)
           if (ball.id === 0 && otherBall.id !== 0) {
             this.rules.recordFirstHit(otherBall.id);
+            this.achievements.onBallCollision(relVel);
           }
 
           // Deduplicate: cannon-es fires collide on BOTH bodies.
@@ -198,6 +206,7 @@ export class Game {
 
           if (this.state === 'SHOOTING' && v > 0.5) {
             this.statsTracker.recordCushionCollision(this.currentPlayer);
+            this.achievements.onCushionCollision();
           }
         }
       });
@@ -294,6 +303,7 @@ export class Game {
     this.turnPocketedIds = [];
     this.statsTracker.startTurn(this.currentPlayer);
     this.statsTracker.recordShot(this.currentPlayer, force);
+    this.achievements.onShot(cueBall, force, this.spin);
     this.particles.spawnChalkDust(
       cueBall.mesh.position,
       this.aimDirection,
@@ -367,6 +377,12 @@ export class Game {
     this.shoot();
   }
 
+  _trackShotDistance(ball) {
+    if (this.state === 'SHOOTING' && ball.id === 0) {
+      this.achievements.onShotUpdate(ball);
+    }
+  }
+
   update(dt) {
     if (this.charging) {
       this.power = Math.min(this.power + SHOT.chargeRate * dt, SHOT.maxPower);
@@ -387,6 +403,10 @@ export class Game {
 
       if (newlyPocketed.length > 0) {
         this.audio.playPocket();
+        for (const entry of newlyPocketed) {
+          const pockets = this.table.getPocketPositions();
+          this.achievements.onPocket(entry.id, pockets[entry.pocketIndex], this.mode);
+        }
 
         // Pocket flash particles — use the exact pocket from checkPockets
         // Deduplicate: multiple balls in same pocket = one flash
@@ -467,6 +487,14 @@ export class Game {
       const summary = this.statsTracker.endGame(result.winner);
       this.statsPanel.showGameOver(summary, this.aiEnabled);
 
+      // Achievement: game end
+      const duration = (performance.now() - this.gameStartTime) / 1000;
+      const stats = summary.player1 || summary.player2 ? summary : null;
+      this.achievements.onGameEnd(
+        result.winner, this.currentPlayer, this.mode,
+        this.aiPlayer?.difficulty || 'normal', duration, stats
+      );
+
       if (result.winner === this.currentPlayer) {
         this.audio.playWin();
       } else {
@@ -484,6 +512,15 @@ export class Game {
 
     if (result.foul || result.scratch) {
       this.audio.playFoul();
+      this.achievements.onFoul();
+    }
+
+    // Achievement: turn end
+    this.achievements.onTurnEnd(result, pocketedIds, this.mode);
+
+    // Achievement: break shot check
+    if (this.rules.breakShot === false && pocketedIds.length > 0) {
+      this.achievements.onBreakShot(pocketedIds, this.mode);
     }
 
     if (result.scratch) {
@@ -741,6 +778,12 @@ export class Game {
     if (this._onKeyDown) {
       window.removeEventListener('keydown', this._onKeyDown);
       this._onKeyDown = null;
+    }
+
+    // Destroy achievement panel
+    if (this.achievementPanel) {
+      this.achievementPanel.destroy();
+      this.achievementPanel = null;
     }
 
     // Remove all balls

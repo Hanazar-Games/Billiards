@@ -50,29 +50,23 @@ Then open `http://localhost:5173`
 | Build Tool | Vite |
 | Language | JavaScript (ES2022) |
 
-## 📢 Current Version: v0.9.0
+## 📢 Current Version: v0.10.0
 
-### v0.9.0 — "Gameplay Expansion" (Latest)
-- **🎱 9-Ball Mode** — complete 9-ball rule engine with diamond rack layout
-  - Balls 1-9 arranged in diamond: 1 at apex, 9 in center
-  - Must hit lowest-numbered ball first each shot
-  - Combination shots legal (hit 1, 1 hits 2, 2 drops = legal)
-  - 9-ball pocketed on any legal shot = instant win
-  - Break shot rules: must hit 1-ball first, scratch = foul
-- **🌀 English Spin System** — apply spin to the cue ball for advanced shots
-  - W/S: top/back spin (affects roll after collision)
-  - A/D: left/right spin (affects rebound angle)
-  - R: reset spin to center
-  - Visual indicator shows spin position on a circular HUD
-- **🎥 Camera Modes** — three viewing angles for different play styles
-  - **1** — Free orbit (default): full camera control with right-click
-  - **2** — Top-down: overhead view for precise aiming
-  - **3** — Follow ball: camera tracks the cue ball automatically
-- **🏠 Room Environment** — immersive billiard hall atmosphere
-  - Dark wood floor beneath the table
-  - 4 walls with baseboards surrounding the play area
-  - Ceiling with hanging lamp fixture and warm point light
-  - All environment meshes cast and receive shadows
+### v0.10.0 — "Achievement System" (Latest)
+- **🏆 30 Unlockable Achievements** across 3 categories:
+  - **技术 (10)** — `一杆双响` (3球), `一杆清台` (4球), `长台神射` (>200cm), `旋转大师` (spin进球), `完美开球` (4球), `连环撞击` (3+碰撞), `库边反弹`, `全力一击` (100%), `蜻蜓点水` (≤10%), `库边舞者` (4+库边)
+  - **生涯 (10)** — `百杆高手` (100杆), `千锤百炼` (500杆), `进球机器` (50球), `袋口主宰` (200球), `常胜将军` (10胜), `传奇球手` (50胜), `资深玩家` (20局), `连胜纪录` (5连胜), `AI克星`, `AI终结者` (困难)
+  - **特殊 (10)** — `9球奇迹` (开球进9), `黑八绝杀`, `零封`, `完美比赛` (无犯规), `绝地反击`, `首胜`, `全能球手` (全模式), `艺术轨迹`, `速战速决` (<30秒), `收藏家` (20成就)
+- **🍞 Toast Notification** — slide-in card with icon, name, description, and category color when unlocking
+- **🏛️ Achievement Wall** — full-screen browsable grid with category tabs, unlock status, and dates
+- **💾 localStorage Persistence** — all progress survives browser restarts
+- **🔒 Hidden Achievements** — some achievements remain secret until unlocked
+
+### v0.9.0 — "Gameplay Expansion"
+- **🎱 9-Ball Mode** — diamond rack, hit-lowest-first rules, combo shots legal, 9-ball instant win
+- **🌀 English Spin System** — W/S/A/D for top/back/left/right spin, R to reset, circular HUD indicator
+- **🎥 Camera Modes** — 1=free orbit, 2=top-down, 3=follow ball
+- **🏠 Room Environment** — floor, 4 walls with baseboards, ceiling lamp with warm light
 
 ### v0.8.0 — "Main Menu & Game Modes"
 - **🎮 Full main menu system** — polished entry screen with animated title, glassmorphism buttons, and smooth fade transitions

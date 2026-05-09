@@ -1,0 +1,302 @@
+/**
+ * AchievementPanel — UI for viewing and tracking achievements.
+ *
+ * Features:
+ *   - Slide-in notification toast when an achievement unlocks
+   *   - Full achievement wall (accessible from main menu)
+   *   - Category filtering
+   *   - Progress counters
+   */
+import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from './AchievementData.js';
+
+export class AchievementPanel {
+  constructor(achievementSystem) {
+    this.system = achievementSystem;
+    this.toastContainer = null;
+    this.wallContainer = null;
+    this._buildToast();
+  }
+
+  // ── Toast Notification ──
+
+  _buildToast() {
+    // Singleton: reuse existing toast container if present
+    this.toastContainer = document.getElementById('achievement-toast-container');
+    if (this.toastContainer) return;
+
+    this.toastContainer = document.createElement('div');
+    this.toastContainer.id = 'achievement-toast-container';
+    this.toastContainer.style.cssText = `
+      position: fixed; bottom: 24px; right: 24px;
+      display: flex; flex-direction: column; gap: 10px;
+      z-index: 100; pointer-events: none;
+    `;
+    document.body.appendChild(this.toastContainer);
+  }
+
+  showToast(id) {
+    const ach = ACHIEVEMENTS.find((a) => a.id === id);
+    if (!ach) return;
+
+    const cat = ACHIEVEMENT_CATEGORIES[ach.category];
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 20px;
+      background: rgba(20,20,20,0.92);
+      border: 1px solid ${cat.color}66;
+      border-radius: 12px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 16px ${cat.color}22;
+      transform: translateX(120%);
+      opacity: 0;
+      transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+      pointer-events: auto;
+      min-width: 280px;
+    `;
+
+    const icon = document.createElement('div');
+    icon.textContent = ach.icon;
+    icon.style.cssText = 'font-size: 32px; line-height: 1;';
+    toast.appendChild(icon);
+
+    const textBlock = document.createElement('div');
+    textBlock.style.cssText = 'display: flex; flex-direction: column; gap: 2px;';
+
+    const titleRow = document.createElement('div');
+    titleRow.innerHTML = `<span style="color:${cat.color};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">成就解锁</span>`;
+    textBlock.appendChild(titleRow);
+
+    const nameRow = document.createElement('div');
+    nameRow.textContent = ach.name;
+    nameRow.style.cssText = 'font-size: 16px; font-weight: 700; color: #fff;';
+    textBlock.appendChild(nameRow);
+
+    const descRow = document.createElement('div');
+    descRow.textContent = ach.desc;
+    descRow.style.cssText = 'font-size: 12px; color: rgba(255,255,255,0.6);';
+    textBlock.appendChild(descRow);
+
+    toast.appendChild(textBlock);
+    this.toastContainer.appendChild(toast);
+
+    // Animate in
+    requestAnimationFrame(() => {
+      toast.style.transform = 'translateX(0)';
+      toast.style.opacity = '1';
+    });
+
+    // Auto dismiss
+    setTimeout(() => {
+      toast.style.transform = 'translateX(120%)';
+      toast.style.opacity = '0';
+      setTimeout(() => {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+      }, 500);
+    }, 3500);
+  }
+
+  // ── Achievement Wall (Full Screen) ──
+
+  showWall() {
+    if (this.wallContainer) {
+      this.wallContainer.style.display = 'flex';
+      this._renderWall();
+      return;
+    }
+
+    this.wallContainer = document.createElement('div');
+    this.wallContainer.id = 'achievement-wall';
+    this.wallContainer.style.cssText = `
+      position: fixed; inset: 0;
+      display: none; flex-direction: column;
+      align-items: center;
+      background: rgba(8,8,8,0.97);
+      backdrop-filter: blur(20px);
+      z-index: 200;
+      padding: 40px 20px;
+      overflow-y: auto;
+    `;
+
+    // Header
+    const header = document.createElement('div');
+    header.style.cssText = `
+      display: flex; justify-content: space-between;
+      align-items: center; width: 100%;
+      max-width: 900px; margin-bottom: 30px;
+    `;
+
+    const title = document.createElement('div');
+    title.innerHTML = '🏆 <span style="font-size:28px;font-weight:800;color:#fff;">成就墙</span>';
+    header.appendChild(title);
+
+    const progress = document.createElement('div');
+    progress.id = 'ach-progress';
+    progress.style.cssText = 'font-size:14px;color:rgba(255,255,255,0.6);';
+    header.appendChild(progress);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = `
+      width: 40px; height: 40px;
+      font-size: 20px; color: #fff;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 50%;
+      cursor: pointer; transition: all 0.2s;
+      pointer-events: auto;
+    `;
+    closeBtn.onmouseenter = () => {
+      closeBtn.style.background = 'rgba(255,255,255,0.2)';
+    };
+    closeBtn.onmouseleave = () => {
+      closeBtn.style.background = 'rgba(255,255,255,0.1)';
+    };
+    closeBtn.onclick = () => this.hideWall();
+    header.appendChild(closeBtn);
+
+    this.wallContainer.appendChild(header);
+
+    // Category tabs
+    const tabs = document.createElement('div');
+    tabs.id = 'ach-tabs';
+    tabs.style.cssText = `
+      display: flex; gap: 10px; margin-bottom: 24px;
+      max-width: 900px; width: 100%;
+    `;
+    this.wallContainer.appendChild(tabs);
+
+    // Grid
+    const grid = document.createElement('div');
+    grid.id = 'ach-grid';
+    grid.style.cssText = `
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px; max-width: 900px; width: 100%;
+    `;
+    this.wallContainer.appendChild(grid);
+
+    document.body.appendChild(this.wallContainer);
+    this._renderWall();
+    this.wallContainer.style.display = 'flex';
+  }
+
+  hideWall() {
+    if (this.wallContainer) {
+      this.wallContainer.style.display = 'none';
+    }
+  }
+
+  _renderWall() {
+    const all = this.system.getAllAchievements();
+    const unlockedCount = all.filter((a) => a.unlocked).length;
+    const totalCount = all.length;
+
+    // Progress
+    const progress = document.getElementById('ach-progress');
+    if (progress) {
+      progress.textContent = `${unlockedCount} / ${totalCount} 已解锁`;
+    }
+
+    // Tabs
+    const tabs = document.getElementById('ach-tabs');
+    if (tabs) {
+      tabs.innerHTML = '';
+      const categories = ['ALL', 'SKILL', 'CAREER', 'SPECIAL'];
+      categories.forEach((cat) => {
+        const btn = document.createElement('button');
+        const isAll = cat === 'ALL';
+        const catInfo = isAll ? null : ACHIEVEMENT_CATEGORIES[cat];
+        const label = isAll ? '全部' : catInfo.label;
+        btn.textContent = label;
+        btn.style.cssText = `
+          padding: 8px 18px; font-size: 13px; font-weight: 600;
+          color: #fff; background: rgba(255,255,255,0.08);
+          border: 1px solid rgba(255,255,255,0.15);
+          border-radius: 8px; cursor: pointer;
+          pointer-events: auto; transition: all 0.2s;
+        `;
+        btn.onmouseenter = () => {
+          btn.style.background = 'rgba(255,255,255,0.16)';
+        };
+        btn.onmouseleave = () => {
+          btn.style.background = 'rgba(255,255,255,0.08)';
+        };
+        btn.onclick = () => this._renderGrid(cat);
+        tabs.appendChild(btn);
+      });
+    }
+
+    // Initial grid render
+    this._renderGrid('ALL');
+  }
+
+  _renderGrid(category) {
+    const grid = document.getElementById('ach-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    let items = this.system.getAllAchievements();
+    if (category !== 'ALL') {
+      items = items.filter((a) => a.category === category);
+    }
+
+    items.forEach((ach) => {
+      const cat = ACHIEVEMENT_CATEGORIES[ach.category];
+      const isUnlocked = ach.unlocked;
+
+      const card = document.createElement('div');
+      card.style.cssText = `
+        display: flex; align-items: center; gap: 12px;
+        padding: 14px 16px;
+        background: ${isUnlocked ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)'};
+        border: 1px solid ${isUnlocked ? cat.color + '44' : 'rgba(255,255,255,0.08)'};
+        border-radius: 12px;
+        transition: all 0.2s;
+        opacity: ${isUnlocked ? 1 : 0.55};
+      `;
+
+      const icon = document.createElement('div');
+      icon.textContent = isUnlocked ? ach.icon : '🔒';
+      icon.style.cssText = `font-size: 28px; line-height: 1; ${isUnlocked ? '' : 'filter: grayscale(1);'}`;
+      card.appendChild(icon);
+
+      const text = document.createElement('div');
+      text.style.cssText = 'display: flex; flex-direction: column; gap: 2px;';
+
+      const name = document.createElement('div');
+      name.textContent = isUnlocked || !ach.hidden ? ach.name : '???';
+      name.style.cssText = `
+        font-size: 14px; font-weight: 700;
+        color: ${isUnlocked ? '#fff' : 'rgba(255,255,255,0.5)'};
+      `;
+      text.appendChild(name);
+
+      const desc = document.createElement('div');
+      desc.textContent = isUnlocked || !ach.hidden ? ach.desc : '隐藏成就 — 解锁后显示';
+      desc.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.5);';
+      text.appendChild(desc);
+
+      if (isUnlocked && ach.unlockedAt) {
+        const date = document.createElement('div');
+        date.textContent = new Date(ach.unlockedAt).toLocaleDateString();
+        date.style.cssText = 'font-size: 10px; color: ' + cat.color + '88;';
+        text.appendChild(date);
+      }
+
+      card.appendChild(text);
+      grid.appendChild(card);
+    });
+  }
+
+  destroy() {
+    if (this.toastContainer && this.toastContainer.parentNode) {
+      this.toastContainer.parentNode.removeChild(this.toastContainer);
+    }
+    if (this.wallContainer && this.wallContainer.parentNode) {
+      this.wallContainer.parentNode.removeChild(this.wallContainer);
+    }
+    this.toastContainer = null;
+    this.wallContainer = null;
+  }
+}

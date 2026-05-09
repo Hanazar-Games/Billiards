@@ -14,6 +14,8 @@ import { GameLoop } from '../core/GameLoop.js';
 import { Game } from '../game/Game.js';
 import { MainMenuScreen } from './MainMenuScreen.js';
 import { SettingsScreen } from './SettingsScreen.js';
+import { AchievementSystem } from '../achievements/AchievementSystem.js';
+import { AchievementPanel } from '../achievements/AchievementPanel.js';
 
 export class MenuSystem {
   constructor(container) {
@@ -34,6 +36,10 @@ export class MenuSystem {
 
     // Audio manager (shared, init once)
     this.audio = null;
+
+    // Achievement system (shared, persistent across sessions)
+    this.achievements = new AchievementSystem();
+    this.achievementPanel = null;
 
     this._initAudio();
     this._setupMenu();
@@ -70,8 +76,12 @@ export class MenuSystem {
     this.mainMenu = new MainMenuScreen(
       (mode) => this._startGame(mode),
       () => this._showSettings(),
+      () => this._showAchievements(),
       () => this._quit()
     );
+
+    // Create achievement panel (for viewing from menu)
+    this.achievementPanel = new AchievementPanel(this.achievements);
 
     // Create settings screen
     this.settingsScreen = new SettingsScreen(
@@ -101,6 +111,11 @@ export class MenuSystem {
   _showMainMenu() {
     this.settingsScreen.hide();
     this.mainMenu.show();
+  }
+
+  _showAchievements() {
+    this.mainMenu.hide();
+    this.achievementPanel.showWall();
   }
 
   async _startGame(mode) {
