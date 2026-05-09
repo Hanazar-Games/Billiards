@@ -32,7 +32,8 @@ export const BALL = {
   overlapIterations: 4,
   spinAngularVelocity: 22,
   rollCoupling: 0.22,
-  sideSpinCurve: 0.010,
+  cueSquirt: 0.018,
+  collisionThrow: 0.004,
   sideSpinDecay: 0.9,
 };
 

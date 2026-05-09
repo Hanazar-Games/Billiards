@@ -17,7 +17,7 @@ import { StatsPanel } from '../stats/StatsPanel.js';
 import { ParticleSystem } from '../fx/ParticleSystem.js';
 import { ShotTrailSystem } from '../fx/ShotTrail.js';
 import { ShotRecorder } from '../replay/ShotRecorder.js';
-import { SHOT } from '../config.js';
+import { BALL, SHOT } from '../config.js';
 
 export class Game {
   constructor(renderer, physics) {
@@ -240,7 +240,7 @@ export class Game {
     const tx = -dz / len;
     const tz = dx / len;
     const spinDelta = ballA.body.angularVelocity.y - ballB.body.angularVelocity.y;
-    const throwSpeed = Math.max(-4.5, Math.min(4.5, spinDelta * relVel * 0.015));
+    const throwSpeed = Math.max(-1.2, Math.min(1.2, spinDelta * relVel * BALL.collisionThrow));
 
     ballA.body.velocity.x -= tx * throwSpeed * 0.35;
     ballA.body.velocity.z -= tz * throwSpeed * 0.35;

@@ -87,6 +87,16 @@ export class Ball {
   applyImpulse(x, y, z, spinX = 0, spinZ = 0) {
     this.body.wakeUp();
     this.body.applyImpulse(new CANNON.Vec3(x, y, z), this.body.position);
+    if (Math.abs(spinX) > 0.001) {
+      const speed = Math.hypot(x, z);
+      if (speed > 0.001) {
+        const nx = -z / speed;
+        const nz = x / speed;
+        const squirt = speed * BALL.cueSquirt * spinX;
+        this.body.velocity.x += nx * squirt;
+        this.body.velocity.z += nz * squirt;
+      }
+    }
     this.limitSpeed();
 
     // spinX = left/right english around the vertical axis.
@@ -156,14 +166,6 @@ export class Ball {
       v.z += slipZ * coupling;
       av.z += (slipX / BALL.radius) * coupling * 0.45;
       av.x -= (slipZ / BALL.radius) * coupling * 0.45;
-    }
-
-    if (speed > 0.5 && Math.abs(av.y) > 0.02) {
-      const nx = -v.z / speed;
-      const nz = v.x / speed;
-      const curve = av.y * speed * BALL.sideSpinCurve * dt;
-      v.x += nx * curve;
-      v.z += nz * curve;
     }
 
     const sideDecay = Math.exp(-BALL.sideSpinDecay * dt);
