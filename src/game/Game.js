@@ -251,7 +251,6 @@ export class Game {
   }
 
   onMouseMove() {
-    if (this.renderer._shiftCameraControl) return;
     if (this.state === 'AIM') {
       this.updateAimDirection();
       this.updateTrajectory();
@@ -569,7 +568,7 @@ export class Game {
     // Camera mode updates
     this._updateCamera();
 
-    if (this.state === 'AIM' && this.cue.visible && !this.renderer._shiftCameraControl) {
+    if (this.state === 'AIM' && this.cue.visible) {
       this.updateAimDirection();
       this.setAimTrajectoryVisible(true);
       this.updateTrajectory();
@@ -930,6 +929,8 @@ export class Game {
   }
 
   _updateCamera() {
+    if (this.renderer._shiftCameraControl) return;
+
     if (this.cameraMode === 'follow') {
       const cueBall = this.ballsManager.getCueBall();
       if (cueBall && !cueBall.pocketed) {

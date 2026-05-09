@@ -52,6 +52,11 @@ export class Renderer {
       RIGHT: null,
     };
     this._shiftCameraControl = false;
+    this._cameraDragActive = false;
+    this._cameraLastX = 0;
+    this._cameraLastY = 0;
+    this._cameraSpherical = new THREE.Spherical();
+    this._cameraOffset = new THREE.Vector3();
     this._onKeyDown = (e) => {
       if (e.key === 'Shift') this.setCameraControlActive(true);
     };
@@ -59,9 +64,15 @@ export class Renderer {
       if (e.key === 'Shift') this.setCameraControlActive(false);
     };
     this._onBlur = () => this.setCameraControlActive(false);
+    this._onCameraPointerDown = this.onCameraPointerDown.bind(this);
+    this._onCameraPointerMove = this.onCameraPointerMove.bind(this);
+    this._onCameraPointerUp = this.onCameraPointerUp.bind(this);
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('keyup', this._onKeyUp);
     window.addEventListener('blur', this._onBlur);
+    this.renderer.domElement.addEventListener('pointerdown', this._onCameraPointerDown);
+    window.addEventListener('pointermove', this._onCameraPointerMove);
+    window.addEventListener('pointerup', this._onCameraPointerUp);
 
     // Lights
     this.setupLights();
@@ -112,7 +123,62 @@ export class Renderer {
 
   setCameraControlActive(active) {
     this._shiftCameraControl = Boolean(active);
-    this.controls.enableRotate = this._shiftCameraControl;
+    if (!this._shiftCameraControl) {
+      this._cameraDragActive = false;
+    }
+    this.controls.enableRotate = false;
+    this.renderer.domElement.style.cursor = this._shiftCameraControl ? 'grab' : '';
+  }
+
+  onCameraPointerDown(e) {
+    if (!this._shiftCameraControl || e.button !== 0) return;
+    this._cameraDragActive = true;
+    this._cameraLastX = e.clientX;
+    this._cameraLastY = e.clientY;
+    this.renderer.domElement.style.cursor = 'grabbing';
+    if (this.renderer.domElement.setPointerCapture) {
+      this.renderer.domElement.setPointerCapture(e.pointerId);
+    }
+    e.preventDefault();
+  }
+
+  onCameraPointerMove(e) {
+    if (!this._cameraDragActive) return;
+
+    const dx = e.clientX - this._cameraLastX;
+    const dy = e.clientY - this._cameraLastY;
+    this._cameraLastX = e.clientX;
+    this._cameraLastY = e.clientY;
+
+    const target = this.controls.target;
+    this._cameraOffset.copy(this.camera.position).sub(target);
+    this._cameraSpherical.setFromVector3(this._cameraOffset);
+    this._cameraSpherical.theta -= dx * 0.006;
+    this._cameraSpherical.phi -= dy * 0.006;
+    this._cameraSpherical.phi = Math.max(0.12, Math.min(this.controls.maxPolarAngle, this._cameraSpherical.phi));
+    this._cameraSpherical.radius = Math.max(
+      this.controls.minDistance,
+      Math.min(this.controls.maxDistance, this._cameraSpherical.radius)
+    );
+
+    this._cameraOffset.setFromSpherical(this._cameraSpherical);
+    this.camera.position.copy(target).add(this._cameraOffset);
+    this.camera.lookAt(target);
+    this.controls.update();
+    e.preventDefault();
+  }
+
+  onCameraPointerUp(e) {
+    if (!this._cameraDragActive) return;
+    this._cameraDragActive = false;
+    this.renderer.domElement.style.cursor = this._shiftCameraControl ? 'grab' : '';
+    if (this.renderer.domElement.releasePointerCapture) {
+      try {
+        this.renderer.domElement.releasePointerCapture(e.pointerId);
+      } catch {
+        // Pointer capture may already be released by the browser.
+      }
+    }
   }
 
   render() {
@@ -125,6 +191,9 @@ export class Renderer {
     window.removeEventListener('keydown', this._onKeyDown);
     window.removeEventListener('keyup', this._onKeyUp);
     window.removeEventListener('blur', this._onBlur);
+    this.renderer.domElement.removeEventListener('pointerdown', this._onCameraPointerDown);
+    window.removeEventListener('pointermove', this._onCameraPointerMove);
+    window.removeEventListener('pointerup', this._onCameraPointerUp);
     this.renderer.dispose();
     this.container.removeChild(this.renderer.domElement);
   }
