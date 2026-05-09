@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Billiards v0.10.0</title>
+  <title>3D Billiards v0.11.1</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #app {
@@ -120,6 +120,22 @@
       box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     }
     #ui-layer { display: none; }
+
+    /* JS-error diagnostic overlay */
+    #js-error-overlay {
+      position: fixed; inset: 0;
+      z-index: 99999;
+      background: rgba(0,0,0,0.92);
+      color: #ff5252;
+      padding: 40px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 14px;
+      white-space: pre-wrap;
+      overflow: auto;
+      display: none;
+    }
+    #js-error-overlay.visible { display: block; }
+    #js-error-overlay h2 { color: #fff; margin-bottom: 16px; }
   </style>
 </head>
 <body>
@@ -134,8 +150,39 @@
     <div id="power-bar-container">
       <div id="power-bar-fill"></div>
     </div>
-    <div id="version-tag">v0.10.0</div>
+    <div id="version-tag">v0.11.1</div>
   </div>
+
+  <!-- Diagnostic overlay for JS errors -->
+  <div id="js-error-overlay">
+    <h2>⚠️ JavaScript Error</h2>
+    <div id="js-error-content"></div>
+  </div>
+
+  <script>
+    // Catch errors that happen before or outside the module script
+    window.addEventListener('error', function(e) {
+      var overlay = document.getElementById('js-error-overlay');
+      var content = document.getElementById('js-error-content');
+      if (overlay && content) {
+        content.textContent = (content.textContent ? content.textContent + '\n---\n' : '') +
+          'Error: ' + e.message + '\n' +
+          'Source: ' + (e.filename || e.target.src || 'unknown') + '\n' +
+          'Line: ' + (e.lineno || 'N/A') + ':' + (e.colno || 'N/A');
+        overlay.classList.add('visible');
+      }
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      var overlay = document.getElementById('js-error-overlay');
+      var content = document.getElementById('js-error-content');
+      if (overlay && content) {
+        content.textContent = (content.textContent ? content.textContent + '\n---\n' : '') +
+          'Unhandled Promise Rejection:\n' + e.reason;
+        overlay.classList.add('visible');
+      }
+    });
+  </script>
+
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
