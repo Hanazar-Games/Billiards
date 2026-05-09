@@ -50,9 +50,17 @@ Then open `http://localhost:5173`
 | Build Tool | Vite |
 | Language | JavaScript (ES2022) |
 
-## 📢 Current Version: v0.11.0
+## 📢 Current Version: v0.11.1
 
-### v0.11.0 — "Replay System" (Latest)
+### v0.11.1 — "Replay System Polish" (Latest)
+- ✅ **Fixed replay list / achievement wall overlaying gameplay** — `_startGame` now explicitly hides both panels before transitioning to the game
+- ✅ **Fixed resetGame leaving stale recorder state** — `recorder.reset()` is now called during `Game.resetGame()`, preventing mixed old/new ball position data if reset mid-recording
+- ✅ **Fixed invalid replay data crash** — `_startReplayPlayback` now checks `load()` return value and gracefully aborts back to menu if data is corrupted
+- ✅ **Fixed control panel initial state lag** — `updateControls()` is called immediately after `showControls()` so the UI shows correct duration and button state from frame 0
+- ✅ **Added ESC key support** — press `Escape` to close the replay list or exit playback
+- ✅ **Added button title tooltips** — all replay panel buttons (close, play, delete, speed, exit) now have descriptive `title` attributes for accessibility
+
+### v0.11.0 — "Replay System"
 - **🎬 Automatic Shot Recording** — every shot is automatically recorded at 20fps during gameplay, no manual action needed
 - **🧠 Smart Excitement Scoring** — shots are scored (0-100) based on pockets, collisions, cushion hits, spin usage, power, and duration; only interesting shots (score ≥ 25) are saved
 - **💾 Persistent Replay Library** — up to 30 replays stored in localStorage with automatic quota-safe eviction (lowest-score replays evicted first)

@@ -117,7 +117,7 @@ export class MainMenuScreen {
 
     // Version
     const version = document.createElement('div');
-    version.textContent = 'v0.11.0';
+    version.textContent = 'v0.11.1';
     version.style.cssText = `
       position: absolute; bottom: 44px; left: 40px;
       font-size: 12px; color: rgba(255,255,255,0.25);

@@ -577,6 +577,7 @@ export class Game {
     this.statsTracker.reset();
     this.particles.clear();
     this.trails.clear();
+    this.recorder.reset();
     this.statsPanel.reset();
     this.currentPlayer = 1;
     this.state = 'AIM';

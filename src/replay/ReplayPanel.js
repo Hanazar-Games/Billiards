@@ -6,14 +6,16 @@
  *   2. Playback controls (during replay) — overlay with play/pause/speed/time
  */
 export class ReplayPanel {
-  constructor(replayLibrary, onPlayReplay, onHideList) {
+  constructor(replayLibrary, onPlayReplay, onHideList, onExitReplay) {
     this.library = replayLibrary;
     this.onPlayReplay = onPlayReplay;
     this.onHideList = onHideList;
+    this.onExitReplay = onExitReplay;
     this.listContainer = null;
     this.controlContainer = null;
     this._buildListUI();
     this._buildControlUI();
+    this._setupKeyboard();
   }
 
   // ── Library List (Main Menu) ──
@@ -51,6 +53,7 @@ export class ReplayPanel {
 
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '✕';
+    closeBtn.title = '关闭';
     closeBtn.style.cssText = `
       width: 40px; height: 40px;
       font-size: 20px; color: #fff;
@@ -177,6 +180,7 @@ export class ReplayPanel {
 
       const playBtn = document.createElement('button');
       playBtn.textContent = '▶ 播放';
+      playBtn.title = '播放回放';
       playBtn.style.cssText = `
         flex: 1; padding: 10px 0;
         font-size: 14px; font-weight: 600; color: #fff;
@@ -199,6 +203,7 @@ export class ReplayPanel {
 
       const delBtn = document.createElement('button');
       delBtn.textContent = '🗑';
+      delBtn.title = '删除回放';
       delBtn.style.cssText = `
         width: 40px;
         font-size: 16px; color: rgba(255,255,255,0.6);
@@ -248,12 +253,14 @@ export class ReplayPanel {
     // Play/Pause button
     this.playBtn = document.createElement('button');
     this.playBtn.textContent = '⏸';
+    this.playBtn.title = '播放 / 暂停';
     this.playBtn.style.cssText = this._btnStyle();
     this.controlContainer.appendChild(this.playBtn);
 
     // Speed button
     this.speedBtn = document.createElement('button');
     this.speedBtn.textContent = '1.0x';
+    this.speedBtn.title = '切换播放速度';
     this.speedBtn.style.cssText = this._btnStyle('80px');
     this.controlContainer.appendChild(this.speedBtn);
 
@@ -288,6 +295,7 @@ export class ReplayPanel {
     // Exit button
     this.exitBtn = document.createElement('button');
     this.exitBtn.textContent = '✕';
+    this.exitBtn.title = '退出回放';
     this.exitBtn.style.cssText = this._btnStyle('40px');
     this.controlContainer.appendChild(this.exitBtn);
 
@@ -328,6 +336,21 @@ export class ReplayPanel {
     this.progressFill.style.width = `${progress * 100}%`;
   }
 
+  _setupKeyboard() {
+    this._onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (this.listContainer && this.listContainer.style.display === 'flex') {
+          this.hideList();
+          if (this.onHideList) this.onHideList();
+        }
+        if (this.controlContainer && this.controlContainer.style.display === 'flex') {
+          if (this.onExitReplay) this.onExitReplay();
+        }
+      }
+    };
+    window.addEventListener('keydown', this._onKeyDown);
+  }
+
   destroy() {
     if (this.listContainer && this.listContainer.parentNode) {
       this.listContainer.parentNode.removeChild(this.listContainer);
@@ -337,5 +360,9 @@ export class ReplayPanel {
     }
     this.listContainer = null;
     this.controlContainer = null;
+    if (this._onKeyDown) {
+      window.removeEventListener('keydown', this._onKeyDown);
+      this._onKeyDown = null;
+    }
   }
 }

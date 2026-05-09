@@ -142,7 +142,8 @@ export class MenuSystem {
       this.replayPanel = new ReplayPanel(
         this.replayLibrary,
         (replay) => this._startReplayPlayback(replay),
-        () => this.mainMenu.show()
+        () => this.mainMenu.show(),
+        () => this._stopReplayPlayback()
       );
     }
     this.replayPanel.showList();
@@ -151,6 +152,10 @@ export class MenuSystem {
   async _startGame(mode) {
     if (this.state !== 'MENU') return;
     this.state = 'TRANSITION';
+
+    // Hide any open panels before starting the game
+    if (this.replayPanel) this.replayPanel.hideList();
+    if (this.achievementPanel) this.achievementPanel.hideWall();
 
     // Hide menu
     const menuLayer = document.getElementById('menu-layer');
@@ -281,7 +286,11 @@ export class MenuSystem {
 
     // Load and start replay
     this.replayEngine = new ShotReplay(this.renderer.scene, this._replayBalls);
-    this.replayEngine.load(replayData);
+    if (!this.replayEngine.load(replayData)) {
+      // Invalid replay data — abort and return to menu
+      this._stopReplayPlayback();
+      return;
+    }
     this.replayEngine.play();
     this.replayEngine.onComplete = () => {
       // Auto-stop after playback completes
@@ -291,6 +300,7 @@ export class MenuSystem {
     // Show controls
     if (this.replayPanel) {
       this.replayPanel.showControls();
+      this.replayPanel.updateControls(this.replayEngine);
       // Wire control buttons
       this.replayPanel.playBtn.onclick = () => this.replayEngine.toggle();
       this.replayPanel.speedBtn.onclick = () => {
