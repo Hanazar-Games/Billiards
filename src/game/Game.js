@@ -16,6 +16,7 @@ import { StatsTracker } from '../stats/StatsTracker.js';
 import { StatsPanel } from '../stats/StatsPanel.js';
 import { ParticleSystem } from '../fx/ParticleSystem.js';
 import { ShotTrailSystem } from '../fx/ShotTrail.js';
+import { ShotRecorder } from '../replay/ShotRecorder.js';
 import { SHOT } from '../config.js';
 
 export class Game {
@@ -38,6 +39,8 @@ export class Game {
     this.statsPanel = new StatsPanel();
     this.particles = new ParticleSystem(this.scene);
     this.trails = new ShotTrailSystem(this.scene);
+    this.recorder = new ShotRecorder();
+    this.replayLibrary = null; // injected by MenuSystem
 
     this.state = 'AIM'; // AIM, CHARGING, SHOOTING, RESOLVING, AI_THINKING, GAME_OVER
     this.power = 0;
@@ -207,6 +210,7 @@ export class Game {
           if (this.state === 'SHOOTING' && v > 0.5) {
             this.statsTracker.recordCushionCollision(this.currentPlayer);
             this.achievements.onCushionCollision();
+            this.recorder.recordCushion();
           }
         }
       });
@@ -310,6 +314,7 @@ export class Game {
       force
     );
     this.trails.startRecording(cueBall);
+    this.recorder.start(this.ballsManager, this.mode, force, this.spin);
 
     this.cue.hide();
     this.trajectory.setVisible(false);
@@ -406,6 +411,7 @@ export class Game {
         for (const entry of newlyPocketed) {
           const pockets = this.table.getPocketPositions();
           this.achievements.onPocket(entry.id, pockets[entry.pocketIndex], this.mode);
+          this.recorder.recordPocket(entry.id);
         }
 
         // Pocket flash particles — use the exact pocket from checkPockets
@@ -435,6 +441,9 @@ export class Game {
     // Update visual effects
     this.trails.update(dt);
     this.particles.update(dt);
+    if (this.state === 'SHOOTING') {
+      this.recorder.update(dt, this.ballsManager);
+    }
 
     // Camera mode updates
     this._updateCamera();
@@ -447,6 +456,14 @@ export class Game {
 
   resolveTurn(pocketedIds) {
     this.trails.stopRecording();
+
+    // Save replay if shot was interesting
+    this.recorder.stop();
+    const replayData = this.recorder.getReplayData();
+    if (replayData && this.replayLibrary) {
+      this.replayLibrary.save(replayData);
+    }
+    this.recorder.reset();
 
     const cueBall = this.ballsManager.getCueBall();
     const cuePocketed = cueBall.pocketed;

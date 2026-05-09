@@ -12,10 +12,15 @@ import { Renderer } from '../core/Renderer.js';
 import { PhysicsWorld } from '../core/PhysicsWorld.js';
 import { GameLoop } from '../core/GameLoop.js';
 import { Game } from '../game/Game.js';
+import { Table } from '../game/Table.js';
+import { BallsManager } from '../game/BallsManager.js';
 import { MainMenuScreen } from './MainMenuScreen.js';
 import { SettingsScreen } from './SettingsScreen.js';
 import { AchievementSystem } from '../achievements/AchievementSystem.js';
 import { AchievementPanel } from '../achievements/AchievementPanel.js';
+import { ReplayLibrary } from '../replay/ReplayLibrary.js';
+import { ReplayPanel } from '../replay/ReplayPanel.js';
+import { ShotReplay } from '../replay/ShotReplay.js';
 
 export class MenuSystem {
   constructor(container) {
@@ -40,6 +45,12 @@ export class MenuSystem {
     // Achievement system (shared, persistent across sessions)
     this.achievements = new AchievementSystem();
     this.achievementPanel = null;
+
+    // Replay system
+    this.replayLibrary = new ReplayLibrary();
+    this.replayPanel = null;
+    this.replayEngine = null;
+    this.replayBallsManager = null;
 
     this._initAudio();
     this._setupMenu();
@@ -77,6 +88,7 @@ export class MenuSystem {
       (mode) => this._startGame(mode),
       () => this._showSettings(),
       () => this._showAchievements(),
+      () => this._showReplays(),
       () => this._quit()
     );
 
@@ -105,17 +117,35 @@ export class MenuSystem {
 
   _showSettings() {
     this.mainMenu.hide();
+    if (this.replayPanel) this.replayPanel.hideList();
+    if (this.achievementPanel) this.achievementPanel.hideWall?.();
     this.settingsScreen.show();
   }
 
   _showMainMenu() {
     this.settingsScreen.hide();
+    if (this.replayPanel) this.replayPanel.hideList();
+    if (this.achievementPanel) this.achievementPanel.hideWall();
     this.mainMenu.show();
   }
 
   _showAchievements() {
     this.mainMenu.hide();
+    if (this.replayPanel) this.replayPanel.hideList();
     this.achievementPanel.showWall();
+  }
+
+  _showReplays() {
+    this.mainMenu.hide();
+    if (this.achievementPanel) this.achievementPanel.hideWall?.();
+    if (!this.replayPanel) {
+      this.replayPanel = new ReplayPanel(
+        this.replayLibrary,
+        (replay) => this._startReplayPlayback(replay),
+        () => this.mainMenu.show()
+      );
+    }
+    this.replayPanel.showList();
   }
 
   async _startGame(mode) {
@@ -139,6 +169,7 @@ export class MenuSystem {
 
     // Create new Game instance
     this.game = new Game(this.renderer, this.physics);
+    this.game.replayLibrary = this.replayLibrary;
 
     // Configure mode
     const modeConfig = this._getModeConfig(mode);
@@ -218,10 +249,143 @@ export class MenuSystem {
     this._startMenuLoop();
   }
 
+  async _startReplayPlayback(replayData) {
+    if (this.state !== 'MENU') return;
+    this.state = 'REPLAY';
+
+    // Hide replay list
+    if (this.replayPanel) this.replayPanel.hideList();
+
+    // Hide menu layer and game UI
+    const menuLayer = document.getElementById('menu-layer');
+    if (menuLayer) menuLayer.style.display = 'none';
+    const uiLayer = document.getElementById('ui-layer');
+    if (uiLayer) uiLayer.style.display = 'none';
+
+    // Create table and balls for replay (visual only, no physics step)
+    this._replayTable = new Table(this.physics);
+    this._replayTable.addToScene(this.renderer.scene);
+
+    this._replayBalls = new BallsManager(this.physics);
+    this._replayBalls.createBalls();
+    this._replayBalls.addToScene(this.renderer.scene);
+
+    // Position camera for replay view
+    const cam = this.renderer.camera;
+    cam.position.set(0, 350, 250);
+    cam.lookAt(0, 0, 0);
+    if (this.renderer.controls) {
+      this.renderer.controls.target.set(0, 0, 0);
+      this.renderer.controls.enabled = true;
+    }
+
+    // Load and start replay
+    this.replayEngine = new ShotReplay(this.renderer.scene, this._replayBalls);
+    this.replayEngine.load(replayData);
+    this.replayEngine.play();
+    this.replayEngine.onComplete = () => {
+      // Auto-stop after playback completes
+      this._replayCompleteTimeout = setTimeout(() => this._stopReplayPlayback(), 800);
+    };
+
+    // Show controls
+    if (this.replayPanel) {
+      this.replayPanel.showControls();
+      // Wire control buttons
+      this.replayPanel.playBtn.onclick = () => this.replayEngine.toggle();
+      this.replayPanel.speedBtn.onclick = () => {
+        this.replayEngine.nextSpeed();
+        this.replayPanel.updateControls(this.replayEngine);
+      };
+      this.replayPanel.exitBtn.onclick = () => this._stopReplayPlayback();
+      this.replayPanel.progressBar.onclick = (e) => {
+        const rect = this.replayPanel.progressBar.getBoundingClientRect();
+        const ratio = (e.clientX - rect.left) / rect.width;
+        this.replayEngine.seekRatio(ratio);
+      };
+    }
+
+    // Start replay loop
+    this._replayLastTime = performance.now();
+    this._replayTick();
+  }
+
+  _replayTick() {
+    if (this.state !== 'REPLAY') return;
+    const now = performance.now();
+    const dt = Math.min((now - this._replayLastTime) / 1000, 0.05);
+    this._replayLastTime = now;
+
+    if (this.replayEngine) {
+      this.replayEngine.update(dt);
+    }
+    if (this.replayPanel) {
+      this.replayPanel.updateControls(this.replayEngine);
+    }
+    this.renderer.render();
+
+    requestAnimationFrame(() => this._replayTick());
+  }
+
+  _stopReplayPlayback() {
+    if (this.state !== 'REPLAY') return;
+    this.state = 'TRANSITION';
+
+    // Cancel pending auto-stop timeout
+    if (this._replayCompleteTimeout) {
+      clearTimeout(this._replayCompleteTimeout);
+      this._replayCompleteTimeout = null;
+    }
+
+    // Stop replay engine
+    if (this.replayEngine) {
+      this.replayEngine.stop();
+      this.replayEngine = null;
+    }
+
+    // Hide controls
+    if (this.replayPanel) {
+      this.replayPanel.hideControls();
+    }
+
+    // Clean up replay scene objects
+    if (this._replayBalls) {
+      for (const ball of this._replayBalls.balls) {
+        this.renderer.scene.remove(ball.mesh);
+        this.physics.removeBody(ball.body);
+        ball.geometry?.dispose();
+        ball.material?.dispose();
+      }
+      this._replayBalls = null;
+    }
+    if (this._replayTable) {
+      this.physics.removeTableBody();
+      this._replayTable.dispose();
+      this._replayTable = null;
+    }
+
+    // Show menu layer
+    const menuLayer = document.getElementById('menu-layer');
+    if (menuLayer) {
+      menuLayer.style.display = 'block';
+      menuLayer.style.opacity = '0';
+      requestAnimationFrame(() => {
+        menuLayer.style.opacity = '1';
+      });
+    }
+
+    // Show main menu
+    this.mainMenu.show();
+    this.state = 'MENU';
+    this._startMenuLoop();
+  }
+
   _quit() {
     // Clean up
     if (this.loop) this.loop.stop();
     if (this.game) this.game.dispose();
+    if (this.replayEngine) this.replayEngine.stop();
+    if (this.replayPanel) this.replayPanel.destroy();
     this.renderer.dispose();
     this.mainMenu?.destroy();
     this.settingsScreen?.destroy();

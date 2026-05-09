@@ -50,9 +50,20 @@ Then open `http://localhost:5173`
 | Build Tool | Vite |
 | Language | JavaScript (ES2022) |
 
-## 📢 Current Version: v0.10.0
+## 📢 Current Version: v0.11.0
 
-### v0.10.0 — "Achievement System" (Latest)
+### v0.11.0 — "Replay System" (Latest)
+- **🎬 Automatic Shot Recording** — every shot is automatically recorded at 20fps during gameplay, no manual action needed
+- **🧠 Smart Excitement Scoring** — shots are scored (0-100) based on pockets, collisions, cushion hits, spin usage, power, and duration; only interesting shots (score ≥ 25) are saved
+- **💾 Persistent Replay Library** — up to 30 replays stored in localStorage with automatic quota-safe eviction (lowest-score replays evicted first)
+- **📺 Replay Browser** — main menu "精彩回放" button opens a glassmorphism grid of saved shots with score badges, date, duration, pocket count, collision/cushion stats
+- **▶️ Full Playback Controls** — play/pause, 4 speed levels (0.1x / 0.25x / 0.5x / 1.0x), clickable progress bar scrubbing, exit button; controls overlay at bottom center
+- **🔁 Clean Playback Loop** — replay uses its own `requestAnimationFrame` loop independent of game physics; auto-returns to menu after playback completes
+- **🗑️ Per-Replay Delete** — each replay card has a delete button with hover danger color
+- **📐 Table + Balls Reconstruction** — replay scene rebuilds the table and all 16 balls from saved frame data; pocketed balls are hidden during playback
+- **🎮 All Modes Supported** — replays are saved from Free Play, Local 2P, vs AI, and 9-Ball modes
+
+### v0.10.0 — "Achievement System"
 - **🏆 30 Unlockable Achievements** across 3 categories:
   - **技术 (10)** — `一杆双响` (3球), `一杆清台` (4球), `长台神射` (>200cm), `旋转大师` (spin进球), `完美开球` (4球), `连环撞击` (3+碰撞), `库边反弹`, `全力一击` (100%), `蜻蜓点水` (≤10%), `库边舞者` (4+库边)
   - **生涯 (10)** — `百杆高手` (100杆), `千锤百炼` (500杆), `进球机器` (50球), `袋口主宰` (200球), `常胜将军` (10胜), `传奇球手` (50胜), `资深玩家` (20局), `连胜纪录` (5连胜), `AI克星`, `AI终结者` (困难)

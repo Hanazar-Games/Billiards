@@ -9,10 +9,11 @@
  *  - Back button when returning from settings
  */
 export class MainMenuScreen {
-  constructor(onSelectMode, onSettings, onAchievements, onQuit) {
+  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onQuit) {
     this.onSelectMode = onSelectMode;
     this.onSettings = onSettings;
     this.onAchievements = onAchievements;
+    this.onShowReplays = onShowReplays;
     this.onQuit = onQuit;
     this.container = null;
     this._buildUI();
@@ -84,6 +85,11 @@ export class MainMenuScreen {
       if (this.onAchievements) this.onAchievements();
     });
 
+    // Replays
+    this._addButton(btnGroup, '精彩回放', '浏览并播放保存的精彩击球', () => {
+      if (this.onShowReplays) this.onShowReplays();
+    });
+
     this.container.appendChild(btnGroup);
 
     // Quit button (bottom-right)
@@ -111,7 +117,7 @@ export class MainMenuScreen {
 
     // Version
     const version = document.createElement('div');
-    version.textContent = 'v0.8.0';
+    version.textContent = 'v0.11.0';
     version.style.cssText = `
       position: absolute; bottom: 44px; left: 40px;
       font-size: 12px; color: rgba(255,255,255,0.25);
