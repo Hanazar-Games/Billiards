@@ -20,6 +20,11 @@ export class AchievementSystem {
 
     // Per-shot tracking (reset each shot)
     this._shotReset();
+
+    // Per-game tracking
+    this._wasBehind = false;
+    this._pocketsP1 = 0;
+    this._pocketsP2 = 0;
   }
 
   _shotReset() {
@@ -36,12 +41,13 @@ export class AchievementSystem {
   // ── Event hooks called by Game.js ──
 
   /** Call when a shot begins (cue ball struck) */
-  onShot(cueBall, power, spin) {
+  onShot(cueBall, power, spin, currentPlayer) {
     this._shotReset();
     this.shotStartPos = cueBall.mesh.position.clone();
     this.shotPower = power;
     this.shotUsedSpin = Math.abs(spin.x) > 0.05 || Math.abs(spin.z) > 0.05;
     this.shotStartTime = performance.now();
+    this.currentPlayer = currentPlayer;
 
     this.store.incrementStat('totalShots', 1);
 
@@ -70,6 +76,10 @@ export class AchievementSystem {
   onPocket(ballId, pocketPos, mode) {
     this.shotPocketedIds.push(ballId);
     this.store.incrementStat('totalPockets', 1);
+
+    // Track per-player pocket counts for comeback detection
+    if (this.currentPlayer === 1) this._pocketsP1++;
+    else if (this.currentPlayer === 2) this._pocketsP2++;
 
     // Check cumulative pocket achievements
     this._checkCareer('pockets_50', () => this.store.getStat('totalPockets') >= 50);
@@ -120,15 +130,18 @@ export class AchievementSystem {
       this._checkUnlock('soft_touch', () => true);
     }
 
-    // 9-ball break miracle
-    if (mode === '9ball' && result.breakShot === false && nonCuePocketed.includes(9)) {
-      // Check if this was the break shot (previous state was break)
-      // This logic is handled in onGameEnd via special tracking
-    }
-
     // Trail beauty
     if (this.shotMaxDistance > 150) {
       this._checkUnlock('trail_beauty', () => true);
+    }
+
+    // Comeback tracking: record pocket counts per player after each turn
+    if (result.nextPlayer) {
+      const current = this.currentPlayer === 1 ? this._pocketsP1 : this._pocketsP2;
+      const other = this.currentPlayer === 1 ? this._pocketsP2 : this._pocketsP1;
+      if (current < other) {
+        this._wasBehind = true;
+      }
     }
   }
 
@@ -172,7 +185,9 @@ export class AchievementSystem {
       }
 
       // Shutout (opponent pocketed 0 balls)
-      if (stats && stats.opponentPocketed === 0) {
+      const opponent = winner === 1 ? 2 : 1;
+      const opponentPocketed = stats && stats.opponentPocketed ? stats.opponentPocketed[opponent] : null;
+      if (opponentPocketed === 0) {
         this._checkUnlock('shutout', () => true);
       }
 
@@ -182,13 +197,24 @@ export class AchievementSystem {
       }
 
       // 8-ball perfect finish
-      if (mode === '8ball' && stats && stats.eightBallPocketed) {
+      const winnerStats = winner === 1 ? (stats && stats.player1) : (stats && stats.player2);
+      if (mode === '8ball' && winnerStats && winnerStats.eightBallPocketed) {
         this._checkUnlock('eight_ball_perfect', () => true);
+      }
+
+      // Comeback (was behind but won)
+      if (this._wasBehind) {
+        this._checkUnlock('comeback', () => true);
       }
     } else {
       // Reset streak on loss
       this.store.setStat('currentStreak', 0);
     }
+
+    // Reset per-game tracking
+    this._wasBehind = false;
+    this._pocketsP1 = 0;
+    this._pocketsP2 = 0;
 
     // All modes
     const modesWon = this.store.getModesWon();

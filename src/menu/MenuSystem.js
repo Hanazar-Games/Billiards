@@ -21,6 +21,9 @@ import { AchievementPanel } from '../achievements/AchievementPanel.js';
 import { ReplayLibrary } from '../replay/ReplayLibrary.js';
 import { ReplayPanel } from '../replay/ReplayPanel.js';
 import { ShotReplay } from '../replay/ShotReplay.js';
+import { ChallengePanel } from '../challenges/ChallengePanel.js';
+import { ChallengeManager } from '../challenges/ChallengeManager.js';
+import { ChallengeResult } from '../challenges/ChallengeResult.js';
 
 export class MenuSystem {
   constructor(container) {
@@ -52,6 +55,12 @@ export class MenuSystem {
     this.replayEngine = null;
     this.replayBallsManager = null;
 
+    // Challenge system
+    this.challengePanel = null;
+    this.challengeManager = null;
+    this.challengeResult = null;
+    this.activeChallenge = null;
+
     this._initAudio();
     this._setupMenu();
   }
@@ -79,7 +88,7 @@ export class MenuSystem {
     }
 
     // Show menu layer, hide game UI
-    menuLayer.style.display = 'block';
+    menuLayer.style.display = 'flex';
     const uiLayer = document.getElementById('ui-layer');
     if (uiLayer) uiLayer.style.display = 'none';
 
@@ -89,6 +98,7 @@ export class MenuSystem {
       () => this._showSettings(),
       () => this._showAchievements(),
       () => this._showReplays(),
+      () => this._showChallenges(),
       () => this._quit()
     );
 
@@ -123,9 +133,11 @@ export class MenuSystem {
   }
 
   _showMainMenu() {
+    this.state = 'MENU';
     this.settingsScreen.hide();
     if (this.replayPanel) this.replayPanel.hideList();
     if (this.achievementPanel) this.achievementPanel.hideWall();
+    if (this.challengePanel) this.challengePanel.hide();
     this.mainMenu.show();
   }
 
@@ -147,6 +159,117 @@ export class MenuSystem {
       );
     }
     this.replayPanel.showList();
+  }
+
+  _showChallenges() {
+    this.state = 'MENU';
+    this.mainMenu.hide();
+    if (this.replayPanel) this.replayPanel.hideList();
+    if (this.achievementPanel) this.achievementPanel.hideWall?.();
+    if (this.challengeResult) this.challengeResult.hide();
+    if (!this.challengePanel) {
+      this.challengePanel = new ChallengePanel(
+        (challenge) => this._startChallenge(challenge),
+        () => this._showMainMenu()
+      );
+    }
+    this.challengePanel.show();
+  }
+
+  async _startChallenge(challenge) {
+    if (this.state !== 'MENU' && this.state !== 'TRANSITION') return;
+    this.state = 'TRANSITION';
+
+    if (this.challengePanel) this.challengePanel.hide();
+    if (this.achievementPanel) this.achievementPanel.hideWall();
+
+    // Hide menu
+    const menuLayer = document.getElementById('menu-layer');
+    if (menuLayer) {
+      menuLayer.style.transition = 'opacity 0.5s ease';
+      menuLayer.style.opacity = '0';
+    }
+    await this._delay(500);
+    if (menuLayer) menuLayer.style.display = 'none';
+
+    // Show game UI
+    const uiLayer = document.getElementById('ui-layer');
+    if (uiLayer) uiLayer.style.display = 'flex';
+
+    // Create challenge manager
+    this.activeChallenge = challenge;
+    this.challengeManager = new ChallengeManager(challenge.id);
+    this.challengeManager.start();
+
+    // Create game with challenge mode
+    const modeConfig = { mode: challenge.gameMode, aiEnabled: false };
+    this.game = new Game(this.renderer, this.physics);
+    this.game.achievements = this.achievements;
+    this.game.replayLibrary = this.replayLibrary;
+    this.game.challengeManager = this.challengeManager;
+
+    await this.game.init(modeConfig);
+    this.game.onReturnToMenu = () => this._stopChallenge();
+
+    // Create and start game loop
+    this.loop = new GameLoop({
+      update: (dt) => {
+        this.physics.step(dt);
+        this.game.update(dt);
+      },
+      render: () => {
+        this.game.render(this.renderer);
+        this.renderer.render();
+      },
+    });
+
+    this.state = 'PLAYING';
+    this.loop.start();
+  }
+
+  async _stopChallenge() {
+    if (this.state !== 'PLAYING') return;
+    this.state = 'TRANSITION';
+
+    // Stop game loop
+    if (this.loop) {
+      this.loop.stop();
+      this.loop = null;
+    }
+
+    // Dispose game
+    if (this.game) {
+      this.game.dispose();
+      this.game = null;
+    }
+
+    // Hide game UI
+    const uiLayer = document.getElementById('ui-layer');
+    if (uiLayer) uiLayer.style.display = 'none';
+
+    // Show challenge result
+    if (this.challengeManager) {
+      const hud = this.challengeManager.getHUDData();
+      if (!this.challengeResult) {
+        this.challengeResult = new ChallengeResult(
+          () => this._startChallenge(this.activeChallenge),
+          () => this._showChallenges()
+        );
+      }
+      this.challengeResult.show(
+        hud.name,
+        this.challengeManager.completed,
+        this.challengeManager.stars || 0,
+        {
+          duration: this.challengeManager.gameDuration,
+          fouls: this.challengeManager.totalFouls,
+          spinPockets: this.challengeManager.spinPocketCount,
+          breakPocketed: this.challengeManager.breakPocketedCount,
+        }
+      );
+    }
+
+    this.challengeManager = null;
   }
 
   async _startGame(mode) {
@@ -174,6 +297,7 @@ export class MenuSystem {
 
     // Create new Game instance
     this.game = new Game(this.renderer, this.physics);
+    this.game.achievements = this.achievements;
     this.game.replayLibrary = this.replayLibrary;
 
     // Configure mode
@@ -396,6 +520,8 @@ export class MenuSystem {
     if (this.game) this.game.dispose();
     if (this.replayEngine) this.replayEngine.stop();
     if (this.replayPanel) this.replayPanel.destroy();
+    if (this.challengePanel) this.challengePanel.destroy();
+    if (this.challengeResult) this.challengeResult.destroy();
     this.renderer.dispose();
     this.mainMenu?.destroy();
     this.settingsScreen?.destroy();

@@ -64,6 +64,7 @@ export class Game {
     this._tmpVec3d = new THREE.Vector3();
 
     this.turnPocketedIds = [];
+    this._isBreakShot = false;
   }
 
   async init(modeConfig = {}) {
@@ -211,6 +212,7 @@ export class Game {
             this.statsTracker.recordCushionCollision(this.currentPlayer);
             this.achievements.onCushionCollision();
             this.recorder.recordCushion();
+            if (this.challengeManager) this.challengeManager.onCushionHit();
           }
         }
       });
@@ -292,6 +294,9 @@ export class Game {
     const cueBall = this.ballsManager.getCueBall();
     if (!cueBall) return;
 
+    // Track whether this shot is the break shot for achievement purposes
+    this._isBreakShot = this.rules.breakShot;
+
     const force = Math.max(this.power, SHOT.minPower);
     cueBall.applyImpulse(
       this.aimDirection.x * force,
@@ -307,7 +312,8 @@ export class Game {
     this.turnPocketedIds = [];
     this.statsTracker.startTurn(this.currentPlayer);
     this.statsTracker.recordShot(this.currentPlayer, force);
-    this.achievements.onShot(cueBall, force, this.spin);
+    this.achievements.onShot(cueBall, force, this.spin, this.currentPlayer);
+    if (this.challengeManager) this.challengeManager.onShot(cueBall, force, this.spin);
     this.particles.spawnChalkDust(
       cueBall.mesh.position,
       this.aimDirection,
@@ -412,6 +418,7 @@ export class Game {
           const pockets = this.table.getPocketPositions();
           this.achievements.onPocket(entry.id, pockets[entry.pocketIndex], this.mode);
           this.recorder.recordPocket(entry.id);
+          if (this.challengeManager) this.challengeManager.onPocket(entry.id);
         }
 
         // Pocket flash particles — use the exact pocket from checkPockets
@@ -431,6 +438,7 @@ export class Game {
       const cueBall = this.ballsManager.getCueBall();
       if (cueBall && !cueBall.pocketed) {
         this.trails.recordPoint(cueBall);
+        if (this.challengeManager) this.challengeManager.onShotUpdate(cueBall);
       }
 
       if (this.ballsManager.allStopped()) {
@@ -441,6 +449,9 @@ export class Game {
     // Update visual effects
     this.trails.update(dt);
     this.particles.update(dt);
+    if (this.challengeManager) {
+      this._updateChallengeHUD();
+    }
     if (this.state === 'SHOOTING') {
       this.recorder.update(dt, this.ballsManager);
     }
@@ -511,6 +522,9 @@ export class Game {
         result.winner, this.currentPlayer, this.mode,
         this.aiPlayer?.difficulty || 'normal', duration, stats
       );
+      if (this.challengeManager) {
+        this.challengeManager.onGameEnd(result.winner);
+      }
 
       if (result.winner === this.currentPlayer) {
         this.audio.playWin();
@@ -534,10 +548,13 @@ export class Game {
 
     // Achievement: turn end
     this.achievements.onTurnEnd(result, pocketedIds, this.mode);
+    if (this.challengeManager) this.challengeManager.onTurnEnd(result);
 
     // Achievement: break shot check
-    if (this.rules.breakShot === false && pocketedIds.length > 0) {
+    if (this._isBreakShot) {
       this.achievements.onBreakShot(pocketedIds, this.mode);
+      if (this.challengeManager) this.challengeManager.onBreakShot(pocketedIds);
+      this._isBreakShot = false;
     }
 
     if (result.scratch) {
@@ -569,7 +586,8 @@ export class Game {
 
     this.ballsManager = new BallsManager(this.physics);
     this.ballsManager.createBalls();
-    this.ballsManager.rackBalls();
+    const rackMode = this.mode === '9ball' ? '9ball' : '8ball';
+    this.ballsManager.rackBalls(rackMode);
     this.ballsManager.addToScene(this.scene);
     this.setupCollisionEvents();
 
@@ -753,6 +771,38 @@ export class Game {
     }
   }
 
+  _updateChallengeHUD() {
+    if (!this.challengeManager) return;
+    const data = this.challengeManager.getHUDData();
+    let el = document.getElementById('challenge-hud');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'challenge-hud';
+      el.style.cssText = `
+        position: absolute; top: 20px; left: 20px;
+        padding: 10px 16px;
+        background: rgba(0,0,0,0.6);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 10px;
+        backdrop-filter: blur(8px);
+        color: #fff;
+        font-size: 13px;
+        pointer-events: none;
+        z-index: 15;
+        max-width: 220px;
+      `;
+      document.getElementById('ui-layer').appendChild(el);
+    }
+    const statusColor = data.completed ? '#00e676' : data.failed ? '#ff5252' : '#fff';
+    el.innerHTML = `
+      <div style="font-weight:700;margin-bottom:4px;">${data.name}</div>
+      <div style="color:${statusColor};">${data.progress}</div>
+    `;
+    if (data.completed || data.failed) {
+      el.style.borderColor = data.completed ? 'rgba(0,230,118,0.5)' : 'rgba(255,82,82,0.5)';
+    }
+  }
+
   _updateCamera() {
     if (this.cameraMode === 'follow') {
       const cueBall = this.ballsManager.getCueBall();
@@ -860,6 +910,12 @@ export class Game {
     if (this.statsPanel) {
       this.statsPanel.destroy();
       this.statsPanel = null;
+    }
+
+    // Remove challenge HUD
+    const chHud = document.getElementById('challenge-hud');
+    if (chHud && chHud.parentNode) {
+      chHud.parentNode.removeChild(chHud);
     }
 
     // Clean up input

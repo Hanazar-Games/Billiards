@@ -186,6 +186,7 @@ export class NineBallRules {
       nextTarget++;
     }
     if (nextTarget > 9) nextTarget = 9;
+    this.targetBall = nextTarget; // sync internal target
 
     return {
       currentPlayer: this.currentPlayer,

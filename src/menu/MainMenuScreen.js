@@ -9,11 +9,12 @@
  *  - Back button when returning from settings
  */
 export class MainMenuScreen {
-  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onQuit) {
+  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onShowChallenges, onQuit) {
     this.onSelectMode = onSelectMode;
     this.onSettings = onSettings;
     this.onAchievements = onAchievements;
     this.onShowReplays = onShowReplays;
+    this.onShowChallenges = onShowChallenges;
     this.onQuit = onQuit;
     this.container = null;
     this._buildUI();
@@ -90,6 +91,11 @@ export class MainMenuScreen {
       if (this.onShowReplays) this.onShowReplays();
     });
 
+    // Challenges
+    this._addButton(btnGroup, '挑战模式', '完成特殊条件的技巧挑战', () => {
+      if (this.onShowChallenges) this.onShowChallenges();
+    });
+
     this.container.appendChild(btnGroup);
 
     // Quit button (bottom-right)
@@ -117,7 +123,7 @@ export class MainMenuScreen {
 
     // Version
     const version = document.createElement('div');
-    version.textContent = 'v0.11.1';
+    version.textContent = 'v0.12.0';
     version.style.cssText = `
       position: absolute; bottom: 44px; left: 40px;
       font-size: 12px; color: rgba(255,255,255,0.25);

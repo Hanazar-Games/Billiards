@@ -39,6 +39,7 @@ export class StatsTracker {
       cushionCollisions: 0,
       consecutivePockets: 0,
       maxConsecutivePockets: 0,
+      eightBallPocketed: false,
     };
   }
 
@@ -77,6 +78,7 @@ export class StatsTracker {
     if (!this._validatePlayer(player)) return;
     const stats = this.playerStats[player];
     stats.ballsPocketed++;
+    if (ballId === 8) stats.eightBallPocketed = true;
     stats.consecutivePockets++;
 
     if (stats.consecutivePockets > stats.maxConsecutivePockets) {
@@ -158,6 +160,10 @@ export class StatsTracker {
         ...p2,
         avgPower: p2.shots > 0 ? p2.totalPower / p2.shots : 0,
         pocketRate: p2.shots > 0 ? Math.min(100, (p2.ballsPocketed / p2.shots) * 100) : 0,
+      },
+      opponentPocketed: {
+        1: this.playerStats[2].ballsPocketed,
+        2: this.playerStats[1].ballsPocketed,
       },
       match: { ...this.matchStats },
     };

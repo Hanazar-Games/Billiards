@@ -205,7 +205,13 @@ export class StatsPanel {
       return;
     }
     this.lastStats = summary;
-    if (!this.visible) this.toggle();
+    if (!this.visible) {
+      this.toggle();
+    } else {
+      // Already visible — refresh content without toggling
+      this.panel.style.maxHeight = '520px';
+      this.panel.style.opacity = '1';
+    }
 
     const p1 = summary.player1;
     const p2 = summary.player2;
