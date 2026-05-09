@@ -32,11 +32,11 @@ export class UI {
     // AI controls container
     this.aiPanel = document.createElement('div');
     this.aiPanel.style.cssText = `
-      position: absolute; top: 135px; left: 50%; transform: translateX(-50%);
+      position: absolute; top: 82px; left: 50%; transform: translateX(-50%);
       display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
-      pointer-events: auto; background: rgba(0,0,0,0.45);
+      pointer-events: auto; background: rgba(0,0,0,0.65);
       padding: 8px 16px; border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
       backdrop-filter: blur(6px);
     `;
 

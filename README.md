@@ -50,12 +50,18 @@ Then open `http://localhost:5173`
 | Build Tool | Vite |
 | Language | JavaScript (ES2022) |
 
-## 📢 Current Version: v0.7.1
+## 📢 Current Version: v0.7.2
 
-### v0.7.1 — "Shot Trail Polish & Bug Fixes" (Latest)
+### v0.7.2 — "UI Visibility & Layout Fixes" (Latest)
+- ✅ **Fixed control panel completely invisible on dark background** — raised background opacity from `0.45 → 0.65` and border brightness from `0.15 → 0.3` so the top control bar (vs AI / difficulty / Aim Line / Trail / Sound) is clearly visible against the `#111` page background
+- ✅ **Fixed control panel awkward positioning** — moved from `top: 135px` (stuck between badges and message) to `top: 82px` directly beneath the player badges for a cleaner vertical flow
+- ✅ **Fixed top-bar excessive top margin** — reduced `margin-top` from `48px → 36px` to tighten the header spacing and give the control panel breathing room
+- ✅ **Fixed power bar container invisible on dark background** — raised background from `0.5 → 0.65` and border from `0.6 → 0.75` so the charging bar outline is clearly visible before any shot is taken
+- ✅ **Fixed control panel overflow on small screens** — added `flex-wrap: wrap` so 5 toggles reflow gracefully on narrow viewports
+
+### v0.7.1 — "Shot Trail Polish & Bug Fixes"
 - ✅ **Fixed invisible trail bug** — disabled `frustumCulled` on trail lines and set `renderOrder = 10` so trails are always visible and draw on top of other transparent objects (the sparse `Float32Array` buffer caused incorrect bounding sphere calculation, which could randomly cull trails)
 - ✅ **Fixed trail opacity too low** — initial opacity raised from 0.85 → 1.0 so trails are crisp and clearly visible against the green felt; fade-out curve now goes from 1.0 → 0.0 for a more satisfying disappearance
-- ✅ **Fixed top control bar overflow on small screens** — added `flex-wrap: wrap` to the AI controls panel so the 5 toggles (vs AI, difficulty, Aim Line, Trail, Sound) reflow gracefully instead of being squashed on narrow windows
 - ✅ **Fixed non-integer AudioBuffer lengths** — `AudioManager` now uses `Math.ceil()` for all `createBuffer()` sizes, preventing edge-case bugs where fractional sample rates could produce invalid buffer lengths
 
 ### v0.7.0 — "Shot Trail System"
