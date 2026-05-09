@@ -125,17 +125,26 @@ export class Ball {
 
     const v = this.body.velocity;
     const av = this.body.angularVelocity;
-    const speed = Math.sqrt(v.x * v.x + v.z * v.z);
+    let speed = Math.sqrt(v.x * v.x + v.z * v.z);
+
+    if (speed > 0) {
+      const rollingDrop = Math.min(speed, BALL.rollingResistance * dt);
+      const rollingFactor = (speed - rollingDrop) / speed;
+      v.x *= rollingFactor;
+      v.z *= rollingFactor;
+      speed = Math.sqrt(v.x * v.x + v.z * v.z);
+    }
 
     if (speed > 0 && speed < BALL.slowBrakeSpeed) {
       const t = 1 - speed / BALL.slowBrakeSpeed;
-      const brake = BALL.slowBrakeStrength * t * t;
+      const brake = BALL.slowBrakeStrength * t * t * t;
       const factor = Math.max(0, Math.exp(-brake * dt));
       v.x *= factor;
       v.z *= factor;
       av.x *= factor;
       av.y *= factor;
       av.z *= factor;
+      speed = Math.sqrt(v.x * v.x + v.z * v.z);
     }
 
     const angularSpeed = av.length();

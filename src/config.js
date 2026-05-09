@@ -20,13 +20,14 @@ export const BALL = {
   segments: 32,              // sphere geometry detail
   restitution: 0.85,
   friction: 0.15,
-  damping: 0.24,             // baseline cloth drag; low-speed braking is handled dynamically
-  angularDamping: 0.32,
-  sleepSpeedLimit: 0.12,
-  sleepTimeLimit: 0.18,
-  slowBrakeSpeed: 1.65,       // below this, braking ramps up as speed approaches zero
-  slowBrakeStrength: 9.5,
-  stopSpeedLimit: 0.18,
+  damping: 0.08,             // low high-speed drag; cloth rolling resistance handles slowdown
+  angularDamping: 0.2,
+  sleepSpeedLimit: 0.18,
+  sleepTimeLimit: 0.16,
+  rollingResistance: 3.2,     // near-constant cloth deceleration in cm/s^2
+  slowBrakeSpeed: 28,         // below this, braking ramps up as speed approaches zero
+  slowBrakeStrength: 4.8,
+  stopSpeedLimit: 0.35,
   maxSpeed: 520,
   boundaryRestitution: 0.48,
   overlapIterations: 4,
