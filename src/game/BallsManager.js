@@ -5,6 +5,7 @@ export class BallsManager {
   constructor(physics) {
     this.physics = physics;
     this.balls = [];
+    this.previousPositions = new Map();
   }
 
   addToScene(scene) {
@@ -151,7 +152,96 @@ export class BallsManager {
       ball.applyLowSpeedBrake(dt);
       this._enforceTableBounds(ball, pocketPositions);
     }
+    this._resolveSweptBallContacts(pocketPositions);
     this._resolveBallOverlaps(pocketPositions);
+    this._storePreviousPositions();
+  }
+
+  _storePreviousPositions() {
+    for (const ball of this.balls) {
+      if (ball.pocketed) {
+        this.previousPositions.delete(ball.id);
+      } else {
+        this.previousPositions.set(ball.id, {
+          x: ball.body.position.x,
+          z: ball.body.position.z,
+        });
+      }
+    }
+  }
+
+  _resolveSweptBallContacts(pocketPositions = []) {
+    const contactDist = BALL.radius * 2 * BALL.sweepContactScale;
+    const contactDistSq = contactDist * contactDist;
+    const maxFrameMove = BALL.maxSpeed * 0.08;
+    const maxFrameMoveSq = maxFrameMove * maxFrameMove;
+
+    for (let i = 0; i < this.balls.length; i++) {
+      const a = this.balls[i];
+      if (a.pocketed) continue;
+      const a0 = this.previousPositions.get(a.id);
+      if (!a0) continue;
+
+      for (let j = i + 1; j < this.balls.length; j++) {
+        const b = this.balls[j];
+        if (b.pocketed) continue;
+        const b0 = this.previousPositions.get(b.id);
+        if (!b0) continue;
+
+        const aMoveX = a.body.position.x - a0.x;
+        const aMoveZ = a.body.position.z - a0.z;
+        const bMoveX = b.body.position.x - b0.x;
+        const bMoveZ = b.body.position.z - b0.z;
+        if (aMoveX * aMoveX + aMoveZ * aMoveZ > maxFrameMoveSq) continue;
+        if (bMoveX * bMoveX + bMoveZ * bMoveZ > maxFrameMoveSq) continue;
+
+        const currentDx = b.body.position.x - a.body.position.x;
+        const currentDz = b.body.position.z - a.body.position.z;
+        if (currentDx * currentDx + currentDz * currentDz <= contactDistSq) continue;
+
+        const startDx = b0.x - a0.x;
+        const startDz = b0.z - a0.z;
+        const relMoveX = bMoveX - aMoveX;
+        const relMoveZ = bMoveZ - aMoveZ;
+        const aCoef = relMoveX * relMoveX + relMoveZ * relMoveZ;
+        if (aCoef < 0.000001) continue;
+
+        const bCoef = 2 * (startDx * relMoveX + startDz * relMoveZ);
+        const cCoef = startDx * startDx + startDz * startDz - contactDistSq;
+        if (cCoef <= 0 || bCoef >= 0) continue;
+
+        const disc = bCoef * bCoef - 4 * aCoef * cCoef;
+        if (disc < 0) continue;
+
+        const t = (-bCoef - Math.sqrt(disc)) / (2 * aCoef);
+        if (t < 0 || t > 1) continue;
+
+        const contactDx = startDx + relMoveX * t;
+        const contactDz = startDz + relMoveZ * t;
+        const contactLen = Math.sqrt(contactDx * contactDx + contactDz * contactDz) || contactDist;
+        const nx = contactDx / contactLen;
+        const nz = contactDz / contactLen;
+        const relNormalSpeed = (b.body.velocity.x - a.body.velocity.x) * nx +
+          (b.body.velocity.z - a.body.velocity.z) * nz;
+        if (relNormalSpeed >= 0) continue;
+
+        a.body.position.x = a0.x + aMoveX * t;
+        a.body.position.z = a0.z + aMoveZ * t;
+        b.body.position.x = b0.x + bMoveX * t;
+        b.body.position.z = b0.z + bMoveZ * t;
+        a.body.position.y = BALL.radius;
+        b.body.position.y = BALL.radius;
+
+        this._resolveBallCollisionVelocity(a, b, nx, nz);
+        this._separateContactPair(a, b, nx, nz, contactDist);
+        this._enforceTableBounds(a, pocketPositions);
+        this._enforceTableBounds(b, pocketPositions);
+        a.body.wakeUp();
+        b.body.wakeUp();
+        a.sync();
+        b.sync();
+      }
+    }
   }
 
   _resolveBallOverlaps(pocketPositions = []) {
@@ -175,27 +265,8 @@ export class BallsManager {
           const dist = Math.sqrt(distSq) || 0.0001;
           const nx = distSq > 0.000001 ? dx / dist : 1;
           const nz = distSq > 0.000001 ? dz / dist : 0;
-          const overlap = minDist - dist;
-          const correction = overlap * 0.5;
-
-          a.body.position.x -= nx * correction;
-          a.body.position.z -= nz * correction;
-          b.body.position.x += nx * correction;
-          b.body.position.z += nz * correction;
-          a.body.position.y = BALL.radius;
-          b.body.position.y = BALL.radius;
-
-          const av = a.body.velocity;
-          const bv = b.body.velocity;
-          const relNormalSpeed = (bv.x - av.x) * nx + (bv.z - av.z) * nz;
-
-          if (relNormalSpeed < 0) {
-            const impulse = -relNormalSpeed * 0.5;
-            av.x -= nx * impulse;
-            av.z -= nz * impulse;
-            bv.x += nx * impulse;
-            bv.z += nz * impulse;
-          }
+          this._separateContactPair(a, b, nx, nz, minDist);
+          this._resolveBallCollisionVelocity(a, b, nx, nz);
 
           this._enforceTableBounds(a, pocketPositions);
           this._enforceTableBounds(b, pocketPositions);
@@ -206,6 +277,49 @@ export class BallsManager {
         }
       }
     }
+  }
+
+  _separateContactPair(a, b, nx, nz, targetDist) {
+    const dx = b.body.position.x - a.body.position.x;
+    const dz = b.body.position.z - a.body.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz) || 0.0001;
+    const overlap = targetDist - dist;
+    if (overlap <= 0) return;
+
+    const correction = overlap * 0.5;
+    a.body.position.x -= nx * correction;
+    a.body.position.z -= nz * correction;
+    b.body.position.x += nx * correction;
+    b.body.position.z += nz * correction;
+    a.body.position.y = BALL.radius;
+    b.body.position.y = BALL.radius;
+  }
+
+  _resolveBallCollisionVelocity(a, b, nx, nz) {
+    const av = a.body.velocity;
+    const bv = b.body.velocity;
+    const relX = bv.x - av.x;
+    const relZ = bv.z - av.z;
+    const relNormalSpeed = relX * nx + relZ * nz;
+    if (relNormalSpeed >= 0) return;
+
+    const normalImpulse = -(1 + BALL.collisionRestitution) * relNormalSpeed * 0.5;
+    av.x -= nx * normalImpulse;
+    av.z -= nz * normalImpulse;
+    bv.x += nx * normalImpulse;
+    bv.z += nz * normalImpulse;
+
+    const tx = -nz;
+    const tz = nx;
+    const tangentSpeed = relX * tx + relZ * tz;
+    const tangentImpulse = -tangentSpeed * BALL.collisionTangentialFriction * 0.5;
+    av.x -= tx * tangentImpulse;
+    av.z -= tz * tangentImpulse;
+    bv.x += tx * tangentImpulse;
+    bv.z += tz * tangentImpulse;
+
+    a.limitSpeed();
+    b.limitSpeed();
   }
 
   _enforceTableBounds(ball, pocketPositions) {

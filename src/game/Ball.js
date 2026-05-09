@@ -86,13 +86,16 @@ export class Ball {
 
   applyImpulse(x, y, z, spinX = 0, spinZ = 0) {
     this.body.wakeUp();
+    const shotSpeed = Math.hypot(x, z);
+    const dirX = shotSpeed > 0.001 ? x / shotSpeed : 0;
+    const dirZ = shotSpeed > 0.001 ? z / shotSpeed : 1;
+
     this.body.applyImpulse(new CANNON.Vec3(x, y, z), this.body.position);
     if (Math.abs(spinX) > 0.001) {
-      const speed = Math.hypot(x, z);
-      if (speed > 0.001) {
-        const nx = -z / speed;
-        const nz = x / speed;
-        const squirt = speed * BALL.cueSquirt * spinX;
+      if (shotSpeed > 0.001) {
+        const nx = -dirZ;
+        const nz = dirX;
+        const squirt = shotSpeed * BALL.cueSquirt * spinX;
         this.body.velocity.x += nx * squirt;
         this.body.velocity.z += nz * squirt;
       }
@@ -103,7 +106,8 @@ export class Ball {
     // spinZ = follow/draw around the local side axis.
     const maxSpin = BALL.spinAngularVelocity;
     this.body.angularVelocity.y += spinX * maxSpin;
-    this.body.angularVelocity.x += spinZ * maxSpin;
+    this.body.angularVelocity.x += spinZ * maxSpin * dirZ;
+    this.body.angularVelocity.z -= spinZ * maxSpin * dirX;
   }
 
   limitSpeed() {

@@ -31,7 +31,7 @@ export class PhysicsWorld {
       this.ballMaterial,
       {
         friction: 0.06,
-        restitution: 0.92,
+        restitution: BALL.collisionRestitution,
         contactEquationStiffness: 1e8,
         contactEquationRelaxation: 3,
       }

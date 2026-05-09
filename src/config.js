@@ -19,6 +19,8 @@ export const BALL = {
   mass: 0.17,                // kg
   segments: 32,              // sphere geometry detail
   restitution: 0.85,
+  collisionRestitution: 0.94,
+  collisionTangentialFriction: 0.035,
   friction: 0.15,
   damping: 0.08,             // low high-speed drag; cloth rolling resistance handles slowdown
   angularDamping: 0.2,
@@ -31,6 +33,7 @@ export const BALL = {
   maxSpeed: 520,
   boundaryRestitution: 0.48,
   overlapIterations: 4,
+  sweepContactScale: 0.995,
   spinAngularVelocity: 22,
   rollCoupling: 0.22,
   cueSquirt: 0.018,
