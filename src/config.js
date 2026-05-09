@@ -43,7 +43,7 @@ export const BALL = {
 
 // Pocket radius = ~1.5x ball radius (standard pool)
 export const POCKET = {
-  radius: BALL.radius * 1.5,  // ~4.29 cm
+  radius: BALL.radius * 1.72,  // wider pocket mouths for playable 3D aiming
   detectMargin: BALL.radius * 0.9,
 };
 

@@ -12,8 +12,10 @@ export class Table {
     this.createCushions();
     this.createPockets();
     this.createRails();
+    this.createRailBevels();
     this.createApron();
     this.createPocketDetails();
+    this.createPocketJaws();
     this.createRailSights();
     this.createCornerCaps();
     this.createLegs();
@@ -52,6 +54,24 @@ export class Table {
     nap.position.y = 0.06;
     nap.receiveShadow = true;
     this.meshGroup.add(nap);
+
+    const edgeMat = new THREE.MeshStandardMaterial({
+      color: 0x083a25,
+      roughness: 0.95,
+      metalness: 0.0,
+    });
+    const edgeInset = 7;
+    const edgeParts = [
+      [0, 0.09, -TABLE.depth / 2 + edgeInset, TABLE.width - 18, 0.12, 1.2],
+      [0, 0.09, TABLE.depth / 2 - edgeInset, TABLE.width - 18, 0.12, 1.2],
+      [-TABLE.width / 2 + edgeInset, 0.09, 0, 1.2, 0.12, TABLE.depth - 18],
+      [TABLE.width / 2 - edgeInset, 0.09, 0, 1.2, 0.12, TABLE.depth - 18],
+    ];
+    for (const [x, y, z, w, h, d] of edgeParts) {
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), edgeMat);
+      edge.position.set(x, y, z);
+      this.meshGroup.add(edge);
+    }
   }
 
   createCushions() {
@@ -62,8 +82,8 @@ export class Table {
     const cy = BALL.radius;
     const ch = BALL.radius; // half-height = ball radius => total height = 2*radius
 
-    const cornerGap = POCKET.radius * 2.0;
-    const sideGap = POCKET.radius * 2.25;
+    const cornerGap = POCKET.radius * 2.25;
+    const sideGap = POCKET.radius * 2.65;
 
     // Short rails: one segment each, with only corner pocket gaps.
     const shortRailLen = TABLE.width - cornerGap * 2;
@@ -163,21 +183,24 @@ export class Table {
     const halfW = TABLE.width / 2;
     const halfD = TABLE.depth / 2;
 
+    const cornerGap = POCKET.radius * 2.9;
+    const shortRailLen = TABLE.width - cornerGap * 2;
+
     // Top rail
-    const rail1 = new THREE.Mesh(new THREE.BoxGeometry(TABLE.width + railW * 2, railH, railW), railMat);
+    const rail1 = new THREE.Mesh(new THREE.BoxGeometry(shortRailLen, railH, railW), railMat);
     rail1.position.set(0, railH / 2, -halfD - railW / 2);
     rail1.castShadow = true;
     this.meshGroup.add(rail1);
 
     // Bottom rail
-    const rail2 = new THREE.Mesh(new THREE.BoxGeometry(TABLE.width + railW * 2, railH, railW), railMat);
+    const rail2 = new THREE.Mesh(new THREE.BoxGeometry(shortRailLen, railH, railW), railMat);
     rail2.position.set(0, railH / 2, halfD + railW / 2);
     rail2.castShadow = true;
     this.meshGroup.add(rail2);
 
     // Side rails are split around the middle pockets so balls do not appear
     // to pass through wood when they fall into a side pocket.
-    const sideGap = POCKET.radius * 2.6;
+    const sideGap = POCKET.radius * 3.05;
     const sideRailLen = (TABLE.depth - sideGap) / 2;
     const sideZ = sideGap / 2 + sideRailLen / 2;
     const sideX = [-halfW - railW / 2, halfW + railW / 2];
@@ -188,6 +211,37 @@ export class Table {
         rail.castShadow = true;
         this.meshGroup.add(rail);
       }
+    }
+  }
+
+  createRailBevels() {
+    const bevelMat = new THREE.MeshStandardMaterial({
+      color: 0x9c5e26,
+      roughness: 0.34,
+      metalness: 0.16,
+    });
+    const halfW = TABLE.width / 2;
+    const halfD = TABLE.depth / 2;
+    const cornerGap = POCKET.radius * 3.0;
+    const shortLen = TABLE.width - cornerGap * 2;
+    const sideGap = POCKET.radius * 3.1;
+    const sideLen = (TABLE.depth - sideGap) / 2;
+    const sideZ = sideGap / 2 + sideLen / 2;
+
+    const bevels = [
+      [0, 9.4, -halfD - 0.8, shortLen, 1.4, 2.2],
+      [0, 9.4, halfD + 0.8, shortLen, 1.4, 2.2],
+    ];
+    for (const z of [-sideZ, sideZ]) {
+      bevels.push([-halfW - 0.8, 9.4, z, 2.2, 1.4, sideLen]);
+      bevels.push([halfW + 0.8, 9.4, z, 2.2, 1.4, sideLen]);
+    }
+
+    for (const [x, y, z, w, h, d] of bevels) {
+      const bevel = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bevelMat);
+      bevel.position.set(x, y, z);
+      bevel.castShadow = true;
+      this.meshGroup.add(bevel);
     }
   }
 
@@ -242,14 +296,19 @@ export class Table {
       metalness: 0.05,
     });
     const ringMat = new THREE.MeshStandardMaterial({
-      color: 0x151515,
+      color: 0x101010,
       roughness: 0.45,
       metalness: 0.35,
+    });
+    const cupMat = new THREE.MeshStandardMaterial({
+      color: 0x030303,
+      roughness: 0.9,
+      metalness: 0.02,
     });
 
     for (const pocket of this.pocketPositions) {
       const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(POCKET.radius * 1.08, 1.4, 10, 36),
+        new THREE.TorusGeometry(POCKET.radius * 1.12, 1.65, 12, 48),
         ringMat
       );
       ring.position.set(pocket.x, 1.1, pocket.z);
@@ -258,12 +317,51 @@ export class Table {
       this.meshGroup.add(ring);
 
       const drop = new THREE.Mesh(
-        new THREE.CylinderGeometry(POCKET.radius * 0.82, POCKET.radius * 0.68, 14, 28),
+        new THREE.CylinderGeometry(POCKET.radius * 0.96, POCKET.radius * 0.7, 18, 36),
         linerMat
       );
-      drop.position.set(pocket.x, -5, pocket.z);
+      drop.position.set(pocket.x, -7, pocket.z);
       drop.receiveShadow = true;
       this.meshGroup.add(drop);
+
+      const cup = new THREE.Mesh(
+        new THREE.CylinderGeometry(POCKET.radius * 0.7, POCKET.radius * 0.52, 8, 32),
+        cupMat
+      );
+      cup.position.set(pocket.x, -18, pocket.z);
+      cup.receiveShadow = true;
+      this.meshGroup.add(cup);
+    }
+  }
+
+  createPocketJaws() {
+    const jawMat = new THREE.MeshStandardMaterial({
+      color: 0x050505,
+      roughness: 0.62,
+      metalness: 0.18,
+    });
+    const halfW = TABLE.width / 2;
+    const halfD = TABLE.depth / 2;
+
+    const addJaw = (x, z, angle, length = 12) => {
+      const jaw = new THREE.Mesh(new THREE.BoxGeometry(length, 2.4, 3.2), jawMat);
+      jaw.position.set(x, 4.8, z);
+      jaw.rotation.y = angle;
+      jaw.castShadow = true;
+      this.meshGroup.add(jaw);
+    };
+
+    const inset = POCKET.radius * 0.95;
+    for (const sx of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        addJaw(sx * (halfW - inset * 0.55), sz * (halfD + 2.2), 0, 11);
+        addJaw(sx * (halfW + 2.2), sz * (halfD - inset * 0.55), Math.PI / 2, 11);
+      }
+    }
+
+    for (const sx of [-1, 1]) {
+      addJaw(sx * (halfW + 2.2), -POCKET.radius * 1.28, Math.PI / 2, 13);
+      addJaw(sx * (halfW + 2.2), POCKET.radius * 1.28, Math.PI / 2, 13);
     }
   }
 

@@ -34,19 +34,34 @@ export class Renderer {
     this.renderer.toneMappingExposure = 1.08;
     this.container.appendChild(this.renderer.domElement);
 
-    // Controls (right-click orbit, middle zoom)
+    // Controls: hold Shift to orbit with left drag; wheel zoom remains available.
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.05;
     this.controls.maxPolarAngle = Math.PI / 2 - 0.05;
     this.controls.minDistance = 80;
     this.controls.maxDistance = 900;
+    this.controls.enableRotate = false;
+    this.controls.enablePan = false;
+    this.controls.enableZoom = true;
+    this.controls.zoomSpeed = 0.85;
     this.controls.target.set(0, 0, 0);
     this.controls.mouseButtons = {
-      LEFT: null,       // disable left-click orbit (used for shooting)
+      LEFT: THREE.MOUSE.ROTATE,
       MIDDLE: THREE.MOUSE.DOLLY,
-      RIGHT: THREE.MOUSE.ROTATE,
+      RIGHT: null,
     };
+    this._shiftCameraControl = false;
+    this._onKeyDown = (e) => {
+      if (e.key === 'Shift') this.setCameraControlActive(true);
+    };
+    this._onKeyUp = (e) => {
+      if (e.key === 'Shift') this.setCameraControlActive(false);
+    };
+    this._onBlur = () => this.setCameraControlActive(false);
+    window.addEventListener('keydown', this._onKeyDown);
+    window.addEventListener('keyup', this._onKeyUp);
+    window.addEventListener('blur', this._onBlur);
 
     // Lights
     this.setupLights();
@@ -95,6 +110,11 @@ export class Renderer {
     this.renderer.setSize(this.width, this.height);
   }
 
+  setCameraControlActive(active) {
+    this._shiftCameraControl = Boolean(active);
+    this.controls.enableRotate = this._shiftCameraControl;
+  }
+
   render() {
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
@@ -102,6 +122,9 @@ export class Renderer {
 
   dispose() {
     window.removeEventListener('resize', this._onResize);
+    window.removeEventListener('keydown', this._onKeyDown);
+    window.removeEventListener('keyup', this._onKeyUp);
+    window.removeEventListener('blur', this._onBlur);
     this.renderer.dispose();
     this.container.removeChild(this.renderer.domElement);
   }

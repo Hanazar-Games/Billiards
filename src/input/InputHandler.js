@@ -52,6 +52,7 @@ export class InputHandler {
   handleMouseDown(e) {
     this.mouseX = e.clientX;
     this.mouseY = e.clientY;
+    if (e.shiftKey) return;
     if (e.button === 0) {
       // Left click: only trigger if target is canvas (not UI)
       if (e.target.tagName === 'CANVAS') {
