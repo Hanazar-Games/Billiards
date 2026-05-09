@@ -14,6 +14,8 @@ export class Cue {
     const ringMat = new THREE.MeshStandardMaterial({ color: 0xc9b483, roughness: 0.22, metalness: 0.55 });
     const buttMat = new THREE.MeshStandardMaterial({ color: 0x5a301b, roughness: 0.36, metalness: 0.08 });
 
+    const inlayMat = new THREE.MeshStandardMaterial({ color: 0xe6d7ad, roughness: 0.24, metalness: 0.18 });
+
     const addSegment = (name, radiusTop, radiusBottom, length, y, mat, radialSegments = 28) => {
       const mesh = new THREE.Mesh(
         new THREE.CylinderGeometry(radiusTop, radiusBottom, length, radialSegments),
@@ -25,37 +27,50 @@ export class Cue {
       return mesh;
     };
 
-    // Local Y starts at the leather tip face, so setAim can keep the cue clear
-    // of the cue ball with a precise endpoint offset.
-    addSegment('leather-tip', 0.42, 0.48, 1.4, 0.7, tipMat, 24);
-    addSegment('ferrule', 0.5, 0.54, 3.2, 3.0, ferruleMat, 28);
-    addSegment('tapered-shaft', 0.54, 0.82, 42, 25.6, woodMat, 32);
-    addSegment('collar-ring-a', 0.9, 0.92, 0.7, 47.0, ringMat, 32);
-    addSegment('wrap', 0.94, 1.05, 14, 54.35, wrapMat, 32);
-    addSegment('collar-ring-b', 1.06, 1.08, 0.8, 61.8, ringMat, 32);
-    addSegment('butt-sleeve', 1.08, 1.22, 11, 67.7, buttMat, 32);
-    addSegment('butt-cap', 1.22, 1.26, 1.6, 74.0, ringMat, 32);
+    // Pool cues are about 58 in long, roughly 25.8 ball diameters. With the
+    // game ball scale, that makes a full cue about 147 units.
+    addSegment('leather-tip', 0.42, 0.48, 1.6, 0.8, tipMat, 28);
+    addSegment('ivory-ferrule', 0.5, 0.54, 4.4, 3.8, ferruleMat, 32);
+    addSegment('pro-taper-shaft', 0.52, 0.72, 76, 44.0, woodMat, 36);
+    addSegment('joint-collar-front', 0.78, 0.88, 1.4, 82.7, ringMat, 36);
+    addSegment('joint-pin-band', 0.9, 0.94, 1.0, 83.9, ferruleMat, 36);
+    addSegment('joint-collar-back', 0.94, 1.0, 1.4, 85.1, ringMat, 36);
+    addSegment('forearm', 1.02, 1.18, 25, 98.3, buttMat, 36);
+    addSegment('wrap', 1.18, 1.25, 29, 125.3, wrapMat, 36);
+    addSegment('butt-sleeve', 1.25, 1.36, 17, 148.3, buttMat, 36);
+    addSegment('butt-cap-ring', 1.36, 1.4, 1.4, 157.5, ringMat, 36);
+    addSegment('rubber-bumper', 1.36, 1.42, 2.2, 159.3, tipMat, 36);
+
+    for (const y of [91, 97, 103, 144, 151]) {
+      const ring = addSegment('decorative-inlay', 1.205, 1.215, 0.45, y, inlayMat, 36);
+      ring.scale.x = 1.01;
+      ring.scale.z = 1.01;
+    }
 
     this.mesh = group;
     this.mesh.visible = true;
+    this._localAxis = new THREE.Vector3(0, 1, 0);
+    this._worldAxis = new THREE.Vector3();
+    this._quat = new THREE.Quaternion();
   }
 
   setAim(ballPosition, direction, pullback = 0) {
     if (!this.visible) return;
 
-    // Position the cue tip just outside the ball, then pull the whole cue back.
-    const offset = BALL.radius + 2.5 + pullback;
-    const pos = ballPosition.clone().add(direction.clone().multiplyScalar(-offset));
-    pos.y = ballPosition.y + BALL.radius * 0.18;
+    const aim = this._worldAxis.copy(direction).setY(0);
+    if (aim.lengthSq() < 0.0001) return;
+    aim.normalize();
+
+    // In aim mode, leave about one cue-ball diameter between the tip and ball.
+    // Dragging backward adds pullback along the exact opposite stroke line.
+    const tipGap = BALL.radius * 2.0 + pullback;
+    const offset = BALL.radius + tipGap;
+    const pos = ballPosition.clone().addScaledVector(aim, -offset);
+    pos.y = ballPosition.y;
 
     this.mesh.position.copy(pos);
-
-    // Rotate to point at ball
-    const target = ballPosition.clone();
-    this.mesh.lookAt(target);
-
-    // Cylinder default is Y-up, lookAt points Z-forward, so rotate
-    this.mesh.rotateX(Math.PI / 2);
+    this._quat.setFromUnitVectors(this._localAxis, aim.negate());
+    this.mesh.quaternion.copy(this._quat);
   }
 
   hide() {
