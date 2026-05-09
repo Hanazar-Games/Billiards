@@ -16,6 +16,7 @@ export class Table {
   }
 
   addToScene(scene) {
+    this.physics.createTableBody();
     scene.add(this.meshGroup);
     for (const body of this.bodies) {
       this.physics.addBody(body);

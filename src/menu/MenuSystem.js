@@ -337,7 +337,7 @@ export class MenuSystem {
       case 'vsai':
         return { mode: 'vsai', aiEnabled: true, aiDifficulty: 'normal' };
       case 'nineball':
-        return { mode: 'nineball', aiEnabled: false };
+        return { mode: '9ball', aiEnabled: false };
       default:
         return { mode: 'local2p', aiEnabled: false };
     }

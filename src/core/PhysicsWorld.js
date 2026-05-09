@@ -53,6 +53,8 @@ export class PhysicsWorld {
   }
 
   createTableBody() {
+    if (this.tableBody) return;
+
     // Table surface plane
     const shape = new CANNON.Plane();
     this.tableBody = new CANNON.Body({

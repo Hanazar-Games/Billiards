@@ -41,7 +41,7 @@ export class BallsManager {
     const halfD = TABLE.depth / 2;
 
     // Cue ball: head spot
-    this.balls[0].setPosition(0, r, -halfD * 0.55);
+    this._placeBall(0, 0, r, -halfD * 0.55);
 
     // Rack at foot spot
     const rackZ = halfD * 0.55;
@@ -61,7 +61,7 @@ export class BallsManager {
       const ballId = rackOrder[i];
       const x = startX + col * d;
       const z = rackZ + (row - 1) * d * Math.sin(Math.PI / 3);
-      this.balls[ballId].setPosition(x, r, z);
+      this._placeBall(ballId, x, r, z);
     }
   }
 
@@ -71,7 +71,12 @@ export class BallsManager {
     const halfD = TABLE.depth / 2;
 
     // Cue ball: head spot (behind head string)
-    this.balls[0].setPosition(0, r, -halfD * 0.55);
+    this._placeBall(0, 0, r, -halfD * 0.55);
+
+    // 9-ball only uses the cue ball plus balls 1-9.
+    for (let id = 10; id <= 15; id++) {
+      this._removeBallFromRack(id);
+    }
 
     // Rack at foot spot (bottom of table)
     const rackZ = halfD * 0.55;
@@ -103,8 +108,20 @@ export class BallsManager {
       const ballId = diamondOrder[i];
       const x = col * d;
       const z = rackZ + row * d * Math.sin(Math.PI / 3);
-      this.balls[ballId].setPosition(x, r, z);
+      this._placeBall(ballId, x, r, z);
     }
+  }
+
+  _placeBall(id, x, y, z) {
+    const ball = this.balls[id];
+    ball.pocketed = false;
+    ball.mesh.visible = true;
+    ball.setPosition(x, y, z);
+  }
+
+  _removeBallFromRack(id) {
+    const ball = this.balls[id];
+    if (ball) ball.remove();
   }
 
   getCueBall() {

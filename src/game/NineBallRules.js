@@ -46,6 +46,14 @@ export class NineBallRules {
     this.targetBall = target;
   }
 
+  trackPocketedBalls(pocketedIds) {
+    for (const id of pocketedIds) {
+      if (id >= 1 && id <= 9 && !this.pocketedBalls.includes(id)) {
+        this.pocketedBalls.push(id);
+      }
+    }
+  }
+
   resolveShot(pocketedIds, cueBallPocketed) {
     if (this.gameOver) return { gameOver: true, winner: this.winner };
 
@@ -66,6 +74,7 @@ export class NineBallRules {
 
       // Break foul: scratch or no ball hit
       if (cueBallPocketed) {
+        this.trackPocketedBalls(pocketedIds);
         return {
           nextPlayer: opponent,
           foul: true,
@@ -78,6 +87,7 @@ export class NineBallRules {
       // Check if first hit was the 1-ball (required on break)
       if (this.firstBallHit !== null && this.firstBallHit !== 1) {
         this.foul = true;
+        this.trackPocketedBalls(pocketedIds);
         return {
           nextPlayer: opponent,
           foul: true,
@@ -99,9 +109,7 @@ export class NineBallRules {
       }
 
       // Track pocketed balls
-      for (const id of pocketedIds) {
-        if (!this.pocketedBalls.includes(id)) this.pocketedBalls.push(id);
-      }
+      this.trackPocketedBalls(pocketedIds);
 
       // If nothing pocketed and no foul, opponent's turn
       if (pocketedIds.length === 0) {
@@ -138,6 +146,7 @@ export class NineBallRules {
 
     // If foul occurred, opponent gets ball-in-hand
     if (this.foul) {
+      this.trackPocketedBalls(pocketedIds);
       return {
         nextPlayer: opponent,
         foul: true,
@@ -148,9 +157,7 @@ export class NineBallRules {
     }
 
     // Track pocketed balls
-    for (const id of pocketedIds) {
-      if (!this.pocketedBalls.includes(id)) this.pocketedBalls.push(id);
-    }
+    this.trackPocketedBalls(pocketedIds);
 
     // Check for 9-ball win (9 pocketed on legal shot)
     if (ninePocketed) {

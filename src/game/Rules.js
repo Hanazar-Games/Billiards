@@ -43,7 +43,7 @@ export class Rules {
       this.foul = true;
     }
 
-    const currentGroup = this.currentPlayer === 1 ? this.player1Group : this.player2Group;
+    let currentGroup = this.currentPlayer === 1 ? this.player1Group : this.player2Group;
     const opponent = this.currentPlayer === 1 ? 2 : 1;
 
     let pocketedOwn = 0;
@@ -70,11 +70,13 @@ export class Rules {
       if (firstType === BALL_TYPE.SOLID) {
         this.assignGroup(this.currentPlayer, 'solid');
         this.assignGroup(opponent, 'stripe');
+        currentGroup = 'solid';
         pocketedOwn = pocketedIds.filter(id => getBallType(id) === BALL_TYPE.SOLID).length;
         pocketedOpponent = pocketedIds.filter(id => getBallType(id) === BALL_TYPE.STRIPE).length;
       } else if (firstType === BALL_TYPE.STRIPE) {
         this.assignGroup(this.currentPlayer, 'stripe');
         this.assignGroup(opponent, 'solid');
+        currentGroup = 'stripe';
         pocketedOwn = pocketedIds.filter(id => getBallType(id) === BALL_TYPE.STRIPE).length;
         pocketedOpponent = pocketedIds.filter(id => getBallType(id) === BALL_TYPE.SOLID).length;
       }
@@ -94,19 +96,31 @@ export class Rules {
         if (solids.length > stripes.length) {
           this.assignGroup(this.currentPlayer, 'solid');
           this.assignGroup(opponent, 'stripe');
+          currentGroup = 'solid';
         } else if (stripes.length > solids.length) {
           this.assignGroup(this.currentPlayer, 'stripe');
           this.assignGroup(opponent, 'solid');
+          currentGroup = 'stripe';
         } else {
           // Tie or only 8-ball — assign based on first pocketed
           const firstType = getBallType(pocketedIds[0]);
           if (firstType === BALL_TYPE.SOLID) {
             this.assignGroup(this.currentPlayer, 'solid');
             this.assignGroup(opponent, 'stripe');
+            currentGroup = 'solid';
           } else if (firstType === BALL_TYPE.STRIPE) {
             this.assignGroup(this.currentPlayer, 'stripe');
             this.assignGroup(opponent, 'solid');
+            currentGroup = 'stripe';
           }
+        }
+
+        if (currentGroup === 'solid') {
+          pocketedOwn = solids.length;
+          pocketedOpponent = stripes.length;
+        } else if (currentGroup === 'stripe') {
+          pocketedOwn = stripes.length;
+          pocketedOpponent = solids.length;
         }
       }
     }
@@ -148,7 +162,11 @@ export class Rules {
     // Track pocketed balls
     for (const id of pocketedIds) {
       const type = getBallType(id);
-      if (type === BALL_TYPE.SOLID || type === BALL_TYPE.STRIPE) {
+      const isCurrentPlayersBall =
+        (currentGroup === 'solid' && type === BALL_TYPE.SOLID) ||
+        (currentGroup === 'stripe' && type === BALL_TYPE.STRIPE);
+
+      if (isCurrentPlayersBall) {
         if (this.currentPlayer === 1) {
           if (!this.player1Pocketed.includes(id)) this.player1Pocketed.push(id);
         } else {
