@@ -247,6 +247,9 @@ export class MenuSystem {
     const uiLayer = document.getElementById('ui-layer');
     if (uiLayer) uiLayer.style.display = 'none';
 
+    // Restart menu render loop (3D background behind result panel)
+    this._startMenuLoop();
+
     // Show challenge result
     if (this.challengeManager) {
       const hud = this.challengeManager.getHUDData();
@@ -363,7 +366,7 @@ export class MenuSystem {
     // Show menu layer
     const menuLayer = document.getElementById('menu-layer');
     if (menuLayer) {
-      menuLayer.style.display = 'block';
+      menuLayer.style.display = 'flex';
       menuLayer.style.opacity = '0';
       requestAnimationFrame(() => {
         menuLayer.style.opacity = '1';
@@ -501,7 +504,7 @@ export class MenuSystem {
     // Show menu layer
     const menuLayer = document.getElementById('menu-layer');
     if (menuLayer) {
-      menuLayer.style.display = 'block';
+      menuLayer.style.display = 'flex';
       menuLayer.style.opacity = '0';
       requestAnimationFrame(() => {
         menuLayer.style.opacity = '1';

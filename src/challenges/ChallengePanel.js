@@ -16,6 +16,7 @@ export class ChallengePanel {
     this.onBack = onBack;
     this.container = null;
     this._buildUI();
+    this._setupKeyboard();
   }
 
   _buildUI() {
@@ -88,11 +89,24 @@ export class ChallengePanel {
     this.container.style.display = 'none';
   }
 
+  _setupKeyboard() {
+    this._onKeyDown = (e) => {
+      if (e.key === 'Escape' && this.container && this.container.style.display === 'flex') {
+        if (this.onBack) this.onBack();
+      }
+    };
+    window.addEventListener('keydown', this._onKeyDown);
+  }
+
   destroy() {
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }
     this.container = null;
+    if (this._onKeyDown) {
+      window.removeEventListener('keydown', this._onKeyDown);
+      this._onKeyDown = null;
+    }
   }
 
   _renderList() {

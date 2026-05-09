@@ -174,4 +174,19 @@ export class UI {
     this.resetBtn.style.display = 'none';
     this.resetBtn.onclick = null;
   }
+
+  destroy() {
+    if (this.player1Group && this.player1Group.parentNode) {
+      this.player1Group.parentNode.removeChild(this.player1Group);
+    }
+    if (this.player2Group && this.player2Group.parentNode) {
+      this.player2Group.parentNode.removeChild(this.player2Group);
+    }
+    if (this.resetBtn && this.resetBtn.parentNode) {
+      this.resetBtn.parentNode.removeChild(this.resetBtn);
+    }
+    if (this.aiPanel && this.aiPanel.parentNode) {
+      this.aiPanel.parentNode.removeChild(this.aiPanel);
+    }
+  }
 }

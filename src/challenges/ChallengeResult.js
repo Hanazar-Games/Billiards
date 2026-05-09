@@ -9,6 +9,7 @@ export class ChallengeResult {
     this.onExit = onExit;
     this.container = null;
     this._buildUI();
+    this._setupKeyboard();
   }
 
   _buildUI() {
@@ -62,6 +63,8 @@ export class ChallengeResult {
     const retryBtn = document.createElement('button');
     retryBtn.textContent = '再试一次';
     retryBtn.style.cssText = this._btnStyle('#00e676');
+    retryBtn.onmouseenter = () => { retryBtn.style.filter = 'brightness(1.2)'; };
+    retryBtn.onmouseleave = () => { retryBtn.style.filter = 'brightness(1)'; };
     retryBtn.onclick = () => {
       this.hide();
       if (this.onRetry) this.onRetry();
@@ -71,6 +74,8 @@ export class ChallengeResult {
     const exitBtn = document.createElement('button');
     exitBtn.textContent = '返回挑战列表';
     exitBtn.style.cssText = this._btnStyle('rgba(255,255,255,0.15)');
+    exitBtn.onmouseenter = () => { exitBtn.style.background = 'rgba(255,255,255,0.25)'; };
+    exitBtn.onmouseleave = () => { exitBtn.style.background = 'rgba(255,255,255,0.15)'; };
     exitBtn.onclick = () => {
       this.hide();
       if (this.onExit) this.onExit();
@@ -125,10 +130,24 @@ export class ChallengeResult {
     this.container.style.display = 'none';
   }
 
+  _setupKeyboard() {
+    this._onKeyDown = (e) => {
+      if (e.key === 'Escape' && this.container && this.container.style.display === 'flex') {
+        this.hide();
+        if (this.onExit) this.onExit();
+      }
+    };
+    window.addEventListener('keydown', this._onKeyDown);
+  }
+
   destroy() {
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }
     this.container = null;
+    if (this._onKeyDown) {
+      window.removeEventListener('keydown', this._onKeyDown);
+      this._onKeyDown = null;
+    }
   }
 }

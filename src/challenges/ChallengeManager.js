@@ -40,6 +40,14 @@ export class ChallengeManager {
     this.completed = false;
     this.failed = false;
     this.startTime = performance.now();
+    this._resetMatch();
+  }
+
+  resetMatch() {
+    this._resetMatch();
+  }
+
+  _resetMatch() {
     this._shotReset();
     this.totalFouls = 0;
     this.spinPocketCount = 0;
@@ -121,7 +129,9 @@ export class ChallengeManager {
         break;
       case CHALLENGE_TYPE.POWER_LIMIT:
         if (nonCue.length > 0 && this.shotPower <= params.maxPower) {
-          this._complete(Math.max(1, Math.min(3, Math.ceil(3 - this.shotPower / 10))));
+          const ratio = this.shotPower / params.maxPower;
+          const stars = ratio <= 0.3 ? 3 : ratio <= 0.6 ? 2 : 1;
+          this._complete(stars);
         }
         break;
       case CHALLENGE_TYPE.LONG_SHOT:

@@ -122,6 +122,11 @@ export class Game {
       (difficulty) => this.setAIDifficulty(difficulty),
       (enabled) => this.audio.toggleSound(enabled)
     );
+
+    // Hide AI panel during challenge mode
+    if (this.challengeManager) {
+      this.ui.aiPanel.style.display = 'none';
+    }
     this._onToggleTrajectory = (e) => {
       if (this.trajectory) this.trajectory.setVisible(e.detail);
     };
@@ -451,6 +456,13 @@ export class Game {
     this.particles.update(dt);
     if (this.challengeManager) {
       this._updateChallengeHUD();
+      // Auto-end challenge when completed or failed (debounced, 2s delay)
+      if ((this.challengeManager.completed || this.challengeManager.failed) && !this._challengeEnding) {
+        this._challengeEnding = true;
+        this._challengeEndTimeout = setTimeout(() => {
+          if (this.onReturnToMenu) this.onReturnToMenu();
+        }, 2000);
+      }
     }
     if (this.state === 'SHOOTING') {
       this.recorder.update(dt, this.ballsManager);
@@ -597,6 +609,7 @@ export class Game {
     this.trails.clear();
     this.recorder.reset();
     this.statsPanel.reset();
+    if (this.challengeManager) this.challengeManager.resetMatch();
     this.currentPlayer = 1;
     this.state = 'AIM';
     this.power = 0;
@@ -790,9 +803,15 @@ export class Game {
         pointer-events: none;
         z-index: 15;
         max-width: 220px;
+        transition: border-color 0.3s;
       `;
       document.getElementById('ui-layer').appendChild(el);
     }
+    // Only update DOM when data actually changes
+    const newHash = `${data.name}|${data.progress}|${data.completed}|${data.failed}`;
+    if (el.dataset.hash === newHash) return;
+    el.dataset.hash = newHash;
+
     const statusColor = data.completed ? '#00e676' : data.failed ? '#ff5252' : '#fff';
     el.innerHTML = `
       <div style="font-weight:700;margin-bottom:4px;">${data.name}</div>
@@ -902,11 +921,21 @@ export class Game {
       this.trails = null;
     }
 
+    // Stop audio (BGM may still be playing)
+    if (this.audio) {
+      this.audio.stopBGM();
+      this.audio = null;
+    }
+
     // Remove event listeners
     window.removeEventListener('toggleTrajectory', this._onToggleTrajectory);
     window.removeEventListener('toggleShotTrail', this._onToggleShotTrail);
 
     // Destroy UI elements created by this game session
+    if (this.ui) {
+      this.ui.destroy();
+      this.ui = null;
+    }
     if (this.statsPanel) {
       this.statsPanel.destroy();
       this.statsPanel = null;
@@ -917,6 +946,13 @@ export class Game {
     if (chHud && chHud.parentNode) {
       chHud.parentNode.removeChild(chHud);
     }
+
+    // Cancel pending challenge end timeout
+    if (this._challengeEndTimeout) {
+      clearTimeout(this._challengeEndTimeout);
+      this._challengeEndTimeout = null;
+    }
+    this._challengeEnding = false;
 
     // Clean up input
     if (this.input) {
