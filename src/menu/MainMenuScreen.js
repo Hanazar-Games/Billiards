@@ -68,6 +68,11 @@ export class MainMenuScreen {
       this._fadeOut(() => this.onSelectMode('vsai'));
     });
 
+    // 9-ball
+    this._addButton(btnGroup, '9 球模式', '按顺序击球 · 9号球进袋即胜', () => {
+      this._fadeOut(() => this.onSelectMode('nineball'));
+    });
+
     // Settings
     this._addButton(btnGroup, '设置', '音效与画面选项', () => {
       if (this.onSettings) this.onSettings();

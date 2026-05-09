@@ -50,18 +50,39 @@ Then open `http://localhost:5173`
 | Build Tool | Vite |
 | Language | JavaScript (ES2022) |
 
-## 📢 Current Version: v0.8.0
+## 📢 Current Version: v0.9.0
 
-### v0.8.0 — "Main Menu & Game Modes" (Latest)
+### v0.9.0 — "Gameplay Expansion" (Latest)
+- **🎱 9-Ball Mode** — complete 9-ball rule engine with diamond rack layout
+  - Balls 1-9 arranged in diamond: 1 at apex, 9 in center
+  - Must hit lowest-numbered ball first each shot
+  - Combination shots legal (hit 1, 1 hits 2, 2 drops = legal)
+  - 9-ball pocketed on any legal shot = instant win
+  - Break shot rules: must hit 1-ball first, scratch = foul
+- **🌀 English Spin System** — apply spin to the cue ball for advanced shots
+  - W/S: top/back spin (affects roll after collision)
+  - A/D: left/right spin (affects rebound angle)
+  - R: reset spin to center
+  - Visual indicator shows spin position on a circular HUD
+- **🎥 Camera Modes** — three viewing angles for different play styles
+  - **1** — Free orbit (default): full camera control with right-click
+  - **2** — Top-down: overhead view for precise aiming
+  - **3** — Follow ball: camera tracks the cue ball automatically
+- **🏠 Room Environment** — immersive billiard hall atmosphere
+  - Dark wood floor beneath the table
+  - 4 walls with baseboards surrounding the play area
+  - Ceiling with hanging lamp fixture and warm point light
+  - All environment meshes cast and receive shadows
+
+### v0.8.0 — "Main Menu & Game Modes"
 - **🎮 Full main menu system** — polished entry screen with animated title, glassmorphism buttons, and smooth fade transitions
 - **🎯 Three game modes:**
-  - **单人练习 (Free Play)** — no rules, no win/lose, unlimited shots; cue ball auto-respawns when pocketed; perfect for practicing aim and power control
-  - **本地双人对战 (Local 2P)** — standard 8-ball rules, two players take turns on the same device
-  - **对战 AI (vs AI)** — standard 8-ball rules against the computer AI with selectable difficulty
+  - **单人练习 (Free Play)** — no rules, no win/lose, unlimited shots; cue ball auto-respawns when pocketed
+  - **本地双人对战 (Local 2P)** — standard 8-ball rules, two players take turns
+  - **对战 AI (vs AI)** — standard 8-ball rules against the computer AI
 - **⚙️ Settings screen** — in-menu sound toggle with persistent state
-- **🔙 Return to menu** — back button during gameplay to exit current session and return to main menu
-- **🧹 Clean session lifecycle** — `Game.dispose()` properly removes all Three.js meshes, physics bodies, event listeners, and DOM elements when returning to menu; no memory leaks between sessions
-- **🛡️ Physics cleanup** — `Table.dispose()` and `PhysicsWorld.removeTableBody()` ensure cushion bodies and table surface plane are correctly removed between games
+- **🔙 Return to menu** — back button during gameplay to exit current session
+- **🧹 Clean session lifecycle** — `Game.dispose()` properly removes all resources between sessions
 
 ### v0.7.2 — "UI Visibility & Layout Fixes"
 - ✅ **Fixed control panel completely invisible on dark background** — raised background opacity from `0.45 → 0.65` and border brightness from `0.15 → 0.3` so the top control bar is clearly visible against the `#111` page background

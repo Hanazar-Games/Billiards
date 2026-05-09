@@ -158,6 +158,8 @@ export class MenuSystem {
         return { mode: 'local2p', aiEnabled: false };
       case 'vsai':
         return { mode: 'vsai', aiEnabled: true, aiDifficulty: 'normal' };
+      case 'nineball':
+        return { mode: 'nineball', aiEnabled: false };
       default:
         return { mode: 'local2p', aiEnabled: false };
     }

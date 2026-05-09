@@ -84,9 +84,16 @@ export class Ball {
     this.body.wakeUp();
   }
 
-  applyImpulse(x, y, z) {
+  applyImpulse(x, y, z, spinX = 0, spinZ = 0) {
     this.body.wakeUp();
     this.body.applyImpulse(new CANNON.Vec3(x, y, z), this.body.position);
+
+    // Apply spin as angular velocity
+    // spinX and spinZ are in range [-1, 1]
+    // Max angular velocity ~15 rad/s for realistic effect
+    const maxSpin = 15;
+    this.body.angularVelocity.x += spinZ * maxSpin;
+    this.body.angularVelocity.z -= spinX * maxSpin;
   }
 
   sync() {

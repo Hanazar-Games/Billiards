@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import { Table } from './Table.js';
+import { Room } from './Room.js';
 import { BallsManager } from './BallsManager.js';
 import { InputHandler } from '../input/InputHandler.js';
 import { Cue } from './Cue.js';
 import { Rules } from './Rules.js';
+import { NineBallRules } from './NineBallRules.js';
 import { UI } from '../ui/UI.js';
 import { AudioManager } from '../audio/AudioManager.js';
 import { AIPlayer, AI_DIFFICULTY } from '../ai/AIPlayer.js';
@@ -25,7 +27,7 @@ export class Game {
     this.ballsManager = null;
     this.input = null;
     this.cue = null;
-    this.rules = new Rules();
+    this.rules = null;
     this.ui = new UI();
     this.audio = new AudioManager();
     this.aiPlayer = null;
@@ -41,6 +43,12 @@ export class Game {
     this.currentPlayer = 1;
     this.aimDirection = new THREE.Vector3(0, 0, 1);
     this.aiEnabled = false;
+
+    // English spin state: [-1, 1] for X (left/right) and Z (top/back)
+    this.spin = { x: 0, z: 0 };
+
+    // Camera mode: 'free' | 'top' | 'follow'
+    this.cameraMode = 'free';
     this.mode = 'local2p'; // 'freeplay' | 'local2p' | 'vsai'
     this.onReturnToMenu = null;
 
@@ -60,14 +68,25 @@ export class Game {
       this.aiPlayer = new AIPlayer(modeConfig.aiDifficulty);
     }
 
+    // Create rules engine based on game mode
+    if (this.mode === '9ball') {
+      this.rules = new NineBallRules();
+    } else {
+      this.rules = new Rules();
+    }
+
     this.audio.init();
 
     this.table = new Table(this.physics);
     this.table.addToScene(this.scene);
 
+    this.room = new Room();
+    this.room.addToScene(this.scene);
+
     this.ballsManager = new BallsManager(this.physics);
     this.ballsManager.createBalls();
-    this.ballsManager.rackBalls();
+    const rackMode = this.mode === '9ball' ? '9ball' : '8ball';
+    this.ballsManager.rackBalls(rackMode);
     this.ballsManager.addToScene(this.scene);
 
     this.input = new InputHandler(this.renderer.renderer.domElement);
@@ -86,6 +105,8 @@ export class Game {
     this.ui.setPlayerTurn(1);
     if (this.mode === 'freeplay') {
       this.ui.setMessage('练习模式 — 无限击球，白球进袋自动重生');
+    } else if (this.mode === '9ball') {
+      this.ui.setMessage('9-ball 模式 — 按顺序击球，9号球进袋即胜！');
     } else {
       this.ui.setMessage('Aim with mouse, hold LEFT CLICK to charge, release to shoot. RIGHT CLICK to rotate camera.');
     }
@@ -106,6 +127,12 @@ export class Game {
 
     // Back-to-menu button
     this._addBackToMenuButton();
+
+    // Spin indicator UI
+    this._addSpinIndicator();
+
+    // Keyboard controls for spin
+    this._setupSpinControls();
 
     this.setupCollisionEvents();
   }
@@ -256,7 +283,9 @@ export class Game {
     cueBall.applyImpulse(
       this.aimDirection.x * force,
       0,
-      this.aimDirection.z * force
+      this.aimDirection.z * force,
+      this.spin.x,
+      this.spin.z
     );
 
     this.audio.playCueHit(force);
@@ -386,6 +415,9 @@ export class Game {
     // Update visual effects
     this.trails.update(dt);
     this.particles.update(dt);
+
+    // Camera mode updates
+    this._updateCamera();
 
     if ((this.state === 'AIM' || this.state === 'CHARGING') && this.cue.visible) {
       this.updateAimDirection();
@@ -539,11 +571,176 @@ export class Game {
     uiLayer.appendChild(btn);
   }
 
+  _addSpinIndicator() {
+    const uiLayer = document.getElementById('ui-layer');
+    if (!uiLayer || uiLayer.querySelector('#spin-indicator')) return;
+
+    const container = document.createElement('div');
+    container.id = 'spin-indicator';
+    container.style.cssText = `
+      position: absolute; bottom: 44px; right: 80px;
+      width: 60px; height: 60px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(4px);
+      pointer-events: none;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 15;
+    `;
+
+    const dot = document.createElement('div');
+    dot.id = 'spin-dot';
+    dot.style.cssText = `
+      width: 10px; height: 10px;
+      background: #00e676;
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(0,230,118,0.6);
+      transition: transform 0.15s ease;
+    `;
+    container.appendChild(dot);
+
+    const label = document.createElement('div');
+    label.textContent = '旋转';
+    label.style.cssText = `
+      position: absolute; bottom: -18px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px; color: rgba(255,255,255,0.5);
+      white-space: nowrap;
+    `;
+    container.appendChild(label);
+
+    uiLayer.appendChild(container);
+    this._updateSpinIndicator();
+  }
+
+  _updateSpinIndicator() {
+    const dot = document.getElementById('spin-dot');
+    if (!dot) return;
+    // Map spin [-1,1] to pixel offset within the 60px circle
+    const maxOff = 22;
+    const x = this.spin.x * maxOff;
+    const z = -this.spin.z * maxOff; // invert Z for visual (up = negative spinZ)
+    dot.style.transform = `translate(${x}px, ${z}px)`;
+  }
+
+  _setupSpinControls() {
+    this._onKeyDown = (e) => {
+      const key = e.key.toLowerCase();
+
+      // Camera mode switching (works in any state)
+      if (key === '1') {
+        this.cameraMode = 'free';
+        this._resetCameraFree();
+        return;
+      }
+      if (key === '2') {
+        this.cameraMode = 'top';
+        this._resetCameraTop();
+        return;
+      }
+      if (key === '3') {
+        this.cameraMode = 'follow';
+        return;
+      }
+
+      // Spin controls only in AIM/CHARGING
+      if (this.state !== 'AIM' && this.state !== 'CHARGING') return;
+      const step = 0.2;
+      let changed = false;
+      switch (key) {
+        case 'w':
+          this.spin.z = Math.max(-1, this.spin.z - step);
+          changed = true;
+          break;
+        case 's':
+          this.spin.z = Math.min(1, this.spin.z + step);
+          changed = true;
+          break;
+        case 'a':
+          this.spin.x = Math.max(-1, this.spin.x - step);
+          changed = true;
+          break;
+        case 'd':
+          this.spin.x = Math.min(1, this.spin.x + step);
+          changed = true;
+          break;
+        case 'r':
+          this.spin.x = 0;
+          this.spin.z = 0;
+          changed = true;
+          break;
+      }
+      if (changed) {
+        this._updateSpinIndicator();
+      }
+    };
+    window.addEventListener('keydown', this._onKeyDown);
+  }
+
+  _resetCameraFree() {
+    const cam = this.camera;
+    cam.position.set(0, 320, 280);
+    cam.lookAt(0, 0, 0);
+    if (this.renderer.controls) {
+      this.renderer.controls.target.set(0, 0, 0);
+      this.renderer.controls.enabled = true;
+    }
+  }
+
+  _resetCameraTop() {
+    const cam = this.camera;
+    cam.position.set(0, 450, 0);
+    cam.lookAt(0, 0, 0);
+    if (this.renderer.controls) {
+      this.renderer.controls.target.set(0, 0, 0);
+      this.renderer.controls.enabled = true;
+    }
+  }
+
+  _updateCamera() {
+    if (this.cameraMode === 'follow') {
+      const cueBall = this.ballsManager.getCueBall();
+      if (cueBall && !cueBall.pocketed) {
+        const pos = cueBall.mesh.position;
+        const cam = this.camera;
+        // Position camera behind and above the cue ball
+        const offsetY = 120;
+        const offsetZ = -140;
+        const targetX = pos.x;
+        const targetY = pos.y + offsetY;
+        const targetZ = pos.z + offsetZ;
+
+        // Smooth follow
+        cam.position.x += (targetX - cam.position.x) * 0.05;
+        cam.position.y += (targetY - cam.position.y) * 0.05;
+        cam.position.z += (targetZ - cam.position.z) * 0.05;
+        cam.lookAt(pos.x, pos.y, pos.z);
+
+        if (this.renderer.controls) {
+          this.renderer.controls.enabled = false;
+        }
+      }
+    }
+  }
+
   dispose() {
     // Remove back-to-menu button
     const backBtn = document.getElementById('back-to-menu');
     if (backBtn && backBtn.parentNode) {
       backBtn.parentNode.removeChild(backBtn);
+    }
+
+    // Remove spin indicator
+    const spinInd = document.getElementById('spin-indicator');
+    if (spinInd && spinInd.parentNode) {
+      spinInd.parentNode.removeChild(spinInd);
+    }
+
+    // Remove spin keyboard listener
+    if (this._onKeyDown) {
+      window.removeEventListener('keydown', this._onKeyDown);
+      this._onKeyDown = null;
     }
 
     // Remove all balls
@@ -555,6 +752,12 @@ export class Game {
         ball.material.dispose();
       }
       this.ballsManager = null;
+    }
+
+    // Remove room
+    if (this.room) {
+      this.room.dispose();
+      this.room = null;
     }
 
     // Remove table (physics bodies first)

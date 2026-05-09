@@ -23,39 +23,35 @@ export class BallsManager {
     }
   }
 
-  rackBalls() {
+  rackBalls(mode = '8ball') {
     if (this.balls.length === 0) {
       this.createBalls();
     }
 
+    if (mode === '9ball') {
+      this._rackNineBall();
+    } else {
+      this._rackEightBall();
+    }
+  }
+
+  _rackEightBall() {
     const r = BALL.radius;
-    const d = r * 2.02; // slight gap to prevent explosion on spawn
+    const d = r * 2.02;
     const halfD = TABLE.depth / 2;
 
-    // Cue ball: head spot (top of table, near player)
+    // Cue ball: head spot
     this.balls[0].setPosition(0, r, -halfD * 0.55);
 
-    // Rack at foot spot (bottom of table)
+    // Rack at foot spot
     const rackZ = halfD * 0.55;
     const startX = 0;
 
-    // Triangle rack: 5 rows, apex pointing to foot (positive Z)
-    // Standard 8-ball rack rules:
-    // - 8-ball must be in center of row 3
-    // - One solid and one stripe must be at each bottom corner (row 5)
     const rackOrder = [
-      1,                    // row 1
-      9, 10,                // row 2
-      2, 8, 3,              // row 3
-      11, 4, 5, 12,         // row 4
-      6, 13, 7, 14, 15,     // row 5: corners 6(solid) and 15(stripe)
+      1, 9, 10, 2, 8, 3, 11, 4, 5, 12, 6, 13, 7, 14, 15,
     ];
-
-    // Grid positions: col offset, row index (1-based)
     const positions = [
-      [0, 1],
-      [-0.5, 2], [0.5, 2],
-      [-1, 3], [0, 3], [1, 3],
+      [0, 1], [-0.5, 2], [0.5, 2], [-1, 3], [0, 3], [1, 3],
       [-1.5, 4], [-0.5, 4], [0.5, 4], [1.5, 4],
       [-2, 5], [-1, 5], [0, 5], [1, 5], [2, 5],
     ];
@@ -65,6 +61,48 @@ export class BallsManager {
       const ballId = rackOrder[i];
       const x = startX + col * d;
       const z = rackZ + (row - 1) * d * Math.sin(Math.PI / 3);
+      this.balls[ballId].setPosition(x, r, z);
+    }
+  }
+
+  _rackNineBall() {
+    const r = BALL.radius;
+    const d = r * 2.02;
+    const halfD = TABLE.depth / 2;
+
+    // Cue ball: head spot (behind head string)
+    this.balls[0].setPosition(0, r, -halfD * 0.55);
+
+    // Rack at foot spot (bottom of table)
+    const rackZ = halfD * 0.55;
+
+    // Diamond rack for 9-ball
+    // Row 1: 1-ball (apex)
+    // Row 2: 2-ball, 3-ball
+    // Row 3: 4-ball, 9-ball (center), 5-ball
+    // Row 4: 6-ball, 7-ball
+    // Row 5: 8-ball (bottom)
+    const diamondOrder = [
+      1,            // row 1 (apex)
+      2, 3,         // row 2
+      4, 9, 5,      // row 3 (9 in center)
+      6, 7,         // row 4
+      8,            // row 5 (bottom)
+    ];
+
+    const positions = [
+      [0, 0],           // row 1
+      [-0.5, 1], [0.5, 1],  // row 2
+      [-1, 2], [0, 2], [1, 2],  // row 3
+      [-0.5, 3], [0.5, 3],  // row 4
+      [0, 4],           // row 5
+    ];
+
+    for (let i = 0; i < positions.length; i++) {
+      const [col, row] = positions[i];
+      const ballId = diamondOrder[i];
+      const x = col * d;
+      const z = rackZ + row * d * Math.sin(Math.PI / 3);
       this.balls[ballId].setPosition(x, r, z);
     }
   }
