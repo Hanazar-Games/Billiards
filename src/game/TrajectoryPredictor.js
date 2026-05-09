@@ -39,6 +39,7 @@ export class TrajectoryPredictor {
     this.group.add(this.ghostBall);
 
     this.lines = [];
+    this.activeLineCount = 0;
   }
 
   update(cueBall, aimDirection, balls, pocketPositions) {
@@ -59,7 +60,6 @@ export class TrajectoryPredictor {
     // Find first ball hit
     let hitBall = null;
     let hitDist = Infinity;
-    let hitPoint = null;
 
     for (const ball of balls) {
       if (ball.pocketed || ball.id === 0) continue;
@@ -69,12 +69,15 @@ export class TrajectoryPredictor {
       if (proj < r * 2) continue; // too close or behind cue ball
 
       const closest = new THREE.Vector3().copy(rayDir).multiplyScalar(proj).add(rayOrigin);
-      // Note: copy(rayDir) prevents modifying rayDir
       const distSq = closest.distanceToSquared(ball.mesh.position);
-      if (distSq < (r * 2) * (r * 2) && proj < hitDist) {
-        hitDist = proj;
+      const collisionRadius = r * 2;
+      const collisionRadiusSq = collisionRadius * collisionRadius;
+      if (distSq >= collisionRadiusSq) continue;
+
+      const contactDist = proj - Math.sqrt(collisionRadiusSq - distSq);
+      if (contactDist >= 0 && contactDist < hitDist) {
+        hitDist = contactDist;
         hitBall = ball;
-        hitPoint = closest;
       }
     }
 
@@ -86,7 +89,7 @@ export class TrajectoryPredictor {
       objectDir.normalize();
 
       this.drawLine(rayOrigin, ghostPos, this.lineMaterial);
-      const targetEnd = new THREE.Vector3().copy(ballPos).addScaledVector(objectDir, 58);
+      const targetEnd = new THREE.Vector3().copy(ballPos).addScaledVector(objectDir, 70);
       this.drawLine(ballPos, targetEnd, this.hitLineMaterial);
 
       this.ghostBall.position.copy(ghostPos);
@@ -122,19 +125,35 @@ export class TrajectoryPredictor {
   }
 
   drawLine(a, b, material) {
-    const points = [a.clone(), b.clone()];
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const line = new THREE.Line(geometry, material);
-    this.group.add(line);
-    this.lines.push(line);
+    let line = this.lines[this.activeLineCount];
+    if (!line) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+      line = new THREE.Line(geometry, material);
+      line.frustumCulled = false;
+      this.group.add(line);
+      this.lines.push(line);
+    }
+
+    const positions = line.geometry.attributes.position.array;
+    positions[0] = a.x;
+    positions[1] = a.y;
+    positions[2] = a.z;
+    positions[3] = b.x;
+    positions[4] = b.y;
+    positions[5] = b.z;
+    line.geometry.attributes.position.needsUpdate = true;
+    line.geometry.computeBoundingSphere();
+    line.material = material;
+    line.visible = true;
+    this.activeLineCount++;
   }
 
   clearLines() {
     for (const line of this.lines) {
-      line.geometry.dispose();
-      this.group.remove(line);
+      line.visible = false;
     }
-    this.lines = [];
+    this.activeLineCount = 0;
   }
 
   setVisible(v) {
@@ -148,6 +167,11 @@ export class TrajectoryPredictor {
 
   dispose() {
     this.clearLines();
+    for (const line of this.lines) {
+      line.geometry.dispose();
+      this.group.remove(line);
+    }
+    this.lines = [];
     this.ghostGeometry.dispose();
     this.ghostMaterial.dispose();
     this.lineMaterial.dispose();

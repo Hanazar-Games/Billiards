@@ -13,11 +13,19 @@ export class InputHandler {
     this.onRightMouseUp = null;
 
     this._handleMouseMove = this.handleMouseMove.bind(this);
+    this._handlePointerMove = this.handlePointerMove.bind(this);
     this._handleMouseDown = this.handleMouseDown.bind(this);
     this._handleMouseUp = this.handleMouseUp.bind(this);
     this._handleContextMenu = (e) => e.preventDefault();
 
-    element.addEventListener('mousemove', this._handleMouseMove);
+    if (typeof window !== 'undefined' && window.PointerEvent) {
+      element.addEventListener('pointermove', this._handlePointerMove);
+      if ('onpointerrawupdate' in window) {
+        element.addEventListener('pointerrawupdate', this._handlePointerMove);
+      }
+    } else {
+      element.addEventListener('mousemove', this._handleMouseMove);
+    }
     element.addEventListener('mousedown', this._handleMouseDown);
     window.addEventListener('mouseup', this._handleMouseUp);
     element.addEventListener('contextmenu', this._handleContextMenu);
@@ -28,6 +36,16 @@ export class InputHandler {
     this.mouseY = e.clientY;
     if (this.onMouseMove) {
       this.onMouseMove(e.clientX, e.clientY);
+    }
+  }
+
+  handlePointerMove(e) {
+    const events = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : null;
+    const latest = events && events.length > 0 ? events[events.length - 1] : e;
+    this.mouseX = latest.clientX;
+    this.mouseY = latest.clientY;
+    if (this.onMouseMove) {
+      this.onMouseMove(latest.clientX, latest.clientY);
     }
   }
 
@@ -64,6 +82,8 @@ export class InputHandler {
 
   dispose() {
     this.element.removeEventListener('mousemove', this._handleMouseMove);
+    this.element.removeEventListener('pointermove', this._handlePointerMove);
+    this.element.removeEventListener('pointerrawupdate', this._handlePointerMove);
     this.element.removeEventListener('mousedown', this._handleMouseDown);
     window.removeEventListener('mouseup', this._handleMouseUp);
     this.element.removeEventListener('contextmenu', this._handleContextMenu);
