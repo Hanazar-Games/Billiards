@@ -16,6 +16,9 @@ export class Table {
     this.createApron();
     this.createPocketDetails();
     this.createPocketJaws();
+    this.createTournamentCastings();
+    this.createApronPanelDetails();
+    this.createHiddenStretcher();
     this.createRailSights();
     this.createCornerCaps();
     this.createLegs();
@@ -174,9 +177,14 @@ export class Table {
 
   createRails() {
     const railMat = new THREE.MeshStandardMaterial({
-      color: 0x4a2a14,
-      roughness: 0.42,
-      metalness: 0.12,
+      color: 0x221a16,
+      roughness: 0.36,
+      metalness: 0.18,
+    });
+    const topInsertMat = new THREE.MeshStandardMaterial({
+      color: 0x604328,
+      roughness: 0.32,
+      metalness: 0.08,
     });
     const railH = 8;
     const railW = 12;
@@ -191,12 +199,14 @@ export class Table {
     rail1.position.set(0, railH / 2, -halfD - railW / 2);
     rail1.castShadow = true;
     this.meshGroup.add(rail1);
+    this._addRailTopInsert(0, railH + 0.18, -halfD - railW / 2, shortRailLen - 12, 2.0, railW * 0.62, topInsertMat);
 
     // Bottom rail
     const rail2 = new THREE.Mesh(new THREE.BoxGeometry(shortRailLen, railH, railW), railMat);
     rail2.position.set(0, railH / 2, halfD + railW / 2);
     rail2.castShadow = true;
     this.meshGroup.add(rail2);
+    this._addRailTopInsert(0, railH + 0.18, halfD + railW / 2, shortRailLen - 12, 2.0, railW * 0.62, topInsertMat);
 
     // Side rails are split around the middle pockets so balls do not appear
     // to pass through wood when they fall into a side pocket.
@@ -210,8 +220,17 @@ export class Table {
         rail.position.set(x, railH / 2, z);
         rail.castShadow = true;
         this.meshGroup.add(rail);
+        this._addRailTopInsert(x, railH + 0.18, z, railW * 0.62, 2.0, sideRailLen - 10, topInsertMat);
       }
     }
+  }
+
+  _addRailTopInsert(x, y, z, w, h, d, material) {
+    const insert = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+    insert.position.set(x, y, z);
+    insert.castShadow = true;
+    insert.receiveShadow = true;
+    this.meshGroup.add(insert);
   }
 
   createRailBevels() {
@@ -247,14 +266,14 @@ export class Table {
 
   createApron() {
     const apronMat = new THREE.MeshStandardMaterial({
-      color: 0x2a160b,
-      roughness: 0.48,
-      metalness: 0.08,
+      color: 0x151313,
+      roughness: 0.42,
+      metalness: 0.14,
     });
     const trimMat = new THREE.MeshStandardMaterial({
-      color: 0xb87935,
-      roughness: 0.35,
-      metalness: 0.18,
+      color: 0xb9aaa0,
+      roughness: 0.22,
+      metalness: 0.62,
     });
     const halfW = TABLE.width / 2;
     const halfD = TABLE.depth / 2;
@@ -365,6 +384,157 @@ export class Table {
     }
   }
 
+  createTournamentCastings() {
+    const nickelMat = new THREE.MeshStandardMaterial({
+      color: 0xb8b0a6,
+      roughness: 0.18,
+      metalness: 0.78,
+    });
+    const blackInsetMat = new THREE.MeshStandardMaterial({
+      color: 0x0a0a0b,
+      roughness: 0.32,
+      metalness: 0.28,
+    });
+    const halfW = TABLE.width / 2;
+    const halfD = TABLE.depth / 2;
+    const railTopY = 9.35;
+
+    const cornerPositions = [
+      [-halfW - 6.8, -halfD - 6.8, Math.PI / 4],
+      [halfW + 6.8, -halfD - 6.8, -Math.PI / 4],
+      [-halfW - 6.8, halfD + 6.8, -Math.PI / 4],
+      [halfW + 6.8, halfD + 6.8, Math.PI / 4],
+    ];
+
+    for (const [x, z, rot] of cornerPositions) {
+      const casting = new THREE.Mesh(new THREE.BoxGeometry(18, 2.7, 10), nickelMat);
+      casting.position.set(x, railTopY, z);
+      casting.rotation.y = rot;
+      casting.castShadow = true;
+      casting.receiveShadow = true;
+      this.meshGroup.add(casting);
+
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(12.5, 0.7, 6.4), blackInsetMat);
+      pad.position.set(x, railTopY + 1.55, z);
+      pad.rotation.y = rot;
+      pad.castShadow = true;
+      this.meshGroup.add(pad);
+    }
+
+    for (const sx of [-1, 1]) {
+      const x = sx * (halfW + 6.3);
+      for (const z of [-12.5, 12.5]) {
+        const sideCasting = new THREE.Mesh(new THREE.BoxGeometry(8.5, 2.6, 18), nickelMat);
+        sideCasting.position.set(x, railTopY, z);
+        sideCasting.castShadow = true;
+        sideCasting.receiveShadow = true;
+        this.meshGroup.add(sideCasting);
+      }
+    }
+
+    const seamMat = new THREE.MeshStandardMaterial({
+      color: 0xd8d0c4,
+      roughness: 0.2,
+      metalness: 0.7,
+    });
+    const seamPositions = [
+      [-halfW * 0.34, -halfD - 6],
+      [halfW * 0.34, -halfD - 6],
+      [-halfW * 0.34, halfD + 6],
+      [halfW * 0.34, halfD + 6],
+    ];
+    for (const [x, z] of seamPositions) {
+      const seam = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.6, 9.2), seamMat);
+      seam.position.set(x, 9.55, z);
+      seam.castShadow = true;
+      this.meshGroup.add(seam);
+    }
+  }
+
+  createApronPanelDetails() {
+    const panelMat = new THREE.MeshStandardMaterial({
+      color: 0x090909,
+      roughness: 0.5,
+      metalness: 0.22,
+    });
+    const nickelMat = new THREE.MeshStandardMaterial({
+      color: 0xb7aea3,
+      roughness: 0.2,
+      metalness: 0.72,
+    });
+    const badgeMat = new THREE.MeshStandardMaterial({
+      color: 0xe2d8c9,
+      roughness: 0.16,
+      metalness: 0.82,
+    });
+    const halfW = TABLE.width / 2;
+    const halfD = TABLE.depth / 2;
+
+    const panels = [
+      [0, -11.8, -halfD - 14.4, TABLE.width * 0.72, 7.2, 0.9],
+      [0, -11.8, halfD + 14.4, TABLE.width * 0.72, 7.2, 0.9],
+      [-halfW - 14.4, -11.8, 0, 0.9, 7.2, TABLE.depth * 0.66],
+      [halfW + 14.4, -11.8, 0, 0.9, 7.2, TABLE.depth * 0.66],
+    ];
+
+    for (const [x, y, z, w, h, d] of panels) {
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), panelMat);
+      panel.position.set(x, y, z);
+      panel.receiveShadow = true;
+      this.meshGroup.add(panel);
+    }
+
+    const shortBadges = [
+      [0, -7.4, -halfD - 15.05, TABLE.width * 0.28, 2.2, 0.6],
+      [0, -7.4, halfD + 15.05, TABLE.width * 0.28, 2.2, 0.6],
+    ];
+    for (const [x, y, z, w, h, d] of shortBadges) {
+      const badge = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), badgeMat);
+      badge.position.set(x, y, z);
+      badge.castShadow = true;
+      this.meshGroup.add(badge);
+    }
+
+    const sideStrips = [
+      [-halfW - 15.05, -7.4, -TABLE.depth * 0.26, 0.6, 2.0, 26],
+      [-halfW - 15.05, -7.4, TABLE.depth * 0.26, 0.6, 2.0, 26],
+      [halfW + 15.05, -7.4, -TABLE.depth * 0.26, 0.6, 2.0, 26],
+      [halfW + 15.05, -7.4, TABLE.depth * 0.26, 0.6, 2.0, 26],
+    ];
+    for (const [x, y, z, w, h, d] of sideStrips) {
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), nickelMat);
+      strip.position.set(x, y, z);
+      strip.castShadow = true;
+      this.meshGroup.add(strip);
+    }
+  }
+
+  createHiddenStretcher() {
+    const stretcherMat = new THREE.MeshStandardMaterial({
+      color: 0x101010,
+      roughness: 0.48,
+      metalness: 0.18,
+    });
+    const nickelMat = new THREE.MeshStandardMaterial({
+      color: 0xa89d92,
+      roughness: 0.2,
+      metalness: 0.7,
+    });
+
+    const spine = new THREE.Mesh(new THREE.BoxGeometry(14, 7, TABLE.depth * 0.54), stretcherMat);
+    spine.position.set(0, -49, 0);
+    spine.castShadow = true;
+    spine.receiveShadow = true;
+    this.meshGroup.add(spine);
+
+    for (const z of [-TABLE.depth * 0.2, TABLE.depth * 0.2]) {
+      const collar = new THREE.Mesh(new THREE.BoxGeometry(16, 1.6, 5.5), nickelMat);
+      collar.position.set(0, -44.6, z);
+      collar.castShadow = true;
+      this.meshGroup.add(collar);
+    }
+  }
+
   createRailSights() {
     const sightMat = new THREE.MeshStandardMaterial({
       color: 0xf3e6c7,
@@ -396,9 +566,14 @@ export class Table {
 
   createCornerCaps() {
     const capMat = new THREE.MeshStandardMaterial({
-      color: 0x171717,
-      roughness: 0.28,
-      metalness: 0.65,
+      color: 0x0e0f10,
+      roughness: 0.24,
+      metalness: 0.72,
+    });
+    const nickelMat = new THREE.MeshStandardMaterial({
+      color: 0xb6ada3,
+      roughness: 0.2,
+      metalness: 0.75,
     });
     const halfW = TABLE.width / 2;
     const halfD = TABLE.depth / 2;
@@ -410,37 +585,77 @@ export class Table {
     ];
 
     for (const [x, y, z] of capPositions) {
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 3, 28), capMat);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(10, 8.6, 3, 8), capMat);
       cap.position.set(x, y, z);
+      cap.rotation.y = Math.PI / 8;
       cap.castShadow = true;
       this.meshGroup.add(cap);
+
+      const crown = new THREE.Mesh(new THREE.CylinderGeometry(6.8, 6.8, 0.75, 8), nickelMat);
+      crown.position.set(x, y + 1.95, z);
+      crown.rotation.y = Math.PI / 8;
+      crown.castShadow = true;
+      this.meshGroup.add(crown);
     }
   }
 
   createLegs() {
     const legMat = new THREE.MeshStandardMaterial({
-      color: TABLE.woodColor,
-      roughness: 0.6,
-      metalness: 0.05,
+      color: 0x15100d,
+      roughness: 0.42,
+      metalness: 0.18,
     });
-    const legH = 60;
-    const legSize = 10;
-    const halfW = TABLE.width / 2 + 4;
-    const halfD = TABLE.depth / 2 + 4;
+    const faceMat = new THREE.MeshStandardMaterial({
+      color: 0x2d2118,
+      roughness: 0.36,
+      metalness: 0.12,
+    });
+    const footMat = new THREE.MeshStandardMaterial({
+      color: 0x0a0a0a,
+      roughness: 0.3,
+      metalness: 0.55,
+    });
+    const levelerMat = new THREE.MeshStandardMaterial({
+      color: 0xc8c0b7,
+      roughness: 0.18,
+      metalness: 0.85,
+    });
+    const legH = 54;
+    const halfW = TABLE.width / 2 + 7;
+    const halfD = TABLE.depth / 2 + 9;
 
     const positions = [
-      [-halfW, -legH / 2 - TABLE.height, -halfD],
-      [halfW, -legH / 2 - TABLE.height, -halfD],
-      [-halfW, -legH / 2 - TABLE.height, halfD],
-      [halfW, -legH / 2 - TABLE.height, halfD],
+      [-halfW, -legH / 2 - TABLE.height, -halfD, 1],
+      [halfW, -legH / 2 - TABLE.height, -halfD, -1],
+      [-halfW, -legH / 2 - TABLE.height, halfD, -1],
+      [halfW, -legH / 2 - TABLE.height, halfD, 1],
     ];
 
-    for (const [x, y, z] of positions) {
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(legSize, legH, legSize), legMat);
+    for (const [x, y, z, tilt] of positions) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(14, legH, 18), legMat);
       leg.position.set(x, y, z);
+      leg.rotation.z = tilt * 0.08;
       leg.castShadow = true;
       leg.receiveShadow = true;
       this.meshGroup.add(leg);
+
+      const face = new THREE.Mesh(new THREE.BoxGeometry(11.5, legH * 0.72, 1.1), faceMat);
+      face.position.set(x, y + 2, z + Math.sign(z) * 9.6);
+      face.rotation.z = tilt * 0.08;
+      face.castShadow = true;
+      this.meshGroup.add(face);
+
+      const base = new THREE.Mesh(new THREE.BoxGeometry(22, 5.4, 25), footMat);
+      base.position.set(x, -legH - TABLE.height - 2.7, z);
+      base.castShadow = true;
+      base.receiveShadow = true;
+      this.meshGroup.add(base);
+
+      const leveler = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.8, 1.5, 28), levelerMat);
+      leveler.position.set(x, -legH - TABLE.height - 6.2, z);
+      leveler.castShadow = true;
+      leveler.receiveShadow = true;
+      this.meshGroup.add(leveler);
     }
   }
 
