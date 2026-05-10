@@ -102,7 +102,7 @@ export const CAMERA = {
 
 // Shooting
 export const SHOT = {
-  maxPower: 100,
+  maxPower: 82,
   chargeRate: 150,  // power units per second
-  minPower: 2,
+  minPower: 0.8,
 };
