@@ -48,15 +48,18 @@ export class Renderer {
     this.controls.target.set(0, 0, 0);
     this.controls.mouseButtons = {
       LEFT: THREE.MOUSE.ROTATE,
-      MIDDLE: THREE.MOUSE.DOLLY,
+      MIDDLE: null,
       RIGHT: null,
     };
     this._shiftCameraControl = false;
-    this._cameraDragActive = false;
+    this._cameraDragMode = null;
     this._cameraLastX = 0;
     this._cameraLastY = 0;
     this._cameraSpherical = new THREE.Spherical();
     this._cameraOffset = new THREE.Vector3();
+    this._cameraPanRight = new THREE.Vector3();
+    this._cameraPanUp = new THREE.Vector3();
+    this._cameraPanDelta = new THREE.Vector3();
     this._onKeyDown = (e) => {
       if (e.key === 'Shift') this.setCameraControlActive(true);
     };
@@ -124,18 +127,25 @@ export class Renderer {
   setCameraControlActive(active) {
     this._shiftCameraControl = Boolean(active);
     if (!this._shiftCameraControl) {
-      this._cameraDragActive = false;
+      if (this._cameraDragMode === 'orbit') this._cameraDragMode = null;
     }
     this.controls.enableRotate = false;
-    this.renderer.domElement.style.cursor = this._shiftCameraControl ? 'grab' : '';
+    this._updateCameraCursor();
   }
 
   onCameraPointerDown(e) {
-    if (!this._shiftCameraControl || e.button !== 0) return;
-    this._cameraDragActive = true;
+    let mode = null;
+    if (this._shiftCameraControl && e.button === 0) {
+      mode = 'orbit';
+    } else if (e.button === 1) {
+      mode = 'pan';
+    }
+    if (!mode) return;
+
+    this._cameraDragMode = mode;
     this._cameraLastX = e.clientX;
     this._cameraLastY = e.clientY;
-    this.renderer.domElement.style.cursor = 'grabbing';
+    this._updateCameraCursor(true);
     if (this.renderer.domElement.setPointerCapture) {
       this.renderer.domElement.setPointerCapture(e.pointerId);
     }
@@ -143,12 +153,18 @@ export class Renderer {
   }
 
   onCameraPointerMove(e) {
-    if (!this._cameraDragActive) return;
+    if (!this._cameraDragMode) return;
 
     const dx = e.clientX - this._cameraLastX;
     const dy = e.clientY - this._cameraLastY;
     this._cameraLastX = e.clientX;
     this._cameraLastY = e.clientY;
+
+    if (this._cameraDragMode === 'pan') {
+      this.panCamera(dx, dy);
+      e.preventDefault();
+      return;
+    }
 
     const target = this.controls.target;
     this._cameraOffset.copy(this.camera.position).sub(target);
@@ -169,15 +185,43 @@ export class Renderer {
   }
 
   onCameraPointerUp(e) {
-    if (!this._cameraDragActive) return;
-    this._cameraDragActive = false;
-    this.renderer.domElement.style.cursor = this._shiftCameraControl ? 'grab' : '';
+    if (!this._cameraDragMode) return;
+    this._cameraDragMode = null;
+    this._updateCameraCursor();
     if (this.renderer.domElement.releasePointerCapture) {
       try {
         this.renderer.domElement.releasePointerCapture(e.pointerId);
       } catch {
         // Pointer capture may already be released by the browser.
       }
+    }
+  }
+
+  panCamera(dx, dy) {
+    const targetDistance = this.camera.position.distanceTo(this.controls.target);
+    const fov = THREE.MathUtils.degToRad(this.camera.fov);
+    const worldHeight = 2 * Math.tan(fov / 2) * targetDistance;
+    const worldWidth = worldHeight * this.camera.aspect;
+    const panX = -dx * worldWidth / Math.max(1, this.width);
+    const panY = dy * worldHeight / Math.max(1, this.height);
+
+    this.camera.getWorldDirection(this._cameraPanDelta);
+    this._cameraPanRight.crossVectors(this._cameraPanDelta, this.camera.up).normalize();
+    this._cameraPanUp.crossVectors(this._cameraPanRight, this._cameraPanDelta).normalize();
+    this._cameraPanDelta
+      .copy(this._cameraPanRight).multiplyScalar(panX)
+      .addScaledVector(this._cameraPanUp, panY);
+
+    this.camera.position.add(this._cameraPanDelta);
+    this.controls.target.add(this._cameraPanDelta);
+    this.controls.update();
+  }
+
+  _updateCameraCursor(active = false) {
+    if (active) {
+      this.renderer.domElement.style.cursor = this._cameraDragMode === 'pan' ? 'move' : 'grabbing';
+    } else {
+      this.renderer.domElement.style.cursor = this._shiftCameraControl ? 'grab' : '';
     }
   }
 
