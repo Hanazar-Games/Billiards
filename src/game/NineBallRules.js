@@ -24,6 +24,7 @@ export class NineBallRules {
     this.foul = false;
     this.scratch = false;
     this.firstBallHit = null;
+    this.railContactAfterFirstHit = false;
     this.targetBall = 1; // lowest ball on table
     this.breakShot = true;
     this.pocketedBalls = []; // all pocketed ball IDs
@@ -34,11 +35,18 @@ export class NineBallRules {
     this.foul = false;
     this.scratch = false;
     this.firstBallHit = null;
+    this.railContactAfterFirstHit = false;
   }
 
   recordFirstHit(ballId) {
     if (this.firstBallHit === null && ballId !== 0) {
       this.firstBallHit = ballId;
+    }
+  }
+
+  recordCushionHit() {
+    if (this.firstBallHit !== null) {
+      this.railContactAfterFirstHit = true;
     }
   }
 
@@ -156,6 +164,12 @@ export class NineBallRules {
 
     // Foul: no ball hit at all
     if (!cueBallPocketed && this.firstBallHit === null) {
+      this.foul = true;
+    }
+
+    // Foul: after a legal first contact, at least one ball must touch a rail
+    // unless an object ball was pocketed.
+    if (!cueBallPocketed && this.firstBallHit !== null && pocketedIds.length === 0 && !this.railContactAfterFirstHit) {
       this.foul = true;
     }
 

@@ -16,6 +16,7 @@ export class Rules {
     this.winner = null;
     this.foul = false;
     this.firstBallHit = null;
+    this.railContactAfterFirstHit = false;
     this.scratch = false;
   }
 
@@ -25,12 +26,19 @@ export class Rules {
     this.foul = false;
     this.scratch = false;
     this.firstBallHit = null;
+    this.railContactAfterFirstHit = false;
   }
 
   // Track first ball hit by cue ball (for foul detection)
   recordFirstHit(ballId) {
     if (this.firstBallHit === null && ballId !== 0) {
       this.firstBallHit = ballId;
+    }
+  }
+
+  recordCushionHit() {
+    if (this.firstBallHit !== null) {
+      this.railContactAfterFirstHit = true;
     }
   }
 
@@ -64,7 +72,7 @@ export class Rules {
     }
 
     // Group assignment on first legal pocket after break
-    if (!this.breakShot && currentGroup === null && pocketedIds.length > 0 && !cueBallPocketed) {
+    if (!this.breakShot && currentGroup === null && pocketedIds.length > 0 && !cueBallPocketed && this.firstBallHit !== 8) {
       const firstPocketed = pocketedIds[0];
       const firstType = getBallType(firstPocketed);
       if (firstType === BALL_TYPE.SOLID) {
@@ -157,19 +165,24 @@ export class Rules {
     if (!cueBallPocketed && this.firstBallHit === null) {
       this.foul = true;
     }
+    if (!cueBallPocketed && this.firstBallHit !== null && pocketedIds.length === 0 && !this.railContactAfterFirstHit) {
+      this.foul = true;
+    }
 
     // Foul checks after groups are assigned
-    if (currentGroup && !cueBallPocketed) {
+    if (!cueBallPocketed) {
       const firstHitType = getBallType(this.firstBallHit);
-      const expectedType = currentGroup === 'solid' ? BALL_TYPE.SOLID : BALL_TYPE.STRIPE;
       const currentList = this.currentPlayer === 1 ? this.player1Pocketed : this.player2Pocketed;
       const hasClearedGroup = currentList.length >= 7;
 
       if (firstHitType === BALL_TYPE.EIGHT && !hasClearedGroup) {
         this.foul = true;
-      } else if (firstHitType !== null && firstHitType !== expectedType && firstHitType !== BALL_TYPE.EIGHT) {
-        // Did not hit own group first
-        this.foul = true;
+      } else if (currentGroup) {
+        const expectedType = currentGroup === 'solid' ? BALL_TYPE.SOLID : BALL_TYPE.STRIPE;
+        if (firstHitType !== null && firstHitType !== expectedType && firstHitType !== BALL_TYPE.EIGHT) {
+          // Did not hit own group first
+          this.foul = true;
+        }
       }
     }
 

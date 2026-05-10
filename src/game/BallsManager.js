@@ -6,6 +6,8 @@ export class BallsManager {
     this.physics = physics;
     this.balls = [];
     this.previousPositions = new Map();
+    this.onManualBallContact = null;
+    this.onManualCushionContact = null;
   }
 
   addToScene(scene) {
@@ -233,6 +235,7 @@ export class BallsManager {
         b.body.position.y = BALL.radius;
 
         this._resolveBallCollisionVelocity(a, b, nx, nz);
+        this._notifyManualBallContact(a, b, Math.abs(relNormalSpeed));
         this._separateContactPair(a, b, nx, nz, contactDist);
         this._enforceTableBounds(a, pocketPositions);
         this._enforceTableBounds(b, pocketPositions);
@@ -266,7 +269,10 @@ export class BallsManager {
           const nx = distSq > 0.000001 ? dx / dist : 1;
           const nz = distSq > 0.000001 ? dz / dist : 0;
           this._separateContactPair(a, b, nx, nz, minDist);
-          this._resolveBallCollisionVelocity(a, b, nx, nz);
+          const relNormalSpeed = this._resolveBallCollisionVelocity(a, b, nx, nz);
+          if (relNormalSpeed < -0.05) {
+            this._notifyManualBallContact(a, b, Math.abs(relNormalSpeed));
+          }
 
           this._enforceTableBounds(a, pocketPositions);
           this._enforceTableBounds(b, pocketPositions);
@@ -301,7 +307,7 @@ export class BallsManager {
     const relX = bv.x - av.x;
     const relZ = bv.z - av.z;
     const relNormalSpeed = relX * nx + relZ * nz;
-    if (relNormalSpeed >= 0) return;
+    if (relNormalSpeed >= 0) return relNormalSpeed;
 
     const normalImpulse = -(1 + BALL.collisionRestitution) * relNormalSpeed * 0.5;
     av.x -= nx * normalImpulse;
@@ -311,8 +317,13 @@ export class BallsManager {
 
     const tx = -nz;
     const tz = nx;
-    const tangentSpeed = relX * tx + relZ * tz;
-    const tangentImpulse = -tangentSpeed * BALL.collisionTangentialFriction * 0.5;
+    const tangentSpeed = relX * tx + relZ * tz -
+      (a.body.angularVelocity.y + b.body.angularVelocity.y) * BALL.radius;
+    const maxTangentImpulse = Math.abs(normalImpulse) * BALL.collisionTangentialFriction;
+    const tangentImpulse = Math.max(
+      -maxTangentImpulse,
+      Math.min(maxTangentImpulse, -tangentSpeed * 0.5)
+    );
     av.x -= tx * tangentImpulse;
     av.z -= tz * tangentImpulse;
     bv.x += tx * tangentImpulse;
@@ -320,6 +331,13 @@ export class BallsManager {
 
     a.limitSpeed();
     b.limitSpeed();
+    return relNormalSpeed;
+  }
+
+  _notifyManualBallContact(a, b, relativeSpeed) {
+    if (typeof this.onManualBallContact === 'function') {
+      this.onManualBallContact(a, b, relativeSpeed);
+    }
   }
 
   _enforceTableBounds(ball, pocketPositions) {
@@ -362,6 +380,13 @@ export class BallsManager {
       ball.body.angularVelocity.scale(BALL.boundaryRestitution, ball.body.angularVelocity);
       ball.body.wakeUp();
       ball.sync();
+      this._notifyManualCushionContact(ball);
+    }
+  }
+
+  _notifyManualCushionContact(ball) {
+    if (typeof this.onManualCushionContact === 'function') {
+      this.onManualCushionContact(ball);
     }
   }
 
@@ -382,7 +407,11 @@ export class BallsManager {
 
   allStopped() {
     for (const ball of this.balls) {
-      if (!ball.pocketed && ball.getSpeed() > BALL.sleepSpeedLimit) {
+      if (ball.pocketed) continue;
+      if (ball.getSpeed() > BALL.sleepSpeedLimit) {
+        return false;
+      }
+      if (ball.body.angularVelocity.length() > BALL.sleepAngularSpeedLimit) {
         return false;
       }
     }

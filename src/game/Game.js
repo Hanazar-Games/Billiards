@@ -98,6 +98,7 @@ export class Game {
     this.ballsManager.createBalls();
     const rackMode = this.mode === '9ball' ? '9ball' : '8ball';
     this.ballsManager.rackBalls(rackMode);
+    this._wireBallsManagerEvents();
     this.ballsManager.addToScene(this.scene);
 
     this.input = new InputHandler(this.renderer.renderer.domElement);
@@ -193,7 +194,7 @@ export class Game {
           const relVel = ball.body.velocity.distanceTo(otherBall.body.velocity);
 
           // First hit tracking (only for cue ball)
-          if (ball.id === 0 && otherBall.id !== 0) {
+          if (this.state === 'SHOOTING' && ball.id === 0 && otherBall.id !== 0) {
             this.rules.recordFirstHit(otherBall.id);
             this.achievements.onBallCollision(relVel);
           }
@@ -216,6 +217,9 @@ export class Game {
           }
         } else if (otherBody.material === this.physics.cushionMaterial) {
           // Ball-cushion collision
+          if (this.state === 'SHOOTING') {
+            this.rules.recordCushionHit?.(ball.id);
+          }
           if (v > 0.8) {
             this.audio.playCushionBounce(v);
           }
@@ -228,6 +232,30 @@ export class Game {
           }
         }
       });
+    }
+  }
+
+  _wireBallsManagerEvents() {
+    if (!this.ballsManager) return;
+    this.ballsManager.onManualBallContact = (ballA, ballB, relVel) => {
+      this._handleManualBallContact(ballA, ballB, relVel);
+    };
+    this.ballsManager.onManualCushionContact = (ball) => {
+      if (this.state === 'SHOOTING') {
+        this.rules.recordCushionHit?.(ball.id);
+      }
+    };
+  }
+
+  _handleManualBallContact(ballA, ballB, relVel) {
+    if (this.state !== 'SHOOTING') return;
+
+    if (ballA.id === 0 && ballB.id !== 0) {
+      this.rules.recordFirstHit(ballB.id);
+      this.achievements.onBallCollision(relVel);
+    } else if (ballB.id === 0 && ballA.id !== 0) {
+      this.rules.recordFirstHit(ballA.id);
+      this.achievements.onBallCollision(relVel);
     }
   }
 
@@ -468,6 +496,7 @@ export class Game {
 
     // Track whether this shot is the break shot for achievement purposes
     this._isBreakShot = this.rules.breakShot;
+    this.rules.startShot(this.currentPlayer);
 
     const force = Math.max(this.power, SHOT.minPower);
     cueBall.applyImpulse(
@@ -496,8 +525,6 @@ export class Game {
 
     this.cue.hide();
     this.trajectory.setVisible(false);
-
-    this.rules.startShot(this.currentPlayer);
   }
 
   async startAITurn() {
@@ -792,6 +819,7 @@ export class Game {
     this.ballsManager.createBalls();
     const rackMode = this.mode === '9ball' ? '9ball' : '8ball';
     this.ballsManager.rackBalls(rackMode);
+    this._wireBallsManagerEvents();
     this.ballsManager.addToScene(this.scene);
     this.setupCollisionEvents();
 

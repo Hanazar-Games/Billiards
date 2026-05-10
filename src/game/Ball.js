@@ -141,7 +141,7 @@ export class Ball {
 
     if (speed > 0 && speed < BALL.slowBrakeSpeed) {
       const t = 1 - speed / BALL.slowBrakeSpeed;
-      const brake = BALL.slowBrakeStrength * t * t * t;
+      const brake = BALL.slowBrakeStrength * t * t;
       const factor = Math.max(0, Math.exp(-brake * dt));
       v.x *= factor;
       v.z *= factor;
@@ -152,7 +152,7 @@ export class Ball {
     }
 
     const angularSpeed = av.length();
-    if (speed < BALL.stopSpeedLimit && angularSpeed < 1.2) {
+    if (speed < BALL.stopSpeedLimit && angularSpeed < BALL.sleepAngularSpeedLimit) {
       v.set(0, 0, 0);
       av.set(0, 0, 0);
       this.body.sleep();
