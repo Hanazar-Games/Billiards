@@ -85,6 +85,17 @@ export class Rules {
     // Break shot special rules
     if (this.breakShot) {
       this.breakShot = false;
+      if (this.foul || this.firstBallHit === null) {
+        return {
+          nextPlayer: opponent,
+          foul: true,
+          scratch: this.scratch,
+          ballInHand: true,
+          message: cueBallPocketed
+            ? 'Break scratch! Opponent gets ball-in-hand.'
+            : 'Break foul: no ball hit. Opponent gets ball-in-hand.',
+        };
+      }
       // If nothing pocketed on break and no foul, next player continues
       if (pocketedIds.length === 0 && !cueBallPocketed) {
         return { nextPlayer: opponent, foul: false, scratch: false, message: 'Break: no balls pocketed' };
@@ -143,18 +154,21 @@ export class Rules {
       }
     }
 
+    if (!cueBallPocketed && this.firstBallHit === null) {
+      this.foul = true;
+    }
+
     // Foul checks after groups are assigned
     if (currentGroup && !cueBallPocketed) {
       const firstHitType = getBallType(this.firstBallHit);
       const expectedType = currentGroup === 'solid' ? BALL_TYPE.SOLID : BALL_TYPE.STRIPE;
+      const currentList = this.currentPlayer === 1 ? this.player1Pocketed : this.player2Pocketed;
+      const hasClearedGroup = currentList.length >= 7;
 
-      if (firstHitType !== null && firstHitType !== expectedType && firstHitType !== BALL_TYPE.EIGHT) {
-        // Did not hit own group first
+      if (firstHitType === BALL_TYPE.EIGHT && !hasClearedGroup) {
         this.foul = true;
-      }
-
-      // No ball hit at all = foul (simplified: no cushion contact check)
-      if (this.firstBallHit === null && pocketedIds.length === 0 && !this.foul) {
+      } else if (firstHitType !== null && firstHitType !== expectedType && firstHitType !== BALL_TYPE.EIGHT) {
+        // Did not hit own group first
         this.foul = true;
       }
     }
@@ -181,7 +195,9 @@ export class Rules {
 
     if (this.foul) {
       nextPlayer = opponent;
-      message = cueBallPocketed ? 'Scratch! Opponent\'s turn.' : 'Foul! Opponent\'s turn.';
+      message = cueBallPocketed
+        ? 'Scratch! Opponent gets ball-in-hand.'
+        : 'Foul! Opponent gets ball-in-hand.';
     } else if (pocketedOwn === 0) {
       nextPlayer = opponent;
       message = 'No ball pocketed. Opponent\'s turn.';
@@ -193,6 +209,7 @@ export class Rules {
       nextPlayer,
       foul: this.foul,
       scratch: this.scratch,
+      ballInHand: this.foul,
       message,
       pocketedOwn,
       pocketedOpponent,

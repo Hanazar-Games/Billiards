@@ -17,7 +17,7 @@ import { StatsPanel } from '../stats/StatsPanel.js';
 import { ParticleSystem } from '../fx/ParticleSystem.js';
 import { ShotTrailSystem } from '../fx/ShotTrail.js';
 import { ShotRecorder } from '../replay/ShotRecorder.js';
-import { BALL, SHOT } from '../config.js';
+import { BALL, TABLE, POCKET, SHOT } from '../config.js';
 
 export class Game {
   constructor(renderer, physics) {
@@ -50,6 +50,8 @@ export class Game {
     this.lockedAimDirection = new THREE.Vector3(0, 0, 1);
     this.dragStart = null;
     this.trajectoryEnabled = true;
+    this.ballInHand = false;
+    this.ballInHandValid = false;
     this.aiEnabled = false;
 
     // English spin state: [-1, 1] for X (left/right) and Z (top/back)
@@ -114,7 +116,7 @@ export class Game {
 
     this.ui.setPlayerTurn(1);
     if (this.mode === 'freeplay') {
-      this.ui.setMessage('练习模式：无胜负规则；白球进袋会自动复位，适合练习瞄准和力度。');
+      this.ui.setMessage('练习模式：无胜负规则；白球进袋会自动复位，犯规自由球时白球可在球桌内任意摆放。');
     } else if (this.mode === '9ball') {
       this.ui.setMessage('9 球规则：白球必须先碰当前最小号码球；合法打进 9 号球获胜。');
     } else {
@@ -251,6 +253,10 @@ export class Game {
   }
 
   onMouseMove() {
+    if (this.ballInHand && this.state === 'AIM') {
+      this.updateBallInHandPreview();
+      return;
+    }
     if (this.state === 'AIM') {
       this.updateAimDirection();
       this.updateTrajectory();
@@ -262,6 +268,10 @@ export class Game {
   onMouseDown(e) {
     if (this.state !== 'AIM') return;
     if (this.aiEnabled && this.currentPlayer === 2) return; // AI turn
+    if (this.ballInHand) {
+      this.confirmBallInHandPlacement();
+      return;
+    }
     this.audio.resume();
     this.updateAimDirection();
     this.lockedAimDirection.copy(this.aimDirection);
@@ -330,24 +340,9 @@ export class Game {
     const cueBall = this.ballsManager.getCueBall();
     if (!cueBall || cueBall.pocketed) return;
 
-    const rect = this.renderer.renderer.domElement.getBoundingClientRect();
-    this._tmpVec2.set(
-      ((this.input.mouseX - rect.left) / rect.width) * 2 - 1,
-      -((this.input.mouseY - rect.top) / rect.height) * 2 + 1
-    );
-
     const ballPos = this._tmpVec3a.copy(cueBall.mesh.position);
-    const cameraPos = this._tmpVec3b.copy(this.camera.position);
-
-    const dir = this._tmpVec3c.set(this._tmpVec2.x, this._tmpVec2.y, 0.5)
-      .unproject(this.camera)
-      .sub(cameraPos)
-      .normalize();
-
-    const t = (ballPos.y - cameraPos.y) / dir.y;
-    if (t <= 0 || !isFinite(t)) return;
-
-    const hit = cameraPos.add(dir.multiplyScalar(t));
+    const hit = this.getMouseTablePoint(ballPos.y);
+    if (!hit) return;
     const aim = new THREE.Vector3().subVectors(hit, ballPos);
     aim.y = 0;
     aim.normalize();
@@ -357,6 +352,94 @@ export class Game {
     }
 
     this.cue.setAim(ballPos, this.aimDirection);
+  }
+
+  getMouseTablePoint(y = BALL.radius) {
+    const rect = this.renderer.renderer.domElement.getBoundingClientRect();
+    this._tmpVec2.set(
+      ((this.input.mouseX - rect.left) / rect.width) * 2 - 1,
+      -((this.input.mouseY - rect.top) / rect.height) * 2 + 1
+    );
+
+    const cameraPos = this._tmpVec3b.copy(this.camera.position);
+    const dir = this._tmpVec3c.set(this._tmpVec2.x, this._tmpVec2.y, 0.5)
+      .unproject(this.camera)
+      .sub(cameraPos)
+      .normalize();
+
+    const t = (y - cameraPos.y) / dir.y;
+    if (t <= 0 || !isFinite(t)) return null;
+    return cameraPos.add(dir.multiplyScalar(t));
+  }
+
+  isCueBallPlacementLegal(x, z) {
+    const halfW = TABLE.width / 2 - BALL.radius * 1.1;
+    const halfD = TABLE.depth / 2 - BALL.radius * 1.1;
+    if (x < -halfW || x > halfW || z < -halfD || z > halfD) return false;
+
+    for (const pocket of this.table.getPocketPositions()) {
+      const dx = x - pocket.x;
+      const dz = z - pocket.z;
+      if (dx * dx + dz * dz < (POCKET.radius + BALL.radius * 0.45) ** 2) {
+        return false;
+      }
+    }
+
+    for (const ball of this.ballsManager.balls) {
+      if (ball.id === 0 || ball.pocketed) continue;
+      const dx = x - ball.body.position.x;
+      const dz = z - ball.body.position.z;
+      if (dx * dx + dz * dz < (BALL.radius * 2.15) ** 2) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  startBallInHand(message = '') {
+    const cueBall = this.ballsManager.getCueBall();
+    if (cueBall?.pocketed) {
+      this.ballsManager.resetCueBallIfPocketed();
+    }
+    this.ballInHand = true;
+    this.ballInHandValid = false;
+    this.power = 0;
+    this.ui.setPower(0);
+    this.cue.hide();
+    this.trajectory.setVisible(false);
+    this.ui.setMessage(`${message ? `${message} ` : ''}自由球：白球可以在球桌内任意摆放，移动鼠标预览，左键确认。`);
+    this.updateBallInHandPreview();
+  }
+
+  updateBallInHandPreview() {
+    const cueBall = this.ballsManager.getCueBall();
+    const point = this.getMouseTablePoint(BALL.radius);
+    if (!cueBall || !point) return;
+
+    const halfW = TABLE.width / 2 - BALL.radius * 1.1;
+    const halfD = TABLE.depth / 2 - BALL.radius * 1.1;
+    const x = Math.max(-halfW, Math.min(halfW, point.x));
+    const z = Math.max(-halfD, Math.min(halfD, point.z));
+    this.ballInHandValid = this.isCueBallPlacementLegal(x, z);
+
+    if (this.ballInHandValid) {
+      cueBall.reset(x, BALL.radius, z);
+    }
+  }
+
+  confirmBallInHandPlacement() {
+    this.updateBallInHandPreview();
+    if (!this.ballInHandValid) {
+      this.ui.setMessage('自由球：当前位置无效，请放在台面内且不要贴住其他球或袋口。', 2500);
+      return;
+    }
+    this.ballInHand = false;
+    this.ballInHandValid = false;
+    this.cue.show();
+    this.setAimTrajectoryVisible(true);
+    this.updateAimDirection();
+    this.updateTrajectory();
+    this.ui.setMessage('自由球已放置。继续瞄准，后拉球杆击球。', 1800);
   }
 
   setAimTrajectoryVisible(visible) {
@@ -679,11 +762,20 @@ export class Game {
     this.cue.show();
     this.setAimTrajectoryVisible(true);
 
+    if (result.ballInHand) {
+      this.startBallInHand(result.message);
+    }
+
     // Update live stats panel
     this.statsPanel.update(this.statsTracker.getLiveStats());
 
     // Trigger AI if needed
     if (this.aiEnabled && this.currentPlayer === 2) {
+      if (this.ballInHand) {
+        this.ballInHand = false;
+        const cue = this.ballsManager.getCueBall();
+        cue?.reset(0, BALL.radius, -TABLE.depth / 2 * 0.35);
+      }
       this.startAITurn();
     }
   }
@@ -712,12 +804,14 @@ export class Game {
     if (this.challengeManager) this.challengeManager.resetMatch();
     this.currentPlayer = 1;
     this.state = 'AIM';
+    this.ballInHand = false;
+    this.ballInHandValid = false;
     this.power = 0;
     this.ui.setPower(0);
     this.ui.setPlayerTurn(1);
     this.ui.setPlayerGroups(null, null);
     if (this.mode === 'freeplay') {
-      this.ui.setMessage('练习模式：无胜负规则；白球进袋会自动复位。');
+      this.ui.setMessage('练习模式：无胜负规则；白球进袋会自动复位，自由球可在球桌内任意摆放。');
     } else if (this.mode === '9ball') {
       this.ui.setMessage('新 9 球局：白球必须先碰当前最小号码球；合法打进 9 号球获胜。');
     } else {

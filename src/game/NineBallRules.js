@@ -79,19 +79,34 @@ export class NineBallRules {
           nextPlayer: opponent,
           foul: true,
           scratch: true,
+          ballInHand: true,
           message: 'Break scratch! Opponent ball-in-hand.',
           gameOver: false,
         };
       }
 
-      // Check if first hit was the 1-ball (required on break)
-      if (this.firstBallHit !== null && this.firstBallHit !== 1) {
+      if (this.firstBallHit === null) {
         this.foul = true;
         this.trackPocketedBalls(pocketedIds);
         return {
           nextPlayer: opponent,
           foul: true,
           scratch: false,
+          ballInHand: true,
+          message: 'Break foul: no ball hit. Opponent ball-in-hand.',
+          gameOver: false,
+        };
+      }
+
+      // Check if first hit was the 1-ball (required on break)
+      if (this.firstBallHit !== 1) {
+        this.foul = true;
+        this.trackPocketedBalls(pocketedIds);
+        return {
+          nextPlayer: opponent,
+          foul: true,
+          scratch: false,
+          ballInHand: true,
           message: 'Break: must hit 1-ball first! Foul.',
           gameOver: false,
         };
@@ -151,6 +166,7 @@ export class NineBallRules {
         nextPlayer: opponent,
         foul: true,
         scratch: this.scratch,
+        ballInHand: true,
         message: this.scratch ? 'Scratch! Opponent ball-in-hand.' : 'Foul! Opponent ball-in-hand.',
         gameOver: false,
       };
