@@ -57,50 +57,79 @@ export class TrajectoryPredictor {
     const rayOrigin = new THREE.Vector3(cuePos.x, cuePos.y, cuePos.z);
     const rayDir = new THREE.Vector3(aimDirection.x, 0, aimDirection.z).normalize();
 
-    // Find first ball hit
-    let hitBall = null;
-    let hitDist = Infinity;
+    const firstHit = this.findFirstBallContact(rayOrigin, rayDir, balls, new Set([0]), r * 2);
+    const lineStart = new THREE.Vector3().copy(rayOrigin).addScaledVector(rayDir, r * 1.05);
 
-    for (const ball of balls) {
-      if (ball.pocketed || ball.id === 0) continue;
-
-      const toBall = new THREE.Vector3().subVectors(ball.mesh.position, rayOrigin);
-      const proj = toBall.dot(rayDir);
-      if (proj < r * 2) continue; // too close or behind cue ball
-
-      const closest = new THREE.Vector3().copy(rayDir).multiplyScalar(proj).add(rayOrigin);
-      const distSq = closest.distanceToSquared(ball.mesh.position);
-      const collisionRadius = r * 2;
-      const collisionRadiusSq = collisionRadius * collisionRadius;
-      if (distSq >= collisionRadiusSq) continue;
-
-      const contactDist = proj - Math.sqrt(collisionRadiusSq - distSq);
-      if (contactDist >= 0 && contactDist < hitDist) {
-        hitDist = contactDist;
-        hitBall = ball;
-      }
-    }
-
-    if (hitBall) {
+    if (firstHit) {
+      const hitBall = firstHit.ball;
+      const hitDist = firstHit.distance;
       const ballPos = hitBall.mesh.position;
       const ghostPos = new THREE.Vector3().copy(rayDir).multiplyScalar(hitDist).add(rayOrigin);
       const objectDir = new THREE.Vector3().subVectors(ballPos, ghostPos);
       objectDir.y = 0;
       objectDir.normalize();
 
-      this.drawLine(rayOrigin, ghostPos, this.lineMaterial);
-      const targetEnd = new THREE.Vector3().copy(ballPos).addScaledVector(objectDir, 70);
-      this.drawLine(ballPos, targetEnd, this.hitLineMaterial);
+      const cueLineEnd = new THREE.Vector3().copy(ghostPos).addScaledVector(rayDir, -r * 0.25);
+      this.drawLine(lineStart, cueLineEnd, this.lineMaterial);
+
+      const objectLineStart = new THREE.Vector3().copy(ballPos).addScaledVector(objectDir, r * 1.05);
+      const objectLineDist = this.findPreviewLineDistance(
+        ballPos,
+        objectDir,
+        balls,
+        new Set([0, hitBall.id]),
+        82
+      );
+      const objectLineEnd = new THREE.Vector3().copy(ballPos).addScaledVector(objectDir, objectLineDist);
+      this.drawLine(objectLineStart, objectLineEnd, this.hitLineMaterial);
 
       this.ghostBall.position.copy(ghostPos);
       this.ghostBall.visible = true;
     } else {
       // No ball hit: draw line to table edge
       const edgeDist = this.rayToEdge(rayOrigin, rayDir);
-      const edgePoint = new THREE.Vector3().copy(rayDir).multiplyScalar(edgeDist).add(rayOrigin);
-      this.drawLine(rayOrigin, edgePoint, this.lineMaterial);
+      const edgePoint = new THREE.Vector3().copy(rayDir).multiplyScalar(Math.max(r * 1.2, edgeDist - r * 0.5)).add(rayOrigin);
+      this.drawLine(lineStart, edgePoint, this.lineMaterial);
       this.ghostBall.visible = false;
     }
+  }
+
+  findFirstBallContact(origin, dir, balls, ignoredIds, collisionRadius) {
+    let hitBall = null;
+    let hitDist = Infinity;
+    const collisionRadiusSq = collisionRadius * collisionRadius;
+
+    for (const ball of balls) {
+      if (ball.pocketed || ignoredIds.has(ball.id)) continue;
+
+      const toBall = new THREE.Vector3().subVectors(ball.mesh.position, origin);
+      const proj = toBall.dot(dir);
+      if (proj <= 0) continue;
+
+      const closest = new THREE.Vector3().copy(dir).multiplyScalar(proj).add(origin);
+      const distSq = closest.distanceToSquared(ball.mesh.position);
+      if (distSq > collisionRadiusSq) continue;
+
+      const contactDist = proj - Math.sqrt(Math.max(0, collisionRadiusSq - distSq));
+      if (contactDist >= 0 && contactDist < hitDist) {
+        hitDist = contactDist;
+        hitBall = ball;
+      }
+    }
+
+    return hitBall ? { ball: hitBall, distance: hitDist } : null;
+  }
+
+  findPreviewLineDistance(origin, dir, balls, ignoredIds, maxDist) {
+    const edgeDist = this.rayToEdge(origin, dir);
+    let lineDist = Math.min(maxDist, Math.max(BALL.radius * 1.2, edgeDist - BALL.radius * 0.5));
+    const nextHit = this.findFirstBallContact(origin, dir, balls, ignoredIds, BALL.radius * 2);
+
+    if (nextHit) {
+      lineDist = Math.min(lineDist, Math.max(BALL.radius * 1.2, nextHit.distance - BALL.radius * 0.95));
+    }
+
+    return lineDist;
   }
 
   rayToEdge(origin, dir) {

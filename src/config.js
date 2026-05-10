@@ -28,8 +28,8 @@ export const BALL = {
   sleepTimeLimit: 0.16,
   rollingResistance: 3.2,     // near-constant cloth deceleration in cm/s^2
   slowBrakeSpeed: 28,         // below this, braking ramps up as speed approaches zero
-  slowBrakeStrength: 4.8,
-  stopSpeedLimit: 0.35,
+  slowBrakeStrength: 3.6,
+  stopSpeedLimit: 0.3,
   maxSpeed: 520,
   boundaryRestitution: 0.48,
   overlapIterations: 4,
