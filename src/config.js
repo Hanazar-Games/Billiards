@@ -19,8 +19,8 @@ export const BALL = {
   mass: 0.17,                // kg
   segments: 32,              // sphere geometry detail
   restitution: 0.85,
-  collisionRestitution: 0.94,
-  collisionTangentialFriction: 0.035,
+  collisionRestitution: 0.92,
+  collisionTangentialFriction: 0.018,
   friction: 0.15,
   damping: 0.08,             // low high-speed drag; cloth rolling resistance handles slowdown
   angularDamping: 0.2,
@@ -34,17 +34,17 @@ export const BALL = {
   boundaryRestitution: 0.48,
   overlapIterations: 4,
   sweepContactScale: 0.995,
-  spinAngularVelocity: 22,
-  rollCoupling: 0.22,
-  cueSquirt: 0.018,
-  collisionThrow: 0.004,
-  sideSpinDecay: 0.9,
+  spinAngularVelocity: 12,
+  rollCoupling: 0.1,
+  cueSquirt: 0.006,
+  collisionThrow: 0.0012,
+  sideSpinDecay: 1.7,
 };
 
 // Pocket radius = ~1.5x ball radius (standard pool)
 export const POCKET = {
-  radius: BALL.radius * 1.72,  // wider pocket mouths for playable 3D aiming
-  detectMargin: BALL.radius * 0.9,
+  radius: BALL.radius * 1.92,  // generous pocket mouths for playable 3D aiming
+  detectMargin: BALL.radius * 1.1,
 };
 
 // Physics world

@@ -230,7 +230,7 @@ export class Game {
   }
 
   _applyCollisionSpinTransfer(ballA, ballB, relVel) {
-    if (relVel < 0.2) return;
+    if (relVel < 1.2) return;
 
     const dx = ballB.body.position.x - ballA.body.position.x;
     const dz = ballB.body.position.z - ballA.body.position.z;
@@ -240,14 +240,14 @@ export class Game {
     const tx = -dz / len;
     const tz = dx / len;
     const spinDelta = ballA.body.angularVelocity.y - ballB.body.angularVelocity.y;
-    const throwSpeed = Math.max(-1.2, Math.min(1.2, spinDelta * relVel * BALL.collisionThrow));
+    const throwSpeed = Math.max(-0.35, Math.min(0.35, spinDelta * relVel * BALL.collisionThrow));
 
-    ballA.body.velocity.x -= tx * throwSpeed * 0.35;
-    ballA.body.velocity.z -= tz * throwSpeed * 0.35;
-    ballB.body.velocity.x += tx * throwSpeed;
-    ballB.body.velocity.z += tz * throwSpeed;
-    ballA.body.angularVelocity.y *= 0.82;
-    ballB.body.angularVelocity.y += spinDelta * 0.08;
+    ballA.body.velocity.x -= tx * throwSpeed * 0.18;
+    ballA.body.velocity.z -= tz * throwSpeed * 0.18;
+    ballB.body.velocity.x += tx * throwSpeed * 0.45;
+    ballB.body.velocity.z += tz * throwSpeed * 0.45;
+    ballA.body.angularVelocity.y *= 0.55;
+    ballB.body.angularVelocity.y += spinDelta * 0.025;
   }
 
   onMouseMove() {
