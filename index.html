@@ -246,7 +246,11 @@
 </head>
 <body>
   <div id="app"></div>
-  <div id="menu-layer"></div>
+  <div id="menu-layer">
+    <div id="boot-message" style="position:relative;z-index:1;color:rgba(244,247,244,0.82);font-size:14px;text-align:center;line-height:1.6;padding:24px;">
+      正在加载 3D Billiards...
+    </div>
+  </div>
   <div id="ui-layer">
     <div id="top-bar">
       <div id="player1" class="player-badge active">Player 1</div>
@@ -287,6 +291,13 @@
         overlay.classList.add('visible');
       }
     });
+
+    if (window.location.protocol === 'file:') {
+      var bootMessage = document.getElementById('boot-message');
+      if (bootMessage) {
+        bootMessage.textContent = '请通过开发服务器打开本项目：npm install 后运行 npm run dev，再访问 http://localhost:5173。直接打开 index.html 无法加载 Three.js 模块。';
+      }
+    }
   </script>
 
   <script type="module" src="/src/main.js"></script>

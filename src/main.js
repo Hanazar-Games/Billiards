@@ -23,6 +23,7 @@ try {
 
   // MenuSystem owns Renderer, Physics, Game lifecycle
   const menu = new MenuSystem(container);
+  document.getElementById('boot-message')?.remove();
 
   // Success indicator — remove after 3s
   const ok = document.createElement('div');
