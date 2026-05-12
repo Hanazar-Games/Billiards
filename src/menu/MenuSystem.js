@@ -63,13 +63,22 @@ export class MenuSystem {
 
     this._initAudio();
     this._setupMenu();
+    if (typeof window !== 'undefined' && window.updateLoadingProgress) {
+      window.updateLoadingProgress(60, 'Loading assets... 加载资源...');
+    }
   }
 
   _initAudio() {
+    if (typeof window !== 'undefined' && window.updateLoadingProgress) {
+      window.updateLoadingProgress(45, 'Loading audio... 加载音频...');
+    }
     // Import AudioManager dynamically to avoid circular deps if any
     import('../audio/AudioManager.js').then(({ AudioManager }) => {
       this.audio = new AudioManager();
       this.audio.init();
+      if (typeof window !== 'undefined' && window.updateLoadingProgress) {
+        window.updateLoadingProgress(55, 'Audio ready... 音频就绪...');
+      }
     }).catch(() => {});
   }
 

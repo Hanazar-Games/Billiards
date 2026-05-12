@@ -4,6 +4,12 @@
 
 ## What's New in This Update
 
+### Intro / Loading Screen
+- Full-screen animated loading screen on startup.
+- Displays **Hanazar Products** → **Billiards** → **3D台球游戏** with elegant fade-in, gold divider, and glowing title.
+- Live progress bar with bilingual loading text (English + 中文).
+- Smooth opacity fade-out transition after all engine modules, audio, and menu UI are ready.
+
 ### Camera Controls Reworked
 - **Shift + Left Click Drag** → Pan camera (平移视角)
 - **Shift + Right Click Drag** → Orbit / rotate camera (旋转视角)

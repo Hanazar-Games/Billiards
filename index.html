@@ -228,6 +228,129 @@
     }
 
     /* JS-error diagnostic overlay */
+    /* ── Intro / Loading Screen ── */
+    #intro-screen {
+      position: fixed; inset: 0;
+      z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      background: #07090a;
+      transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1), visibility 1.2s;
+    }
+    #intro-screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .intro-bg {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 40%, rgba(16,100,66,0.18) 0%, transparent 55%),
+        radial-gradient(ellipse at 30% 70%, rgba(122,26,38,0.10) 0%, transparent 45%),
+        radial-gradient(ellipse at 70% 60%, rgba(24,119,201,0.08) 0%, transparent 45%);
+      animation: introBgPulse 4s ease-in-out infinite;
+    }
+    @keyframes introBgPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    .intro-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .intro-brand {
+      font-size: clamp(18px, 2.4vw, 26px);
+      font-weight: 500;
+      color: rgba(244,247,244,0.55);
+      letter-spacing: 8px;
+      text-transform: uppercase;
+      opacity: 0;
+      transform: translateY(12px);
+      animation: introFadeIn 0.8s var(--ease) 0.2s forwards;
+    }
+    .intro-line {
+      width: 0;
+      height: 1.5px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      margin: 6px 0;
+      animation: introLineExpand 1s var(--ease) 0.6s forwards;
+    }
+    @keyframes introLineExpand {
+      to { width: min(320px, 60vw); }
+    }
+    .intro-title {
+      font-size: clamp(52px, 9vw, 96px);
+      font-weight: 900;
+      color: var(--text);
+      letter-spacing: 6px;
+      text-shadow:
+        0 0 40px rgba(24,164,106,0.25),
+        0 0 80px rgba(24,164,106,0.12),
+        0 8px 32px rgba(0,0,0,0.6);
+      opacity: 0;
+      transform: translateY(18px) scale(0.96);
+      animation: introTitleIn 1s var(--ease) 0.5s forwards;
+    }
+    @keyframes introTitleIn {
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .intro-subtitle {
+      font-size: clamp(16px, 2.2vw, 24px);
+      font-weight: 400;
+      color: rgba(244,247,244,0.5);
+      letter-spacing: 10px;
+      opacity: 0;
+      animation: introFadeIn 0.8s var(--ease) 0.9s forwards;
+    }
+    .intro-progress-wrap {
+      margin-top: 32px;
+      width: min(360px, 70vw);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      animation: introFadeIn 0.6s var(--ease) 1.1s forwards;
+    }
+    .intro-progress-track {
+      width: 100%;
+      height: 4px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .intro-progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #18a46a, #d8b15f);
+      border-radius: 999px;
+      box-shadow: 0 0 12px rgba(24,164,106,0.45);
+      transition: width 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    .intro-percent {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(244,247,244,0.45);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 1px;
+    }
+    .intro-loading-text {
+      font-size: 12px;
+      color: rgba(244,247,244,0.3);
+      letter-spacing: 2px;
+      margin-top: 4px;
+      opacity: 0;
+      animation: introFadeIn 0.6s var(--ease) 1.3s forwards;
+    }
+    @keyframes introFadeIn {
+      to { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; transform: translateY(8px); }
+    }
+
     #js-error-overlay {
       position: fixed; inset: 0;
       z-index: 99999;
@@ -246,6 +369,25 @@
 </head>
 <body>
   <div id="app"></div>
+
+  <!-- Intro / Loading Screen -->
+  <div id="intro-screen">
+    <div class="intro-bg"></div>
+    <div class="intro-content">
+      <div class="intro-brand">Hanazar Products</div>
+      <div class="intro-line"></div>
+      <div class="intro-title">Billiards</div>
+      <div class="intro-subtitle">3D台球游戏</div>
+      <div class="intro-progress-wrap">
+        <div class="intro-progress-track">
+          <div class="intro-progress-fill" id="intro-progress-fill"></div>
+        </div>
+        <div class="intro-percent" id="intro-percent">0%</div>
+      </div>
+      <div class="intro-loading-text" id="intro-loading-text">Loading... 加载中...</div>
+    </div>
+  </div>
+
   <div id="menu-layer">
     <div id="boot-message" style="position:relative;z-index:1;color:rgba(244,247,244,0.82);font-size:14px;text-align:center;line-height:1.6;padding:24px;">
       正在加载 3D Billiards...
