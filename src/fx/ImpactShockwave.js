@@ -16,7 +16,6 @@ export class ImpactShockwave {
   constructor(scene) {
     this.scene = scene;
     this.active = [];
-    this._tmpColor = new THREE.Color();
   }
 
   /**
@@ -29,7 +28,7 @@ export class ImpactShockwave {
     const t = Math.min(power / maxPower, 1.0);
 
     // Pick colour based on power tier
-    const color = this._tmpColor.clone();
+    const color = new THREE.Color();
     if (t < 0.4) {
       color.lerpColors(COLOR_LOW, COLOR_MID, t / 0.4);
     } else {

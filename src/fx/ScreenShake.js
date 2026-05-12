@@ -4,8 +4,14 @@
  * Applies a short-duration positional jitter to the camera based on
  * shot power.  The shake vector is mostly perpendicular to the shot
  * direction so it feels like the table is rattling rather than sliding.
+ *
+ * Design: we compute an offset every frame and ADD it to the current
+ * camera position.  When the shake ends we smoothly decay the offset
+ * to zero rather than snapping back to a stale original position.
  */
 import * as THREE from 'three';
+
+const _UP = new THREE.Vector3(0, 1, 0);
 
 export class ScreenShake {
   constructor(camera) {
@@ -14,8 +20,8 @@ export class ScreenShake {
     this.age = 0;
     this.duration = 0;
     this.intensity = 0;
-    this._originalPos = new THREE.Vector3();
-    this._shakeOffset = new THREE.Vector3();
+    this._currentOffset = new THREE.Vector3();
+    this._tmpOffset = new THREE.Vector3();
     this._perpA = new THREE.Vector3();
     this._perpB = new THREE.Vector3();
   }
@@ -33,10 +39,10 @@ export class ScreenShake {
     this.age = 0;
     this.duration = 0.18 + t * 0.35; // 0.18s … 0.53s
     this.intensity = 0.3 + t * 2.2;  // 0.3 … 2.5 units
-    this._originalPos.copy(this.camera.position);
+    this._currentOffset.set(0, 0, 0);
 
     // Build two perpendicular axes for shake
-    this._perpA.copy(direction).cross(new THREE.Vector3(0, 1, 0)).normalize();
+    this._perpA.copy(direction).cross(_UP).normalize();
     if (this._perpA.lengthSq() < 0.001) {
       this._perpA.set(1, 0, 0);
     }
@@ -55,8 +61,11 @@ export class ScreenShake {
 
     if (p >= 1.0) {
       this.active = false;
-      // Ensure we end exactly at original position
-      this.camera.position.copy(this._originalPos);
+      // Remove any remaining offset smoothly by letting the caller
+      // (Game._updateCamera) decay it.  We zero it immediately
+      // because the camera position already includes it.
+      this.camera.position.sub(this._currentOffset);
+      this._currentOffset.set(0, 0, 0);
       return;
     }
 
@@ -70,31 +79,24 @@ export class ScreenShake {
     const offY = Math.cos(t * 1.73) * Math.sin(t * 3.17) * amp * 0.6;
     const offZ = Math.sin(t * 2.31) * Math.cos(t * 1.47) * amp;
 
-    this._shakeOffset
-      .copy(this._perpA).multiplyScalar(offX)
-      .addScaledVector(this._perpB, offY);
-    this._shakeOffset.y += offZ;
+    this._tmpOffset.copy(this._perpA).multiplyScalar(offX);
+    this._tmpOffset.addScaledVector(this._perpB, offY);
+    this._tmpOffset.y += offZ;
 
-    this.camera.position.copy(this._originalPos).add(this._shakeOffset);
+    // Apply delta: remove old offset, add new offset
+    this.camera.position.sub(this._currentOffset).add(this._tmpOffset);
+    this._currentOffset.copy(this._tmpOffset);
   }
 
   /**
    * Call when the camera is intentionally moved (e.g. mode switch)
-   * so the shake doesn't snap it back to an old position.
+   * so the shake doesn't fight the new placement.
    */
   cancel() {
     if (this.active) {
       this.active = false;
-    }
-  }
-
-  /**
-   * Call when the camera position is externally updated to keep
-   * the shake reference point in sync.
-   */
-  syncOriginal() {
-    if (!this.active) {
-      this._originalPos.copy(this.camera.position);
+      this.camera.position.sub(this._currentOffset);
+      this._currentOffset.set(0, 0, 0);
     }
   }
 }

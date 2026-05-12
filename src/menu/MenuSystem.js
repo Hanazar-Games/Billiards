@@ -216,6 +216,9 @@ export class MenuSystem {
     const uiLayer = document.getElementById('ui-layer');
     if (uiLayer) uiLayer.style.display = 'flex';
 
+    // Stop menu BGM before entering challenge
+    if (this.audio) this.audio.stopBGM();
+
     // Create challenge manager
     this.activeChallenge = challenge;
     this.challengeManager = new ChallengeManager(challenge.id);
@@ -397,6 +400,7 @@ export class MenuSystem {
     }
 
     // Show main menu
+    if (this.challengeResult) this.challengeResult.hide();
     this.mainMenu.show();
     this.state = 'MENU';
 
@@ -540,6 +544,7 @@ export class MenuSystem {
     }
 
     // Show main menu
+    if (this.challengeResult) this.challengeResult.hide();
     this.mainMenu.show();
     this.state = 'MENU';
     this._startMenuLoop();
@@ -548,7 +553,14 @@ export class MenuSystem {
   _quit() {
     // Stop all loops and timeouts
     this.state = 'DESTROYED';
-    if (this.loop) this.loop.stop();
+    if (this._menuLoopId !== null) {
+      cancelAnimationFrame(this._menuLoopId);
+      this._menuLoopId = null;
+    }
+    if (this.loop) {
+      this.loop.stop();
+      this.loop = null;
+    }
     if (this._replayCompleteTimeout) {
       clearTimeout(this._replayCompleteTimeout);
       this._replayCompleteTimeout = null;

@@ -40,6 +40,7 @@ export class Game {
     this._ownsAudio = !audioManager;
     this.aiPlayer = null;
     this.trajectory = null;
+    this.powerLabel = null;
     this.statsTracker = new StatsTracker();
     this.statsPanel = new StatsPanel();
     this.particles = new ParticleSystem(this.scene);
@@ -457,7 +458,11 @@ export class Game {
   updateBallInHandPreview() {
     const cueBall = this.ballsManager.getCueBall();
     const point = this.getMouseTablePoint(BALL.radius);
-    if (!cueBall || !point) return;
+    if (!cueBall) return;
+    if (!point) {
+      this.ballInHandValid = false;
+      return;
+    }
 
     const halfW = TABLE.width / 2 - BALL.radius * 1.1;
     const halfD = TABLE.depth / 2 - BALL.radius * 1.1;
@@ -484,6 +489,7 @@ export class Game {
     }
     this.ballInHand = false;
     this.ballInHandValid = false;
+    this.ballInHandBehindLine = false;
     this.cue.show();
     this.setAimTrajectoryVisible(true);
     this.updateAimDirection();
@@ -541,9 +547,9 @@ export class Game {
       this.aimDirection,
       force
     );
-    this.shockwaves.spawn(cueBall.mesh.position, force);
-    this.screenShake.trigger(force, this.aimDirection);
-    this.powerLabel.show(force);
+    this.shockwaves?.spawn(cueBall.mesh.position, force);
+    this.screenShake?.trigger(force, this.aimDirection);
+    this.powerLabel?.show(force);
     this.trails.startRecording(cueBall);
     this.recorder.start(this.ballsManager, this.mode, force, this.cueTipOffset);
 
@@ -944,6 +950,7 @@ export class Game {
       ball.material.dispose();
     }
 
+    this._ballCollideListeners.clear();
     this.ballsManager = new BallsManager(this.physics);
     this.ballsManager.createBalls();
     const rackMode = this.mode === '9ball' ? '9ball' : '8ball';
@@ -981,6 +988,7 @@ export class Game {
     this.ballInHandValid = false;
     this.ballInHandBehindLine = false;
     this.cueTipOffset = { x: 0, y: 0 };
+    this._updateCueTipPicker();
     this.power = 0;
     this.charging = false;
     this.dragStart = null;
@@ -988,6 +996,7 @@ export class Game {
     this._isBreakShot = false;
     this.gameStartTime = performance.now();
     this.cameraMode = 'free';
+    this.powerLabel?.dispose();
     this.ui.setPower(0);
     this.ui.setPlayerTurn(1);
     this.ui.setPlayerGroups(null, null);
@@ -1251,6 +1260,7 @@ export class Game {
   }
 
   _resetCameraFree() {
+    this.screenShake?.cancel();
     const cam = this.camera;
     cam.position.set(0, 320, 280);
     cam.lookAt(0, 0, 0);
@@ -1258,10 +1268,10 @@ export class Game {
       this.renderer.controls.target.set(0, 0, 0);
       this.renderer.controls.enabled = true;
     }
-    this.screenShake?.cancel();
   }
 
   _resetCameraTop() {
+    this.screenShake?.cancel();
     const cam = this.camera;
     cam.position.set(0, 450, 0);
     cam.lookAt(0, 0, 0);
@@ -1269,7 +1279,6 @@ export class Game {
       this.renderer.controls.target.set(0, 0, 0);
       this.renderer.controls.enabled = true;
     }
-    this.screenShake?.cancel();
   }
 
   _updateChallengeHUD() {
@@ -1314,8 +1323,14 @@ export class Game {
   _updateCamera() {
     if (this.renderer._shiftCameraControl) return;
 
-    // Screen shake takes over camera position briefly; skip other modes.
-    if (this.screenShake?.active) return;
+    // Screen shake takes over camera position briefly; skip follow/orbit.
+    if (this.screenShake?.active) {
+      // Still disable orbit controls so they don't fight the shake
+      if (this.renderer.controls) {
+        this.renderer.controls.enabled = false;
+      }
+      return;
+    }
 
     if (this.cameraMode === 'follow') {
       // Disable orbit controls so follow mode doesn't fight user input
@@ -1421,6 +1436,11 @@ export class Game {
       this.scene.remove(this.cue.mesh);
       this.cue.dispose();
       this.cue = null;
+    }
+
+    // Cancel active screen shake before nulling
+    if (this.screenShake) {
+      this.screenShake.cancel();
     }
 
     // Remove trajectory

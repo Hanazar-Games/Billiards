@@ -1,8 +1,77 @@
-# 3D Billiards v1.0.0 — Latest Update
+# 3D Billiards v1.1.0 — Latest Update
 
-3D Billiards v1.0.0 is the first full release of the browser-based pool game.
+## What's New in v1.1.0
 
-## What's New in This Update
+### Shot Impact FX System — Feel Every Hit
+
+A brand-new visual feedback layer makes every shot satisfying:
+
+- **Impact Shockwave** — a translucent coloured ring blooms from the cue ball on impact. Gentle taps give a subtle teal ripple; power breaks explode with bold orange-red blasts.
+- **Screen Shake** — the camera rattles perpendicular to the shot line, scaled by power. No more static camera on a hard break.
+- **Power Label** — a large cinematic tier label flashes in the centre of the screen:
+  - 0–22% → **轻推** (soft, teal)
+  - 22–42% → **中力** (medium, green)
+  - 42–62% → **重拳** (hard, orange)
+  - 62–82% → **暴杆** (power, red)
+  - 82–100% → **MAX** (gold)
+- **Pocket Fountain** — when a ball drops, a short spray of coloured particles erupts from the pocket, tinted to match the ball (solids blue, stripes red, 8-ball black, 9-ball gold).
+
+### Audio Lifecycle Overhaul
+
+- **Single shared AudioManager** — MenuSystem and Game now share one instance. Previously each new game created a fresh AudioContext; after ~6 sessions Chrome would silently break all audio. That limit is now impossible to hit.
+- **Smart BGM switching** — menu ambient drone fades out when entering a game/challenge and smoothly resumes on return.
+- **Tab-switch resilience** — switching browser tabs auto-pauses BGM to save battery; returning auto-resumes if sound is enabled.
+- **Browser autoplay policy** — global gesture listeners pre-unlock the AudioContext on first click/key/touch, so the first shot is never silent.
+- **SFX rate-limiting** — collision and cushion sounds now have a 40 ms cooldown, preventing machine-gun distortion during break shots.
+
+### Rule Engine Fixes
+
+- **8-ball group assignment** — no longer assigns a group when the first hit is `null` (complete miss).
+- **8-ball cleared-group check** — now counts balls pocketed on the current shot, fixing the false foul when the 7th group ball and 8-ball drop together.
+- **9-ball foul tracking** — pocketed non-9 balls on a foul are no longer permanently retained; they are correctly spotted.
+- **9-ball break validation** — added WPA 4-ball-to-rail rule. If fewer than 4 balls hit a rail on break (and nothing is pocketed), it's a foul.
+- **NineBallRules.getStatus()** — no longer mutates `this.targetBall` as a side effect.
+
+### Table Geometry Fixes
+
+Fixed 10 overlapping/clipping geometry issues in `Table.js`:
+- Slate edge no longer z-fights with playing surface
+- Rail top inserts, round-overs, and bevels no longer clip into each other
+- Apron trims and corner caps no longer overlap rails
+- Pocket jaws, rings, drop cylinder, and cup no longer intersect cushions or each other
+
+### UI/UX Hardening
+
+- `UI.setMessage()` now uses a monotonic ID so stale timers can never clear newer messages.
+- `UI.destroy()` properly removes all tracked event listeners (AI toggle, difficulty, trajectory, trail, sound).
+- `SettingsScreen` now syncs its checkbox with the actual AudioManager state when opened.
+- Menu navigation consistently hides all overlapping panels (`challengeResult` included).
+- `_startMenuLoop()` deduplication prevents multiple concurrent render loops.
+
+### Game State & Memory
+
+- `resetGame()` now clears: challenge timeout, screen shake, camera mode, game start time, charging state, drag start, turn pocketed IDs, break-shot flag, and the challenge HUD.
+- `dispose()` now: cancels active screen shake, disposes Cue geometries/materials, nulls `aiPlayer`, `recorder`, `challengeManager`, `statsTracker`, `onReturnToMenu`.
+- Pocketed ball bodies are now removed from the physics world instead of being left at y = ‑1000.
+- `confirmBallInHandPlacement()` now correctly clears `ballInHandBehindLine`.
+- `updateBallInHandPreview()` now invalidates placement when the mouse leaves the table.
+
+### Performance
+
+- `updateDragPower()` no longer calls `getBoundingClientRect()` every frame — uses the cached rect.
+- `ScreenShake` no longer allocates a `new THREE.Vector3()` per trigger or per update frame.
+- `ImpactShockwave` uses `mesh.scale` instead of rebuilding RingGeometry every frame.
+
+### Stability
+
+- `GameLoop` now has an error boundary: catches exceptions in `update()`/`render()`, stops the loop after 3 consecutive errors instead of freezing forever.
+
+---
+
+## Previous Releases
+
+<details>
+<summary><strong>v1.0.0</strong> — Initial Release</summary>
 
 ### Intro / Loading Screen
 - Full-screen animated loading screen on startup.
@@ -54,6 +123,9 @@
 - **Cached canvas rect** — eliminated forced reflow from `getBoundingClientRect()` every frame.
 - **Reused temp vectors** — removed per-frame `new THREE.Vector3()` allocation in aim direction update.
 - **Removed redundant controls.enabled toggle** in follow-camera mode.
+</details>
+
+---
 
 Run locally:
 
