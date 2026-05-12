@@ -111,6 +111,15 @@ export class AIPlayer {
       const finalAim = this.applyNoise(chosenShot.aimDirection);
       const finalPower = this.applyPowerNoise(chosenShot.power);
 
+      // Random cue-tip offset (spin) — easier AI uses more chaotic spin
+      const spinAmount = this.difficulty === AI_DIFFICULTY.HARD ? 0.25
+                       : this.difficulty === AI_DIFFICULTY.EASY ? 0.70
+                       : 0.45;
+      const cueTipOffset = {
+        x: (Math.random() * 2 - 1) * spinAmount,
+        y: (Math.random() * 2 - 1) * spinAmount * 0.6,
+      };
+
       // Charge animation delay
       const chargeTime = (finalPower / SHOT.maxPower) * 1200 + 300;
 
@@ -118,6 +127,7 @@ export class AIPlayer {
         aimDirection: finalAim,
         power: finalPower,
         chargeTime,
+        cueTipOffset,
         originalShot: chosenShot,
       };
     } finally {

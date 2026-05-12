@@ -19,27 +19,27 @@ export const BALL = {
   mass: 0.17,                // kg
   segments: 32,              // sphere geometry detail
   restitution: 0.85,
-  collisionRestitution: 0.92,
-  collisionTangentialFriction: 0.026,
+  collisionRestitution: 0.94,
+  collisionTangentialFriction: 0.10,
   friction: 0.15,
-  damping: 0.08,             // low high-speed drag; cloth rolling resistance handles slowdown
-  angularDamping: 0.2,
-  sleepSpeedLimit: 0.18,
-  sleepAngularSpeedLimit: 0.75,
+  damping: 0.025,            // low high-speed drag; cloth rolling resistance handles slowdown
+  angularDamping: 0.028,
+  sleepSpeedLimit: 0.35,
+  sleepAngularSpeedLimit: 0.28,
   sleepTimeLimit: 0.16,
-  rollingResistance: 2.7,     // near-constant cloth deceleration in cm/s^2
-  slowBrakeSpeed: 24,         // below this, braking ramps up as speed approaches zero
-  slowBrakeStrength: 3.1,
-  stopSpeedLimit: 0.24,
+  rollingResistance: 22,      // cloth deceleration in cm/s^2 (≈0.22 m/s^2)
+  slowBrakeSpeed: 18,         // below this, braking ramps up as speed approaches zero
+  slowBrakeStrength: 1.2,
+  stopSpeedLimit: 0.30,
   maxSpeed: 520,
-  boundaryRestitution: 0.48,
+  boundaryRestitution: 0.74,
   overlapIterations: 4,
   sweepContactScale: 0.995,
   spinAngularVelocity: 8.5,
-  rollCoupling: 0.18,
+  rollCoupling: 0.22,
   cueSquirt: 0.0035,
-  collisionThrow: 0.00065,
-  sideSpinDecay: 2.35,
+  collisionThrow: 0.00055,
+  sideSpinDecay: 0.45,
 };
 
 // Pocket radius = ~1.5x ball radius (standard pool)

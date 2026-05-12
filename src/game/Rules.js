@@ -27,6 +27,8 @@ export class Rules {
     this.scratch = false;
     this.firstBallHit = null;
     this.railContactAfterFirstHit = false;
+    // Remember whether the table was open BEFORE this shot
+    this.wasOpenTable = (this.player1Group === null);
   }
 
   // Track first ball hit by cue ball (for foul detection)
@@ -93,61 +95,97 @@ export class Rules {
     // Break shot special rules
     if (this.breakShot) {
       this.breakShot = false;
+
+      // Break foul: scratch or no ball hit
       if (this.foul || this.firstBallHit === null) {
         return {
           nextPlayer: opponent,
           foul: true,
           scratch: this.scratch,
           ballInHand: true,
+          ballInHandBehindLine: true,
           message: cueBallPocketed
-            ? 'Break scratch! Opponent gets ball-in-hand.'
-            : 'Break foul: no ball hit. Opponent gets ball-in-hand.',
+            ? 'Break scratch! Opponent gets ball-in-hand behind the head string.'
+            : 'Break foul: no ball hit. Opponent gets ball-in-hand behind the head string.',
+          respotEightBall: pocketedEight,
         };
       }
-      // If nothing pocketed on break and no foul, next player continues
-      if (pocketedIds.length === 0 && !cueBallPocketed) {
-        return { nextPlayer: opponent, foul: false, scratch: false, message: 'Break: no balls pocketed' };
-      }
-      // If something pocketed on break, assign groups
-      if (pocketedIds.length > 0 && !cueBallPocketed) {
-        const solids = pocketedIds.filter(id => getBallType(id) === BALL_TYPE.SOLID);
-        const stripes = pocketedIds.filter(id => getBallType(id) === BALL_TYPE.STRIPE);
-        if (solids.length > stripes.length) {
-          this.assignGroup(this.currentPlayer, 'solid');
-          this.assignGroup(opponent, 'stripe');
-          currentGroup = 'solid';
-        } else if (stripes.length > solids.length) {
-          this.assignGroup(this.currentPlayer, 'stripe');
-          this.assignGroup(opponent, 'solid');
-          currentGroup = 'stripe';
-        } else {
-          // Tie or only 8-ball — assign based on first pocketed
-          const firstType = getBallType(pocketedIds[0]);
-          if (firstType === BALL_TYPE.SOLID) {
-            this.assignGroup(this.currentPlayer, 'solid');
-            this.assignGroup(opponent, 'stripe');
-            currentGroup = 'solid';
-          } else if (firstType === BALL_TYPE.STRIPE) {
-            this.assignGroup(this.currentPlayer, 'stripe');
-            this.assignGroup(opponent, 'solid');
-            currentGroup = 'stripe';
-          }
-        }
 
-        if (currentGroup === 'solid') {
-          pocketedOwn = solids.length;
-          pocketedOpponent = stripes.length;
-        } else if (currentGroup === 'stripe') {
-          pocketedOwn = stripes.length;
-          pocketedOpponent = solids.length;
+      // 8-ball pocketed on break is SPOTTED, not a loss (WPA rule)
+      if (pocketedEight) {
+        return {
+          nextPlayer: this.currentPlayer,
+          foul: false,
+          scratch: false,
+          message: '8-ball on break — respotted. Table is still open.',
+          respotEightBall: true,
+        };
+      }
+
+      // Nothing pocketed on break: opponent's turn, table still OPEN
+      if (pocketedIds.length === 0) {
+        return {
+          nextPlayer: opponent,
+          foul: false,
+          scratch: false,
+          message: 'Break: no balls pocketed. Table is open.',
+        };
+      }
+
+      // Balls pocketed on break — per WPA the table REMAINS OPEN.
+      // Groups are NOT assigned until a subsequent legal shot.
+      return {
+        nextPlayer: this.currentPlayer,
+        foul: false,
+        scratch: false,
+        message: 'Break: legal. Table is still open.',
+      };
+    }
+
+    // All foul checks (must come BEFORE 8-ball win/loss check)
+    if (!cueBallPocketed && this.firstBallHit === null) {
+      this.foul = true;
+    }
+    if (!cueBallPocketed && this.firstBallHit !== null && pocketedIds.length === 0 && !this.railContactAfterFirstHit) {
+      this.foul = true;
+    }
+
+    // 8-ball first-hit foul: ALWAYS illegal to hit the 8-ball first
+    // unless you have already cleared your group.
+    if (!cueBallPocketed) {
+      const firstHitType = getBallType(this.firstBallHit);
+      const currentList = this.currentPlayer === 1 ? this.player1Pocketed : this.player2Pocketed;
+      const hasClearedGroup = currentList.length >= 7;
+      if (firstHitType === BALL_TYPE.EIGHT && !hasClearedGroup) {
+        this.foul = true;
+      }
+    }
+
+    // Group-specific first-hit foul: only enforce when the table was ALREADY CLOSED
+    // before this shot. On an open table, first contact does not determine group
+    // (except for the 8-ball check above).
+    if (!cueBallPocketed && !this.wasOpenTable) {
+      const firstHitType = getBallType(this.firstBallHit);
+      if (currentGroup) {
+        const expectedType = currentGroup === 'solid' ? BALL_TYPE.SOLID : BALL_TYPE.STRIPE;
+        if (firstHitType !== null && firstHitType !== expectedType && firstHitType !== BALL_TYPE.EIGHT) {
+          // Did not hit own group first
+          this.foul = true;
         }
       }
     }
 
-    // Check 8-ball pocketed
+    // Check 8-ball pocketed — AFTER all foul checks so this.foul is fully resolved
     if (pocketedEight) {
       const currentList = this.currentPlayer === 1 ? this.player1Pocketed : this.player2Pocketed;
-      const hasAll = currentList.length >= 7;
+      // Count own-group balls pocketed THIS shot too, to handle
+      // the case where the 7th group ball and 8-ball drop together.
+      const justPocketedOwn = pocketedIds.filter(id => {
+        const t = getBallType(id);
+        return (currentGroup === 'solid' && t === BALL_TYPE.SOLID) ||
+               (currentGroup === 'stripe' && t === BALL_TYPE.STRIPE);
+      }).length;
+      const hasAll = currentList.length + justPocketedOwn >= 7;
 
       if (!hasAll || this.foul) {
         // Pocketed 8-ball too early or on foul = lose
@@ -159,30 +197,6 @@ export class Rules {
         this.gameOver = true;
         this.winner = this.currentPlayer;
         return { gameOver: true, winner: this.currentPlayer, message: 'You win!' };
-      }
-    }
-
-    if (!cueBallPocketed && this.firstBallHit === null) {
-      this.foul = true;
-    }
-    if (!cueBallPocketed && this.firstBallHit !== null && pocketedIds.length === 0 && !this.railContactAfterFirstHit) {
-      this.foul = true;
-    }
-
-    // Foul checks after groups are assigned
-    if (!cueBallPocketed) {
-      const firstHitType = getBallType(this.firstBallHit);
-      const currentList = this.currentPlayer === 1 ? this.player1Pocketed : this.player2Pocketed;
-      const hasClearedGroup = currentList.length >= 7;
-
-      if (firstHitType === BALL_TYPE.EIGHT && !hasClearedGroup) {
-        this.foul = true;
-      } else if (currentGroup) {
-        const expectedType = currentGroup === 'solid' ? BALL_TYPE.SOLID : BALL_TYPE.STRIPE;
-        if (firstHitType !== null && firstHitType !== expectedType && firstHitType !== BALL_TYPE.EIGHT) {
-          // Did not hit own group first
-          this.foul = true;
-        }
       }
     }
 

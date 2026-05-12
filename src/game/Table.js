@@ -15,6 +15,7 @@ export class Table {
     this.createRailBevels();
     this.createApron();
     this.createPocketDetails();
+    this.createPocketNets();
     this.createPocketJaws();
     this.createTournamentCastings();
     this.createApronPanelDetails();
@@ -75,59 +76,78 @@ export class Table {
       edge.position.set(x, y, z);
       this.meshGroup.add(edge);
     }
+
+    // Slate bed edge — the exposed grey stone under the cloth.
+    // Real pool tables show a thin band of slate around the perimeter.
+    const slateMat = new THREE.MeshStandardMaterial({
+      color: 0x6e7068,
+      roughness: 0.6,
+      metalness: 0.02,
+    });
+    const slateH = 2.2;
+    const slateOverhang = 1.5;
+    const slateParts = [
+      [0, -slateH / 2, -TABLE.depth / 2 - slateOverhang / 2, TABLE.width + 4, slateH, slateOverhang],
+      [0, -slateH / 2, TABLE.depth / 2 + slateOverhang / 2, TABLE.width + 4, slateH, slateOverhang],
+      [-TABLE.width / 2 - slateOverhang / 2, -slateH / 2, 0, slateOverhang, slateH, TABLE.depth + 4],
+      [TABLE.width / 2 + slateOverhang / 2, -slateH / 2, 0, slateOverhang, slateH, TABLE.depth + 4],
+    ];
+    for (const [x, y, z, w, h, d] of slateParts) {
+      const slate = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), slateMat);
+      slate.position.set(x, y, z);
+      slate.receiveShadow = true;
+      this.meshGroup.add(slate);
+    }
   }
 
   createCushions() {
     const halfW = TABLE.width / 2;
     const halfD = TABLE.depth / 2;
     const cw = TABLE.cushionWidth;
-    // Cushion vertical center aligned with ball center
     const cy = BALL.radius;
-    const ch = BALL.radius; // half-height = ball radius => total height = 2*radius
+    const ch = BALL.radius;
 
     const cornerGap = POCKET.radius * 2.25;
     const sideGap = POCKET.radius * 2.65;
 
-    // Short rails: one segment each, with only corner pocket gaps.
     const shortRailLen = TABLE.width - cornerGap * 2;
     this.addCushion(
       new THREE.BoxGeometry(shortRailLen, ch * 2, cw),
       new CANNON.Box(new CANNON.Vec3(shortRailLen / 2, ch, cw / 2)),
-      0, cy, -halfD + cw / 2
+      0, cy, -halfD + cw / 2, 0, 1
     );
     this.addCushion(
       new THREE.BoxGeometry(shortRailLen, ch * 2, cw),
       new CANNON.Box(new CANNON.Vec3(shortRailLen / 2, ch, cw / 2)),
-      0, cy, halfD - cw / 2
+      0, cy, halfD - cw / 2, 0, -1
     );
 
-    // Long rails: split around the side pockets and leave corner gaps.
     const longRailSegLen = (TABLE.depth - sideGap - cornerGap * 2) / 2;
     const zOffset = sideGap / 2 + longRailSegLen / 2;
 
     this.addCushion(
       new THREE.BoxGeometry(cw, ch * 2, longRailSegLen),
       new CANNON.Box(new CANNON.Vec3(cw / 2, ch, longRailSegLen / 2)),
-      -halfW + cw / 2, cy, -zOffset
+      -halfW + cw / 2, cy, -zOffset, 1, 0
     );
     this.addCushion(
       new THREE.BoxGeometry(cw, ch * 2, longRailSegLen),
       new CANNON.Box(new CANNON.Vec3(cw / 2, ch, longRailSegLen / 2)),
-      -halfW + cw / 2, cy, zOffset
+      -halfW + cw / 2, cy, zOffset, 1, 0
     );
     this.addCushion(
       new THREE.BoxGeometry(cw, ch * 2, longRailSegLen),
       new CANNON.Box(new CANNON.Vec3(cw / 2, ch, longRailSegLen / 2)),
-      halfW - cw / 2, cy, -zOffset
+      halfW - cw / 2, cy, -zOffset, -1, 0
     );
     this.addCushion(
       new THREE.BoxGeometry(cw, ch * 2, longRailSegLen),
       new CANNON.Box(new CANNON.Vec3(cw / 2, ch, longRailSegLen / 2)),
-      halfW - cw / 2, cy, zOffset
+      halfW - cw / 2, cy, zOffset, -1, 0
     );
   }
 
-  addCushion(geo, shape, x, y, z) {
+  addCushion(geo, shape, x, y, z, bevelNx, bevelNz) {
     const mat = new THREE.MeshStandardMaterial({
       color: TABLE.cushionColor,
       roughness: 0.78,
@@ -139,6 +159,12 @@ export class Table {
     mesh.receiveShadow = true;
     this.meshGroup.add(mesh);
 
+    // Sloped inner face — the angled surface that faces the playing area.
+    // Real cushions are triangular in cross-section, not rectangular boxes.
+    if (bevelNx !== 0 || bevelNz !== 0) {
+      this._addCushionBevel(x, y, z, geo, bevelNx, bevelNz);
+    }
+
     const body = new CANNON.Body({
       mass: 0,
       material: this.physics.cushionMaterial,
@@ -146,6 +172,58 @@ export class Table {
     body.addShape(shape);
     body.position.set(x, y, z);
     this.bodies.push(body);
+  }
+
+  _addCushionBevel(cx, cy, cz, geo, nx, nz) {
+    const h = BALL.radius * 2;
+    const inset = TABLE.cushionWidth / 2;
+    const overhang = 3.2;
+
+    let width, len;
+    if (Math.abs(nx) > 0.5) {
+      // Long rail — geometry runs along Z
+      len = geo.parameters.depth;
+      width = len;
+    } else {
+      // Short rail — geometry runs along X
+      len = geo.parameters.width;
+      width = len;
+    }
+
+    // 4 corners of the sloped quad
+    const v = [];
+    if (Math.abs(nx) > 0.5) {
+      // Long rail: bevel extends along X (nx direction)
+      v.push(cx + nx * inset, h, cz - width / 2);
+      v.push(cx + nx * inset, h, cz + width / 2);
+      v.push(cx + nx * (inset + overhang), 0, cz - width / 2);
+      v.push(cx + nx * (inset + overhang), 0, cz + width / 2);
+    } else {
+      // Short rail: bevel extends along Z (nz direction)
+      v.push(cx - width / 2, h, cz + nz * inset);
+      v.push(cx + width / 2, h, cz + nz * inset);
+      v.push(cx - width / 2, 0, cz + nz * (inset + overhang));
+      v.push(cx + width / 2, 0, cz + nz * (inset + overhang));
+    }
+
+    const bevelGeo = new THREE.BufferGeometry();
+    const positions = new Float32Array([
+      v[0], v[1], v[2],  v[3], v[4], v[5],  v[6], v[7], v[8],
+      v[3], v[4], v[5],  v[9], v[10], v[11],  v[6], v[7], v[8],
+    ]);
+    bevelGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    bevelGeo.computeVertexNormals();
+
+    const bevelMat = new THREE.MeshStandardMaterial({
+      color: 0x0b5c32,
+      roughness: 0.85,
+      metalness: 0.0,
+      side: THREE.DoubleSide,
+    });
+    const bevelMesh = new THREE.Mesh(bevelGeo, bevelMat);
+    bevelMesh.castShadow = true;
+    bevelMesh.receiveShadow = true;
+    this.meshGroup.add(bevelMesh);
   }
 
   createPockets() {
@@ -208,6 +286,26 @@ export class Table {
     this.meshGroup.add(rail2);
     this._addRailTopInsert(0, railH + 0.18, halfD + railW / 2, shortRailLen - 12, 2.0, railW * 0.62, topInsertMat);
 
+    // Rail top round-over — a thin tube along the outer top edge of each rail
+    const roundMat = new THREE.MeshStandardMaterial({
+      color: 0x2e231d,
+      roughness: 0.3,
+      metalness: 0.22,
+    });
+    const roundTubeR = 1.1;
+    const roundShort = new THREE.Mesh(
+      new THREE.CylinderGeometry(roundTubeR, roundTubeR, shortRailLen, 14, 1, false, 0, Math.PI),
+      roundMat
+    );
+    roundShort.rotation.z = Math.PI / 2;
+    roundShort.position.set(0, railH + roundTubeR * 0.35, -halfD - railW / 2 + roundTubeR);
+    roundShort.castShadow = true;
+    this.meshGroup.add(roundShort);
+
+    const roundShort2 = roundShort.clone();
+    roundShort2.position.set(0, railH + roundTubeR * 0.35, halfD + railW / 2 - roundTubeR);
+    this.meshGroup.add(roundShort2);
+
     // Side rails are split around the middle pockets so balls do not appear
     // to pass through wood when they fall into a side pocket.
     const sideGap = POCKET.radius * 3.05;
@@ -221,6 +319,21 @@ export class Table {
         rail.castShadow = true;
         this.meshGroup.add(rail);
         this._addRailTopInsert(x, railH + 0.18, z, railW * 0.62, 2.0, sideRailLen - 10, topInsertMat);
+      }
+    }
+
+    // Side rail top round-overs
+    for (const x of sideX) {
+      for (const z of [-sideZ, sideZ]) {
+        const roundSide = new THREE.Mesh(
+          new THREE.CylinderGeometry(roundTubeR, roundTubeR, sideRailLen, 14, 1, false, 0, Math.PI),
+          roundMat
+        );
+        roundSide.rotation.x = Math.PI / 2;
+        const nx = x < 0 ? 1 : -1;
+        roundSide.position.set(x + nx * roundTubeR, railH + roundTubeR * 0.35, z);
+        roundSide.castShadow = true;
+        this.meshGroup.add(roundSide);
       }
     }
   }
@@ -306,6 +419,32 @@ export class Table {
       trim.castShadow = true;
       this.meshGroup.add(trim);
     }
+
+    // Apron corner decorative brackets — cast-metal L-shaped plates
+    const bracketMat = new THREE.MeshStandardMaterial({
+      color: 0x8a8078,
+      roughness: 0.22,
+      metalness: 0.72,
+    });
+    const bracketPositions = [
+      [-halfW - 5, -2, -halfD - 5],
+      [halfW + 5, -2, -halfD - 5],
+      [-halfW - 5, -2, halfD + 5],
+      [halfW + 5, -2, halfD + 5],
+    ];
+    for (const [x, y, z] of bracketPositions) {
+      const bracket = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 5), bracketMat);
+      bracket.position.set(x, y, z);
+      bracket.castShadow = true;
+      this.meshGroup.add(bracket);
+
+      const bolt = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.6, 0.6, 0.8, 12),
+        bracketMat
+      );
+      bolt.position.set(x, y + 1.9, z);
+      this.meshGroup.add(bolt);
+    }
   }
 
   createPocketDetails() {
@@ -324,6 +463,11 @@ export class Table {
       roughness: 0.9,
       metalness: 0.02,
     });
+    const leatherMat = new THREE.MeshStandardMaterial({
+      color: 0x3d2314,
+      roughness: 0.62,
+      metalness: 0.04,
+    });
 
     for (const pocket of this.pocketPositions) {
       const ring = new THREE.Mesh(
@@ -334,6 +478,16 @@ export class Table {
       ring.rotation.x = Math.PI / 2;
       ring.castShadow = true;
       this.meshGroup.add(ring);
+
+      // Leather pocket facing — the wide leather ring around the mouth
+      const facing = new THREE.Mesh(
+        new THREE.TorusGeometry(POCKET.radius * 1.32, 2.4, 10, 48),
+        leatherMat
+      );
+      facing.position.set(pocket.x, 0.35, pocket.z);
+      facing.rotation.x = Math.PI / 2;
+      facing.castShadow = true;
+      this.meshGroup.add(facing);
 
       const drop = new THREE.Mesh(
         new THREE.CylinderGeometry(POCKET.radius * 0.96, POCKET.radius * 0.7, 18, 36),
@@ -350,6 +504,38 @@ export class Table {
       cup.position.set(pocket.x, -18, pocket.z);
       cup.receiveShadow = true;
       this.meshGroup.add(cup);
+    }
+  }
+
+  createPocketNets() {
+    // Leather pocket nets — a series of shrinking rings below each pocket.
+    const netMat = new THREE.MeshStandardMaterial({
+      color: 0x1a1208,
+      roughness: 0.72,
+      metalness: 0.08,
+    });
+    const chainMat = new THREE.MeshStandardMaterial({
+      color: 0x3a2e1e,
+      roughness: 0.45,
+      metalness: 0.35,
+    });
+
+    for (const pocket of this.pocketPositions) {
+      const count = 5;
+      for (let i = 0; i < count; i++) {
+        const t = (i + 1) / (count + 1);
+        const radius = POCKET.radius * (0.85 - t * 0.45);
+        const y = -2 - t * 14;
+        const tube = 0.7 - t * 0.35;
+
+        const link = new THREE.Mesh(
+          new THREE.TorusGeometry(radius, Math.max(0.25, tube), 10, 32),
+          i % 2 === 0 ? netMat : chainMat
+        );
+        link.position.set(pocket.x, y, pocket.z);
+        link.rotation.x = Math.PI / 2 + (Math.random() - 0.5) * 0.06;
+        this.meshGroup.add(link);
+      }
     }
   }
 

@@ -84,30 +84,59 @@ export class Ball {
     this.body.wakeUp();
   }
 
-  applyImpulse(x, y, z, spinX = 0, spinZ = 0) {
+  applyImpulse(x, y, z, cueTipOffsetX = 0, cueTipOffsetY = 0) {
     this.body.wakeUp();
     const shotSpeed = Math.hypot(x, z);
     const dirX = shotSpeed > 0.001 ? x / shotSpeed : 0;
     const dirZ = shotSpeed > 0.001 ? z / shotSpeed : 1;
 
+    // Apply linear impulse at ball center
     this.body.applyImpulse(new CANNON.Vec3(x, y, z), this.body.position);
-    if (Math.abs(spinX) > 0.001) {
-      if (shotSpeed > 0.001) {
-        const nx = -dirZ;
-        const nz = dirX;
-        const squirt = shotSpeed * BALL.cueSquirt * spinX;
-        this.body.velocity.x += nx * squirt;
-        this.body.velocity.z += nz * squirt;
+
+    // Compute spin from off-center cue tip hit using physical torque.
+    // cueTipOffsetX: horizontal offset [-1,1]  (left/right english)
+    // cueTipOffsetY: vertical offset   [-1,1]  (top/bottom = follow/draw)
+    const e = cueTipOffsetX;
+    const h = cueTipOffsetY;
+
+    if ((Math.abs(e) > 0.001 || Math.abs(h) > 0.001) && shotSpeed > 0.001) {
+      const R = BALL.radius;
+
+      // Right-hand perpendicular direction in XZ plane
+      const nX = dirZ;
+      const nZ = -dirX;
+
+      // Hit point relative to ball centre (world coords)
+      //  - horizontal offset is perpendicular to aim direction
+      //  - vertical offset is world-Y
+      const hitX = e * R * nX;
+      const hitY = h * R;
+      const hitZ = e * R * nZ;
+
+      // Angular impulse = r × J  (J is the linear impulse vector)
+      const Jx = x;
+      const Jz = z;
+      const angImpulseX = hitY * Jz - hitZ * 0;
+      const angImpulseY = hitZ * Jx - hitX * Jz;
+      const angImpulseZ = hitX * 0 - hitY * Jx;
+
+      // Solid sphere: I = (2/5) * m * R²
+      const invI = 5 / (2 * BALL.mass * R * R);
+
+      this.body.angularVelocity.x += angImpulseX * invI;
+      this.body.angularVelocity.y += angImpulseY * invI;
+      this.body.angularVelocity.z += angImpulseZ * invI;
+
+      // Squirt: horizontal offset deflects cue ball slightly sideways.
+      // Right english causes squirt to the LEFT (opposite the offset).
+      if (Math.abs(e) > 0.001) {
+        const squirt = shotSpeed * BALL.cueSquirt * e;
+        this.body.velocity.x -= nX * squirt;
+        this.body.velocity.z -= nZ * squirt;
       }
     }
-    this.limitSpeed();
 
-    // spinX = left/right english around the vertical axis.
-    // spinZ = follow/draw around the local side axis.
-    const maxSpin = BALL.spinAngularVelocity;
-    this.body.angularVelocity.y += spinX * maxSpin;
-    this.body.angularVelocity.x += spinZ * maxSpin * dirZ;
-    this.body.angularVelocity.z -= spinZ * maxSpin * dirX;
+    this.limitSpeed();
   }
 
   limitSpeed() {
@@ -125,12 +154,12 @@ export class Ball {
   applyLowSpeedBrake(dt) {
     if (this.pocketed) return;
 
-    this.limitSpeed();
-
     const v = this.body.velocity;
     const av = this.body.angularVelocity;
     let speed = Math.sqrt(v.x * v.x + v.z * v.z);
+    let angularSpeed = av.length();
 
+    // Rolling resistance: near-constant deceleration from cloth
     if (speed > 0) {
       const rollingDrop = Math.min(speed, BALL.rollingResistance * dt);
       const rollingFactor = (speed - rollingDrop) / speed;
@@ -139,6 +168,7 @@ export class Ball {
       speed = Math.sqrt(v.x * v.x + v.z * v.z);
     }
 
+    // Enhanced braking as speed approaches zero (avoids micro-jitter)
     if (speed > 0 && speed < BALL.slowBrakeSpeed) {
       const t = 1 - speed / BALL.slowBrakeSpeed;
       const brake = BALL.slowBrakeStrength * t * t;
@@ -149,9 +179,22 @@ export class Ball {
       av.y *= factor;
       av.z *= factor;
       speed = Math.sqrt(v.x * v.x + v.z * v.z);
+      angularSpeed = av.length();
     }
 
-    const angularSpeed = av.length();
+    // Cloth-friction spin decay: when the ball is sliding or nearly stopped,
+    // cloth friction dissipates spin energy much faster than CANNON's default
+    // angular damping.  This prevents balls from spinning in place forever.
+    if (angularSpeed > 0) {
+      const isNearlyStopped = speed < BALL.stopSpeedLimit * 2.5;
+      const spinFriction = isNearlyStopped ? 5.0 : 1.0;
+      const spinFactor = Math.max(0, 1 - spinFriction * dt);
+      av.x *= spinFactor;
+      av.y *= spinFactor;
+      av.z *= spinFactor;
+      angularSpeed = av.length();
+    }
+
     if (speed < BALL.stopSpeedLimit && angularSpeed < BALL.sleepAngularSpeedLimit) {
       v.set(0, 0, 0);
       av.set(0, 0, 0);
@@ -166,6 +209,8 @@ export class Ball {
     const av = this.body.angularVelocity;
     const speed = Math.sqrt(v.x * v.x + v.z * v.z);
 
+    // Roll coupling: drive translational velocity toward pure-rolling velocity
+    // For a sphere rolling without slipping: v = (-ω_z·r, 0, ω_x·r)
     const rollVx = -av.z * BALL.radius;
     const rollVz = av.x * BALL.radius;
     const rollSpeed = Math.sqrt(rollVx * rollVx + rollVz * rollVz);
@@ -175,15 +220,24 @@ export class Ball {
       const slipX = rollVx - v.x;
       const slipZ = rollVz - v.z;
 
-      v.x += slipX * coupling;
-      v.z += slipZ * coupling;
-      av.z += (slipX / BALL.radius) * coupling * 0.45;
-      av.x -= (slipZ / BALL.radius) * coupling * 0.45;
+      // When the ball is nearly stopped, do NOT let roll coupling re-accelerate
+      // it from a dead stop.  Angular velocity still decays naturally toward zero.
+      const isNearlyStopped = speed < BALL.stopSpeedLimit;
+      if (!isNearlyStopped) {
+        v.x += slipX * coupling;
+        v.z += slipZ * coupling;
+      }
+
+      // Update angular velocity to conserve angular momentum.
+      // For a solid sphere the correct coupling is Δω = (5/2)·Δv / R,
+      // so we apply the same slip correction scaled by 2.5.
+      av.z += (slipX / BALL.radius) * coupling * 2.5;
+      av.x -= (slipZ / BALL.radius) * coupling * 2.5;
     }
 
+    // Gradual side-spin (english) decay while rolling
     const sideDecay = Math.exp(-BALL.sideSpinDecay * dt);
     av.y *= sideDecay;
-    this.limitSpeed();
   }
 
   sync() {

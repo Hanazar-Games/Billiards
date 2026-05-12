@@ -4,6 +4,7 @@ export class UI {
     this.player2Badge = document.getElementById('player2');
     this.message = document.getElementById('message');
     this.powerFill = document.getElementById('power-bar-fill');
+    this._messageTimer = null;
 
     this.player1Group = document.createElement('div');
     this.player1Group.id = 'player1-group';
@@ -134,9 +135,14 @@ export class UI {
   setMessage(text, duration = 0) {
     if (this.message) {
       this.message.textContent = text;
+      if (this._messageTimer) {
+        clearTimeout(this._messageTimer);
+        this._messageTimer = null;
+      }
       if (duration > 0) {
-        setTimeout(() => {
-          if (this.message.textContent === text) {
+        this._messageTimer = setTimeout(() => {
+          this._messageTimer = null;
+          if (this.message && this.message.textContent === text) {
             this.message.textContent = '';
           }
         }, duration);
@@ -178,6 +184,10 @@ export class UI {
   }
 
   destroy() {
+    if (this._messageTimer) {
+      clearTimeout(this._messageTimer);
+      this._messageTimer = null;
+    }
     if (this.player1Group && this.player1Group.parentNode) {
       this.player1Group.parentNode.removeChild(this.player1Group);
     }

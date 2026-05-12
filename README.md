@@ -11,7 +11,8 @@ A browser-based 3D 8-ball pool game built with **Three.js** and **cannon-es** ph
 | **Mouse Move** | Aim cue stick |
 | **Left Click & Hold** | Charge shot power |
 | **Left Click Release** | Shoot |
-| **Right Click + Drag** | Orbit camera |
+| **Shift + Left Click Drag** | Pan camera |
+| **Shift + Right Click Drag** | Orbit camera |
 | **Mouse Wheel** | Zoom in/out |
 
 ### Rules

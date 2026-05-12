@@ -518,14 +518,30 @@ export class MenuSystem {
   }
 
   _quit() {
-    // Clean up
+    // Stop all loops and timeouts
+    this.state = 'DESTROYED';
     if (this.loop) this.loop.stop();
+    if (this._replayCompleteTimeout) {
+      clearTimeout(this._replayCompleteTimeout);
+      this._replayCompleteTimeout = null;
+    }
+
+    // Clean up game and replay
     if (this.game) this.game.dispose();
     if (this.replayEngine) this.replayEngine.stop();
     if (this.replayPanel) this.replayPanel.destroy();
     if (this.challengePanel) this.challengePanel.destroy();
     if (this.challengeResult) this.challengeResult.destroy();
+
+    // Clean up shared core
     this.renderer.dispose();
+    this.physics?.world?.bodies?.forEach((b) => this.physics.world.removeBody(b));
+
+    // Clean up audio
+    if (this.audio) {
+      this.audio.stopBGM();
+    }
+
     this.mainMenu?.destroy();
     this.settingsScreen?.destroy();
   }

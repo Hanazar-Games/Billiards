@@ -54,8 +54,8 @@ export class Game {
     this.ballInHandValid = false;
     this.aiEnabled = false;
 
-    // English spin state: [-1, 1] for X (left/right) and Z (top/back)
-    this.spin = { x: 0, z: 0 };
+    // Cue tip offset for english/spin: [-1, 1] for X (left/right) and Y (top/bottom)
+    this.cueTipOffset = { x: 0, y: 0 };
 
     // Camera mode: 'free' | 'top' | 'follow'
     this.cameraMode = 'free';
@@ -70,6 +70,11 @@ export class Game {
 
     this.turnPocketedIds = [];
     this._isBreakShot = false;
+
+    // Listener refs for clean disposal
+    this._ballCollideListeners = new Map(); // ballId -> listener fn
+    this._cueTipBallWrap = null;
+    this._cueTipListeners = [];
   }
 
   async init(modeConfig = {}) {
@@ -151,7 +156,7 @@ export class Game {
     this.achievementPanel = new AchievementPanel(this.achievements);
 
     // Spin indicator UI
-    this._addSpinIndicator();
+    this._addCueTipPicker();
 
     // Keyboard controls for spin
     this._setupSpinControls();
@@ -181,7 +186,7 @@ export class Game {
 
   setupCollisionEvents() {
     for (const ball of this.ballsManager.balls) {
-      ball.body.addEventListener('collide', (e) => {
+      const listener = (e) => {
         this._trackShotDistance(ball);
         // In cannon-es, e.body is ALREADY the other body involved in the collision
         const otherBody = e.body;
@@ -202,7 +207,6 @@ export class Game {
           // Deduplicate: cannon-es fires collide on BOTH bodies.
           // Use lower ID as canonical to process each pair exactly once.
           if (ball.id < otherBall.id) {
-            this._applyCollisionSpinTransfer(ball, otherBall, relVel);
             if (relVel > 0.5) {
               this.audio.playBallCollision(relVel);
             }
@@ -231,7 +235,9 @@ export class Game {
             if (this.challengeManager) this.challengeManager.onCushionHit();
           }
         }
-      });
+      };
+      ball.body.addEventListener('collide', listener);
+      this._ballCollideListeners.set(ball.id, listener);
     }
   }
 
@@ -257,27 +263,6 @@ export class Game {
       this.rules.recordFirstHit(ballA.id);
       this.achievements.onBallCollision(relVel);
     }
-  }
-
-  _applyCollisionSpinTransfer(ballA, ballB, relVel) {
-    if (relVel < 1.2) return;
-
-    const dx = ballB.body.position.x - ballA.body.position.x;
-    const dz = ballB.body.position.z - ballA.body.position.z;
-    const len = Math.hypot(dx, dz);
-    if (len < 0.001) return;
-
-    const tx = -dz / len;
-    const tz = dx / len;
-    const spinDelta = ballA.body.angularVelocity.y - ballB.body.angularVelocity.y;
-    const throwSpeed = Math.max(-0.35, Math.min(0.35, spinDelta * relVel * BALL.collisionThrow));
-
-    ballA.body.velocity.x -= tx * throwSpeed * 0.18;
-    ballA.body.velocity.z -= tz * throwSpeed * 0.18;
-    ballB.body.velocity.x += tx * throwSpeed * 0.45;
-    ballB.body.velocity.z += tz * throwSpeed * 0.45;
-    ballA.body.angularVelocity.y *= 0.55;
-    ballB.body.angularVelocity.y += spinDelta * 0.025;
   }
 
   onMouseMove() {
@@ -400,10 +385,16 @@ export class Game {
     return cameraPos.add(dir.multiplyScalar(t));
   }
 
-  isCueBallPlacementLegal(x, z) {
+  isCueBallPlacementLegal(x, z, behindHeadString = false) {
     const halfW = TABLE.width / 2 - BALL.radius * 1.1;
     const halfD = TABLE.depth / 2 - BALL.radius * 1.1;
     if (x < -halfW || x > halfW || z < -halfD || z > halfD) return false;
+
+    // Behind the head string restriction (break foul ball-in-hand)
+    if (behindHeadString) {
+      const headStringZ = -TABLE.depth / 2 * 0.55;
+      if (z > headStringZ + BALL.radius * 0.5) return false;
+    }
 
     for (const pocket of this.table.getPocketPositions()) {
       const dx = x - pocket.x;
@@ -424,18 +415,23 @@ export class Game {
     return true;
   }
 
-  startBallInHand(message = '') {
+  startBallInHand(message = '', behindHeadString = false) {
     const cueBall = this.ballsManager.getCueBall();
     if (cueBall?.pocketed) {
       this.ballsManager.resetCueBallIfPocketed();
     }
     this.ballInHand = true;
     this.ballInHandValid = false;
+    this.ballInHandBehindLine = behindHeadString;
     this.power = 0;
     this.ui.setPower(0);
     this.cue.hide();
     this.trajectory.setVisible(false);
-    this.ui.setMessage(`${message ? `${message} ` : ''}自由球：白球可以在球桌内任意摆放，移动鼠标预览，左键确认。`);
+    if (behindHeadString) {
+      this.ui.setMessage(`${message ? `${message} ` : ''}自由球：白球必须摆放在开球线后，移动鼠标预览，左键确认。`);
+    } else {
+      this.ui.setMessage(`${message ? `${message} ` : ''}自由球：白球可以在球桌内任意摆放，移动鼠标预览，左键确认。`);
+    }
     this.updateBallInHandPreview();
   }
 
@@ -446,9 +442,15 @@ export class Game {
 
     const halfW = TABLE.width / 2 - BALL.radius * 1.1;
     const halfD = TABLE.depth / 2 - BALL.radius * 1.1;
+    const headStringZ = -TABLE.depth / 2 * 0.55;
     const x = Math.max(-halfW, Math.min(halfW, point.x));
-    const z = Math.max(-halfD, Math.min(halfD, point.z));
-    this.ballInHandValid = this.isCueBallPlacementLegal(x, z);
+    let z;
+    if (this.ballInHandBehindLine) {
+      z = Math.max(-halfD, Math.min(headStringZ - BALL.radius * 0.5, point.z));
+    } else {
+      z = Math.max(-halfD, Math.min(halfD, point.z));
+    }
+    this.ballInHandValid = this.isCueBallPlacementLegal(x, z, this.ballInHandBehindLine);
 
     if (this.ballInHandValid) {
       cueBall.reset(x, BALL.radius, z);
@@ -503,8 +505,8 @@ export class Game {
       this.aimDirection.x * force,
       0,
       this.aimDirection.z * force,
-      this.spin.x,
-      this.spin.z
+      this.cueTipOffset.x,
+      this.cueTipOffset.y
     );
 
     this.audio.playCueHit(force);
@@ -513,15 +515,15 @@ export class Game {
     this.turnPocketedIds = [];
     this.statsTracker.startTurn(this.currentPlayer);
     this.statsTracker.recordShot(this.currentPlayer, force);
-    this.achievements.onShot(cueBall, force, this.spin, this.currentPlayer);
-    if (this.challengeManager) this.challengeManager.onShot(cueBall, force, this.spin);
+    this.achievements.onShot(cueBall, force, this.cueTipOffset, this.currentPlayer);
+    if (this.challengeManager) this.challengeManager.onShot(cueBall, force, this.cueTipOffset);
     this.particles.spawnChalkDust(
       cueBall.mesh.position,
       this.aimDirection,
       force
     );
     this.trails.startRecording(cueBall);
-    this.recorder.start(this.ballsManager, this.mode, force, this.spin);
+    this.recorder.start(this.ballsManager, this.mode, force, this.cueTipOffset);
 
     this.cue.hide();
     this.trajectory.setVisible(false);
@@ -560,8 +562,10 @@ export class Game {
       return;
     }
 
-    // Set aim
+    // Set aim and spin
     this.aimDirection.set(decision.aimDirection.x, 0, decision.aimDirection.z).normalize();
+    this.cueTipOffset = decision.cueTipOffset || { x: 0, y: 0 };
+    this._updateCueTipPicker();
     this.cue.setAim(this.ballsManager.getCueBall().mesh.position, this.aimDirection);
     this.cue.show();
 
@@ -685,6 +689,11 @@ export class Game {
     } else if (this.state === 'CHARGING' && this.cue.visible) {
       this.updateDragPower();
     }
+
+    // Fade table lights when they obstruct the camera view
+    if (this.room) {
+      this.room.updateLampOpacity(this.camera);
+    }
   }
 
   resolveTurn(pocketedIds) {
@@ -717,15 +726,74 @@ export class Game {
 
     const result = this.rules.resolveShot(pocketedIds, cuePocketed);
 
-    // Record stats for this turn (filter out cue ball from pocket stats)
-    for (const id of pocketedIds) {
-      if (id !== 0) {
-        this.statsTracker.recordPocket(this.currentPlayer, id);
+    // Respot 8-ball or 9-ball if pocketed on break / foul
+    if (result.respotEightBall) {
+      const eightBall = this.ballsManager.getBall(8);
+      if (eightBall && eightBall.pocketed) {
+        const footZ = TABLE.depth / 2 * 0.55;
+        // Ensure foot spot is clear; if not, offset along X
+        let finalX = 0;
+        const checkClear = (x, z) => {
+          for (const b of this.ballsManager.balls) {
+            if (b.id === 8 || b.pocketed) continue;
+            const dx = b.body.position.x - x;
+            const dz = b.body.position.z - z;
+            if (dx * dx + dz * dz < (BALL.radius * 2.2) ** 2) return false;
+          }
+          return true;
+        };
+        if (!checkClear(0, footZ)) {
+          for (let offset = 1; offset <= 10; offset++) {
+            if (checkClear(offset * BALL.radius * 2, footZ)) { finalX = offset * BALL.radius * 2; break; }
+            if (checkClear(-offset * BALL.radius * 2, footZ)) { finalX = -offset * BALL.radius * 2; break; }
+          }
+        }
+        eightBall.pocketed = false;
+        eightBall.mesh.visible = true;
+        eightBall.setPosition(finalX, BALL.radius, footZ);
       }
+    }
+    if (result.respotNineBall) {
+      const nineBall = this.ballsManager.getBall(9);
+      if (nineBall && nineBall.pocketed) {
+        const footZ = TABLE.depth / 2 * 0.55;
+        let finalX = 0;
+        const checkClear = (x, z) => {
+          for (const b of this.ballsManager.balls) {
+            if (b.id === 9 || b.pocketed) continue;
+            const dx = b.body.position.x - x;
+            const dz = b.body.position.z - z;
+            if (dx * dx + dz * dz < (BALL.radius * 2.2) ** 2) return false;
+          }
+          return true;
+        };
+        if (!checkClear(0, footZ)) {
+          for (let offset = 1; offset <= 10; offset++) {
+            if (checkClear(offset * BALL.radius * 2, footZ)) { finalX = offset * BALL.radius * 2; break; }
+            if (checkClear(-offset * BALL.radius * 2, footZ)) { finalX = -offset * BALL.radius * 2; break; }
+          }
+        }
+        nineBall.pocketed = false;
+        nineBall.mesh.visible = true;
+        nineBall.setPosition(finalX, BALL.radius, footZ);
+      }
+    }
+
+    // Filter out respotted balls before counting stats/achievements
+    const effectivePocketedIds = pocketedIds.filter((id) => {
+      if (id === 0) return false; // cue ball never counts
+      if (result.respotEightBall && id === 8) return false;
+      if (result.respotNineBall && id === 9) return false;
+      return true;
+    });
+
+    // Record stats for this turn
+    for (const id of effectivePocketedIds) {
+      this.statsTracker.recordPocket(this.currentPlayer, id);
     }
     if (result.foul) {
       this.statsTracker.recordFoul(this.currentPlayer, result.scratch);
-    } else if (pocketedIds.length === 0) {
+    } else if (effectivePocketedIds.length === 0) {
       this.statsTracker.recordMiss(this.currentPlayer);
     }
 
@@ -769,13 +837,13 @@ export class Game {
     }
 
     // Achievement: turn end
-    this.achievements.onTurnEnd(result, pocketedIds, this.mode);
+    this.achievements.onTurnEnd(result, effectivePocketedIds, this.mode);
     if (this.challengeManager) this.challengeManager.onTurnEnd(result);
 
     // Achievement: break shot check
     if (this._isBreakShot) {
-      this.achievements.onBreakShot(pocketedIds, this.mode);
-      if (this.challengeManager) this.challengeManager.onBreakShot(pocketedIds);
+      this.achievements.onBreakShot(effectivePocketedIds, this.mode);
+      if (this.challengeManager) this.challengeManager.onBreakShot(effectivePocketedIds);
       this._isBreakShot = false;
     }
 
@@ -790,7 +858,7 @@ export class Game {
     this.setAimTrajectoryVisible(true);
 
     if (result.ballInHand) {
-      this.startBallInHand(result.message);
+      this.startBallInHand(result.message, result.ballInHandBehindLine);
     }
 
     // Update live stats panel
@@ -801,7 +869,16 @@ export class Game {
       if (this.ballInHand) {
         this.ballInHand = false;
         const cue = this.ballsManager.getCueBall();
-        cue?.reset(0, BALL.radius, -TABLE.depth / 2 * 0.35);
+        // Respect behind-head-string restriction when placing cue ball
+        const preferredZ = this.ballInHandBehindLine
+          ? -TABLE.depth / 2 * 0.55 - BALL.radius * 2
+          : -TABLE.depth / 2 * 0.55;
+        const clearPos = this.ballsManager.resetCueBallIfPocketed(0, preferredZ);
+        if (clearPos.x === 0 && clearPos.z === preferredZ) {
+          cue?.reset(0, BALL.radius, preferredZ);
+        }
+        // If resetCueBallIfPocketed found a different spot, the cue ball is already placed there
+        this.ballInHandBehindLine = false;
       }
       this.startAITurn();
     }
@@ -834,6 +911,8 @@ export class Game {
     this.state = 'AIM';
     this.ballInHand = false;
     this.ballInHandValid = false;
+    this.ballInHandBehindLine = false;
+    this.cueTipOffset = { x: 0, y: 0 };
     this.power = 0;
     this.ui.setPower(0);
     this.ui.setPlayerTurn(1);
@@ -884,58 +963,154 @@ export class Game {
     uiLayer.appendChild(btn);
   }
 
-  _addSpinIndicator() {
+  _addCueTipPicker() {
     const uiLayer = document.getElementById('ui-layer');
-    if (!uiLayer || uiLayer.querySelector('#spin-indicator')) return;
+    if (!uiLayer || uiLayer.querySelector('#cue-tip-picker')) return;
 
     const container = document.createElement('div');
-    container.id = 'spin-indicator';
+    container.id = 'cue-tip-picker';
     container.style.cssText = `
-      position: absolute; bottom: 48px; right: 72px;
-      width: 62px; height: 62px;
-      border: 1px solid rgba(255,255,255,0.22);
-      border-radius: 50%;
-      background: rgba(10,12,15,0.58);
-      backdrop-filter: blur(10px);
-      pointer-events: none;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 12px 34px rgba(0,0,0,0.34), inset 0 0 0 1px rgba(255,255,255,0.06);
-      z-index: 15;
+      position: absolute; bottom: 38px; right: 60px;
+      width: 110px; display: flex; flex-direction: column; align-items: center;
+      gap: 6px; z-index: 15; user-select: none;
     `;
 
-    const dot = document.createElement('div');
-    dot.id = 'spin-dot';
-    dot.style.cssText = `
-      width: 10px; height: 10px;
-      background: #00e676;
-      border-radius: 50%;
-      box-shadow: 0 0 8px rgba(0,230,118,0.6);
-      transition: transform 0.15s ease;
-    `;
-    container.appendChild(dot);
-
+    // Label
     const label = document.createElement('div');
-    label.textContent = '旋转';
+    label.textContent = '击球点';
     label.style.cssText = `
-      position: absolute; bottom: -18px; left: 50%;
-      transform: translateX(-50%);
-      font-size: 10px; color: rgba(255,255,255,0.5);
-      white-space: nowrap;
+      font-size: 11px; color: rgba(255,255,255,0.6);
+      font-weight: 600; letter-spacing: 0.5px;
     `;
     container.appendChild(label);
 
+    // Ball surface circle
+    const ballWrap = document.createElement('div');
+    ballWrap.id = 'cue-tip-ball';
+    ballWrap.style.cssText = `
+      width: 88px; height: 88px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #ffffff 0%, #e0e0e0 50%, #b0b0b0 100%);
+      border: 2px solid rgba(255,255,255,0.35);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.45), inset 0 0 12px rgba(0,0,0,0.15);
+      position: relative; cursor: crosshair; overflow: hidden;
+      flex-shrink: 0;
+    `;
+
+    // Crosshair (centre lines)
+    const hLine = document.createElement('div');
+    hLine.style.cssText = `
+      position: absolute; top: 50%; left: 0; width: 100%; height: 1px;
+      background: rgba(0,0,0,0.18); transform: translateY(-50%); pointer-events: none;
+    `;
+    ballWrap.appendChild(hLine);
+    const vLine = document.createElement('div');
+    vLine.style.cssText = `
+      position: absolute; left: 50%; top: 0; height: 100%; width: 1px;
+      background: rgba(0,0,0,0.18); transform: translateX(-50%); pointer-events: none;
+    `;
+    ballWrap.appendChild(vLine);
+
+    // Rim circle (max legal hit)
+    const rim = document.createElement('div');
+    rim.style.cssText = `
+      position: absolute; top: 50%; left: 50%; width: 82%; height: 82%;
+      border: 1px dashed rgba(255,60,60,0.35); border-radius: 50%;
+      transform: translate(-50%, -50%); pointer-events: none;
+    `;
+    ballWrap.appendChild(rim);
+
+    // Tip marker (red dot)
+    const marker = document.createElement('div');
+    marker.id = 'cue-tip-marker';
+    marker.style.cssText = `
+      position: absolute; width: 10px; height: 10px; border-radius: 50%;
+      background: #ff3b30; border: 1.5px solid #fff;
+      box-shadow: 0 0 6px rgba(255,59,48,0.7);
+      transform: translate(-50%, -50%); pointer-events: none;
+      top: 50%; left: 50%; transition: top 0.08s, left 0.08s;
+    `;
+    ballWrap.appendChild(marker);
+
+    // Text hint
+    const hint = document.createElement('div');
+    hint.id = 'cue-tip-hint';
+    hint.textContent = '中心击球';
+    hint.style.cssText = `
+      font-size: 10px; color: rgba(255,255,255,0.45);
+      text-align: center; min-height: 14px;
+    `;
+    container.appendChild(ballWrap);
+    container.appendChild(hint);
+
     uiLayer.appendChild(container);
-    this._updateSpinIndicator();
+    this._updateCueTipPicker();
+
+    // Mouse / touch interaction
+    let dragging = false;
+    const RADIUS_PX = 44; // half of 88px
+    const MAX_OFF = 0.88; // keep inside rim
+
+    const setOffsetFromEvent = (e) => {
+      const rect = ballWrap.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const rawX = (e.clientX - cx) / RADIUS_PX;
+      const rawY = -(e.clientY - cy) / RADIUS_PX; // Y up = positive cueTipOffset.y
+      const dist = Math.hypot(rawX, rawY);
+      const clampedDist = Math.min(dist, MAX_OFF);
+      const scale = dist > 0 ? clampedDist / dist : 0;
+      this.cueTipOffset.x = rawX * scale;
+      this.cueTipOffset.y = rawY * scale;
+      this._updateCueTipPicker();
+    };
+
+    const onPointerDown = (e) => {
+      if (this.state !== 'AIM' && this.state !== 'CHARGING') return;
+      dragging = true;
+      ballWrap.setPointerCapture(e.pointerId);
+      setOffsetFromEvent(e);
+      e.preventDefault();
+    };
+    const onPointerMove = (e) => {
+      if (!dragging) return;
+      setOffsetFromEvent(e);
+      e.preventDefault();
+    };
+    const onPointerUp = () => { dragging = false; };
+    const onPointerCancel = () => { dragging = false; };
+
+    ballWrap.addEventListener('pointerdown', onPointerDown);
+    ballWrap.addEventListener('pointermove', onPointerMove);
+    ballWrap.addEventListener('pointerup', onPointerUp);
+    ballWrap.addEventListener('pointercancel', onPointerCancel);
+
+    this._cueTipBallWrap = ballWrap;
+    this._cueTipListeners = [
+      { type: 'pointerdown', fn: onPointerDown },
+      { type: 'pointermove', fn: onPointerMove },
+      { type: 'pointerup', fn: onPointerUp },
+      { type: 'pointercancel', fn: onPointerCancel },
+    ];
   }
 
-  _updateSpinIndicator() {
-    const dot = document.getElementById('spin-dot');
-    if (!dot) return;
-    // Map spin [-1,1] to pixel offset within the 60px circle
-    const maxOff = 22;
-    const x = this.spin.x * maxOff;
-    const z = -this.spin.z * maxOff; // invert Z for visual (up = negative spinZ)
-    dot.style.transform = `translate(${x}px, ${z}px)`;
+  _updateCueTipPicker() {
+    const marker = document.getElementById('cue-tip-marker');
+    const hint = document.getElementById('cue-tip-hint');
+    if (!marker || !hint) return;
+
+    const ox = this.cueTipOffset.x;
+    const oy = this.cueTipOffset.y;
+    const RADIUS_PX = 44;
+    const maxOff = 0.88 * RADIUS_PX;
+
+    marker.style.left = `${50 + (ox / 0.88) * 41}%`;
+    marker.style.top = `${50 - (oy / 0.88) * 41}%`;
+
+    // Build descriptive label
+    const parts = [];
+    if (Math.abs(ox) > 0.08) parts.push(ox > 0 ? '右塞' : '左塞');
+    if (Math.abs(oy) > 0.08) parts.push(oy > 0 ? '高杆' : '低杆');
+    hint.textContent = parts.length ? parts.join(' + ') : '中心击球';
   }
 
   _setupSpinControls() {
@@ -958,35 +1133,35 @@ export class Game {
         return;
       }
 
-      // Spin controls only in AIM/CHARGING
+      // Cue tip offset controls only in AIM/CHARGING
       if (this.state !== 'AIM' && this.state !== 'CHARGING') return;
-      const step = 0.2;
+      const step = 0.15;
       let changed = false;
       switch (key) {
         case 'w':
-          this.spin.z = Math.max(-1, this.spin.z - step);
+          this.cueTipOffset.y = Math.min(0.88, this.cueTipOffset.y + step);
           changed = true;
           break;
         case 's':
-          this.spin.z = Math.min(1, this.spin.z + step);
+          this.cueTipOffset.y = Math.max(-0.88, this.cueTipOffset.y - step);
           changed = true;
           break;
         case 'a':
-          this.spin.x = Math.max(-1, this.spin.x - step);
+          this.cueTipOffset.x = Math.max(-0.88, this.cueTipOffset.x - step);
           changed = true;
           break;
         case 'd':
-          this.spin.x = Math.min(1, this.spin.x + step);
+          this.cueTipOffset.x = Math.min(0.88, this.cueTipOffset.x + step);
           changed = true;
           break;
         case 'r':
-          this.spin.x = 0;
-          this.spin.z = 0;
+          this.cueTipOffset.x = 0;
+          this.cueTipOffset.y = 0;
           changed = true;
           break;
       }
       if (changed) {
-        this._updateSpinIndicator();
+        this._updateCueTipPicker();
       }
     };
     window.addEventListener('keydown', this._onKeyDown);
@@ -1085,10 +1260,17 @@ export class Game {
       backBtn.parentNode.removeChild(backBtn);
     }
 
-    // Remove spin indicator
-    const spinInd = document.getElementById('spin-indicator');
-    if (spinInd && spinInd.parentNode) {
-      spinInd.parentNode.removeChild(spinInd);
+    // Remove cue tip picker and its listeners
+    if (this._cueTipBallWrap && this._cueTipListeners) {
+      for (const { type, fn } of this._cueTipListeners) {
+        this._cueTipBallWrap.removeEventListener(type, fn);
+      }
+      this._cueTipBallWrap = null;
+      this._cueTipListeners = [];
+    }
+    const picker = document.getElementById('cue-tip-picker');
+    if (picker && picker.parentNode) {
+      picker.parentNode.removeChild(picker);
     }
 
     // Remove spin keyboard listener
@@ -1103,14 +1285,19 @@ export class Game {
       this.achievementPanel = null;
     }
 
-    // Remove all balls
+    // Remove all balls and their collide listeners
     if (this.ballsManager) {
       for (const ball of this.ballsManager.balls) {
+        const listener = this._ballCollideListeners.get(ball.id);
+        if (listener) {
+          ball.body.removeEventListener('collide', listener);
+        }
         this.scene.remove(ball.mesh);
         this.physics.removeBody(ball.body);
         ball.geometry.dispose();
         ball.material.dispose();
       }
+      this._ballCollideListeners.clear();
       this.ballsManager = null;
     }
 

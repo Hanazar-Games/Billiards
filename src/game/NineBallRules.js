@@ -82,7 +82,12 @@ export class NineBallRules {
 
       // Break foul: scratch or no ball hit
       if (cueBallPocketed) {
-        this.trackPocketedBalls(pocketedIds);
+        // 9-ball spotted if pocketed on break scratch
+        if (pocketedIds.includes(9)) {
+          const idx = this.pocketedBalls.indexOf(9);
+          if (idx !== -1) this.pocketedBalls.splice(idx, 1);
+        }
+        this.trackPocketedBalls(pocketedIds.filter(id => id !== 9));
         return {
           nextPlayer: opponent,
           foul: true,
@@ -90,12 +95,17 @@ export class NineBallRules {
           ballInHand: true,
           message: 'Break scratch! Opponent ball-in-hand.',
           gameOver: false,
+          respotNineBall: pocketedIds.includes(9),
         };
       }
 
       if (this.firstBallHit === null) {
         this.foul = true;
-        this.trackPocketedBalls(pocketedIds);
+        if (pocketedIds.includes(9)) {
+          const idx = this.pocketedBalls.indexOf(9);
+          if (idx !== -1) this.pocketedBalls.splice(idx, 1);
+        }
+        this.trackPocketedBalls(pocketedIds.filter(id => id !== 9));
         return {
           nextPlayer: opponent,
           foul: true,
@@ -103,13 +113,18 @@ export class NineBallRules {
           ballInHand: true,
           message: 'Break foul: no ball hit. Opponent ball-in-hand.',
           gameOver: false,
+          respotNineBall: pocketedIds.includes(9),
         };
       }
 
       // Check if first hit was the 1-ball (required on break)
       if (this.firstBallHit !== 1) {
         this.foul = true;
-        this.trackPocketedBalls(pocketedIds);
+        if (pocketedIds.includes(9)) {
+          const idx = this.pocketedBalls.indexOf(9);
+          if (idx !== -1) this.pocketedBalls.splice(idx, 1);
+        }
+        this.trackPocketedBalls(pocketedIds.filter(id => id !== 9));
         return {
           nextPlayer: opponent,
           foul: true,
@@ -117,6 +132,7 @@ export class NineBallRules {
           ballInHand: true,
           message: 'Break: must hit 1-ball first! Foul.',
           gameOver: false,
+          respotNineBall: pocketedIds.includes(9),
         };
       }
 
@@ -175,7 +191,13 @@ export class NineBallRules {
 
     // If foul occurred, opponent gets ball-in-hand
     if (this.foul) {
-      this.trackPocketedBalls(pocketedIds);
+      // 9-ball must be spotted if pocketed on a foul (WPA rule)
+      const ninePocketedOnFoul = pocketedIds.includes(9);
+      if (ninePocketedOnFoul) {
+        const idx = this.pocketedBalls.indexOf(9);
+        if (idx !== -1) this.pocketedBalls.splice(idx, 1);
+      }
+      this.trackPocketedBalls(pocketedIds.filter(id => id !== 9));
       return {
         nextPlayer: opponent,
         foul: true,
@@ -183,6 +205,7 @@ export class NineBallRules {
         ballInHand: true,
         message: this.scratch ? 'Scratch! Opponent ball-in-hand.' : 'Foul! Opponent ball-in-hand.',
         gameOver: false,
+        respotNineBall: ninePocketedOnFoul,
       };
     }
 

@@ -39,7 +39,7 @@ export class ShotRecorder {
       pocketedIds: [],
       collisionCount: 0,
       cushionCount: 0,
-      spinUsed: Math.abs(spin.x) > 0.05 || Math.abs(spin.z) > 0.05,
+      spinUsed: Math.abs(spin.x) > 0.05 || Math.abs(spin.y) > 0.05,
       maxPower: power,
       duration: 0,
     };

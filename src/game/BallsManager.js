@@ -152,6 +152,8 @@ export class BallsManager {
       if (ball.pocketed) continue;
       ball.applySpinPhysics(dt);
       ball.applyLowSpeedBrake(dt);
+      // Single safety clamp per frame (not inside every physics routine)
+      ball.limitSpeed();
       this._enforceTableBounds(ball, pocketPositions);
     }
     this._resolveSweptBallContacts(pocketPositions);
@@ -304,11 +306,14 @@ export class BallsManager {
   _resolveBallCollisionVelocity(a, b, nx, nz) {
     const av = a.body.velocity;
     const bv = b.body.velocity;
+    const aav = a.body.angularVelocity;
+    const bav = b.body.angularVelocity;
     const relX = bv.x - av.x;
     const relZ = bv.z - av.z;
     const relNormalSpeed = relX * nx + relZ * nz;
     if (relNormalSpeed >= 0) return relNormalSpeed;
 
+    // Equal-mass elastic collision: split impulse 50/50
     const normalImpulse = -(1 + BALL.collisionRestitution) * relNormalSpeed * 0.5;
     av.x -= nx * normalImpulse;
     av.z -= nz * normalImpulse;
@@ -317,17 +322,32 @@ export class BallsManager {
 
     const tx = -nz;
     const tz = nx;
-    const tangentSpeed = relX * tx + relZ * tz -
-      (a.body.angularVelocity.y + b.body.angularVelocity.y) * BALL.radius;
+
+    // Tangential relative velocity INCLUDING surface spin contribution.
+    // Surface speed from ω_y at contact point = ±ω_y·r in tangent direction.
+    // Relative surface tangent speed = (ω_a + ω_b) * r.
+    // BUG FIX: was subtracting spin term; must ADD it.
+    const tangentSpeed = relX * tx + relZ * tz +
+      (aav.y + bav.y) * BALL.radius;
     const maxTangentImpulse = Math.abs(normalImpulse) * BALL.collisionTangentialFriction;
+    // Effective mass in tangent direction for equal spheres includes
+    // rotational inertia: equivalent mass = 7·m/2, so impulse factor ≈ 1/7.
     const tangentImpulse = Math.max(
       -maxTangentImpulse,
-      Math.min(maxTangentImpulse, -tangentSpeed * 0.5)
+      Math.min(maxTangentImpulse, -tangentSpeed / 7)
     );
     av.x -= tx * tangentImpulse;
     av.z -= tz * tangentImpulse;
     bv.x += tx * tangentImpulse;
     bv.z += tz * tangentImpulse;
+
+    // Angular velocity update from friction torque at contact.
+    // For solid sphere I = (2/5)·m·r², torque impulse = r × F = r·jt (about Y)
+    // The tangential impulse here is already a velocity change (Δv), so:
+    // Δω_y = (5/2) · Δv / r
+    const dOmegaY = (5 * tangentImpulse) / (2 * BALL.radius);
+    aav.y += dOmegaY;
+    bav.y += dOmegaY;
 
     a.limitSpeed();
     b.limitSpeed();
@@ -345,10 +365,13 @@ export class BallsManager {
 
     const halfW = TABLE.width / 2;
     const halfD = TABLE.depth / 2;
-    const railLimitX = halfW - BALL.radius * 0.55;
-    const railLimitZ = halfD - BALL.radius * 0.55;
-    const escapeLimitX = halfW + BALL.radius * 0.35;
-    const escapeLimitZ = halfD + BALL.radius * 0.35;
+    // Escape limit: ball must have clearly left the table surface to trigger rescue.
+    // Rail limit: place the ball just inside the cushion face.
+    const cushionHalf = TABLE.cushionWidth;
+    const railLimitX = halfW - cushionHalf - BALL.radius * 0.05;
+    const railLimitZ = halfD - cushionHalf - BALL.radius * 0.05;
+    const escapeLimitX = halfW + BALL.radius * 0.25;
+    const escapeLimitZ = halfD + BALL.radius * 0.25;
 
     const pos = ball.body.position;
     const vel = ball.body.velocity;
@@ -377,7 +400,13 @@ export class BallsManager {
     if (corrected) {
       pos.y = BALL.radius;
       vel.y = 0;
-      ball.body.angularVelocity.scale(BALL.boundaryRestitution, ball.body.angularVelocity);
+
+      const av = ball.body.angularVelocity;
+      // Cushion hit dampens forward/back spin (ω_x, ω_z) more than side spin (ω_y)
+      av.x *= 0.75;
+      av.z *= 0.75;
+      // Side spin is largely preserved on cushion contact
+
       ball.body.wakeUp();
       ball.sync();
       this._notifyManualCushionContact(ball);

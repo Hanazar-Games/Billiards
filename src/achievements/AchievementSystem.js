@@ -45,7 +45,7 @@ export class AchievementSystem {
     this._shotReset();
     this.shotStartPos = cueBall.mesh.position.clone();
     this.shotPower = power;
-    this.shotUsedSpin = Math.abs(spin.x) > 0.05 || Math.abs(spin.z) > 0.05;
+    this.shotUsedSpin = Math.abs(spin.x) > 0.05 || Math.abs(spin.y) > 0.05;
     this.shotStartTime = performance.now();
     this.currentPlayer = currentPlayer;
 

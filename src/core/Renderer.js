@@ -34,7 +34,7 @@ export class Renderer {
     this.renderer.toneMappingExposure = 1.08;
     this.container.appendChild(this.renderer.domElement);
 
-    // Controls: hold Shift to orbit with left drag; wheel zoom remains available.
+    // Controls: Shift+left-drag = pan, Shift+right-drag = orbit; wheel = zoom.
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.05;
@@ -127,7 +127,7 @@ export class Renderer {
   setCameraControlActive(active) {
     this._shiftCameraControl = Boolean(active);
     if (!this._shiftCameraControl) {
-      if (this._cameraDragMode === 'orbit') this._cameraDragMode = null;
+      this._cameraDragMode = null;
     }
     this.controls.enableRotate = false;
     this._updateCameraCursor();
@@ -136,9 +136,11 @@ export class Renderer {
   onCameraPointerDown(e) {
     let mode = null;
     if (this._shiftCameraControl && e.button === 0) {
-      mode = 'orbit';
+      mode = 'pan';   // Shift + left drag = pan
+    } else if (this._shiftCameraControl && e.button === 2) {
+      mode = 'orbit'; // Shift + right drag = orbit
     } else if (e.button === 1) {
-      mode = 'pan';
+      mode = 'pan';   // Middle drag = pan (fallback)
     }
     if (!mode) return;
 
@@ -221,7 +223,7 @@ export class Renderer {
     if (active) {
       this.renderer.domElement.style.cursor = this._cameraDragMode === 'pan' ? 'move' : 'grabbing';
     } else {
-      this.renderer.domElement.style.cursor = this._shiftCameraControl ? 'grab' : '';
+      this.renderer.domElement.style.cursor = this._shiftCameraControl ? 'crosshair' : '';
     }
   }
 

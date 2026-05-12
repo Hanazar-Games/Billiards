@@ -59,7 +59,7 @@ export class ChallengeManager {
   onShot(cueBall, power, spin) {
     this._shotReset();
     this.shotPower = power;
-    this.shotUsedSpin = Math.abs(spin.x) > 0.05 || Math.abs(spin.z) > 0.05;
+    this.shotUsedSpin = Math.abs(spin.x) > 0.05 || Math.abs(spin.y) > 0.05;
     this.shotStartPos = cueBall.mesh.position.clone();
   }
 

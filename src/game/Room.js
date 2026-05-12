@@ -56,12 +56,15 @@ export class Room {
   }
 
   createTableLights() {
-    const railY = 178;
+    // Raised higher so the lamps are well above the player sight line
+    const railY = 235;
     const glowMat = new THREE.MeshStandardMaterial({
       color: 0xfff1cc,
       emissive: 0xffd98a,
       emissiveIntensity: 1.8,
       roughness: 0.2,
+      transparent: true,
+      opacity: 1.0,
     });
 
     const crossbarMat = new THREE.MeshStandardMaterial({
@@ -70,16 +73,21 @@ export class Room {
       emissiveIntensity: 0.35,
       roughness: 0.45,
       metalness: 0.25,
+      transparent: true,
+      opacity: 1.0,
     });
     const crossbar = new THREE.Mesh(new THREE.BoxGeometry(4, 3, TABLE.depth * 0.68), crossbarMat);
     crossbar.position.set(0, railY + 14, 0);
     this.meshGroup.add(crossbar);
 
+    this._lampDiffusers = [];
+    this._lampLights = [];
     const lampZs = [-TABLE.depth * 0.3, 0, TABLE.depth * 0.3];
     for (const z of lampZs) {
-      const diffuser = new THREE.Mesh(new THREE.CylinderGeometry(13, 13, 1.5, 32), glowMat);
+      const diffuser = new THREE.Mesh(new THREE.CylinderGeometry(13, 13, 1.5, 32), glowMat.clone());
       diffuser.position.set(0, railY - 8.5, z);
       this.meshGroup.add(diffuser);
+      this._lampDiffusers.push(diffuser);
 
       const spot = new THREE.SpotLight(0xffe4b0, 1.25, 420, Math.PI / 4.8, 0.55, 1.4);
       spot.position.set(0, railY - 8, z);
@@ -89,6 +97,65 @@ export class Room {
       spot.shadow.mapSize.height = 1024;
       this.meshGroup.add(spot);
       this.meshGroup.add(spot.target);
+      this._lampLights.push(spot);
+    }
+
+    // Store crossbar material for opacity control
+    this._lampCrossbarMat = crossbarMat;
+  }
+
+  /**
+   * Call every frame from the game loop.  Fades lamp meshes when they sit
+   * between the camera and the table playing surface.
+   */
+  updateLampOpacity(camera) {
+    if (!this._lampDiffusers || this._lampDiffusers.length === 0) return;
+
+    const camPos = camera.position;
+    const tableCenter = new THREE.Vector3(0, BALL.radius, 0);
+    const toTable = new THREE.Vector3().subVectors(tableCenter, camPos);
+    const distToTable = toTable.length();
+    toTable.normalize();
+
+    for (const diffuser of this._lampDiffusers) {
+      const toLamp = new THREE.Vector3().subVectors(diffuser.position, camPos);
+      const distToLamp = toLamp.length();
+      toLamp.normalize();
+
+      // Dot product tells us how close the lamp is to the camera→table ray
+      const alignment = toLamp.dot(toTable);
+
+      // When the lamp is between camera and table (distToLamp < distToTable)
+      // AND aligned with the sight line (alignment near 1), fade it out.
+      let targetOpacity = 1.0;
+      if (distToLamp < distToTable && alignment > 0.88) {
+        // Sharper fade as alignment increases
+        const fade = Math.max(0, (alignment - 0.88) / (1.0 - 0.88));
+        targetOpacity = 1.0 - fade * 0.82; // down to ~0.18 opacity
+      }
+
+      const mat = diffuser.material;
+      if (Math.abs(mat.opacity - targetOpacity) > 0.01) {
+        mat.opacity += (targetOpacity - mat.opacity) * 0.12;
+      }
+    }
+
+    // Same logic for crossbar — use the max alignment across all lamps
+    if (this._lampCrossbarMat) {
+      let maxFade = 0;
+      for (const diffuser of this._lampDiffusers) {
+        const toLamp = new THREE.Vector3().subVectors(diffuser.position, camera.position);
+        const distToLamp = toLamp.length();
+        toLamp.normalize();
+        const alignment = toLamp.dot(toTable);
+        if (distToLamp < distToTable && alignment > 0.88) {
+          maxFade = Math.max(maxFade, (alignment - 0.88) / 0.12);
+        }
+      }
+      const targetCross = Math.max(0.18, 1.0 - maxFade * 0.82);
+      if (Math.abs(this._lampCrossbarMat.opacity - targetCross) > 0.01) {
+        this._lampCrossbarMat.opacity += (targetCross - this._lampCrossbarMat.opacity) * 0.12;
+      }
     }
   }
 

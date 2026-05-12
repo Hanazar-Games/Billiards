@@ -1,5 +1,8 @@
 import * as THREE from 'three';
-import { BALL } from '../config.js';
+import { BALL, TABLE } from '../config.js';
+
+const CUE_LENGTH = 160; // tip-to-butt in local Y units
+const CUE_RADIUS = 1.5; // approx max butt radius for collision margin
 
 export class Cue {
   constructor() {
@@ -64,7 +67,35 @@ export class Cue {
     // In aim mode, leave about one cue-ball diameter between the tip and ball.
     // Dragging backward adds pullback along the exact opposite stroke line.
     const tipGap = BALL.radius * 2.0 + pullback;
-    const offset = BALL.radius + tipGap;
+    let offset = BALL.radius + tipGap;
+
+    // Clamp offset so the cue butt does not clip through the table rails/apron.
+    // The butt world position = ballPosition - aim * (offset + CUE_LENGTH).
+    const halfW = TABLE.width / 2;
+    const halfD = TABLE.depth / 2;
+    const margin = CUE_RADIUS + 4;
+    const minX = -halfW - 18 + margin; // apron outer edge + margin
+    const maxX = halfW + 18 - margin;
+    const minZ = -halfD - 18 + margin;
+    const maxZ = halfD + 18 - margin;
+
+    // Maximum safe offset derived from each axis constraint
+    if (aim.x > 0.001) {
+      const maxOff = (ballPosition.x - minX) / aim.x - CUE_LENGTH;
+      offset = Math.min(offset, maxOff);
+    } else if (aim.x < -0.001) {
+      const maxOff = (maxX - ballPosition.x) / (-aim.x) - CUE_LENGTH;
+      offset = Math.min(offset, maxOff);
+    }
+    if (aim.z > 0.001) {
+      const maxOff = (ballPosition.z - minZ) / aim.z - CUE_LENGTH;
+      offset = Math.min(offset, maxOff);
+    } else if (aim.z < -0.001) {
+      const maxOff = (maxZ - ballPosition.z) / (-aim.z) - CUE_LENGTH;
+      offset = Math.min(offset, maxOff);
+    }
+    offset = Math.max(offset, BALL.radius * 2.5); // never let tip touch the ball
+
     const pos = ballPosition.clone().addScaledVector(aim, -offset);
     pos.y = ballPosition.y;
 
