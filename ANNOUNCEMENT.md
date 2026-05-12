@@ -48,6 +48,13 @@
 - `UI.setMessage()` timer leak fixed — old timers are cleared before new ones are set.
 - `MenuSystem._quit()` now stops replay timeouts, sets state to `DESTROYED`, and cleans up physics/audio.
 
+### Performance & Deployment
+- **GitHub Pages deployment fixed** — `base: '/Billiards/'` ensures asset URLs resolve correctly on subpath hosting.
+- **Production build shrunk from 3.6MB → 760KB** by disabling sourcemaps and splitting vendor chunks (three.js / cannon-es load in parallel).
+- **Cached canvas rect** — eliminated forced reflow from `getBoundingClientRect()` every frame.
+- **Reused temp vectors** — removed per-frame `new THREE.Vector3()` allocation in aim direction update.
+- **Removed redundant controls.enabled toggle** in follow-camera mode.
+
 Run locally:
 
 ```bash
