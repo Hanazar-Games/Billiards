@@ -75,6 +75,14 @@ export class Game {
     this._ballCollideListeners = new Map(); // ballId -> listener fn
     this._cueTipBallWrap = null;
     this._cueTipListeners = [];
+
+    // Cached canvas rect to avoid getBoundingClientRect() every frame
+    this._canvasRect = null;
+    this._updateCanvasRect = () => {
+      this._canvasRect = this.renderer.renderer.domElement.getBoundingClientRect();
+    };
+    this._updateCanvasRect();
+    window.addEventListener('resize', this._updateCanvasRect);
   }
 
   async init(modeConfig = {}) {
@@ -356,7 +364,7 @@ export class Game {
     const ballPos = this._tmpVec3a.copy(cueBall.mesh.position);
     const hit = this.getMouseTablePoint(ballPos.y);
     if (!hit) return;
-    const aim = new THREE.Vector3().subVectors(hit, ballPos);
+    const aim = this._tmpVec3d.subVectors(hit, ballPos);
     aim.y = 0;
     aim.normalize();
 
@@ -368,7 +376,8 @@ export class Game {
   }
 
   getMouseTablePoint(y = BALL.radius) {
-    const rect = this.renderer.renderer.domElement.getBoundingClientRect();
+    const rect = this._canvasRect;
+    if (!rect) return null;
     this._tmpVec2.set(
       ((this.input.mouseX - rect.left) / rect.width) * 2 - 1,
       -((this.input.mouseY - rect.top) / rect.height) * 2 + 1
@@ -1233,7 +1242,6 @@ export class Game {
       if (cueBall && !cueBall.pocketed) {
         const pos = cueBall.mesh.position;
         const cam = this.camera;
-        // Position camera behind and above the cue ball
         const offsetY = 120;
         const offsetZ = -140;
         const targetX = pos.x;
@@ -1245,15 +1253,17 @@ export class Game {
         cam.position.y += (targetY - cam.position.y) * 0.05;
         cam.position.z += (targetZ - cam.position.z) * 0.05;
         cam.lookAt(pos.x, pos.y, pos.z);
-
-        if (this.renderer.controls) {
-          this.renderer.controls.enabled = false;
-        }
       }
     }
   }
 
   dispose() {
+    // Remove canvas rect resize listener
+    if (this._updateCanvasRect) {
+      window.removeEventListener('resize', this._updateCanvasRect);
+      this._updateCanvasRect = null;
+    }
+
     // Remove back-to-menu button
     const backBtn = document.getElementById('back-to-menu');
     if (backBtn && backBtn.parentNode) {
