@@ -464,6 +464,8 @@ export class BallsManager {
         const distSq = dx * dx + dz * dz;
         if (distSq < detectDist * detectDist) {
           ball.remove();
+          // Remove from physics world so it stops consuming simulation time
+          this.physics.removeBody(ball.body);
           pocketed.push({ id: ball.id, pocketIndex: pi });
           break;
         }
@@ -508,6 +510,8 @@ export class BallsManager {
     }
 
     cue.reset(finalX, r, z);
+    // Re-add to physics world if it was removed during pocketing
+    this.physics.addBody(cue.body);
     return { x: finalX, z };
   }
 }

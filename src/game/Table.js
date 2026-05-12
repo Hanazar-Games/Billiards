@@ -86,11 +86,13 @@ export class Table {
     });
     const slateH = 2.2;
     const slateOverhang = 1.5;
+    // Shift slate down by 0.5 to avoid z-fighting with the playing surface (y=0)
+    const slateY = -slateH / 2 - 0.5;
     const slateParts = [
-      [0, -slateH / 2, -TABLE.depth / 2 - slateOverhang / 2, TABLE.width + 4, slateH, slateOverhang],
-      [0, -slateH / 2, TABLE.depth / 2 + slateOverhang / 2, TABLE.width + 4, slateH, slateOverhang],
-      [-TABLE.width / 2 - slateOverhang / 2, -slateH / 2, 0, slateOverhang, slateH, TABLE.depth + 4],
-      [TABLE.width / 2 + slateOverhang / 2, -slateH / 2, 0, slateOverhang, slateH, TABLE.depth + 4],
+      [0, slateY, -TABLE.depth / 2 - slateOverhang / 2, TABLE.width + 4, slateH, slateOverhang],
+      [0, slateY, TABLE.depth / 2 + slateOverhang / 2, TABLE.width + 4, slateH, slateOverhang],
+      [-TABLE.width / 2 - slateOverhang / 2, slateY, 0, slateOverhang, slateH, TABLE.depth + 4],
+      [TABLE.width / 2 + slateOverhang / 2, slateY, 0, slateOverhang, slateH, TABLE.depth + 4],
     ];
     for (const [x, y, z, w, h, d] of slateParts) {
       const slate = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), slateMat);
@@ -277,14 +279,14 @@ export class Table {
     rail1.position.set(0, railH / 2, -halfD - railW / 2);
     rail1.castShadow = true;
     this.meshGroup.add(rail1);
-    this._addRailTopInsert(0, railH + 0.18, -halfD - railW / 2, shortRailLen - 12, 2.0, railW * 0.62, topInsertMat);
+    this._addRailTopInsert(0, railH + 1.0, -halfD - railW / 2, shortRailLen - 12, 1.2, railW * 0.62, topInsertMat);
 
     // Bottom rail
     const rail2 = new THREE.Mesh(new THREE.BoxGeometry(shortRailLen, railH, railW), railMat);
     rail2.position.set(0, railH / 2, halfD + railW / 2);
     rail2.castShadow = true;
     this.meshGroup.add(rail2);
-    this._addRailTopInsert(0, railH + 0.18, halfD + railW / 2, shortRailLen - 12, 2.0, railW * 0.62, topInsertMat);
+    this._addRailTopInsert(0, railH + 1.0, halfD + railW / 2, shortRailLen - 12, 1.2, railW * 0.62, topInsertMat);
 
     // Rail top round-over — a thin tube along the outer top edge of each rail
     const roundMat = new THREE.MeshStandardMaterial({
@@ -292,18 +294,18 @@ export class Table {
       roughness: 0.3,
       metalness: 0.22,
     });
-    const roundTubeR = 1.1;
+    const roundTubeR = 0.9;
     const roundShort = new THREE.Mesh(
       new THREE.CylinderGeometry(roundTubeR, roundTubeR, shortRailLen, 14, 1, false, 0, Math.PI),
       roundMat
     );
     roundShort.rotation.z = Math.PI / 2;
-    roundShort.position.set(0, railH + roundTubeR * 0.35, -halfD - railW / 2 + roundTubeR);
+    roundShort.position.set(0, railH + roundTubeR, -halfD - railW / 2 + roundTubeR);
     roundShort.castShadow = true;
     this.meshGroup.add(roundShort);
 
     const roundShort2 = roundShort.clone();
-    roundShort2.position.set(0, railH + roundTubeR * 0.35, halfD + railW / 2 - roundTubeR);
+    roundShort2.position.set(0, railH + roundTubeR, halfD + railW / 2 - roundTubeR);
     this.meshGroup.add(roundShort2);
 
     // Side rails are split around the middle pockets so balls do not appear
@@ -318,7 +320,7 @@ export class Table {
         rail.position.set(x, railH / 2, z);
         rail.castShadow = true;
         this.meshGroup.add(rail);
-        this._addRailTopInsert(x, railH + 0.18, z, railW * 0.62, 2.0, sideRailLen - 10, topInsertMat);
+        this._addRailTopInsert(x, railH + 1.0, z, railW * 0.62, 1.2, sideRailLen - 10, topInsertMat);
       }
     }
 
@@ -331,7 +333,7 @@ export class Table {
         );
         roundSide.rotation.x = Math.PI / 2;
         const nx = x < 0 ? 1 : -1;
-        roundSide.position.set(x + nx * roundTubeR, railH + roundTubeR * 0.35, z);
+        roundSide.position.set(x + nx * roundTubeR, railH + roundTubeR, z);
         roundSide.castShadow = true;
         this.meshGroup.add(roundSide);
       }
@@ -361,12 +363,12 @@ export class Table {
     const sideZ = sideGap / 2 + sideLen / 2;
 
     const bevels = [
-      [0, 9.4, -halfD - 0.8, shortLen, 1.4, 2.2],
-      [0, 9.4, halfD + 0.8, shortLen, 1.4, 2.2],
+      [0, 10.2, -halfD - 0.8, shortLen, 1.0, 2.2],
+      [0, 10.2, halfD + 0.8, shortLen, 1.0, 2.2],
     ];
     for (const z of [-sideZ, sideZ]) {
-      bevels.push([-halfW - 0.8, 9.4, z, 2.2, 1.4, sideLen]);
-      bevels.push([halfW + 0.8, 9.4, z, 2.2, 1.4, sideLen]);
+      bevels.push([-halfW - 0.8, 10.2, z, 2.2, 1.0, sideLen]);
+      bevels.push([halfW + 0.8, 10.2, z, 2.2, 1.0, sideLen]);
     }
 
     for (const [x, y, z, w, h, d] of bevels) {
@@ -406,11 +408,12 @@ export class Table {
       this.meshGroup.add(apron);
     }
 
+    // Trims sit on top of rails, not inside them
     const trims = [
-      [0, 7.5, -halfD - 7, TABLE.width + 18, 2.2, 2.4],
-      [0, 7.5, halfD + 7, TABLE.width + 18, 2.2, 2.4],
-      [-halfW - 7, 7.5, 0, 2.4, 2.2, TABLE.depth + 14],
-      [halfW + 7, 7.5, 0, 2.4, 2.2, TABLE.depth + 14],
+      [0, 8.2, -halfD - 7, TABLE.width + 18, 0.5, 2.4],
+      [0, 8.2, halfD + 7, TABLE.width + 18, 0.5, 2.4],
+      [-halfW - 7, 8.2, 0, 2.4, 0.5, TABLE.depth + 14],
+      [halfW + 7, 8.2, 0, 2.4, 0.5, TABLE.depth + 14],
     ];
 
     for (const [x, y, z, w, h, d] of trims) {
@@ -490,10 +493,10 @@ export class Table {
       this.meshGroup.add(facing);
 
       const drop = new THREE.Mesh(
-        new THREE.CylinderGeometry(POCKET.radius * 0.96, POCKET.radius * 0.7, 18, 36),
+        new THREE.CylinderGeometry(POCKET.radius * 0.96, POCKET.radius * 0.7, 16, 36),
         linerMat
       );
-      drop.position.set(pocket.x, -7, pocket.z);
+      drop.position.set(pocket.x, -8, pocket.z);
       drop.receiveShadow = true;
       this.meshGroup.add(drop);
 
@@ -501,7 +504,7 @@ export class Table {
         new THREE.CylinderGeometry(POCKET.radius * 0.7, POCKET.radius * 0.52, 8, 32),
         cupMat
       );
-      cup.position.set(pocket.x, -18, pocket.z);
+      cup.position.set(pocket.x, -19, pocket.z);
       cup.receiveShadow = true;
       this.meshGroup.add(cup);
     }
@@ -549,8 +552,8 @@ export class Table {
     const halfD = TABLE.depth / 2;
 
     const addJaw = (x, z, angle, length = 12) => {
-      const jaw = new THREE.Mesh(new THREE.BoxGeometry(length, 2.4, 3.2), jawMat);
-      jaw.position.set(x, 4.8, z);
+      const jaw = new THREE.Mesh(new THREE.BoxGeometry(length, 1.5, 3.2), jawMat);
+      jaw.position.set(x, 5.7 + 0.75, z);
       jaw.rotation.y = angle;
       jaw.castShadow = true;
       this.meshGroup.add(jaw);
@@ -764,21 +767,21 @@ export class Table {
     const halfW = TABLE.width / 2;
     const halfD = TABLE.depth / 2;
     const capPositions = [
-      [-halfW - 7, 7, -halfD - 7],
-      [halfW + 7, 7, -halfD - 7],
-      [-halfW - 7, 7, halfD + 7],
-      [halfW + 7, 7, halfD + 7],
+      [-halfW - 7, 9.0, -halfD - 7],
+      [halfW + 7, 9.0, -halfD - 7],
+      [-halfW - 7, 9.0, halfD + 7],
+      [halfW + 7, 9.0, halfD + 7],
     ];
 
     for (const [x, y, z] of capPositions) {
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(10, 8.6, 3, 8), capMat);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(10, 8.6, 2.0, 8), capMat);
       cap.position.set(x, y, z);
       cap.rotation.y = Math.PI / 8;
       cap.castShadow = true;
       this.meshGroup.add(cap);
 
       const crown = new THREE.Mesh(new THREE.CylinderGeometry(6.8, 6.8, 0.75, 8), nickelMat);
-      crown.position.set(x, y + 1.95, z);
+      crown.position.set(x, y + 1.2, z);
       crown.rotation.y = Math.PI / 8;
       crown.castShadow = true;
       this.meshGroup.add(crown);

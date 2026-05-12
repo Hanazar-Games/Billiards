@@ -1,25 +1,109 @@
+/**
+ * AudioManager — Unified Web Audio API manager for menu + game audio.
+ *
+ * Singleton pattern: MenuSystem owns the one instance and injects it
+ * into every Game session. This prevents the Chrome ~6 AudioContext
+ * limit from being exhausted.
+ *
+ * Lifecycle:
+ *   - init()          : create AudioContext (requires user gesture)
+ *   - toggleSound()   : master on/off switch
+ *   - startBGM()      : ambient drone
+ *   - stopBGM()       : silence background
+ *   - dispose()       : close AudioContext, release all native resources
+ *
+ * Resilience:
+ *   - Global click/keydown listeners pre-emptively resume() a suspended
+ *     context so the first SFX after a cold load or tab-switch works.
+ *   - visibilitychange pauses BGM in background tabs to save battery.
+ *   - onstatechange auto-recovers from browser-initiated suspension.
+ *   - Per-effect cooldowns prevent machine-gun distortion.
+ */
+
+const SFX_COOLDOWN_MS = 40; // min gap between identical SFX
+
 export class AudioManager {
   constructor() {
     this.ctx = null;
     this.enabled = false;
     this.initialized = false;
     this.bgmNodes = [];
-    this.soundEnabled = false; // unified master switch for all audio
+    this.soundEnabled = false;
+    this._masterGain = null;
+    this._lastSfxTime = new Map(); // sfxName -> timestamp
+    this._visibilityHandler = null;
+    this._gestureHandler = null;
+    this._stateHandler = null;
+    this._bgmWasPlaying = false;
   }
 
   init() {
     if (this.initialized) return;
     try {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this._masterGain = this.ctx.createGain();
+      this._masterGain.gain.value = 1.0;
+      this._masterGain.connect(this.ctx.destination);
       this.enabled = true;
       this.initialized = true;
+      this._installResilienceListeners();
     } catch (e) {
       console.warn('Web Audio API not supported');
     }
   }
 
+  /** Install global listeners for autoplay-policy resilience. */
+  _installResilienceListeners() {
+    if (!this.ctx) return;
+
+    // Pre-emptively resume on any user gesture
+    this._gestureHandler = () => this.resume();
+    document.addEventListener('click', this._gestureHandler, { once: true, passive: true });
+    document.addEventListener('keydown', this._gestureHandler, { once: true, passive: true });
+    document.addEventListener('touchstart', this._gestureHandler, { once: true, passive: true });
+
+    // Pause BGM when tab is hidden to save battery
+    this._visibilityHandler = () => {
+      if (document.hidden) {
+        this._bgmWasPlaying = this.bgmNodes.length > 0;
+        this.stopBGM();
+      } else if (this._bgmWasPlaying && this.soundEnabled) {
+        this.startBGM();
+      }
+    };
+    document.addEventListener('visibilitychange', this._visibilityHandler);
+
+    // Auto-recover from browser-initiated suspension
+    this._stateHandler = () => {
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.resume();
+      }
+    };
+    this.ctx.addEventListener('statechange', this._stateHandler);
+  }
+
+  _removeResilienceListeners() {
+    if (this._gestureHandler) {
+      document.removeEventListener('click', this._gestureHandler);
+      document.removeEventListener('keydown', this._gestureHandler);
+      document.removeEventListener('touchstart', this._gestureHandler);
+      this._gestureHandler = null;
+    }
+    if (this._visibilityHandler) {
+      document.removeEventListener('visibilitychange', this._visibilityHandler);
+      this._visibilityHandler = null;
+    }
+    if (this._stateHandler && this.ctx) {
+      this.ctx.removeEventListener('statechange', this._stateHandler);
+      this._stateHandler = null;
+    }
+  }
+
   toggleSound(enabled) {
     this.soundEnabled = enabled;
+    if (this._masterGain) {
+      this._masterGain.gain.setTargetAtTime(enabled ? 1.0 : 0.0, this.ctx?.currentTime ?? 0, 0.02);
+    }
     if (enabled) {
       this.startBGM();
     } else {
@@ -28,7 +112,7 @@ export class AudioManager {
   }
 
   startBGM() {
-    if (!this.enabled || !this.ctx || this.bgmNodes.length > 0) return;
+    if (!this.enabled || !this.ctx || this.bgmNodes.length > 0 || !this.soundEnabled) return;
     this.resume();
 
     const t = this.ctx.currentTime;
@@ -52,7 +136,7 @@ export class AudioManager {
 
       gain.gain.setValueAtTime(0.04, t);
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this._masterGain || this.ctx.destination);
       osc.start(t);
 
       this.bgmNodes.push(osc, gain, lfo, lfoGain);
@@ -78,7 +162,7 @@ export class AudioManager {
 
     noise.connect(noiseFilter);
     noiseFilter.connect(noiseGain);
-    noiseGain.connect(this.ctx.destination);
+    noiseGain.connect(this._masterGain || this.ctx.destination);
     noise.start(t);
 
     this.bgmNodes.push(noise, noiseFilter, noiseGain);
@@ -93,17 +177,26 @@ export class AudioManager {
       } catch (e) {}
     }
     this.bgmNodes = [];
+    this._bgmWasPlaying = false;
   }
 
   resume() {
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+    if (this.ctx && (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted')) {
+      this.ctx.resume().catch(() => {});
     }
   }
 
-  // Check if sound is enabled before playing any SFX
   _canPlay() {
     return this.enabled && this.ctx && this.soundEnabled;
+  }
+
+  /** Rate-limit rapid-fire identical SFX (collisions, cushion bounces). */
+  _cooldown(name) {
+    const now = performance.now();
+    const last = this._lastSfxTime.get(name) ?? 0;
+    if (now - last < SFX_COOLDOWN_MS) return false;
+    this._lastSfxTime.set(name, now);
+    return true;
   }
 
   playCueHit(power = 0.5) {
@@ -123,13 +216,14 @@ export class AudioManager {
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
 
     osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(this._masterGain || this.ctx.destination);
     osc.start(t);
     osc.stop(t + 0.12);
   }
 
   playBallCollision(velocity = 5) {
     if (!this._canPlay()) return;
+    if (!this._cooldown('ballCollision')) return;
     this.resume();
 
     const intensity = Math.min(velocity / 20, 1);
@@ -147,13 +241,14 @@ export class AudioManager {
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
 
     osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(this._masterGain || this.ctx.destination);
     osc.start(t);
     osc.stop(t + 0.08);
   }
 
   playCushionBounce(velocity = 5) {
     if (!this._canPlay()) return;
+    if (!this._cooldown('cushionBounce')) return;
     this.resume();
 
     const intensity = Math.min(velocity / 15, 1);
@@ -180,12 +275,13 @@ export class AudioManager {
 
     noise.connect(filter);
     filter.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(this._masterGain || this.ctx.destination);
     noise.start(t);
   }
 
   playPocket() {
     if (!this._canPlay()) return;
+    if (!this._cooldown('pocket')) return;
     this.resume();
 
     const t = this.ctx.currentTime;
@@ -198,7 +294,7 @@ export class AudioManager {
     gain.gain.setValueAtTime(0.2, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
     osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(this._masterGain || this.ctx.destination);
     osc.start(t);
     osc.stop(t + 0.25);
 
@@ -214,7 +310,7 @@ export class AudioManager {
     nGain.gain.setValueAtTime(0.08, t);
     nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
     noise.connect(nGain);
-    nGain.connect(this.ctx.destination);
+    nGain.connect(this._masterGain || this.ctx.destination);
     noise.start(t);
   }
 
@@ -232,7 +328,7 @@ export class AudioManager {
       gain.gain.setValueAtTime(0.15, t + i * 0.12);
       gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.12 + 0.3);
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this._masterGain || this.ctx.destination);
       osc.start(t + i * 0.12);
       osc.stop(t + i * 0.12 + 0.3);
     });
@@ -251,8 +347,24 @@ export class AudioManager {
     gain.gain.setValueAtTime(0.1, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
     osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(this._masterGain || this.ctx.destination);
     osc.start(t);
     osc.stop(t + 0.35);
+  }
+
+  dispose() {
+    this.stopBGM();
+    this._removeResilienceListeners();
+
+    if (this.ctx) {
+      try {
+        this.ctx.close();
+      } catch (e) {}
+      this.ctx = null;
+    }
+    this._masterGain = null;
+    this.enabled = false;
+    this.initialized = false;
+    this._lastSfxTime.clear();
   }
 }

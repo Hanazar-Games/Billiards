@@ -4,11 +4,14 @@
  * Creates an open studio floor and a row of table lights.
  */
 import * as THREE from 'three';
-import { TABLE } from '../config.js';
+import { TABLE, BALL } from '../config.js';
 
 export class Room {
   constructor() {
     this.meshGroup = new THREE.Group();
+    this._tmpToTable = new THREE.Vector3();
+    this._tmpToLamp = new THREE.Vector3();
+    this._tmpToLamp2 = new THREE.Vector3();
     this.createFloor();
     this.createTableLights();
   }
@@ -28,7 +31,7 @@ export class Room {
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = -TABLE.height - 60; // below table legs
+    mesh.position.y = -TABLE.height - 70; // well below table legs
     mesh.receiveShadow = true;
     this.meshGroup.add(mesh);
 
@@ -63,7 +66,7 @@ export class Room {
       emissive: 0xffd98a,
       emissiveIntensity: 1.8,
       roughness: 0.2,
-      transparent: true,
+      transparent: false,
       opacity: 1.0,
     });
 
@@ -73,7 +76,7 @@ export class Room {
       emissiveIntensity: 0.35,
       roughness: 0.45,
       metalness: 0.25,
-      transparent: true,
+      transparent: false,
       opacity: 1.0,
     });
     const crossbar = new THREE.Mesh(new THREE.BoxGeometry(4, 3, TABLE.depth * 0.68), crossbarMat);
@@ -112,13 +115,13 @@ export class Room {
     if (!this._lampDiffusers || this._lampDiffusers.length === 0) return;
 
     const camPos = camera.position;
-    const tableCenter = new THREE.Vector3(0, BALL.radius, 0);
-    const toTable = new THREE.Vector3().subVectors(tableCenter, camPos);
+    const tableCenter = this._tmpToTable.set(0, BALL.radius, 0);
+    const toTable = this._tmpToTable.subVectors(tableCenter, camPos);
     const distToTable = toTable.length();
     toTable.normalize();
 
     for (const diffuser of this._lampDiffusers) {
-      const toLamp = new THREE.Vector3().subVectors(diffuser.position, camPos);
+      const toLamp = this._tmpToLamp.subVectors(diffuser.position, camPos);
       const distToLamp = toLamp.length();
       toLamp.normalize();
 
@@ -144,7 +147,7 @@ export class Room {
     if (this._lampCrossbarMat) {
       let maxFade = 0;
       for (const diffuser of this._lampDiffusers) {
-        const toLamp = new THREE.Vector3().subVectors(diffuser.position, camera.position);
+        const toLamp = this._tmpToLamp2.subVectors(diffuser.position, camera.position);
         const distToLamp = toLamp.length();
         toLamp.normalize();
         const alignment = toLamp.dot(toTable);

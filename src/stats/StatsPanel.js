@@ -189,7 +189,7 @@ export class StatsPanel {
         ${row('Pocketed', p.pocketed)}
         ${row('Fouls', p.fouls)}
         ${row('Scratches', p.scratches)}
-        ${row('Avg Power', p.avgPower)}
+        ${row('Avg Power', typeof p.avgPower === 'number' ? p.avgPower.toFixed(1) : 'N/A')}
         ${row('Max Power', p.maxPower)}
         ${row('Pocket Rate', p.pocketRate)}
         ${row('Best Streak', p.streak)}
@@ -248,7 +248,7 @@ export class StatsPanel {
         <div style="display:flex;justify-content:space-between;"><span>Shots</span><span>${Math.round(p.shots)}</span></div>
         <div style="display:flex;justify-content:space-between;"><span>Pocketed</span><span>${Math.round(p.ballsPocketed)}</span></div>
         <div style="display:flex;justify-content:space-between;"><span>Fouls</span><span>${Math.round(p.fouls)}</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>Avg Power</span><span>${p.avgPower.toFixed(1)}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Avg Power</span><span>${typeof p.avgPower === 'number' ? p.avgPower.toFixed(1) : 'N/A'}</span></div>
         <div style="display:flex;justify-content:space-between;"><span>Max Power</span><span>${Math.round(p.maxPower)}</span></div>
       </div>
     `;

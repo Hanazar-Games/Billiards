@@ -6,6 +6,8 @@ export class GameLoop {
     this.lastTime = 0;
     this.accumulator = 0;
     this.id = null;
+    this._errorCount = 0;
+    this._maxErrors = 3;
   }
 
   start() {
@@ -29,8 +31,19 @@ export class GameLoop {
     const dt = Math.min((now - this.lastTime) / 1000, 0.1); // cap at 100ms
     this.lastTime = now;
 
-    this.update(dt);
-    this.render();
+    try {
+      this.update(dt);
+      this.render();
+      this._errorCount = 0; // reset on success
+    } catch (err) {
+      console.error('GameLoop error:', err);
+      this._errorCount++;
+      if (this._errorCount >= this._maxErrors) {
+        console.error(`GameLoop: ${this._maxErrors} consecutive errors, stopping.`);
+        this.stop();
+        return;
+      }
+    }
 
     this.id = requestAnimationFrame(this.tick);
   };

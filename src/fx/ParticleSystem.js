@@ -15,6 +15,16 @@ const CHALK_COLOR = 0xa8d8ea;
 const SPARK_COLORS = [0xffd700, 0xff6b6b, 0x4ecdc4, 0xffe66d, 0xffffff];
 const FLASH_COLOR = 0xffd700;
 
+// Colours for the pocket-fountain effect keyed by ball ID.
+const FOUNTAIN_COLORS = {
+  0: 0xffffff, // cue
+  1: 0x1e90ff, 2: 0xffd700, 3: 0xdc143c, 4: 0x8a2be2,
+  5: 0xff8c00, 6: 0x32cd32, 7: 0x8b0000,
+  8: 0x333333,
+  9: 0xffd700, 10: 0x1e90ff, 11: 0xdc143c, 12: 0x8a2be2,
+  13: 0xff8c00, 14: 0x32cd32, 15: 0x8b0000,
+};
+
 export class ParticleSystem {
   constructor(scene) {
     this.scene = scene;
@@ -155,6 +165,50 @@ export class ParticleSystem {
     this._spawnPoints(data, material, 'flash');
   }
 
+  /**
+   * Spawn a coloured fountain when a ball drops into a pocket.
+   * Particles erupt upward and then fall back under gravity,
+   * tinted to match the pocketed ball.
+   * @param {THREE.Vector3} position - pocket centre
+   * @param {number} ballId - pocketed ball id (0-15)
+   */
+  spawnPocketFountain(position, ballId) {
+    if (!this.enabled) return;
+
+    const color = FOUNTAIN_COLORS[ballId] ?? FLASH_COLOR;
+    const count = 18 + Math.floor(Math.random() * 10);
+    const data = this._allocParticleData(count);
+
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const spread = Math.random() * 3.5;
+      data.positions[i * 3] = position.x + Math.cos(angle) * spread;
+      data.positions[i * 3 + 1] = position.y + 1;
+      data.positions[i * 3 + 2] = position.z + Math.sin(angle) * spread;
+
+      const speed = 5 + Math.random() * 14;
+      data.velocities.push({
+        x: Math.cos(angle) * (1 + Math.random() * 3),
+        y: speed,
+        z: Math.sin(angle) * (1 + Math.random() * 3),
+      });
+
+      data.lifetimes.push(0.5 + Math.random() * 0.4);
+      data.maxLifetimes.push(data.lifetimes[i]);
+    }
+
+    const material = new THREE.PointsMaterial({
+      color,
+      size: 2.2,
+      transparent: true,
+      opacity: 0.8,
+      depthWrite: false,
+      sizeAttenuation: true,
+    });
+
+    this._spawnPoints(data, material, 'fountain');
+  }
+
   _allocParticleData(count) {
     return {
       positions: new Float32Array(count * 3),
@@ -206,9 +260,9 @@ export class ParticleSystem {
           positions[j * 3 + 1] += sys.velocities[j].y * safeDt;
           positions[j * 3 + 2] += sys.velocities[j].z * safeDt;
 
-          // Gravity only for chalk dust
-          if (sys.type === 'chalk') {
-            sys.velocities[j].y -= 12 * safeDt;
+          // Gravity for chalk dust and pocket fountains
+          if (sys.type === 'chalk' || sys.type === 'fountain') {
+            sys.velocities[j].y -= 14 * safeDt;
           }
         } else {
           // Move dead particles off-screen

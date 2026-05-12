@@ -116,7 +116,7 @@ export class ChallengeResult {
 
     // Render stats
     const rows = [];
-    if (stats.duration !== undefined) rows.push(`⏱ 用时: ${stats.duration.toFixed(1)}s`);
+    if (typeof stats.duration === 'number') rows.push(`⏱ 用时: ${stats.duration.toFixed(1)}s`);
     if (stats.fouls !== undefined) rows.push(`⚠ 犯规: ${stats.fouls}`);
     if (stats.spinPockets !== undefined) rows.push(`🌀 旋转进球: ${stats.spinPockets}`);
     if (stats.breakPocketed !== undefined) rows.push(`🎱 开球进袋: ${stats.breakPocketed}`);

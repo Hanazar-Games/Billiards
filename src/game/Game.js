@@ -16,11 +16,14 @@ import { StatsTracker } from '../stats/StatsTracker.js';
 import { StatsPanel } from '../stats/StatsPanel.js';
 import { ParticleSystem } from '../fx/ParticleSystem.js';
 import { ShotTrailSystem } from '../fx/ShotTrail.js';
+import { ImpactShockwave } from '../fx/ImpactShockwave.js';
+import { ScreenShake } from '../fx/ScreenShake.js';
+import { PowerLabel } from '../fx/PowerLabel.js';
 import { ShotRecorder } from '../replay/ShotRecorder.js';
 import { BALL, TABLE, POCKET, SHOT } from '../config.js';
 
 export class Game {
-  constructor(renderer, physics) {
+  constructor(renderer, physics, audioManager = null) {
     this.renderer = renderer;
     this.physics = physics;
     this.scene = renderer.scene;
@@ -32,13 +35,18 @@ export class Game {
     this.cue = null;
     this.rules = null;
     this.ui = new UI();
-    this.audio = new AudioManager();
+    // Use injected shared AudioManager, or create our own if standalone
+    this.audio = audioManager || new AudioManager();
+    this._ownsAudio = !audioManager;
     this.aiPlayer = null;
     this.trajectory = null;
     this.statsTracker = new StatsTracker();
     this.statsPanel = new StatsPanel();
     this.particles = new ParticleSystem(this.scene);
     this.trails = new ShotTrailSystem(this.scene);
+    this.shockwaves = new ImpactShockwave(this.scene);
+    this.screenShake = new ScreenShake(this.camera);
+    this.powerLabel = new PowerLabel();
     this.recorder = new ShotRecorder();
     this.replayLibrary = null; // injected by MenuSystem
 
@@ -177,7 +185,7 @@ export class Game {
     if (enabled && !this.aiPlayer) {
       this.aiPlayer = new AIPlayer(AI_DIFFICULTY.NORMAL);
     }
-    if (this.currentPlayer === 2 && enabled && this.state === 'AIM') {
+    if (this.currentPlayer === 2 && enabled && this.state === 'AIM' && !this.ballInHand) {
       this.startAITurn();
     }
     if (!enabled && this.state === 'AI_THINKING') {
@@ -330,9 +338,11 @@ export class Game {
     const cueBall = this.ballsManager.getCueBall();
     if (!cueBall || cueBall.pocketed || !this.dragStart) return;
 
-    const rect = this.renderer.renderer.domElement.getBoundingClientRect();
-    const ballScreen = cueBall.mesh.position.clone().project(this.camera);
-    const pullAnchor = cueBall.mesh.position.clone().addScaledVector(this.lockedAimDirection, -24);
+    const rect = this._canvasRect;
+    if (!rect) return;
+
+    const ballScreen = this._tmpVec3a.copy(cueBall.mesh.position).project(this.camera);
+    const pullAnchor = this._tmpVec3b.copy(cueBall.mesh.position).addScaledVector(this.lockedAimDirection, -24);
     const anchorScreen = pullAnchor.project(this.camera);
 
     const ballX = (ballScreen.x * 0.5 + 0.5) * rect.width + rect.left;
@@ -531,6 +541,9 @@ export class Game {
       this.aimDirection,
       force
     );
+    this.shockwaves.spawn(cueBall.mesh.position, force);
+    this.screenShake.trigger(force, this.aimDirection);
+    this.powerLabel.show(force);
     this.trails.startRecording(cueBall);
     this.recorder.start(this.ballsManager, this.mode, force, this.cueTipOffset);
 
@@ -599,7 +612,7 @@ export class Game {
         const elapsed = performance.now() - chargeStart;
         const progress = Math.min(elapsed / chargeDuration, 1);
         this.power = targetPower * progress;
-        this.ui.setPower((this.power / SHOT.maxPower) * 100);
+        if (this.ui) this.ui.setPower((this.power / SHOT.maxPower) * 100);
 
         if (progress < 1 && this.state === 'CHARGING') {
           requestAnimationFrame(tick);
@@ -647,16 +660,18 @@ export class Game {
           if (this.challengeManager) this.challengeManager.onPocket(entry.id);
         }
 
-        // Pocket flash particles — use the exact pocket from checkPockets
-        // Deduplicate: multiple balls in same pocket = one flash
+        // Pocket flash + fountain per ball (fountain is per-ball coloured)
         const flashed = new Set();
         for (const entry of newlyPocketed) {
-          if (flashed.has(entry.pocketIndex)) continue;
-          flashed.add(entry.pocketIndex);
           const pocket = pocketPositions[entry.pocketIndex];
-          if (pocket) {
+          if (!pocket) continue;
+          // One golden flash per pocket
+          if (!flashed.has(entry.pocketIndex)) {
+            flashed.add(entry.pocketIndex);
             this.particles.spawnPocketFlash(pocket);
           }
+          // Coloured fountain per ball
+          this.particles.spawnPocketFountain(pocket, entry.id);
         }
       }
 
@@ -674,6 +689,8 @@ export class Game {
     // Update visual effects
     this.trails.update(dt);
     this.particles.update(dt);
+    this.shockwaves.update(dt);
+    this.screenShake.update(dt);
     if (this.challengeManager) {
       this._updateChallengeHUD();
       // Auto-end challenge when completed or failed (debounced, 2s delay)
@@ -878,17 +895,43 @@ export class Game {
       if (this.ballInHand) {
         this.ballInHand = false;
         const cue = this.ballsManager.getCueBall();
-        // Respect behind-head-string restriction when placing cue ball
-        const preferredZ = this.ballInHandBehindLine
-          ? -TABLE.depth / 2 * 0.55 - BALL.radius * 2
-          : -TABLE.depth / 2 * 0.55;
-        const clearPos = this.ballsManager.resetCueBallIfPocketed(0, preferredZ);
-        if (clearPos.x === 0 && clearPos.z === preferredZ) {
-          cue?.reset(0, BALL.radius, preferredZ);
-        }
-        // If resetCueBallIfPocketed found a different spot, the cue ball is already placed there
+        const behindLine = this.ballInHandBehindLine;
         this.ballInHandBehindLine = false;
+        // Find a legal cue-ball placement for AI
+        let placed = false;
+        const headStringZ = -TABLE.depth / 2 * 0.55;
+        const candidates = [];
+        if (behindLine) {
+          // Behind head string: scan along a line slightly behind the string
+          for (let x = 0; x <= 10; x++) {
+            candidates.push({ x: x * BALL.radius * 2.5, z: headStringZ - BALL.radius * 2 });
+            if (x > 0) candidates.push({ x: -x * BALL.radius * 2.5, z: headStringZ - BALL.radius * 2 });
+          }
+        } else {
+          // Full ball-in-hand: scan a grid near the head end
+          for (let x = 0; x <= 6; x++) {
+            for (let z = -3; z <= 0; z++) {
+              candidates.push({ x: x * BALL.radius * 2.5, z: headStringZ + z * BALL.radius * 2.5 });
+              if (x > 0) candidates.push({ x: -x * BALL.radius * 2.5, z: headStringZ + z * BALL.radius * 2.5 });
+            }
+          }
+        }
+        for (const pos of candidates) {
+          if (this.isCueBallPlacementLegal(pos.x, pos.z, behindLine)) {
+            cue?.reset(pos.x, BALL.radius, pos.z);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) {
+          // Fallback: let resetCueBallIfPocketed pick a spot
+          const fallback = this.ballsManager.resetCueBallIfPocketed(0, headStringZ - BALL.radius * 2);
+          cue?.reset(fallback.x, BALL.radius, fallback.z);
+        }
       }
+      // Reset AI spin so human player starts with center hit
+      this.cueTipOffset = { x: 0, y: 0 };
+      this._updateCueTipPicker();
       this.startAITurn();
     }
   }
@@ -913,9 +956,25 @@ export class Game {
     this.statsTracker.reset();
     this.particles.clear();
     this.trails.clear();
+    this.shockwaves?.clear();
+    this.screenShake?.cancel();
     this.recorder.reset();
     this.statsPanel.reset();
     if (this.challengeManager) this.challengeManager.resetMatch();
+
+    // Clear challenge auto-end timeout
+    if (this._challengeEndTimeout) {
+      clearTimeout(this._challengeEndTimeout);
+      this._challengeEndTimeout = null;
+    }
+    this._challengeEnding = false;
+
+    // Remove stale challenge HUD
+    const chHud = document.getElementById('challenge-hud');
+    if (chHud && chHud.parentNode) {
+      chHud.parentNode.removeChild(chHud);
+    }
+
     this.currentPlayer = 1;
     this.state = 'AIM';
     this.ballInHand = false;
@@ -923,6 +982,12 @@ export class Game {
     this.ballInHandBehindLine = false;
     this.cueTipOffset = { x: 0, y: 0 };
     this.power = 0;
+    this.charging = false;
+    this.dragStart = null;
+    this.turnPocketedIds = [];
+    this._isBreakShot = false;
+    this.gameStartTime = performance.now();
+    this.cameraMode = 'free';
     this.ui.setPower(0);
     this.ui.setPlayerTurn(1);
     this.ui.setPlayerGroups(null, null);
@@ -1148,6 +1213,15 @@ export class Game {
       let changed = false;
       switch (key) {
         case 'w':
+        case 's':
+        case 'a':
+        case 'd':
+        case 'r':
+          e.preventDefault();
+          break;
+      }
+      switch (key) {
+        case 'w':
           this.cueTipOffset.y = Math.min(0.88, this.cueTipOffset.y + step);
           changed = true;
           break;
@@ -1184,6 +1258,7 @@ export class Game {
       this.renderer.controls.target.set(0, 0, 0);
       this.renderer.controls.enabled = true;
     }
+    this.screenShake?.cancel();
   }
 
   _resetCameraTop() {
@@ -1194,6 +1269,7 @@ export class Game {
       this.renderer.controls.target.set(0, 0, 0);
       this.renderer.controls.enabled = true;
     }
+    this.screenShake?.cancel();
   }
 
   _updateChallengeHUD() {
@@ -1217,7 +1293,8 @@ export class Game {
         max-width: 220px;
         transition: border-color 0.3s;
       `;
-      document.getElementById('ui-layer').appendChild(el);
+      const uiLayer = document.getElementById('ui-layer');
+      if (uiLayer) uiLayer.appendChild(el);
     }
     // Only update DOM when data actually changes
     const newHash = `${data.name}|${data.progress}|${data.completed}|${data.failed}`;
@@ -1237,7 +1314,14 @@ export class Game {
   _updateCamera() {
     if (this.renderer._shiftCameraControl) return;
 
+    // Screen shake takes over camera position briefly; skip other modes.
+    if (this.screenShake?.active) return;
+
     if (this.cameraMode === 'follow') {
+      // Disable orbit controls so follow mode doesn't fight user input
+      if (this.renderer.controls) {
+        this.renderer.controls.enabled = false;
+      }
       const cueBall = this.ballsManager.getCueBall();
       if (cueBall && !cueBall.pocketed) {
         const pos = cueBall.mesh.position;
@@ -1254,6 +1338,9 @@ export class Game {
         cam.position.z += (targetZ - cam.position.z) * 0.05;
         cam.lookAt(pos.x, pos.y, pos.z);
       }
+    } else if (this.renderer.controls) {
+      // Re-enable orbit controls when leaving follow mode
+      this.renderer.controls.enabled = true;
     }
   }
 
@@ -1266,8 +1353,11 @@ export class Game {
 
     // Remove back-to-menu button
     const backBtn = document.getElementById('back-to-menu');
-    if (backBtn && backBtn.parentNode) {
-      backBtn.parentNode.removeChild(backBtn);
+    if (backBtn) {
+      backBtn.onclick = null;
+      backBtn.onmouseenter = null;
+      backBtn.onmouseleave = null;
+      if (backBtn.parentNode) backBtn.parentNode.removeChild(backBtn);
     }
 
     // Remove cue tip picker and its listeners
@@ -1329,6 +1419,7 @@ export class Game {
     // Remove cue
     if (this.cue) {
       this.scene.remove(this.cue.mesh);
+      this.cue.dispose();
       this.cue = null;
     }
 
@@ -1347,16 +1438,30 @@ export class Game {
       this.trails.dispose();
       this.trails = null;
     }
+    if (this.shockwaves) {
+      this.shockwaves.dispose();
+      this.shockwaves = null;
+    }
+    this.screenShake = null;
+    if (this.powerLabel) {
+      this.powerLabel.dispose();
+      this.powerLabel = null;
+    }
 
-    // Stop audio (BGM may still be playing)
+    // Stop audio (only dispose if we own the instance)
     if (this.audio) {
       this.audio.stopBGM();
+      if (this._ownsAudio) {
+        this.audio.dispose();
+      }
       this.audio = null;
     }
 
     // Remove event listeners
     window.removeEventListener('toggleTrajectory', this._onToggleTrajectory);
     window.removeEventListener('toggleShotTrail', this._onToggleShotTrail);
+    this._onToggleTrajectory = null;
+    this._onToggleShotTrail = null;
 
     // Destroy UI elements created by this game session
     if (this.ui) {
@@ -1386,6 +1491,18 @@ export class Game {
       this.input.dispose();
       this.input = null;
     }
+
+    // Null out remaining references to aid GC
+    this.onReturnToMenu = null;
+    this.recorder = null;
+    this.challengeManager = null;
+    this.statsTracker = null;
+    this.statsPanel = null;
+    this.trajectory = null;
+    this.renderer = null;
+    this.physics = null;
+    this.scene = null;
+    this.camera = null;
 
     this.state = 'DISPOSED';
   }

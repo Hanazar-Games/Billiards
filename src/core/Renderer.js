@@ -187,7 +187,6 @@ export class Renderer {
   }
 
   onCameraPointerUp(e) {
-    if (!this._cameraDragMode) return;
     this._cameraDragMode = null;
     this._updateCameraCursor();
     if (this.renderer.domElement.releasePointerCapture) {
@@ -240,6 +239,9 @@ export class Renderer {
     this.renderer.domElement.removeEventListener('pointerdown', this._onCameraPointerDown);
     window.removeEventListener('pointermove', this._onCameraPointerMove);
     window.removeEventListener('pointerup', this._onCameraPointerUp);
+    if (this.controls) {
+      this.controls.dispose();
+    }
     this.renderer.dispose();
     this.container.removeChild(this.renderer.domElement);
   }

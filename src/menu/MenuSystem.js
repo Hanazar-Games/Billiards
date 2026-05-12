@@ -60,26 +60,30 @@ export class MenuSystem {
     this.challengeManager = null;
     this.challengeResult = null;
     this.activeChallenge = null;
+    this._menuLoopId = null;
 
-    this._initAudio();
-    this._setupMenu();
-    if (typeof window !== 'undefined' && window.updateLoadingProgress) {
-      window.updateLoadingProgress(60, 'Loading assets... 加载资源...');
-    }
+    this._initAudio().then(() => {
+      this._setupMenu();
+      if (typeof window !== 'undefined' && window.updateLoadingProgress) {
+        window.updateLoadingProgress(60, 'Loading assets... 加载资源...');
+      }
+    });
   }
 
-  _initAudio() {
+  async _initAudio() {
     if (typeof window !== 'undefined' && window.updateLoadingProgress) {
       window.updateLoadingProgress(45, 'Loading audio... 加载音频...');
     }
-    // Import AudioManager dynamically to avoid circular deps if any
-    import('../audio/AudioManager.js').then(({ AudioManager }) => {
+    try {
+      const { AudioManager } = await import('../audio/AudioManager.js');
       this.audio = new AudioManager();
       this.audio.init();
       if (typeof window !== 'undefined' && window.updateLoadingProgress) {
         window.updateLoadingProgress(55, 'Audio ready... 音频就绪...');
       }
-    }).catch(() => {});
+    } catch (e) {
+      console.warn('Audio init failed:', e);
+    }
   }
 
   _setupMenu() {
@@ -114,30 +118,33 @@ export class MenuSystem {
     // Create achievement panel (for viewing from menu)
     this.achievementPanel = new AchievementPanel(this.achievements);
 
-    // Create settings screen
-    this.settingsScreen = new SettingsScreen(
-      () => this._showMainMenu(),
-      this.audio
-    );
+    // Create settings screen (audio reference will be set after init)
+    this.settingsScreen = new SettingsScreen(() => this._showMainMenu());
+    this.settingsScreen.setAudioManager(this.audio);
 
     // Start a render loop for the menu background (just the 3D scene, no physics)
     this._startMenuLoop();
   }
 
   _startMenuLoop() {
+    if (this._menuLoopId !== null) return; // already running
     const renderMenu = () => {
       if (this.state === 'MENU' || this.state === 'TRANSITION') {
         this.renderer.render();
-        requestAnimationFrame(renderMenu);
+        this._menuLoopId = requestAnimationFrame(renderMenu);
+      } else {
+        this._menuLoopId = null;
       }
     };
-    requestAnimationFrame(renderMenu);
+    this._menuLoopId = requestAnimationFrame(renderMenu);
   }
 
   _showSettings() {
     this.mainMenu.hide();
     if (this.replayPanel) this.replayPanel.hideList();
     if (this.achievementPanel) this.achievementPanel.hideWall?.();
+    if (this.challengePanel) this.challengePanel.hide();
+    if (this.challengeResult) this.challengeResult.hide();
     this.settingsScreen.show();
   }
 
@@ -153,12 +160,16 @@ export class MenuSystem {
   _showAchievements() {
     this.mainMenu.hide();
     if (this.replayPanel) this.replayPanel.hideList();
+    if (this.challengePanel) this.challengePanel.hide();
+    if (this.challengeResult) this.challengeResult.hide();
     this.achievementPanel.showWall();
   }
 
   _showReplays() {
     this.mainMenu.hide();
     if (this.achievementPanel) this.achievementPanel.hideWall?.();
+    if (this.challengePanel) this.challengePanel.hide();
+    if (this.challengeResult) this.challengeResult.hide();
     if (!this.replayPanel) {
       this.replayPanel = new ReplayPanel(
         this.replayLibrary,
@@ -307,8 +318,11 @@ export class MenuSystem {
     const uiLayer = document.getElementById('ui-layer');
     if (uiLayer) uiLayer.style.display = 'flex';
 
+    // Stop menu BGM before entering game
+    if (this.audio) this.audio.stopBGM();
+
     // Create new Game instance
-    this.game = new Game(this.renderer, this.physics);
+    this.game = new Game(this.renderer, this.physics, this.audio);
     this.game.achievements = this.achievements;
     this.game.replayLibrary = this.replayLibrary;
 
@@ -385,6 +399,11 @@ export class MenuSystem {
     // Show main menu
     this.mainMenu.show();
     this.state = 'MENU';
+
+    // Restart menu BGM if sound is enabled
+    if (this.audio && this.audio.soundEnabled) {
+      this.audio.startBGM();
+    }
 
     // Restart menu render loop
     this._startMenuLoop();
@@ -541,6 +560,7 @@ export class MenuSystem {
     if (this.replayPanel) this.replayPanel.destroy();
     if (this.challengePanel) this.challengePanel.destroy();
     if (this.challengeResult) this.challengeResult.destroy();
+    if (this.achievementPanel) this.achievementPanel.destroy();
 
     // Clean up shared core
     this.renderer.dispose();
@@ -548,7 +568,8 @@ export class MenuSystem {
 
     // Clean up audio
     if (this.audio) {
-      this.audio.stopBGM();
+      this.audio.dispose();
+      this.audio = null;
     }
 
     this.mainMenu?.destroy();

@@ -74,7 +74,8 @@ export class Rules {
     }
 
     // Group assignment on first legal pocket after break
-    if (!this.breakShot && currentGroup === null && pocketedIds.length > 0 && !cueBallPocketed && this.firstBallHit !== 8) {
+    // Group assignment only on a legal shot that hit a valid ball first
+    if (!this.breakShot && currentGroup === null && pocketedIds.length > 0 && !cueBallPocketed && this.firstBallHit !== null && this.firstBallHit !== 8) {
       const firstPocketed = pocketedIds[0];
       const firstType = getBallType(firstPocketed);
       if (firstType === BALL_TYPE.SOLID) {
@@ -155,7 +156,12 @@ export class Rules {
     if (!cueBallPocketed) {
       const firstHitType = getBallType(this.firstBallHit);
       const currentList = this.currentPlayer === 1 ? this.player1Pocketed : this.player2Pocketed;
-      const hasClearedGroup = currentList.length >= 7;
+      const justPocketedOwn = pocketedIds.filter(id => {
+        const t = getBallType(id);
+        return (currentGroup === 'solid' && t === BALL_TYPE.SOLID) ||
+               (currentGroup === 'stripe' && t === BALL_TYPE.STRIPE);
+      }).length;
+      const hasClearedGroup = currentList.length + justPocketedOwn >= 7;
       if (firstHitType === BALL_TYPE.EIGHT && !hasClearedGroup) {
         this.foul = true;
       }

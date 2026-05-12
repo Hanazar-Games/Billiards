@@ -68,6 +68,8 @@ export class Cue {
     // Dragging backward adds pullback along the exact opposite stroke line.
     const tipGap = BALL.radius * 2.0 + pullback;
     let offset = BALL.radius + tipGap;
+    // Minimum offset so the cue tip never clips into the ball.
+    const minOffset = BALL.radius * 1.02;
 
     // Clamp offset so the cue butt does not clip through the table rails/apron.
     // The butt world position = ballPosition - aim * (offset + CUE_LENGTH).
@@ -94,7 +96,11 @@ export class Cue {
       const maxOff = (maxZ - ballPosition.z) / (-aim.z) - CUE_LENGTH;
       offset = Math.min(offset, maxOff);
     }
-    offset = Math.max(offset, BALL.radius * 2.5); // never let tip touch the ball
+    // Enforce minimum tip gap, but rail clamp takes priority (butt must not
+    // clip through solid geometry). If the ball is so close to a rail that
+    // both constraints can't be satisfied, we accept the butt slightly
+    // outside the safe zone rather than pushing it through the rail.
+    offset = Math.max(offset, minOffset);
 
     const pos = ballPosition.clone().addScaledVector(aim, -offset);
     pos.y = ballPosition.y;
@@ -112,5 +118,12 @@ export class Cue {
   show() {
     this.visible = true;
     this.mesh.visible = true;
+  }
+
+  dispose() {
+    this.mesh.traverse((child) => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) child.material.dispose();
+    });
   }
 }

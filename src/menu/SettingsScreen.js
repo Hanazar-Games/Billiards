@@ -5,11 +5,19 @@
  * Can be extended with more options (graphics quality, trail toggle default, etc.)
  */
 export class SettingsScreen {
-  constructor(onBack, audioManager) {
+  constructor(onBack) {
     this.onBack = onBack;
-    this.audio = audioManager;
+    this.audio = null;
     this.container = null;
+    this._soundListener = null;
     this._buildUI();
+  }
+
+  setAudioManager(audioManager) {
+    this.audio = audioManager;
+    if (this.soundToggle && this.audio) {
+      this.soundToggle.checked = this.audio.soundEnabled;
+    }
   }
 
   _buildUI() {
@@ -65,11 +73,12 @@ export class SettingsScreen {
       width: 44px; height: 24px; cursor: pointer;
       accent-color: #18a46a;
     `;
-    this.soundToggle.addEventListener('change', (e) => {
+    this._soundListener = (e) => {
       if (this.audio) {
         this.audio.toggleSound(e.target.checked);
       }
-    });
+    };
+    this.soundToggle.addEventListener('change', this._soundListener);
     soundRow.appendChild(this.soundToggle);
     panel.appendChild(soundRow);
 
@@ -99,6 +108,10 @@ export class SettingsScreen {
 
   show() {
     if (!this.container) return;
+    // Sync toggle with actual audio state
+    if (this.soundToggle && this.audio) {
+      this.soundToggle.checked = this.audio.soundEnabled;
+    }
     this.container.style.display = 'flex';
     this.container.style.opacity = '0';
     this.container.style.transform = 'translateY(8px)';
@@ -112,14 +125,19 @@ export class SettingsScreen {
     if (!this.container) return;
     this.container.style.opacity = '0';
     setTimeout(() => {
-      this.container.style.display = 'none';
+      if (this.container) this.container.style.display = 'none';
     }, 300);
   }
 
   destroy() {
+    if (this.soundToggle && this._soundListener) {
+      this.soundToggle.removeEventListener('change', this._soundListener);
+      this._soundListener = null;
+    }
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }
     this.container = null;
+    this.audio = null;
   }
 }

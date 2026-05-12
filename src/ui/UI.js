@@ -5,16 +5,18 @@ export class UI {
     this.message = document.getElementById('message');
     this.powerFill = document.getElementById('power-bar-fill');
     this._messageTimer = null;
+    this._messageId = 0; // monotonic counter to prevent stale timers clearing new messages
+    this._aiListeners = []; // { el, type, fn }
 
     this.player1Group = document.createElement('div');
     this.player1Group.id = 'player1-group';
     this.player1Group.style.cssText = 'font-size:12px;opacity:0.8;margin-top:4px;';
-    this.player1Badge.appendChild(this.player1Group);
+    if (this.player1Badge) this.player1Badge.appendChild(this.player1Group);
 
     this.player2Group = document.createElement('div');
     this.player2Group.id = 'player2-group';
     this.player2Group.style.cssText = 'font-size:12px;opacity:0.8;margin-top:4px;';
-    this.player2Badge.appendChild(this.player2Group);
+    if (this.player2Badge) this.player2Badge.appendChild(this.player2Group);
 
     // Reset button
     this.resetBtn = document.createElement('button');
@@ -29,7 +31,8 @@ export class UI {
     `;
     this.resetBtn.onmouseenter = () => this.resetBtn.style.background = 'rgba(255,255,255,0.18)';
     this.resetBtn.onmouseleave = () => this.resetBtn.style.background = 'rgba(18,20,23,0.62)';
-    document.getElementById('ui-layer').appendChild(this.resetBtn);
+    const uiLayer = document.getElementById('ui-layer');
+    if (uiLayer) uiLayer.appendChild(this.resetBtn);
 
     // AI controls container
     this.aiPanel = document.createElement('div');
@@ -93,37 +96,41 @@ export class UI {
     `;
     this.aiPanel.appendChild(this.soundToggle);
 
-    document.getElementById('ui-layer').appendChild(this.aiPanel);
+    if (uiLayer) uiLayer.appendChild(this.aiPanel);
+  }
+
+  _addTrackedListener(el, type, fn) {
+    el.addEventListener(type, fn);
+    this._aiListeners.push({ el, type, fn });
   }
 
   setupAIControls(onAIToggle, onDiffChange, onSoundToggle) {
     const checkbox = this.aiToggle.querySelector('input');
-    checkbox.addEventListener('change', (e) => {
+    const onAIChange = (e) => {
       const enabled = e.target.checked;
       onAIToggle(enabled);
       this.diffSelect.disabled = !enabled;
       this.diffSelect.style.opacity = enabled ? '1' : '0.4';
-      this.player2Badge.childNodes[0].textContent = enabled ? 'AI' : 'Player 2';
-    });
+      if (this.player2Badge) {
+        this.player2Badge.childNodes[0].textContent = enabled ? 'AI' : 'Player 2';
+      }
+    };
+    this._addTrackedListener(checkbox, 'change', onAIChange);
 
-    this.diffSelect.addEventListener('change', (e) => {
-      onDiffChange(e.target.value);
-    });
+    const onDiff = (e) => onDiffChange(e.target.value);
+    this._addTrackedListener(this.diffSelect, 'change', onDiff);
 
     const trajCheckbox = this.trajToggle.querySelector('input');
-    trajCheckbox.addEventListener('change', (e) => {
-      window.dispatchEvent(new CustomEvent('toggleTrajectory', { detail: e.target.checked }));
-    });
+    const onTraj = (e) => window.dispatchEvent(new CustomEvent('toggleTrajectory', { detail: e.target.checked }));
+    this._addTrackedListener(trajCheckbox, 'change', onTraj);
 
     const trailCheckbox = this.trailToggle.querySelector('input');
-    trailCheckbox.addEventListener('change', (e) => {
-      window.dispatchEvent(new CustomEvent('toggleShotTrail', { detail: e.target.checked }));
-    });
+    const onTrail = (e) => window.dispatchEvent(new CustomEvent('toggleShotTrail', { detail: e.target.checked }));
+    this._addTrackedListener(trailCheckbox, 'change', onTrail);
 
     const soundCheckbox = this.soundToggle.querySelector('input');
-    soundCheckbox.addEventListener('change', (e) => {
-      if (onSoundToggle) onSoundToggle(e.target.checked);
-    });
+    const onSound = (e) => { if (onSoundToggle) onSoundToggle(e.target.checked); };
+    this._addTrackedListener(soundCheckbox, 'change', onSound);
   }
 
   setPower(pct) {
@@ -135,6 +142,8 @@ export class UI {
   setMessage(text, duration = 0) {
     if (this.message) {
       this.message.textContent = text;
+      this._messageId++;
+      const id = this._messageId;
       if (this._messageTimer) {
         clearTimeout(this._messageTimer);
         this._messageTimer = null;
@@ -142,7 +151,7 @@ export class UI {
       if (duration > 0) {
         this._messageTimer = setTimeout(() => {
           this._messageTimer = null;
-          if (this.message && this.message.textContent === text) {
+          if (this.message && this._messageId === id) {
             this.message.textContent = '';
           }
         }, duration);
@@ -151,6 +160,7 @@ export class UI {
   }
 
   setPlayerTurn(player) {
+    if (!this.player1Badge || !this.player2Badge) return;
     if (player === 1) {
       this.player1Badge.classList.add('active');
       this.player2Badge.classList.remove('active');
@@ -188,17 +198,39 @@ export class UI {
       clearTimeout(this._messageTimer);
       this._messageTimer = null;
     }
+    // Remove all tracked event listeners
+    for (const { el, type, fn } of this._aiListeners) {
+      el.removeEventListener(type, fn);
+    }
+    this._aiListeners = [];
+
     if (this.player1Group && this.player1Group.parentNode) {
       this.player1Group.parentNode.removeChild(this.player1Group);
     }
     if (this.player2Group && this.player2Group.parentNode) {
       this.player2Group.parentNode.removeChild(this.player2Group);
     }
-    if (this.resetBtn && this.resetBtn.parentNode) {
-      this.resetBtn.parentNode.removeChild(this.resetBtn);
+    if (this.resetBtn) {
+      this.resetBtn.onmouseenter = null;
+      this.resetBtn.onmouseleave = null;
+      this.resetBtn.onclick = null;
+      if (this.resetBtn.parentNode) this.resetBtn.parentNode.removeChild(this.resetBtn);
     }
     if (this.aiPanel && this.aiPanel.parentNode) {
       this.aiPanel.parentNode.removeChild(this.aiPanel);
     }
+    this.player1Badge = null;
+    this.player2Badge = null;
+    this.message = null;
+    this.powerFill = null;
+    this.player1Group = null;
+    this.player2Group = null;
+    this.resetBtn = null;
+    this.aiPanel = null;
+    this.aiToggle = null;
+    this.diffSelect = null;
+    this.trajToggle = null;
+    this.trailToggle = null;
+    this.soundToggle = null;
   }
 }
