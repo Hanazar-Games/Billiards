@@ -30,6 +30,10 @@ export class AudioManager {
     this.bgmNodes = [];
     this.soundEnabled = false;
     this._masterGain = null;
+    this._bgmGain = null;
+    this._sfxGain = null;
+    this._musicVolume = 1.0;
+    this._sfxVolume = 1.0;
     this._lastSfxTime = new Map(); // sfxName -> timestamp
     this._visibilityHandler = null;
     this._gestureHandler = null;
@@ -44,6 +48,14 @@ export class AudioManager {
       this._masterGain = this.ctx.createGain();
       this._masterGain.gain.value = 1.0;
       this._masterGain.connect(this.ctx.destination);
+
+      this._bgmGain = this.ctx.createGain();
+      this._bgmGain.gain.value = 1.0;
+      this._bgmGain.connect(this._masterGain);
+
+      this._sfxGain = this.ctx.createGain();
+      this._sfxGain.gain.value = 1.0;
+      this._sfxGain.connect(this._masterGain);
       this.enabled = true;
       this.initialized = true;
       this._installResilienceListeners();
@@ -111,6 +123,24 @@ export class AudioManager {
     }
   }
 
+  setMasterVolume(vol) {
+    if (!this._masterGain || !this.ctx) return;
+    const v = Math.max(0, Math.min(1, vol / 100));
+    this._masterGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
+  }
+
+  setMusicVolume(vol) {
+    this._musicVolume = Math.max(0, Math.min(1, vol / 100));
+    if (!this._bgmGain || !this.ctx) return;
+    this._bgmGain.gain.setTargetAtTime(this._musicVolume, this.ctx.currentTime, 0.05);
+  }
+
+  setSFXVolume(vol) {
+    this._sfxVolume = Math.max(0, Math.min(1, vol / 100));
+    if (!this._sfxGain || !this.ctx) return;
+    this._sfxGain.gain.setTargetAtTime(this._sfxVolume, this.ctx.currentTime, 0.05);
+  }
+
   startBGM() {
     if (!this.enabled || !this.ctx || this.bgmNodes.length > 0 || !this.soundEnabled) return;
     this.resume();
@@ -136,7 +166,7 @@ export class AudioManager {
 
       gain.gain.setValueAtTime(0.04, t);
       osc.connect(gain);
-      gain.connect(this._masterGain || this.ctx.destination);
+      gain.connect(this._bgmGain || this._masterGain || this.ctx.destination);
       osc.start(t);
 
       this.bgmNodes.push(osc, gain, lfo, lfoGain);
@@ -162,7 +192,7 @@ export class AudioManager {
 
     noise.connect(noiseFilter);
     noiseFilter.connect(noiseGain);
-    noiseGain.connect(this._masterGain || this.ctx.destination);
+    noiseGain.connect(this._bgmGain || this._masterGain || this.ctx.destination);
     noise.start(t);
 
     this.bgmNodes.push(noise, noiseFilter, noiseGain);
@@ -216,7 +246,7 @@ export class AudioManager {
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
 
     osc.connect(gain);
-    gain.connect(this._masterGain || this.ctx.destination);
+    gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
     osc.start(t);
     osc.stop(t + 0.12);
   }
@@ -241,7 +271,7 @@ export class AudioManager {
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
 
     osc.connect(gain);
-    gain.connect(this._masterGain || this.ctx.destination);
+    gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
     osc.start(t);
     osc.stop(t + 0.08);
   }
@@ -275,7 +305,7 @@ export class AudioManager {
 
     noise.connect(filter);
     filter.connect(gain);
-    gain.connect(this._masterGain || this.ctx.destination);
+    gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
     noise.start(t);
   }
 
@@ -294,7 +324,7 @@ export class AudioManager {
     gain.gain.setValueAtTime(0.2, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
     osc.connect(gain);
-    gain.connect(this._masterGain || this.ctx.destination);
+    gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
     osc.start(t);
     osc.stop(t + 0.25);
 
@@ -310,7 +340,7 @@ export class AudioManager {
     nGain.gain.setValueAtTime(0.08, t);
     nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
     noise.connect(nGain);
-    nGain.connect(this._masterGain || this.ctx.destination);
+    nGain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
     noise.start(t);
   }
 
@@ -328,7 +358,7 @@ export class AudioManager {
       gain.gain.setValueAtTime(0.15, t + i * 0.12);
       gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.12 + 0.3);
       osc.connect(gain);
-      gain.connect(this._masterGain || this.ctx.destination);
+      gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
       osc.start(t + i * 0.12);
       osc.stop(t + i * 0.12 + 0.3);
     });
@@ -347,7 +377,7 @@ export class AudioManager {
     gain.gain.setValueAtTime(0.1, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
     osc.connect(gain);
-    gain.connect(this._masterGain || this.ctx.destination);
+    gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
     osc.start(t);
     osc.stop(t + 0.35);
   }
