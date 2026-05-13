@@ -113,7 +113,7 @@ export class Cue {
     this._quat.setFromUnitVectors(this._localAxis, aim.clone().negate());
     const tiltAxis = new THREE.Vector3().crossVectors(aim, new THREE.Vector3(0, 1, 0)).normalize();
     if (tiltAxis.lengthSq() > 0.001) {
-      const tiltQuat = new THREE.Quaternion().setFromAxisAngle(tiltAxis, 0.06);
+      const tiltQuat = new THREE.Quaternion().setFromAxisAngle(tiltAxis, -0.06);
       this._quat.premultiply(tiltQuat);
     }
   }
