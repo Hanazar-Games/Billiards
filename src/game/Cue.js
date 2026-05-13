@@ -64,24 +64,21 @@ export class Cue {
     if (aim.lengthSq() < 0.0001) return;
     aim.normalize();
 
-    // In aim mode, leave about one cue-ball diameter between the tip and ball.
-    // Dragging backward adds pullback along the exact opposite stroke line.
-    const tipGap = BALL.radius * 2.0 + pullback;
-    let offset = BALL.radius + tipGap;
-    // Minimum offset so the cue tip never clips into the ball.
+    // Base offset: tip sits just outside the ball (about 1 ball-diameter gap).
+    const baseTipGap = BALL.radius * 2.0;
+    let offset = BALL.radius + baseTipGap;
     const minOffset = BALL.radius * 1.02;
 
-    // Clamp offset so the cue butt does not clip through the table rails/apron.
-    // The butt world position = ballPosition - aim * (offset + CUE_LENGTH).
+    // Clamp base offset so the cue butt does not clip through rails.
+    // Butt world position = ballPosition - aim * (offset + CUE_LENGTH).
     const halfW = TABLE.width / 2;
     const halfD = TABLE.depth / 2;
     const margin = CUE_RADIUS + 4;
-    const minX = -halfW - 18 + margin; // apron outer edge + margin
+    const minX = -halfW - 18 + margin;
     const maxX = halfW + 18 - margin;
     const minZ = -halfD - 18 + margin;
     const maxZ = halfD + 18 - margin;
 
-    // Maximum safe offset derived from each axis constraint
     if (aim.x > 0.001) {
       const maxOff = (ballPosition.x - minX) / aim.x - CUE_LENGTH;
       offset = Math.min(offset, maxOff);
@@ -96,17 +93,25 @@ export class Cue {
       const maxOff = (maxZ - ballPosition.z) / (-aim.z) - CUE_LENGTH;
       offset = Math.min(offset, maxOff);
     }
-    // Enforce minimum tip gap, but rail clamp takes priority (butt must not
-    // clip through solid geometry). If the ball is so close to a rail that
-    // both constraints can't be satisfied, we accept the butt slightly
-    // outside the safe zone rather than pushing it through the rail.
     offset = Math.max(offset, minOffset);
 
+    // Apply pullback AFTER rail clamp so the cue visibly moves backward.
+    offset += pullback;
+
     const pos = ballPosition.clone().addScaledVector(aim, -offset);
-    pos.y = ballPosition.y;
+    // Lift cue slightly and tilt upward to avoid clipping through the table.
+    pos.y = ballPosition.y + 2.5;
 
     this.mesh.position.copy(pos);
     this._quat.setFromUnitVectors(this._localAxis, aim.negate());
+
+    // Slight upward tilt (~3.5°) so the butt is higher than the tip.
+    const tiltAxis = new THREE.Vector3().crossVectors(aim, new THREE.Vector3(0, 1, 0)).normalize();
+    if (tiltAxis.lengthSq() > 0.001) {
+      const tiltQuat = new THREE.Quaternion().setFromAxisAngle(tiltAxis, 0.06);
+      this._quat.premultiply(tiltQuat);
+    }
+
     this.mesh.quaternion.copy(this._quat);
   }
 

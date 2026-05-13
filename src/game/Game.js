@@ -384,7 +384,7 @@ export class Game {
     this.power = Math.min(SHOT.maxPower, pullDistance * 0.42 * powerSens);
     this.ui.setPower((this.power / SHOT.maxPower) * 100);
 
-    const cuePullback = (this.power / SHOT.maxPower) * 24;
+    const cuePullback = (this.power / SHOT.maxPower) * 40;
     this.cue.setAim(cueBall.mesh.position, this.lockedAimDirection, cuePullback);
   }
 
