@@ -32,8 +32,14 @@ function showError(msg) {
     const time = new Date().toLocaleTimeString();
     const block = document.createElement('div');
     block.className = 'err-block';
-    block.innerHTML = '<div class="err-time">' + time + ' — Phase: ' + __initPhase + '</div>' +
-      msg.replace(/\n/g, '<br>');
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'err-time';
+    timeDiv.textContent = time + ' — Phase: ' + __initPhase;
+    block.appendChild(timeDiv);
+    msg.split('\n').forEach((line, i) => {
+      if (i > 0) block.appendChild(document.createElement('br'));
+      block.appendChild(document.createTextNode(line));
+    });
     content.appendChild(block);
     if (phaseEl) {
       phaseEl.style.display = 'block';

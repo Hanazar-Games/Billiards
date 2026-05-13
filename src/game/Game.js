@@ -578,9 +578,11 @@ export class Game {
 
     // Strike snap: cue visually touches the ball for one frame before hiding
     this.cue.strikeSnap(cueBall.mesh.position, this.aimDirection);
-    setTimeout(() => {
-      this.cue.hide();
-      this.trajectory.setVisible(false);
+    if (this._strikeHideTimer) clearTimeout(this._strikeHideTimer);
+    this._strikeHideTimer = setTimeout(() => {
+      if (this.cue) this.cue.hide();
+      if (this.trajectory) this.trajectory.setVisible(false);
+      this._strikeHideTimer = null;
     }, animMs(70));
 
     // Auto-switch to follow mode if enabled
@@ -693,33 +695,33 @@ export class Game {
 
       if (newlyPocketed.length > 0) {
         this.audio.playPocket();
-        for (const entry of newlyPocketed) {
-          this.achievements.onPocket(entry.id, pocketPositions[entry.pocketIndex], this.mode);
-          this.recorder.recordPocket(entry.id);
-          if (this.challengeManager) this.challengeManager.onPocket(entry.id);
-        }
-
-        // Pocket flash + fountain per ball (fountain is per-ball coloured)
         const flashed = new Set();
         for (const entry of newlyPocketed) {
+          const isFirstTime = !this.turnPocketedIds.includes(entry.id);
+          if (isFirstTime) {
+            this.turnPocketedIds.push(entry.id);
+            this.achievements.onPocket(entry.id, pocketPositions[entry.pocketIndex], this.mode);
+            this.recorder.recordPocket(entry.id);
+            if (this.challengeManager) this.challengeManager.onPocket(entry.id);
+          }
           const pocket = pocketPositions[entry.pocketIndex];
           if (!pocket) continue;
-          // One golden flash per pocket
-          if (!flashed.has(entry.pocketIndex)) {
-            flashed.add(entry.pocketIndex);
-            this.particles.spawnPocketFlash(pocket);
-          }
-          // Coloured fountain per ball
-          this.particles.spawnPocketFountain(pocket, entry.id);
-          // Floating score text above pocket
-          if (this.renderer?.camera) {
-            const p = new THREE.Vector3(pocket.x, pocket.y + 15, pocket.z);
-            p.project(this.renderer.camera);
-            const sx = (p.x * 0.5 + 0.5) * this.renderer.width;
-            const sy = (-p.y * 0.5 + 0.5) * this.renderer.height;
-            const txt = entry.id === 8 ? '🎱 8号球!' : (entry.id === 0 ? '⚠️ 白球' : `+${entry.id}`);
-            const col = entry.id === 0 ? '#ff6b6b' : (entry.id === 8 ? '#fff' : '#d8b15f');
-            this.ui.showFloatingText(txt, sx, sy, col);
+          // Visual FX only on first detection per ball
+          if (isFirstTime) {
+            if (!flashed.has(entry.pocketIndex)) {
+              flashed.add(entry.pocketIndex);
+              this.particles.spawnPocketFlash(pocket);
+            }
+            this.particles.spawnPocketFountain(pocket, entry.id);
+            if (this.renderer?.camera && this.renderer.width > 0 && this.renderer.height > 0) {
+              const p = this._tmpVec3a.set(pocket.x, pocket.y + 15, pocket.z);
+              p.project(this.renderer.camera);
+              const sx = (p.x * 0.5 + 0.5) * this.renderer.width;
+              const sy = (-p.y * 0.5 + 0.5) * this.renderer.height;
+              const txt = entry.id === 8 ? '🎱 8号球!' : (entry.id === 0 ? '⚠️ 白球' : `+${entry.id}`);
+              const col = entry.id === 0 ? '#ff6b6b' : (entry.id === 8 ? '#fff' : '#d8b15f');
+              this.ui.showFloatingText(txt, sx, sy, col);
+            }
           }
         }
       }
@@ -1489,6 +1491,10 @@ export class Game {
   }
 
   dispose() {
+    if (this._strikeHideTimer) {
+      clearTimeout(this._strikeHideTimer);
+      this._strikeHideTimer = null;
+    }
     // Remove canvas rect resize listener
     if (this._updateCanvasRect) {
       window.removeEventListener('resize', this._updateCanvasRect);

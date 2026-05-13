@@ -103,16 +103,17 @@ export class Cue {
     pos.y = ballPosition.y + 2.5;
 
     this.mesh.position.copy(pos);
-    this._quat.setFromUnitVectors(this._localAxis, aim.negate());
+    this._applyTilt(aim);
+    this.mesh.quaternion.copy(this._quat);
+  }
 
-    // Slight upward tilt (~3.5°) so the butt is higher than the tip.
+  _applyTilt(aim) {
+    this._quat.setFromUnitVectors(this._localAxis, aim.clone().negate());
     const tiltAxis = new THREE.Vector3().crossVectors(aim, new THREE.Vector3(0, 1, 0)).normalize();
     if (tiltAxis.lengthSq() > 0.001) {
       const tiltQuat = new THREE.Quaternion().setFromAxisAngle(tiltAxis, 0.06);
       this._quat.premultiply(tiltQuat);
     }
-
-    this.mesh.quaternion.copy(this._quat);
   }
 
   hide() {
@@ -131,16 +132,13 @@ export class Cue {
    */
   strikeSnap(ballPosition, direction) {
     if (!this.visible) return;
-    const aim = this._worldAxis.copy(direction).setY(0).normalize();
+    const aim = this._worldAxis.copy(direction).setY(0);
+    if (aim.lengthSq() < 0.0001) return;
+    aim.normalize();
     const tipAtSurface = ballPosition.clone().addScaledVector(aim, -BALL.radius * 1.02);
     tipAtSurface.y = ballPosition.y + 2.5;
     this.mesh.position.copy(tipAtSurface);
-    this._quat.setFromUnitVectors(this._localAxis, aim.negate());
-    const tiltAxis = new THREE.Vector3().crossVectors(aim, new THREE.Vector3(0, 1, 0)).normalize();
-    if (tiltAxis.lengthSq() > 0.001) {
-      const tiltQuat = new THREE.Quaternion().setFromAxisAngle(tiltAxis, 0.06);
-      this._quat.premultiply(tiltQuat);
-    }
+    this._applyTilt(aim);
     this.mesh.quaternion.copy(this._quat);
   }
 

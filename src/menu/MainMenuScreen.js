@@ -32,7 +32,7 @@ export class MainMenuScreen {
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       width: 100%; height: 100%;
-      transition: opacity calc(0.35s / var(--ui-anim-speed)) cubic-bezier(0.2,0.8,0.2,1), transform 0.35s cubic-bezier(0.2,0.8,0.2,1);
+      transition: opacity calc(0.35s / var(--ui-anim-speed)) cubic-bezier(0.2,0.8,0.2,1), transform calc(0.35s / var(--ui-anim-speed)) cubic-bezier(0.2,0.8,0.2,1);
       position: relative;
       z-index: 1;
     `;
@@ -178,7 +178,7 @@ export class MainMenuScreen {
     this.container.style.transform = 'scale(0.96)';
     setTimeout(() => {
       this.container.style.display = 'none';
-    }, 400);
+    }, animMs(400));
   }
 
   destroy() {

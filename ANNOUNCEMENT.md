@@ -1,6 +1,77 @@
-# 3D Billiards v1.2.0 — Latest Update
+# 3D Billiards v1.2.1 — Latest Update
 
-## What's New in v1.2.0
+## What's New in v1.2.1
+
+### Global Animation Speed Control
+
+Every animation and transition in the game is now wired to the **UI Animation Speed** slider in Settings → Controls → Effects & UI:
+
+- **CSS animations/transitions** — intro screen, menu buttons, player badges, settings panel, error modal, floating text, pause overlay, and all inline `style.cssText` transitions use `calc(duration / var(--ui-anim-speed))`
+- **JS timeouts** — toast dismissal, menu fade-outs, replay auto-stop, strike-hide delay, floating-text removal, and all `setTimeout` calls scale via the new `animMs()` utility
+- **New `src/core/AnimSpeed.js`** — centralized `animMs(baseMs)`, `animSec(baseSec)`, and `syncAnimSpeedCss()` with automatic `settingsChanged` listener
+
+### Pre-Load Error Modal
+
+If anything goes wrong during game initialization, a full-screen error modal now appears instead of a tiny text dump:
+
+- **Centered dark card** with red border, backdrop blur, and slide-in animation
+- **Loading phase tracker** — shows exactly which boot phase failed (`core-modules`, `engine-init`, `menu-build`, `finalize`)
+- **Timestamped error blocks** — each error gets its own block with time, phase, message, source file, and line number
+- **HTML-safe rendering** — all error text is escaped; no XSS injection from crafted error messages
+- **🔄 Reload button** + close button at the bottom
+- **Global `error` / `unhandledrejection` listeners** also upgraded to the same modal format, with circular-reference guards for promise rejections
+
+### Cue Strike Animation
+
+When you shoot, the cue stick no longer vanishes instantly. It now **snaps forward so the tip touches the ball surface** for ~70 ms, then hides. This gives a visceral "hit" frame that makes power shots feel significantly more satisfying.
+
+### Foul Red Flash
+
+Scratch or foul? The entire screen now pulses with a **brief radial red vignette** — instant visual feedback that something went wrong, independent of the audio cue.
+
+### Pocket Floating Text
+
+Every pocketed ball spawns a **floating score label** above the pocket:
+
+- Normal balls: `+{number}` in gold
+- 8-ball: `🎱 8号球!` in white
+- Cue ball (scratch): `⚠️ 白球` in red
+
+Text rises, scales up slightly, then fades and shrinks over ~1.2 s.
+
+### Bug Fixes (Deep Audit)
+
+A full-system audit uncovered and fixed **15+ issues**:
+
+| # | File | Issue |
+|---|------|-------|
+| 1 | `Renderer.js` | `panCamera` double-applied `mouseSensitivity` — pan speed scaled with the square of the slider |
+| 2 | `Renderer.js` | Shift + vertical two-finger trackpad pan was broken (`isMouseWheel` check ran before the Shift branch) |
+| 3 | `Ball.js` | `applyImpulse` passed **world coordinates** (`this.body.position`) as the hit point instead of body-relative `(0,0,0)`, injecting a massive, position-dependent torque on every shot |
+| 4 | `ScreenShake.js` | Overlapping triggers permanently baked old offset into camera position, causing infinite drift on rapid shots |
+| 5 | `AudioManager.js` | `toggleSound(true)` reset master gain to `1.0`, discarding the user's master-volume slider value |
+| 6 | `AudioManager.js` | Every one-shot SFX (cue hit, collision, cushion, pocket, win, foul) created Oscillator/BufferSource nodes that were **never disconnected** — native audio node leak over long sessions |
+| 7 | `UI.js` | `flashRed()` overlapping timers caused premature fade-out on rapid fouls |
+| 8 | `UI.js` | `destroy()` did not clean up floating-text DOM nodes or pending flash timeout |
+| 9 | `SettingsScreen.js` | `_createSlider` had an untracked `input` listener, leaking through tab switches |
+| 10 | `SettingsScreen.js` | `_toast` fade-out transition was hardcoded `0.3s`, out of sync with `animMs(300)` |
+| 11 | `Game.js` | `shoot()` strike-hide timeout could crash if `Game.dispose()` was called within 70 ms |
+| 12 | `Game.js` | Pocket visual FX (particles + floating text) could spawn **twice** for the same ball across consecutive physics frames |
+| 13 | `Game.js` | Floating text allocated a new `THREE.Vector3` every pocketed ball per frame |
+| 14 | `MainMenuScreen.js` | `hide()` used hardcoded `400 ms` and CSS `transform 0.35s` ignored animation speed |
+| 15 | `MenuSystem.js` | Menu fade-outs used hardcoded `0.5s` transitions and `500 ms` delays |
+
+### GitHub Pages 404 Fix
+
+- `.github/workflows/deploy.yml` now declares `permissions: contents: write` (GitHub tightened default token permissions)
+- Build step now copies `dist/index.html` → `dist/404.html` so GitHub Pages serves the SPA fallback on any unknown subpath
+
+---
+
+## Previous Releases
+
+<details>
+<summary><strong>v1.2.0</strong> — Settings Overhaul, Pause Menu, Key Bindings</summary>
 
 ### Full Settings Panel — Sidebar + Cards Layout
 
@@ -66,10 +137,7 @@ All BGM oscillators and noise floor route through `_bgmGain`; all SFX (cue hit, 
 - **Game.js spin controls** — restored missing `e.preventDefault()` calls so WASD keys don't scroll the page when used for spin.
 - **UI.js in-game settings** — slider cards now correctly append the full control wrapper (including the value label), not just the inner track.
 - **AudioManager.dispose()** — now nulls `_bgmGain` and `_sfxGain` alongside `_masterGain`.
-
----
-
-## Previous Releases
+</details>
 
 <details>
 <summary><strong>v1.1.0</strong> — Shot Impact FX, Audio Overhaul, Rule Fixes</summary>

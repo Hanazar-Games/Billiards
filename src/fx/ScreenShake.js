@@ -37,6 +37,10 @@ export class ScreenShake {
     const t = Math.min(power / maxPower, 1.0);
 
     const shakeScale = settings.get('screenShakeIntensity') ?? 1.0;
+    // Prevent drift: subtract any existing offset before starting a new shake
+    if (this.active) {
+      this.camera.position.sub(this._currentOffset);
+    }
     this.active = true;
     this.age = 0;
     this.duration = (0.18 + t * 0.35) * shakeScale; // 0.18s … 0.53s

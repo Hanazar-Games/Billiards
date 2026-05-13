@@ -208,10 +208,10 @@ export class MenuSystem {
     // Hide menu
     const menuLayer = document.getElementById('menu-layer');
     if (menuLayer) {
-      menuLayer.style.transition = 'opacity 0.5s ease';
+      menuLayer.style.transition = 'opacity calc(0.5s / var(--ui-anim-speed)) ease';
       menuLayer.style.opacity = '0';
     }
-    await this._delay(500);
+    await this._delay(animMs(500));
     if (menuLayer) menuLayer.style.display = 'none';
 
     // Show game UI
@@ -311,12 +311,12 @@ export class MenuSystem {
     // Hide menu
     const menuLayer = document.getElementById('menu-layer');
     if (menuLayer) {
-      menuLayer.style.transition = 'opacity 0.5s ease';
+      menuLayer.style.transition = 'opacity calc(0.5s / var(--ui-anim-speed)) ease';
       menuLayer.style.opacity = '0';
     }
 
     // Wait for fade-out
-    await this._delay(500);
+    await this._delay(animMs(500));
     if (menuLayer) menuLayer.style.display = 'none';
 
     // Show game UI
@@ -395,6 +395,7 @@ export class MenuSystem {
     const menuLayer = document.getElementById('menu-layer');
     if (menuLayer) {
       menuLayer.style.display = 'flex';
+      menuLayer.style.transition = 'opacity calc(0.5s / var(--ui-anim-speed)) ease';
       menuLayer.style.opacity = '0';
       requestAnimationFrame(() => {
         menuLayer.style.opacity = '1';
@@ -539,6 +540,7 @@ export class MenuSystem {
     const menuLayer = document.getElementById('menu-layer');
     if (menuLayer) {
       menuLayer.style.display = 'flex';
+      menuLayer.style.transition = 'opacity calc(0.5s / var(--ui-anim-speed)) ease';
       menuLayer.style.opacity = '0';
       requestAnimationFrame(() => {
         menuLayer.style.opacity = '1';

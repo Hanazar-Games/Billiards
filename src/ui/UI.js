@@ -641,7 +641,12 @@ export class UI {
       uiLayer.appendChild(flash);
     }
     flash.style.opacity = '1';
-    setTimeout(() => { if (flash) flash.style.opacity = '0'; }, animMs(350));
+    if (this._flashTimer) clearTimeout(this._flashTimer);
+    this._flashTimer = setTimeout(() => {
+      const f = document.getElementById('ui-red-flash');
+      if (f) f.style.opacity = '0';
+      this._flashTimer = null;
+    }, animMs(350));
   }
 
   /**
@@ -651,6 +656,7 @@ export class UI {
     const uiLayer = document.getElementById('ui-layer');
     if (!uiLayer) return;
     const el = document.createElement('div');
+    el.className = 'ui-float-text';
     el.textContent = text;
     el.style.cssText = `
       position: absolute; left: ${screenX}px; top: ${screenY}px;
@@ -669,8 +675,14 @@ export class UI {
       clearTimeout(this._messageTimer);
       this._messageTimer = null;
     }
+    if (this._flashTimer) {
+      clearTimeout(this._flashTimer);
+      this._flashTimer = null;
+    }
     const flash = document.getElementById('ui-red-flash');
     if (flash && flash.parentNode) flash.parentNode.removeChild(flash);
+    const floats = document.querySelectorAll('.ui-float-text');
+    floats.forEach(el => { if (el.parentNode) el.parentNode.removeChild(el); });
     // Remove all tracked event listeners
     for (const { el, type, fn } of this._aiListeners) {
       el.removeEventListener(type, fn);

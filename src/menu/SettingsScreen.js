@@ -981,7 +981,9 @@ export class SettingsScreen {
       font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.55);
       min-width: 44px; text-align: right; font-variant-numeric: tabular-nums;
     `;
-    input.addEventListener('input', () => { label.textContent = input.value + unit; });
+    const labelFn = () => { label.textContent = input.value + unit; };
+    input.addEventListener('input', labelFn);
+    this._listeners.push({ el: input, type: 'input', fn: labelFn });
 
     wrap.appendChild(trackWrap);
     wrap.appendChild(label);
@@ -1017,7 +1019,7 @@ export class SettingsScreen {
     document.body.appendChild(el);
     setTimeout(() => {
       el.style.opacity = '0';
-      el.style.transition = 'opacity 0.3s ease';
+      el.style.transition = 'opacity calc(0.3s / var(--ui-anim-speed)) ease';
       setTimeout(() => el.remove(), animMs(300));
     }, 2000);
   }

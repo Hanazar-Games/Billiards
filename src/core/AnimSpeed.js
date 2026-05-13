@@ -7,9 +7,13 @@ const CSS_VAR = '--ui-anim-speed';
  * @param {number} baseMs - base duration at 1.0x speed
  * @returns {number} scaled duration
  */
+function _clampSpeed(v) {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
 export function animMs(baseMs) {
-  const speed = settings.get('uiAnimSpeed') || 1;
-  return baseMs / speed;
+  return baseMs / _clampSpeed(settings.get('uiAnimSpeed'));
 }
 
 /**
@@ -19,8 +23,7 @@ export function animMs(baseMs) {
  * @returns {string} e.g. "0.3s"
  */
 export function animSec(baseSec) {
-  const speed = settings.get('uiAnimSpeed') || 1;
-  return (baseSec / speed).toFixed(3).replace(/\.?0+$/, '') + 's';
+  return (baseSec / _clampSpeed(settings.get('uiAnimSpeed'))).toFixed(3).replace(/\.?0+$/, '') + 's';
 }
 
 /**
@@ -28,8 +31,7 @@ export function animSec(baseSec) {
  * Call once at boot and whenever settings change.
  */
 export function syncAnimSpeedCss() {
-  const speed = settings.get('uiAnimSpeed') || 1;
-  document.documentElement.style.setProperty(CSS_VAR, String(speed));
+  document.documentElement.style.setProperty(CSS_VAR, String(_clampSpeed(settings.get('uiAnimSpeed'))));
 }
 
 /**

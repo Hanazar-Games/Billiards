@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Billiards v1.2.0</title>
+  <title>3D Billiards v1.2.1</title>
   <style>
     :root {
       --felt: #106442;
@@ -494,7 +494,7 @@
     <div id="power-bar-container">
       <div id="power-bar-fill"></div>
     </div>
-    <div id="version-tag">v1.2.0</div>
+    <div id="version-tag">v1.2.1</div>
   </div>
 
   <!-- Diagnostic overlay for JS errors -->
@@ -518,10 +518,15 @@
 
   <script>
     // Catch errors that happen before or outside the module script
+    function _escHtml(s) {
+      if (s == null) return '';
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
     function _formatErrorBlock(msg, extra) {
       var time = new Date().toLocaleTimeString();
-      return '<div class="err-block"><div class="err-time">' + time + '</div>' +
-        msg.replace(/\n/g, '<br>') + (extra ? '<br><span style="color:rgba(255,255,255,0.35);">' + extra + '</span>' : '') +
+      return '<div class="err-block"><div class="err-time">' + _escHtml(time) + '</div>' +
+        _escHtml(msg).replace(/\n/g, '<br>') +
+        (extra ? '<br><span style="color:rgba(255,255,255,0.35);">' + _escHtml(extra) + '</span>' : '') +
         '</div>';
     }
     window.addEventListener('error', function(e) {
@@ -539,7 +544,11 @@
       if (overlay && content) {
         var reason = e.reason;
         if (typeof reason === 'object' && reason !== null) {
-          reason = (reason.stack || reason.message || JSON.stringify(reason));
+          try {
+            reason = (reason.stack || reason.message || JSON.stringify(reason));
+          } catch (err) {
+            reason = '[object with circular reference]';
+          }
         }
         content.innerHTML = (content.innerHTML || '') + _formatErrorBlock('Unhandled Promise Rejection:\n' + reason, '');
         overlay.classList.add('visible');

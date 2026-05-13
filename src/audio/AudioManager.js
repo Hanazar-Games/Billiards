@@ -39,6 +39,25 @@ export class AudioManager {
     this._gestureHandler = null;
     this._stateHandler = null;
     this._bgmWasPlaying = false;
+    this._masterVolume = 1.0;
+  }
+
+  /** Disconnect a chain of audio nodes after the source finishes playing. */
+  _autoDisconnect(source, ...nodes) {
+    if (!source) return;
+    const all = nodes.filter(Boolean);
+    const doDisconnect = () => {
+      try {
+        source.disconnect();
+        all.forEach(n => n.disconnect());
+      } catch (e) {}
+    };
+    if (source.onended !== undefined) {
+      source.onended = doDisconnect;
+    } else {
+      // Fallback: estimate max duration and disconnect later
+      setTimeout(doDisconnect, 5000);
+    }
   }
 
   init() {
@@ -114,7 +133,8 @@ export class AudioManager {
   toggleSound(enabled) {
     this.soundEnabled = enabled;
     if (this._masterGain) {
-      this._masterGain.gain.setTargetAtTime(enabled ? 1.0 : 0.0, this.ctx?.currentTime ?? 0, 0.02);
+      const v = enabled ? (this._masterVolume ?? 1.0) : 0.0;
+      this._masterGain.gain.setTargetAtTime(v, this.ctx?.currentTime ?? 0, 0.02);
     }
     if (enabled) {
       this.startBGM();
@@ -126,6 +146,7 @@ export class AudioManager {
   setMasterVolume(vol) {
     if (!this._masterGain || !this.ctx) return;
     const v = Math.max(0, Math.min(1, vol / 100));
+    this._masterVolume = v;
     this._masterGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
   }
 
@@ -249,6 +270,7 @@ export class AudioManager {
     gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
     osc.start(t);
     osc.stop(t + 0.12);
+    this._autoDisconnect(osc, gain);
   }
 
   playBallCollision(velocity = 5) {
@@ -274,6 +296,7 @@ export class AudioManager {
     gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
     osc.start(t);
     osc.stop(t + 0.08);
+    this._autoDisconnect(osc, gain);
   }
 
   playCushionBounce(velocity = 5) {
@@ -307,6 +330,7 @@ export class AudioManager {
     filter.connect(gain);
     gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
     noise.start(t);
+    this._autoDisconnect(noise, filter, gain);
   }
 
   playPocket() {
@@ -327,6 +351,7 @@ export class AudioManager {
     gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
     osc.start(t);
     osc.stop(t + 0.25);
+    this._autoDisconnect(osc, gain);
 
     const bufferSize = Math.ceil(this.ctx.sampleRate * 0.15);
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
@@ -342,6 +367,7 @@ export class AudioManager {
     noise.connect(nGain);
     nGain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
     noise.start(t);
+    this._autoDisconnect(noise, nGain);
   }
 
   playWin() {
@@ -361,6 +387,7 @@ export class AudioManager {
       gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
       osc.start(t + i * 0.12);
       osc.stop(t + i * 0.12 + 0.3);
+      this._autoDisconnect(osc, gain);
     });
   }
 
@@ -380,6 +407,7 @@ export class AudioManager {
     gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
     osc.start(t);
     osc.stop(t + 0.35);
+    this._autoDisconnect(osc, gain);
   }
 
   dispose() {
