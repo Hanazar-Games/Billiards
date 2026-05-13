@@ -1224,23 +1224,24 @@ export class Game {
   _setupSpinControls() {
     this._onKeyDown = (e) => {
       const key = e.key.toLowerCase();
+      const mods = { ctrl: e.ctrlKey, shift: e.shiftKey, alt: e.altKey, meta: e.metaKey };
 
       // Camera mode switching (works in any state)
-      if (keyBindings.matches('cameraFree', key)) {
+      if (keyBindings.matches('cameraFree', key, mods)) {
         this.cameraMode = 'free';
         this._resetCameraFree();
         return;
       }
-      if (keyBindings.matches('cameraTop', key)) {
+      if (keyBindings.matches('cameraTop', key, mods)) {
         this.cameraMode = 'top';
         this._resetCameraTop();
         return;
       }
-      if (keyBindings.matches('cameraFollow', key)) {
+      if (keyBindings.matches('cameraFollow', key, mods)) {
         this.cameraMode = 'follow';
         return;
       }
-      if (keyBindings.matches('pause', key)) {
+      if (keyBindings.matches('pause', key, mods)) {
         this._togglePause();
         return;
       }
@@ -1249,33 +1250,25 @@ export class Game {
       if (this.state !== 'AIM' && this.state !== 'CHARGING') return;
       const step = 0.15;
       let changed = false;
-      switch (key) {
-        case 'w':
-        case 's':
-        case 'a':
-        case 'd':
-        case 'r':
-          e.preventDefault();
-          break;
-      }
-      if (keyBindings.matches('spinUp', key)) {
+      // Prevent default for any bound spin key
+      if (keyBindings.matches('spinUp', key, mods) || keyBindings.matches('spinDown', key, mods) ||
+          keyBindings.matches('spinLeft', key, mods) || keyBindings.matches('spinRight', key, mods) ||
+          keyBindings.matches('spinReset', key, mods)) {
         e.preventDefault();
+      }
+      if (keyBindings.matches('spinUp', key, mods)) {
         this.cueTipOffset.y = Math.min(0.88, this.cueTipOffset.y + step);
         changed = true;
-      } else if (keyBindings.matches('spinDown', key)) {
-        e.preventDefault();
+      } else if (keyBindings.matches('spinDown', key, mods)) {
         this.cueTipOffset.y = Math.max(-0.88, this.cueTipOffset.y - step);
         changed = true;
-      } else if (keyBindings.matches('spinLeft', key)) {
-        e.preventDefault();
+      } else if (keyBindings.matches('spinLeft', key, mods)) {
         this.cueTipOffset.x = Math.max(-0.88, this.cueTipOffset.x - step);
         changed = true;
-      } else if (keyBindings.matches('spinRight', key)) {
-        e.preventDefault();
+      } else if (keyBindings.matches('spinRight', key, mods)) {
         this.cueTipOffset.x = Math.min(0.88, this.cueTipOffset.x + step);
         changed = true;
-      } else if (keyBindings.matches('spinReset', key)) {
-        e.preventDefault();
+      } else if (keyBindings.matches('spinReset', key, mods)) {
         this.cueTipOffset.x = 0;
         this.cueTipOffset.y = 0;
         changed = true;

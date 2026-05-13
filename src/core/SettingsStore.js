@@ -26,6 +26,8 @@ const DEFAULTS = {
 
   // Controls
   mouseSensitivity: 1.0,
+  keybindingPreset: 'win',
+  customKeybindingPresets: {},
   keyBindings: {
     cameraFree: '1',
     cameraTop: '2',

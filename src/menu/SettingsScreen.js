@@ -5,7 +5,7 @@
  *         + right content (section titles, row items with dividers).
  */
 import { settings } from '../core/SettingsStore.js';
-import { keyBindings, ACTIONS } from '../input/KeyBindings.js';
+import { keyBindings, ACTIONS, ACTION_CATEGORIES } from '../input/KeyBindings.js';
 
 const CATEGORIES = [
   { id: 'audio',     label: '音频', letter: 'A' },
@@ -268,13 +268,197 @@ export class SettingsScreen {
       settings.set('mouseSensitivity', v / 100);
     });
 
-    this._sectionTitle('快捷键', true);
-    this._sectionSubtitle('点击按钮后按下新键即可修改', true);
+    // ── Preset selector ──
+    this._sectionTitle('快捷键预设', true);
+    this._sectionSubtitle('选择适合你的设备类型', true);
 
-    Object.entries(ACTIONS).forEach(([actionKey, def]) => {
-      this._keyRow(def.label, keyBindings.getBinding(actionKey), (newKey) => {
-        keyBindings.setBinding(actionKey, newKey);
+    const presetWrap = document.createElement('div');
+    presetWrap.style.cssText = 'display: flex; gap: 10px; justify-content: center; margin-bottom: 20px;';
+    const presets = [
+      { id: 'mac',    label: 'Mac',    icon: '⌘' },
+      { id: 'win',    label: 'Win',    icon: '⊞' },
+      { id: 'mobile', label: '触屏',   icon: '☰' },
+    ];
+    const currentPreset = keyBindings.getCurrentPreset().split(':')[0] || 'win';
+    presets.forEach(p => {
+      const btn = document.createElement('button');
+      const active = currentPreset === p.id;
+      btn.style.cssText = `
+        display: flex; align-items: center; gap: 6px;
+        padding: 8px 18px; border-radius: 999px;
+        background: ${active ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.05)'};
+        border: 1px solid ${active ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)'};
+        color: ${active ? '#fff' : 'rgba(255,255,255,0.55)'};
+        font-size: 13px; font-weight: 600; cursor: pointer;
+        transition: all 0.2s ease;
+      `;
+      btn.innerHTML = `<span style="font-size:15px;">${p.icon}</span><span>${p.label}</span>`;
+      btn.onmouseenter = () => { if (!active) btn.style.background = 'rgba(255,255,255,0.1)'; };
+      btn.onmouseleave = () => { if (!active) btn.style.background = 'rgba(255,255,255,0.05)'; };
+      const clickFn = () => {
+        keyBindings.applyPreset(p.id);
+        this._switchCategory('controls');
+      };
+      btn.addEventListener('click', clickFn);
+      this._listeners.push({ el: btn, type: 'click', fn: clickFn });
+      presetWrap.appendChild(btn);
+    });
+    this._contentArea.appendChild(presetWrap);
+
+    // ── Keybindings by category ──
+    const displayPreset = keyBindings.getCurrentPreset().split(':')[0] || 'win';
+    ACTION_CATEGORIES.forEach(cat => {
+      const catTitle = document.createElement('div');
+      catTitle.textContent = cat.label;
+      catTitle.style.cssText = `
+        font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.55);
+        text-transform: uppercase; letter-spacing: 1px;
+        margin-top: 16px; margin-bottom: 8px;
+        padding-left: 4px;
+      `;
+      this._contentArea.appendChild(catTitle);
+
+      Object.entries(cat.actions).forEach(([actionKey, def]) => {
+        const isMobile = displayPreset === 'mobile';
+        const displayKey = keyBindings.getDisplayBinding(actionKey, displayPreset);
+        this._keyRow(def.label, displayKey, actionKey, !isMobile && keyBindings.isBindable(actionKey), (newKey) => {
+          keyBindings.setBinding(actionKey, newKey);
+        });
       });
+    });
+
+    // ── Custom presets ──
+    this._sectionTitle('自定义预设', true);
+    this._sectionSubtitle('保存你当前的快捷键配置', true);
+
+    const saveWrap = document.createElement('div');
+    saveWrap.style.cssText = 'display: flex; gap: 10px; margin-bottom: 14px;';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = '预设名称…';
+    input.style.cssText = `
+      flex: 1; padding: 10px 14px; border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #fff; font-size: 14px; outline: none;
+      transition: border-color 0.2s ease;
+    `;
+    input.onfocus = () => { input.style.borderColor = 'rgba(255,255,255,0.25)'; };
+    input.onblur = () => { input.style.borderColor = 'rgba(255,255,255,0.1)'; };
+    saveWrap.appendChild(input);
+
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = '保存预设';
+    saveBtn.style.cssText = `
+      padding: 10px 18px; border-radius: 10px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.8); font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s ease; flex-shrink: 0;
+    `;
+    saveBtn.onmouseenter = () => {
+      saveBtn.style.background = 'rgba(255,255,255,0.14)';
+      saveBtn.style.color = '#fff';
+    };
+    saveBtn.onmouseleave = () => {
+      saveBtn.style.background = 'rgba(255,255,255,0.08)';
+      saveBtn.style.color = 'rgba(255,255,255,0.8)';
+    };
+    const onSave = () => {
+      const name = input.value.trim();
+      if (!name) { this._toast('请输入预设名称'); return; }
+      keyBindings.saveCustomPreset(name);
+      input.value = '';
+      this._toast(`预设「${name}」已保存`);
+      this._switchCategory('controls');
+    };
+    saveBtn.addEventListener('click', onSave);
+    this._listeners.push({ el: saveBtn, type: 'click', fn: onSave });
+    saveWrap.appendChild(saveBtn);
+    this._contentArea.appendChild(saveWrap);
+
+    // List saved custom presets
+    const customPresets = keyBindings.listCustomPresets();
+    if (customPresets.length > 0) {
+      customPresets.forEach(name => {
+        const row = document.createElement('div');
+        row.style.cssText = `
+          display: flex; justify-content: space-between; align-items: center;
+          padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+        `;
+        const lbl = document.createElement('span');
+        lbl.textContent = name;
+        lbl.style.cssText = 'font-size: 14px; color: rgba(255,255,255,0.7);';
+        row.appendChild(lbl);
+
+        const right = document.createElement('div');
+        right.style.cssText = 'display: flex; gap: 8px;';
+
+        const loadBtn = document.createElement('button');
+        loadBtn.textContent = '加载';
+        loadBtn.style.cssText = `
+          padding: 5px 12px; border-radius: 8px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          color: rgba(255,255,255,0.5); font-size: 12px; font-weight: 600;
+          cursor: pointer; transition: all 0.2s ease;
+        `;
+        loadBtn.onmouseenter = () => {
+          loadBtn.style.background = 'rgba(255,255,255,0.1)';
+          loadBtn.style.color = '#fff';
+        };
+        loadBtn.onmouseleave = () => {
+          loadBtn.style.background = 'rgba(255,255,255,0.05)';
+          loadBtn.style.color = 'rgba(255,255,255,0.5)';
+        };
+        const onLoad = () => {
+          keyBindings.loadCustomPreset(name);
+          this._toast(`已加载预设「${name}」`);
+          this._switchCategory('controls');
+        };
+        loadBtn.addEventListener('click', onLoad);
+        this._listeners.push({ el: loadBtn, type: 'click', fn: onLoad });
+        right.appendChild(loadBtn);
+
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '删除';
+        delBtn.style.cssText = `
+          padding: 5px 12px; border-radius: 8px;
+          background: rgba(185,18,63,0.06);
+          border: 1px solid rgba(185,18,63,0.25);
+          color: rgba(255,100,100,0.7); font-size: 12px; font-weight: 600;
+          cursor: pointer; transition: all 0.2s ease;
+        `;
+        delBtn.onmouseenter = () => {
+          delBtn.style.background = 'rgba(185,18,63,0.12)';
+          delBtn.style.borderColor = 'rgba(185,18,63,0.4)';
+        };
+        delBtn.onmouseleave = () => {
+          delBtn.style.background = 'rgba(185,18,63,0.06)';
+          delBtn.style.borderColor = 'rgba(185,18,63,0.25)';
+        };
+        const onDel = () => {
+          keyBindings.deleteCustomPreset(name);
+          this._toast(`预设「${name}」已删除`);
+          this._switchCategory('controls');
+        };
+        delBtn.addEventListener('click', onDel);
+        this._listeners.push({ el: delBtn, type: 'click', fn: onDel });
+        right.appendChild(delBtn);
+
+        row.appendChild(right);
+        this._contentArea.appendChild(row);
+      });
+    }
+
+    // ── Reset to default ──
+    this._dangerButton('恢复为默认快捷键', () => {
+      if (confirm('确定要恢复为默认快捷键吗？所有自定义修改将丢失。')) {
+        keyBindings.resetToDefaults();
+        this._toast('已恢复为默认快捷键');
+        this._switchCategory('controls');
+      }
     });
   }
 
@@ -431,11 +615,11 @@ export class SettingsScreen {
     this._contentArea.appendChild(row);
   }
 
-  _keyRow(label, currentKey, onBind) {
+  _keyRow(label, displayKey, actionKey, bindable, onBind) {
     const row = document.createElement('div');
     row.style.cssText = `
       display: flex; justify-content: space-between; align-items: center;
-      padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+      padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
     `;
     const lbl = document.createElement('span');
     lbl.textContent = label;
@@ -446,7 +630,7 @@ export class SettingsScreen {
     right.style.cssText = 'display: flex; align-items: center; gap: 10px;';
 
     const keyTag = document.createElement('span');
-    keyTag.textContent = this._formatKey(currentKey);
+    keyTag.textContent = this._formatKey(displayKey);
     keyTag.style.cssText = `
       padding: 5px 10px; border-radius: 8px;
       background: rgba(255,255,255,0.06);
@@ -455,46 +639,48 @@ export class SettingsScreen {
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 12px; font-weight: 600;
     `;
-
-    const bindBtn = document.createElement('button');
-    bindBtn.textContent = '修改';
-    bindBtn.style.cssText = `
-      padding: 5px 12px; border-radius: 8px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      color: rgba(255,255,255,0.45);
-      font-size: 12px; font-weight: 600; cursor: pointer;
-      transition: all 0.2s ease;
-    `;
-    bindBtn.onmouseenter = () => {
-      bindBtn.style.background = 'rgba(255,255,255,0.1)';
-      bindBtn.style.color = 'rgba(255,255,255,0.8)';
-    };
-    bindBtn.onmouseleave = () => {
-      bindBtn.style.background = 'rgba(255,255,255,0.05)';
-      bindBtn.style.color = 'rgba(255,255,255,0.45)';
-    };
-
-    const onClick = () => {
-      if (bindBtn.dataset.waiting === 'true') return;
-      bindBtn.dataset.waiting = 'true';
-      bindBtn.textContent = '按下新键…';
-      bindBtn.style.color = '#d8b15f';
-      bindBtn.style.borderColor = 'rgba(216,177,95,0.4)';
-      keyBindings.startListening(actionKey, (action, newKey) => {
-        bindBtn.dataset.waiting = 'false';
-        bindBtn.textContent = '修改';
-        bindBtn.style.color = 'rgba(255,255,255,0.45)';
-        bindBtn.style.borderColor = 'rgba(255,255,255,0.1)';
-        keyTag.textContent = this._formatKey(newKey);
-        onBind(newKey);
-      });
-    };
-    bindBtn.addEventListener('click', onClick);
-    this._listeners.push({ el: bindBtn, type: 'click', fn: onClick });
-
     right.appendChild(keyTag);
-    right.appendChild(bindBtn);
+
+    if (bindable) {
+      const bindBtn = document.createElement('button');
+      bindBtn.textContent = '修改';
+      bindBtn.style.cssText = `
+        padding: 5px 12px; border-radius: 8px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: rgba(255,255,255,0.45);
+        font-size: 12px; font-weight: 600; cursor: pointer;
+        transition: all 0.2s ease;
+      `;
+      bindBtn.onmouseenter = () => {
+        bindBtn.style.background = 'rgba(255,255,255,0.1)';
+        bindBtn.style.color = 'rgba(255,255,255,0.8)';
+      };
+      bindBtn.onmouseleave = () => {
+        bindBtn.style.background = 'rgba(255,255,255,0.05)';
+        bindBtn.style.color = 'rgba(255,255,255,0.45)';
+      };
+
+      const onClick = () => {
+        if (bindBtn.dataset.waiting === 'true') return;
+        bindBtn.dataset.waiting = 'true';
+        bindBtn.textContent = '按下新键…';
+        bindBtn.style.color = '#d8b15f';
+        bindBtn.style.borderColor = 'rgba(216,177,95,0.4)';
+        keyBindings.startListening(actionKey, (action, newKey) => {
+          bindBtn.dataset.waiting = 'false';
+          bindBtn.textContent = '修改';
+          bindBtn.style.color = 'rgba(255,255,255,0.45)';
+          bindBtn.style.borderColor = 'rgba(255,255,255,0.1)';
+          keyTag.textContent = this._formatKey(newKey);
+          onBind(newKey);
+        });
+      };
+      bindBtn.addEventListener('click', onClick);
+      this._listeners.push({ el: bindBtn, type: 'click', fn: onClick });
+      right.appendChild(bindBtn);
+    }
+
     row.appendChild(right);
     this._contentArea.appendChild(row);
   }
@@ -669,7 +855,12 @@ export class SettingsScreen {
       escape: 'Esc',
       arrowup: '↑', arrowdown: '↓', arrowleft: '←', arrowright: '→',
       ' ': 'Space',
+      meta: '⌘', ctrl: 'Ctrl', shift: '⇧', alt: '⌥',
     };
+    // Handle chords like "ctrl+z", "shift+tab", "meta+shift+s"
+    if (key.includes('+')) {
+      return key.split('+').map(k => map[k.trim()] || k.trim().toUpperCase()).join(' + ');
+    }
     return map[key.toLowerCase()] || key.toUpperCase();
   }
 
