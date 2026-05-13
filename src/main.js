@@ -34,6 +34,8 @@ function showError(msg) {
   }
 }
 
+const initStart = performance.now();
+
 try {
   const container = document.getElementById('app');
   if (!container) {
@@ -55,7 +57,9 @@ try {
 
   // Phase 4 — Finalize
   updateLoadingProgress(100, 'Ready! 准备就绪!');
-  hideIntroScreen(400);
+  const elapsed = performance.now() - initStart;
+  const minDelay = Math.max(0, 2000 - elapsed);
+  hideIntroScreen(minDelay);
 
   // Success indicator — remove after 3s
   const ok = document.createElement('div');

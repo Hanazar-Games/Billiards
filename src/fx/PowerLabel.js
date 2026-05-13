@@ -10,7 +10,7 @@ const TIERS = [
   { threshold: 0.22, label: '中力', color: '#a8e063', scale: 1.0 },
   { threshold: 0.42, label: '重拳', color: '#ff9f43', scale: 1.15 },
   { threshold: 0.62, label: '暴杆', color: '#ff6b6b', scale: 1.35 },
-  { threshold: 0.82, label: 'MAX',  color: '#ffd700', scale: 1.6 },
+  { threshold: 0.82, label: 'MAX',  color: '#ffd700', scale: 1.25 },
 ];
 
 export class PowerLabel {
