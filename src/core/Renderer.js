@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CAMERA } from '../config.js';
+import { settings } from './SettingsStore.js';
 
 export class Renderer {
   constructor(container) {
@@ -165,8 +166,10 @@ export class Renderer {
     this._cameraLastX = e.clientX;
     this._cameraLastY = e.clientY;
 
+    const sens = settings.get('mouseSensitivity') || 1.0;
+
     if (this._cameraDragMode === 'pan') {
-      this.panCamera(dx, dy);
+      this.panCamera(dx * sens, dy * sens);
       e.preventDefault();
       return;
     }
@@ -174,8 +177,8 @@ export class Renderer {
     const target = this.controls.target;
     this._cameraOffset.copy(this.camera.position).sub(target);
     this._cameraSpherical.setFromVector3(this._cameraOffset);
-    this._cameraSpherical.theta -= dx * 0.006;
-    this._cameraSpherical.phi -= dy * 0.006;
+    this._cameraSpherical.theta -= dx * 0.006 * sens;
+    this._cameraSpherical.phi -= dy * 0.006 * sens;
     this._cameraSpherical.phi = Math.max(0.12, Math.min(this.controls.maxPolarAngle, this._cameraSpherical.phi));
     this._cameraSpherical.radius = Math.max(
       this.controls.minDistance,
@@ -206,8 +209,9 @@ export class Renderer {
     const fov = THREE.MathUtils.degToRad(this.camera.fov);
     const worldHeight = 2 * Math.tan(fov / 2) * targetDistance;
     const worldWidth = worldHeight * this.camera.aspect;
-    const panX = -dx * worldWidth / Math.max(1, this.width);
-    const panY = dy * worldHeight / Math.max(1, this.height);
+    const sens = settings.get('mouseSensitivity') || 1.0;
+    const panX = -dx * sens * worldWidth / Math.max(1, this.width);
+    const panY = dy * sens * worldHeight / Math.max(1, this.height);
 
     this.camera.getWorldDirection(this._cameraPanDelta);
     this._cameraPanRight.crossVectors(this._cameraPanDelta, this.camera.up).normalize();

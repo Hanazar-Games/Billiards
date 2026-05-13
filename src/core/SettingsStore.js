@@ -26,6 +26,17 @@ const DEFAULTS = {
 
   // Controls
   mouseSensitivity: 1.0,
+  keyBindings: {
+    cameraFree: '1',
+    cameraTop: '2',
+    cameraFollow: '3',
+    spinUp: 'w',
+    spinDown: 's',
+    spinLeft: 'a',
+    spinRight: 'd',
+    spinReset: 'r',
+    pause: 'escape',
+  },
 
   // General
   language: 'zh', // 'zh' | 'en'

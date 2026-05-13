@@ -20,6 +20,8 @@ import { ImpactShockwave } from '../fx/ImpactShockwave.js';
 import { ScreenShake } from '../fx/ScreenShake.js';
 import { PowerLabel } from '../fx/PowerLabel.js';
 import { ShotRecorder } from '../replay/ShotRecorder.js';
+import { settings } from '../core/SettingsStore.js';
+import { keyBindings } from '../input/KeyBindings.js';
 import { BALL, TABLE, POCKET, SHOT } from '../config.js';
 
 export class Game {
@@ -70,6 +72,7 @@ export class Game {
     this.cameraMode = 'free';
     this.mode = 'local2p'; // 'freeplay' | 'local2p' | 'vsai'
     this.onReturnToMenu = null;
+    this.paused = false;
 
     this._tmpVec2 = new THREE.Vector2();
     this._tmpVec3a = new THREE.Vector3();
@@ -152,6 +155,14 @@ export class Game {
       (enabled) => this.audio.toggleSound(enabled)
     );
 
+    // Pause menu controls
+    this.ui.setupPauseControls(
+      () => this._togglePause(),
+      () => this._hidePause(),
+      () => this._openInGameSettings(),
+      () => { if (this.onReturnToMenu) this.onReturnToMenu(); }
+    );
+
     // Hide AI panel during challenge mode
     if (this.challengeManager) {
       this.ui.aiPanel.style.display = 'none';
@@ -178,6 +189,11 @@ export class Game {
 
     // Keyboard controls for spin
     this._setupSpinControls();
+
+    // Apply persisted settings and listen for changes
+    this._applySettings();
+    this._onSettingsChanged = (e) => this._handleSettingsChange(e.detail.key, e.detail.value);
+    window.addEventListener('settingsChanged', this._onSettingsChanged);
 
     this.setupCollisionEvents();
   }
@@ -558,6 +574,11 @@ export class Game {
 
     this.cue.hide();
     this.trajectory.setVisible(false);
+
+    // Auto-switch to follow mode if enabled
+    if (settings.get('autoFollowCueBall') && this.cameraMode !== 'follow') {
+      this.cameraMode = 'follow';
+    }
   }
 
   async startAITurn() {
@@ -647,6 +668,7 @@ export class Game {
   }
 
   update(dt) {
+    if (this.paused) return;
     const pocketPositions = this.table.getPocketPositions();
     this.ballsManager.updatePhysicsGuards(dt, pocketPositions);
     this.ballsManager.sync();
@@ -1204,18 +1226,22 @@ export class Game {
       const key = e.key.toLowerCase();
 
       // Camera mode switching (works in any state)
-      if (key === '1') {
+      if (keyBindings.matches('cameraFree', key)) {
         this.cameraMode = 'free';
         this._resetCameraFree();
         return;
       }
-      if (key === '2') {
+      if (keyBindings.matches('cameraTop', key)) {
         this.cameraMode = 'top';
         this._resetCameraTop();
         return;
       }
-      if (key === '3') {
+      if (keyBindings.matches('cameraFollow', key)) {
         this.cameraMode = 'follow';
+        return;
+      }
+      if (keyBindings.matches('pause', key)) {
+        this._togglePause();
         return;
       }
 
@@ -1232,28 +1258,22 @@ export class Game {
           e.preventDefault();
           break;
       }
-      switch (key) {
-        case 'w':
-          this.cueTipOffset.y = Math.min(0.88, this.cueTipOffset.y + step);
-          changed = true;
-          break;
-        case 's':
-          this.cueTipOffset.y = Math.max(-0.88, this.cueTipOffset.y - step);
-          changed = true;
-          break;
-        case 'a':
-          this.cueTipOffset.x = Math.max(-0.88, this.cueTipOffset.x - step);
-          changed = true;
-          break;
-        case 'd':
-          this.cueTipOffset.x = Math.min(0.88, this.cueTipOffset.x + step);
-          changed = true;
-          break;
-        case 'r':
-          this.cueTipOffset.x = 0;
-          this.cueTipOffset.y = 0;
-          changed = true;
-          break;
+      if (keyBindings.matches('spinUp', key)) {
+        this.cueTipOffset.y = Math.min(0.88, this.cueTipOffset.y + step);
+        changed = true;
+      } else if (keyBindings.matches('spinDown', key)) {
+        this.cueTipOffset.y = Math.max(-0.88, this.cueTipOffset.y - step);
+        changed = true;
+      } else if (keyBindings.matches('spinLeft', key)) {
+        this.cueTipOffset.x = Math.max(-0.88, this.cueTipOffset.x - step);
+        changed = true;
+      } else if (keyBindings.matches('spinRight', key)) {
+        this.cueTipOffset.x = Math.min(0.88, this.cueTipOffset.x + step);
+        changed = true;
+      } else if (keyBindings.matches('spinReset', key)) {
+        this.cueTipOffset.x = 0;
+        this.cueTipOffset.y = 0;
+        changed = true;
       }
       if (changed) {
         this._updateCueTipPicker();
@@ -1392,6 +1412,63 @@ export class Game {
     this.updateTrajectory();
   }
 
+  _togglePause() {
+    if (this.paused) {
+      this._hidePause();
+    } else {
+      this._showPause();
+    }
+  }
+
+  _showPause() {
+    this.paused = true;
+    this.ui.showPauseMenu();
+  }
+
+  _hidePause() {
+    this.paused = false;
+    this.ui.hidePauseMenu();
+  }
+
+  _openInGameSettings() {
+    this.ui.showInGameSettings(this.audio);
+  }
+
+  _applySettings() {
+    this.trajectoryEnabled = settings.get('trajectoryEnabled');
+    if (this.particles) this.particles.setEnabled(settings.get('particlesEnabled'));
+    if (this.trails) this.trails.setEnabled(settings.get('shotTrailsEnabled'));
+
+    const defaultCam = settings.get('defaultCamera');
+    if (defaultCam && ['free', 'top', 'follow'].includes(defaultCam)) {
+      this.cameraMode = defaultCam;
+      if (defaultCam === 'top') this._resetCameraTop();
+      else if (defaultCam === 'free') this._resetCameraFree();
+    }
+  }
+
+  _handleSettingsChange(key, value) {
+    switch (key) {
+      case 'trajectoryEnabled':
+        this.trajectoryEnabled = value;
+        this.setAimTrajectoryVisible(this.state === 'AIM');
+        break;
+      case 'particlesEnabled':
+        if (this.particles) this.particles.setEnabled(value);
+        break;
+      case 'shotTrailsEnabled':
+        if (this.trails) this.trails.setEnabled(value);
+        break;
+      case 'defaultCamera':
+        if (['free', 'top', 'follow'].includes(value)) {
+          this.cameraMode = value;
+          if (value === 'top') this._resetCameraTop();
+          else if (value === 'free') this._resetCameraFree();
+        }
+        break;
+    }
+  }
+
   dispose() {
     // Remove canvas rect resize listener
     if (this._updateCanvasRect) {
@@ -1419,6 +1496,14 @@ export class Game {
     const picker = document.getElementById('cue-tip-picker');
     if (picker && picker.parentNode) {
       picker.parentNode.removeChild(picker);
+    }
+
+    this._hidePause();
+
+    // Remove settings change listener
+    if (this._onSettingsChanged) {
+      window.removeEventListener('settingsChanged', this._onSettingsChanged);
+      this._onSettingsChanged = null;
     }
 
     // Remove spin keyboard listener

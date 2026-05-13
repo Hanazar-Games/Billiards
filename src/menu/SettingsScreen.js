@@ -5,6 +5,7 @@
  * Categories: Audio, Graphics, Gameplay, Controls, General.
  */
 import { settings } from '../core/SettingsStore.js';
+import { keyBindings, ACTIONS } from '../input/KeyBindings.js';
 
 const CATEGORIES = [
   { id: 'audio',     label: '音频',     icon: '🔊' },
@@ -313,6 +314,8 @@ export class SettingsScreen {
       }),
     ]));
 
+    cards.push(this._createKeyBindingsCard());
+
     return cards;
   }
 
@@ -563,6 +566,124 @@ export class SettingsScreen {
     };
     btn.onclick = onClick;
     return btn;
+  }
+
+  _createKeyBindingsCard() {
+    const card = document.createElement('div');
+    card.className = 'settings-card';
+    card.style.cssText = `
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px 24px;
+      display: flex; flex-direction: column; gap: 14px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.28);
+      backdrop-filter: blur(14px);
+      opacity: 0; transform: translateY(10px) scale(0.985);
+      animation: settingsCardIn 0.45s var(--ease) both;
+    `;
+
+    const header = document.createElement('div');
+    header.style.cssText = 'display: flex; flex-direction: column; gap: 2px;';
+    const title = document.createElement('div');
+    title.textContent = '快捷键';
+    title.style.cssText = 'font-size: 15px; font-weight: 750; color: var(--text);';
+    header.appendChild(title);
+    const sub = document.createElement('div');
+    sub.textContent = '点击按钮后按下新键即可修改';
+    sub.style.cssText = 'font-size: 12px; color: var(--muted);';
+    header.appendChild(sub);
+    card.appendChild(header);
+
+    const list = document.createElement('div');
+    list.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+
+    Object.entries(ACTIONS).forEach(([actionKey, def]) => {
+      const row = document.createElement('div');
+      row.style.cssText = `
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 10px 14px; border-radius: 8px;
+        background: rgba(255,255,255,0.03);
+        transition: background 0.2s ease;
+      `;
+      row.onmouseenter = () => row.style.background = 'rgba(255,255,255,0.06)';
+      row.onmouseleave = () => row.style.background = 'rgba(255,255,255,0.03)';
+
+      const label = document.createElement('span');
+      label.textContent = def.label;
+      label.style.cssText = 'font-size: 13px; color: var(--text); font-weight: 600;';
+      row.appendChild(label);
+
+      const right = document.createElement('div');
+      right.style.cssText = 'display: flex; align-items: center; gap: 10px;';
+
+      const keyDisplay = document.createElement('span');
+      keyDisplay.textContent = this._formatKey(keyBindings.getBinding(actionKey));
+      keyDisplay.style.cssText = `
+        font-size: 12px; font-weight: 700; color: var(--muted);
+        min-width: 44px; text-align: center;
+        font-variant-numeric: tabular-nums;
+        background: rgba(255,255,255,0.06);
+        padding: 4px 10px; border-radius: 6px;
+        border: 1px solid var(--line);
+      `;
+
+      const bindBtn = document.createElement('button');
+      bindBtn.textContent = '修改';
+      bindBtn.style.cssText = `
+        padding: 5px 12px; border-radius: 6px;
+        background: rgba(255,255,255,0.06); border: 1px solid var(--line);
+        color: var(--muted); font-size: 12px; font-weight: 650;
+        cursor: pointer; transition: all 0.2s ease;
+      `;
+      bindBtn.onmouseenter = () => {
+        bindBtn.style.background = 'rgba(255,255,255,0.12)';
+        bindBtn.style.color = 'var(--text)';
+      };
+      bindBtn.onmouseleave = () => {
+        bindBtn.style.background = 'rgba(255,255,255,0.06)';
+        bindBtn.style.color = 'var(--muted)';
+      };
+
+      const onBindClick = () => {
+        if (bindBtn.dataset.waiting === 'true') return;
+        bindBtn.dataset.waiting = 'true';
+        bindBtn.textContent = '按下新键…';
+        bindBtn.style.color = 'var(--gold)';
+        bindBtn.style.borderColor = 'rgba(216,177,95,0.4)';
+        keyBindings.startListening(actionKey, (_action, newKey) => {
+          bindBtn.dataset.waiting = 'false';
+          bindBtn.textContent = '修改';
+          bindBtn.style.color = 'var(--muted)';
+          bindBtn.style.borderColor = 'var(--line)';
+          keyDisplay.textContent = this._formatKey(newKey);
+        });
+      };
+
+      bindBtn.onclick = onBindClick;
+      this._listeners.push({ el: bindBtn, type: 'click', fn: onBindClick });
+
+      right.appendChild(keyDisplay);
+      right.appendChild(bindBtn);
+      row.appendChild(right);
+      list.appendChild(row);
+    });
+
+    card.appendChild(list);
+    return card;
+  }
+
+  _formatKey(key) {
+    if (!key) return '—';
+    const map = {
+      escape: 'Esc',
+      arrowup: '↑',
+      arrowdown: '↓',
+      arrowleft: '←',
+      arrowright: '→',
+      ' ': 'Space',
+    };
+    return map[key.toLowerCase()] || key.toUpperCase();
   }
 
   _formatValue(key, val) {
