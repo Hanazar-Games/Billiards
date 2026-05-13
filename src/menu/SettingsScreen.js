@@ -30,6 +30,15 @@ const CAMERA_OPTIONS = [
   { value: 'follow', label: '跟随' },
 ];
 
+const CUE_THEME_OPTIONS = [
+  { value: 'default', label: '经典木' },
+  { value: 'black',   label: '黑檀木' },
+  { value: 'blue',    label: '冰蓝' },
+  { value: 'red',     label: '赤焰' },
+  { value: 'green',   label: '翡翠' },
+  { value: 'gold',    label: '鎏金' },
+];
+
 export class SettingsScreen {
   constructor(onBack) {
     this.onBack = onBack;
@@ -280,6 +289,12 @@ export class SettingsScreen {
         settings.set('autoFollowCueBall', v);
       })
     );
+
+    // ── Cue Theme ──
+    this._sectionTitle('球杆外观', true);
+    this._rowSelect('球杆皮肤', CUE_THEME_OPTIONS, settings.get('cueTheme'), (v) => {
+      settings.set('cueTheme', v);
+    });
   }
 
   _buildControlsContent() {

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { BALL, TABLE } from '../config.js';
+import { CUE_THEMES, applyCueTheme } from './CueThemes.js';
 
 const CUE_LENGTH = 160; // tip-to-butt in local Y units
 const CUE_RADIUS = 1.5; // approx max butt radius for collision margin
@@ -10,14 +11,15 @@ export class Cue {
 
     const group = new THREE.Group();
 
-    const woodMat = new THREE.MeshStandardMaterial({ color: 0xc58d55, roughness: 0.42, metalness: 0.04 });
-    const ferruleMat = new THREE.MeshStandardMaterial({ color: 0xf1eadc, roughness: 0.28, metalness: 0.02 });
-    const tipMat = new THREE.MeshStandardMaterial({ color: 0x2c1b12, roughness: 0.72 });
-    const wrapMat = new THREE.MeshStandardMaterial({ color: 0x111316, roughness: 0.55, metalness: 0.08 });
-    const ringMat = new THREE.MeshStandardMaterial({ color: 0xc9b483, roughness: 0.22, metalness: 0.55 });
-    const buttMat = new THREE.MeshStandardMaterial({ color: 0x5a301b, roughness: 0.36, metalness: 0.08 });
+    this._materials = {};
 
-    const inlayMat = new THREE.MeshStandardMaterial({ color: 0xe6d7ad, roughness: 0.24, metalness: 0.18 });
+    this._materials.shaft  = new THREE.MeshStandardMaterial({ color: 0xc58d55, roughness: 0.42, metalness: 0.04 });
+    this._materials.ferrule = new THREE.MeshStandardMaterial({ color: 0xf1eadc, roughness: 0.28, metalness: 0.02 });
+    this._materials.tip    = new THREE.MeshStandardMaterial({ color: 0x2c1b12, roughness: 0.72 });
+    this._materials.wrap   = new THREE.MeshStandardMaterial({ color: 0x111316, roughness: 0.55, metalness: 0.08 });
+    this._materials.ring   = new THREE.MeshStandardMaterial({ color: 0xc9b483, roughness: 0.22, metalness: 0.55 });
+    this._materials.butt   = new THREE.MeshStandardMaterial({ color: 0x5a301b, roughness: 0.36, metalness: 0.08 });
+    this._materials.inlay  = new THREE.MeshStandardMaterial({ color: 0xe6d7ad, roughness: 0.24, metalness: 0.18 });
 
     const addSegment = (name, radiusTop, radiusBottom, length, y, mat, radialSegments = 28) => {
       const mesh = new THREE.Mesh(
@@ -32,20 +34,20 @@ export class Cue {
 
     // Pool cues are about 58 in long, roughly 25.8 ball diameters. With the
     // game ball scale, that makes a full cue about 147 units.
-    addSegment('leather-tip', 0.42, 0.48, 1.6, 0.8, tipMat, 28);
-    addSegment('ivory-ferrule', 0.5, 0.54, 4.4, 3.8, ferruleMat, 32);
-    addSegment('pro-taper-shaft', 0.52, 0.72, 76, 44.0, woodMat, 36);
-    addSegment('joint-collar-front', 0.78, 0.88, 1.4, 82.7, ringMat, 36);
-    addSegment('joint-pin-band', 0.9, 0.94, 1.0, 83.9, ferruleMat, 36);
-    addSegment('joint-collar-back', 0.94, 1.0, 1.4, 85.1, ringMat, 36);
-    addSegment('forearm', 1.02, 1.18, 25, 98.3, buttMat, 36);
-    addSegment('wrap', 1.18, 1.25, 29, 125.3, wrapMat, 36);
-    addSegment('butt-sleeve', 1.25, 1.36, 17, 148.3, buttMat, 36);
-    addSegment('butt-cap-ring', 1.36, 1.4, 1.4, 157.5, ringMat, 36);
-    addSegment('rubber-bumper', 1.36, 1.42, 2.2, 159.3, tipMat, 36);
+    addSegment('leather-tip', 0.42, 0.48, 1.6, 0.8, this._materials.tip, 28);
+    addSegment('ivory-ferrule', 0.5, 0.54, 4.4, 3.8, this._materials.ferrule, 32);
+    addSegment('pro-taper-shaft', 0.52, 0.72, 76, 44.0, this._materials.shaft, 36);
+    addSegment('joint-collar-front', 0.78, 0.88, 1.4, 82.7, this._materials.ring, 36);
+    addSegment('joint-pin-band', 0.9, 0.94, 1.0, 83.9, this._materials.ferrule, 36);
+    addSegment('joint-collar-back', 0.94, 1.0, 1.4, 85.1, this._materials.ring, 36);
+    addSegment('forearm', 1.02, 1.18, 25, 98.3, this._materials.butt, 36);
+    addSegment('wrap', 1.18, 1.25, 29, 125.3, this._materials.wrap, 36);
+    addSegment('butt-sleeve', 1.25, 1.36, 17, 148.3, this._materials.butt, 36);
+    addSegment('butt-cap-ring', 1.36, 1.4, 1.4, 157.5, this._materials.ring, 36);
+    addSegment('rubber-bumper', 1.36, 1.42, 2.2, 159.3, this._materials.tip, 36);
 
     for (const y of [91, 97, 103, 144, 151]) {
-      const ring = addSegment('decorative-inlay', 1.205, 1.215, 0.45, y, inlayMat, 36);
+      const ring = addSegment('decorative-inlay', 1.205, 1.215, 0.45, y, this._materials.inlay, 36);
       ring.scale.x = 1.01;
       ring.scale.z = 1.01;
     }
@@ -124,6 +126,11 @@ export class Cue {
   show() {
     this.visible = true;
     this.mesh.visible = true;
+  }
+
+  applyTheme(themeId = 'default') {
+    const theme = CUE_THEMES[themeId] || CUE_THEMES.default;
+    applyCueTheme(this._materials, theme);
   }
 
   /**

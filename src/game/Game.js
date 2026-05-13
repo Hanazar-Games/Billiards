@@ -138,6 +138,7 @@ export class Game {
     this.input.onMouseUp = (e) => this.onMouseUp(e);
 
     this.cue = new Cue();
+    this.cue.applyTheme(settings.get('cueTheme'));
     this.scene.add(this.cue.mesh);
 
     this.trajectory = new TrajectoryPredictor(this.scene);
@@ -1497,6 +1498,9 @@ export class Game {
           if (value === 'top') this._resetCameraTop();
           else if (value === 'free') this._resetCameraFree();
         }
+        break;
+      case 'cueTheme':
+        if (this.cue) this.cue.applyTheme(value);
         break;
     }
   }

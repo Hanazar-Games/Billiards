@@ -23,6 +23,7 @@ const DEFAULTS = {
   // Game
   defaultCamera: 'free', // 'free' | 'top' | 'follow'
   autoFollowCueBall: false,
+  cueTheme: 'default', // 'default' | 'black' | 'blue' | 'red' | 'green' | 'gold'
 
   // Controls — Camera
   mouseSensitivity: 1.0,
