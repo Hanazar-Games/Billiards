@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Billiards v1.2.1</title>
+  <title>3D Billiards v1.2.2</title>
   <style>
     :root {
       --felt: #106442;
@@ -132,6 +132,7 @@
         linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
       background-size: 44px 44px;
+      -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent 78%);
       mask-image: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent 78%);
       pointer-events: none;
     }
@@ -494,7 +495,7 @@
     <div id="power-bar-container">
       <div id="power-bar-fill"></div>
     </div>
-    <div id="version-tag">v1.2.1</div>
+    <div id="version-tag">v1.2.2</div>
   </div>
 
   <!-- Diagnostic overlay for JS errors -->

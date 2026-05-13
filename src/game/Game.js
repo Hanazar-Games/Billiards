@@ -1004,6 +1004,8 @@ export class Game {
 
   resetGame() {
     for (const ball of this.ballsManager.balls) {
+      const listener = this._ballCollideListeners.get(ball.id);
+      if (listener) ball.body.removeEventListener('collide', listener);
       this.scene.remove(ball.mesh);
       this.physics.removeBody(ball.body);
       ball.geometry.dispose();

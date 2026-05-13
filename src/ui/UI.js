@@ -11,6 +11,10 @@ export class UI {
     this._messageTimer = null;
     this._messageId = 0; // monotonic counter to prevent stale timers clearing new messages
     this._aiListeners = []; // { el, type, fn }
+    this._flashTimer = null;
+    this._pauseHideTimer = null;
+    this._settingsHideTimer = null;
+    this._floatTimers = [];
 
     this.player1Group = document.createElement('div');
     this.player1Group.id = 'player1-group';
@@ -667,7 +671,8 @@ export class UI {
       animation: floatTextUp calc(1.2s / var(--ui-anim-speed)) ease-out forwards;
     `;
     uiLayer.appendChild(el);
-    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, animMs(1200));
+    const t = setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, animMs(1200));
+    this._floatTimers.push(t);
   }
 
   destroy() {
@@ -675,10 +680,14 @@ export class UI {
       clearTimeout(this._messageTimer);
       this._messageTimer = null;
     }
+    if (this._pauseHideTimer) { clearTimeout(this._pauseHideTimer); this._pauseHideTimer = null; }
+    if (this._settingsHideTimer) { clearTimeout(this._settingsHideTimer); this._settingsHideTimer = null; }
     if (this._flashTimer) {
       clearTimeout(this._flashTimer);
       this._flashTimer = null;
     }
+    this._floatTimers.forEach(t => clearTimeout(t));
+    this._floatTimers = [];
     const flash = document.getElementById('ui-red-flash');
     if (flash && flash.parentNode) flash.parentNode.removeChild(flash);
     const floats = document.querySelectorAll('.ui-float-text');
@@ -717,6 +726,10 @@ export class UI {
     this.trajToggle = null;
     this.trailToggle = null;
     this.soundToggle = null;
+    this._pauseHideTimer = null;
+    this._settingsHideTimer = null;
+    this._flashTimer = null;
+    this._floatTimers = [];
 
     if (this.pauseBtn) {
       this.pauseBtn.onmouseenter = null;

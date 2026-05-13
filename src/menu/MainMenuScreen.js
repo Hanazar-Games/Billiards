@@ -19,6 +19,8 @@ export class MainMenuScreen {
     this.onShowChallenges = onShowChallenges;
     this.onQuit = onQuit;
     this.container = null;
+    this._fadeTimer = null;
+    this._hideTimer = null;
     this._buildUI();
   }
 
@@ -126,7 +128,7 @@ export class MainMenuScreen {
 
     // Version
     const version = document.createElement('div');
-    version.textContent = 'v1.2.0';
+    version.textContent = 'v1.2.2';
     version.style.cssText = `
       position: absolute; bottom: 44px; left: 40px;
       font-size: 12px; color: rgba(244,247,244,0.32);
@@ -160,7 +162,10 @@ export class MainMenuScreen {
     if (!this.container) return;
     this.container.style.opacity = '0';
     this.container.style.transform = 'scale(0.96)';
-    setTimeout(callback, animMs(400));
+    if (this._fadeTimer) clearTimeout(this._fadeTimer);
+    this._fadeTimer = setTimeout(() => {
+      if (this.container) callback();
+    }, animMs(400));
   }
 
   show() {
@@ -176,12 +181,15 @@ export class MainMenuScreen {
     if (!this.container) return;
     this.container.style.opacity = '0';
     this.container.style.transform = 'scale(0.96)';
-    setTimeout(() => {
-      this.container.style.display = 'none';
+    if (this._hideTimer) clearTimeout(this._hideTimer);
+    this._hideTimer = setTimeout(() => {
+      if (this.container) this.container.style.display = 'none';
     }, animMs(400));
   }
 
   destroy() {
+    if (this._fadeTimer) { clearTimeout(this._fadeTimer); this._fadeTimer = null; }
+    if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }

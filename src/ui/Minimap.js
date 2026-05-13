@@ -33,6 +33,8 @@ export class Minimap {
       if (e.detail?.key === 'minimapOpacity') { this._opacity = e.detail.value ?? 0.85; this._applyStyle(); }
     };
     window.addEventListener('settingsChanged', this._onSettings);
+    this._onResize = () => this._resize();
+    window.addEventListener('resize', this._onResize);
   }
 
   setEnabled(v) {
@@ -245,6 +247,7 @@ export class Minimap {
 
   dispose() {
     window.removeEventListener('settingsChanged', this._onSettings);
+    if (this._onResize) window.removeEventListener('resize', this._onResize);
     this.unmount();
   }
 }

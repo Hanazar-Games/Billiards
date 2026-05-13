@@ -1,6 +1,51 @@
-# 3D Billiards v1.2.1 — Latest Update
+# 3D Billiards v1.2.2 — Latest Update
 
-## What's New in v1.2.1
+## What's New in v1.2.2
+
+### Cue Stick Themes
+
+The cue stick is no longer locked to a single wood finish. Six distinct colorways are now available in **Settings → Gameplay → 球杆皮肤**:
+
+| Theme | Style | Description |
+|-------|-------|-------------|
+| **经典木** (default) | Warm maple | Traditional tournament cue — light shaft, dark wrap, brass rings |
+| **黑檀木** | Stealth black | Matte black shaft with graphite accents and silver hardware |
+| **冰蓝** | Cool blue | Icy blue taper with navy wrap and chrome rings |
+| **赤焰** | Crimson red | Rich red wrap on a warm maple base, copper rings |
+| **翡翠** | Emerald green | Forest-green wrap with sage shaft and gold hardware |
+| **鎏金** | Liquid gold | Golden shaft with dark wrap and bright gold rings |
+
+Selection applies **instantly** — no restart required. The theme persists across sessions via `SettingsStore`.
+
+### Bug Fixes & Hardening (Deep Audit Round 2)
+
+A second full-system audit uncovered and fixed **16 issues** across UI/UX, audio, memory, and visual state:
+
+| # | File | Issue | Severity |
+|---|------|-------|----------|
+| 1 | `SettingsScreen.js` | `_rowSelect` pill buttons never updated visual `active` state after click — quality, camera, and cue-theme selectors appeared broken | 🔴 Critical |
+| 2 | `MenuSystem.js` | `_startChallenge()` did not pass `this.audio` to `Game`, causing challenge mode to create an orphan `AudioManager`. After ~6 challenges the browser exhausts its `AudioContext` limit and all audio permanently dies | 🔴 Critical |
+| 3 | `SettingsScreen.js` | `destroy()` never cleared `_tabEls` Map, retaining 6 complete DOM subtrees and preventing garbage collection | 🟠 High |
+| 4 | `UI.js` | `destroy()` did not clear `_pauseHideTimer` or `_settingsHideTimer`; stale timeouts could fire after UI destruction | 🟠 High |
+| 5 | `MainMenuScreen.js` | `hide()` timeout accessed `this.container.style` without null-checking — threw if `destroy()` was called during the 400 ms fade | 🟠 High |
+| 6 | `MainMenuScreen.js` | `_fadeOut()` timeout did not guard `this.container`; callback could execute against destroyed state | 🟠 High |
+| 7 | `Game.js` | `resetGame()` removed balls from physics world but **never removed** their `collide` event listeners, leaking closures over `this.audio` on every reset | 🟠 High |
+| 8 | `Minimap.js` | No `resize` or DPR-change listener — minimap became pixelated or incorrectly sized after window resize | 🟠 High |
+| 9 | `MenuSystem.js` | Async transition methods (`_startGame`, `_startChallenge`) did not re-check `this.state` after `await _delay()`, allowing stale callbacks to overwrite a newer state | 🟠 High |
+| 10 | `UI.js` | `showFloatingText()` timeouts were untracked; rapid pocket events accumulated leaked closures and detached DOM nodes | 🟡 Medium |
+| 11 | `SettingsScreen.js` | `_toast()` used untracked nested timeouts; toasts could remain in DOM after screen destruction | 🟡 Medium |
+| 12 | `SettingsScreen.js` | `hide()` timeout was untracked; rapid show/hide toggles queued overlapping timers | 🟡 Medium |
+| 13 | `MenuSystem.js` | `_quit()` did not nullify `this.mainMenu` / `this.settingsScreen` after `destroy()`, compounding memory leaks | 🟡 Medium |
+| 14 | `index.html` | `<html lang="en">` contradicted the Chinese UI; screen readers mispronounced content | 🟡 Medium |
+| 15 | `index.html` | `mask-image` lacked `-webkit-mask-image` prefix — Safari rendered the decorative grid overlay fully opaque instead of fading | 🟡 Medium |
+| 16 | `UI.js` | `_flashTimer` was not initialized in the constructor, creating an implicit global on first `flashRed()` call | 🟢 Low |
+
+---
+
+## Previous Releases
+
+<details>
+<summary><strong>v1.2.1</strong> — Animation Sync, Error Modal, Strike Snap, Foul Flash, Floating Text, Minimap</summary>
 
 ### Global Animation Speed Control
 
@@ -39,7 +84,16 @@ Every pocketed ball spawns a **floating score label** above the pocket:
 
 Text rises, scales up slightly, then fades and shrinks over ~1.2 s.
 
-### Bug Fixes (Deep Audit)
+### Real-Time Minimap
+
+A 220×120 table minimap appears in the bottom-right corner during gameplay:
+
+- **Ball dots** colored by type (solids / stripes / 8-ball / cue ball)
+- **Pocket markers** with brief white flash on score
+- **White-ball trail** showing recent movement path
+- Toggle, size, and opacity controls in Settings → Gameplay
+
+### Bug Fixes (Deep Audit Round 1)
 
 A full-system audit uncovered and fixed **15+ issues**:
 
@@ -57,7 +111,7 @@ A full-system audit uncovered and fixed **15+ issues**:
 | 10 | `SettingsScreen.js` | `_toast` fade-out transition was hardcoded `0.3s`, out of sync with `animMs(300)` |
 | 11 | `Game.js` | `shoot()` strike-hide timeout could crash if `Game.dispose()` was called within 70 ms |
 | 12 | `Game.js` | Pocket visual FX (particles + floating text) could spawn **twice** for the same ball across consecutive physics frames |
-| 13 | `Game.js` | Floating text allocated a new `THREE.Vector3` every pocketed ball per frame |
+| 13 | `Game.js` | Floating text allocated a new `THREE.Vector3()` every pocketed ball per frame |
 | 14 | `MainMenuScreen.js` | `hide()` used hardcoded `400 ms` and CSS `transform 0.35s` ignored animation speed |
 | 15 | `MenuSystem.js` | Menu fade-outs used hardcoded `0.5s` transitions and `500 ms` delays |
 
@@ -65,10 +119,7 @@ A full-system audit uncovered and fixed **15+ issues**:
 
 - `.github/workflows/deploy.yml` now declares `permissions: contents: write` (GitHub tightened default token permissions)
 - Build step now copies `dist/index.html` → `dist/404.html` so GitHub Pages serves the SPA fallback on any unknown subpath
-
----
-
-## Previous Releases
+</details>
 
 <details>
 <summary><strong>v1.2.0</strong> — Settings Overhaul, Pause Menu, Key Bindings</summary>

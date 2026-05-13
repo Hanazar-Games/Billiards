@@ -212,6 +212,7 @@ export class MenuSystem {
       menuLayer.style.opacity = '0';
     }
     await this._delay(animMs(500));
+    if (this.state !== 'TRANSITION') return;
     if (menuLayer) menuLayer.style.display = 'none';
 
     // Show game UI
@@ -228,7 +229,7 @@ export class MenuSystem {
 
     // Create game with challenge mode
     const modeConfig = { mode: challenge.gameMode, aiEnabled: false };
-    this.game = new Game(this.renderer, this.physics);
+    this.game = new Game(this.renderer, this.physics, this.audio);
     this.game.achievements = this.achievements;
     this.game.replayLibrary = this.replayLibrary;
     this.game.challengeManager = this.challengeManager;
@@ -590,6 +591,8 @@ export class MenuSystem {
 
     this.mainMenu?.destroy();
     this.settingsScreen?.destroy();
+    this.mainMenu = null;
+    this.settingsScreen = null;
   }
 
   _delay(ms) {

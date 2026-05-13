@@ -48,6 +48,8 @@ export class SettingsScreen {
     this._currentCategory = 'audio';
     this._tabEls = new Map();
     this._contentArea = null;
+    this._toastTimer = null;
+    this._hideTimer = null;
     this._buildUI();
   }
 
@@ -522,7 +524,7 @@ export class SettingsScreen {
     wrap.appendChild(desc);
 
     const ver = document.createElement('div');
-    ver.textContent = 'Version 1.2.0';
+    ver.textContent = 'Version 1.2.2';
     ver.style.cssText = 'font-size: 13px; color: rgba(255,255,255,0.35); margin-top: 8px;';
     wrap.appendChild(ver);
 
@@ -756,10 +758,12 @@ export class SettingsScreen {
 
     const pills = document.createElement('div');
     pills.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap;';
+    const btns = [];
     options.forEach(opt => {
       const btn = document.createElement('button');
       btn.textContent = opt.label;
       const active = opt.value === value;
+      btn.dataset.active = active ? 'true' : '';
       btn.style.cssText = `
         padding: 7px 16px; border-radius: 999px;
         background: ${active ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.05)'};
@@ -769,14 +773,27 @@ export class SettingsScreen {
         transition: all calc(0.2s / var(--ui-anim-speed)) ease;
       `;
       btn.onmouseenter = () => {
-        if (!active) btn.style.background = 'rgba(255,255,255,0.1)';
+        if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.1)';
       };
       btn.onmouseleave = () => {
-        if (!active) btn.style.background = 'rgba(255,255,255,0.05)';
+        if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.05)';
       };
-      const clickFn = () => onChange(opt.value);
+      const clickFn = () => {
+        btns.forEach(b => {
+          b.dataset.active = '';
+          b.style.background = 'rgba(255,255,255,0.05)';
+          b.style.borderColor = 'rgba(255,255,255,0.1)';
+          b.style.color = 'rgba(255,255,255,0.55)';
+        });
+        btn.dataset.active = 'true';
+        btn.style.background = 'rgba(255,255,255,0.14)';
+        btn.style.borderColor = 'rgba(255,255,255,0.2)';
+        btn.style.color = '#fff';
+        onChange(opt.value);
+      };
       btn.addEventListener('click', clickFn);
       this._listeners.push({ el: btn, type: 'click', fn: clickFn });
+      btns.push(btn);
       pills.appendChild(btn);
     });
     row.appendChild(pills);
@@ -1046,10 +1063,10 @@ export class SettingsScreen {
       animation: settingsCardIn calc(0.3s / var(--ui-anim-speed)) ease both;
     `;
     document.body.appendChild(el);
-    setTimeout(() => {
+    this._toastTimer = setTimeout(() => {
       el.style.opacity = '0';
       el.style.transition = 'opacity calc(0.3s / var(--ui-anim-speed)) ease';
-      setTimeout(() => el.remove(), animMs(300));
+      this._toastTimer = setTimeout(() => { if (el.parentNode) el.remove(); }, animMs(300));
     }, 2000);
   }
 
@@ -1067,7 +1084,8 @@ export class SettingsScreen {
   hide() {
     if (!this.container) return;
     this.container.style.opacity = '0';
-    setTimeout(() => { if (this.container) this.container.style.display = 'none'; }, animMs(300));
+    if (this._hideTimer) clearTimeout(this._hideTimer);
+    this._hideTimer = setTimeout(() => { if (this.container) this.container.style.display = 'none'; }, animMs(300));
   }
 
   destroy() {
@@ -1075,6 +1093,12 @@ export class SettingsScreen {
       el.removeEventListener(type, fn);
     });
     this._listeners = [];
+    if (this._toastTimer) { clearTimeout(this._toastTimer); this._toastTimer = null; }
+    if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
+    this._tabEls.forEach(({ tab }) => {
+      if (tab) { tab.onclick = null; }
+    });
+    this._tabEls.clear();
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }
