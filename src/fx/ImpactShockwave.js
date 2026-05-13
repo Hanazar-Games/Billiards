@@ -7,6 +7,7 @@
  * bold orange-red blast.
  */
 import * as THREE from 'three';
+import { fxAnimMs } from '../core/AnimSpeed.js';
 
 const COLOR_LOW = new THREE.Color(0x4ecdc4);   // teal
 const COLOR_MID = new THREE.Color(0xffd93d);   // yellow
@@ -51,7 +52,7 @@ export class ImpactShockwave {
     mesh.position.y += 0.2; // slightly above felt
     this.scene.add(mesh);
 
-    const duration = 0.35 + t * 0.35; // 0.35s … 0.7s
+    const duration = fxAnimMs((0.35 + t * 0.35) * 1000) / 1000; // 0.35s … 0.7s, scaled by fxAnimSpeed
     const maxRadius = 18 + t * 55;    // 18 … 73
 
     this.active.push({

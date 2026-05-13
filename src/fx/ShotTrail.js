@@ -14,14 +14,19 @@
  */
 import * as THREE from 'three';
 import { BALL } from '../config.js';
+import { settings } from '../core/SettingsStore.js';
 
 const TRAIL_COLOR = 0xa8d8ea;      // Cyan — matches chalk dust theme
 const TRAIL_Y_OFFSET = BALL.radius + 1.0; // Upper hemisphere, clearly visible from most angles
 const MIN_POINT_DIST = BALL.radius * 0.25; // ~0.7 cm-scale units
 const MIN_SPEED = 0.15;            // Ignore sub-threshold micro-movements
 const MAX_POINTS = 500;            // ~8 seconds of recording at 60fps
-const FADE_DURATION = 5.0;         // Seconds to fully fade out
 const MAX_TRAILS = 3;              // Maximum simultaneous trail lines
+
+function _fadeDuration() {
+  const v = settings.get('trailFadeDuration');
+  return Number.isFinite(v) && v > 0 ? v : 5.0;
+}
 
 export class ShotTrailSystem {
   constructor(scene) {
@@ -128,7 +133,7 @@ export class ShotTrailSystem {
       if (trail.state !== 'fading') continue;
 
       trail.fadeAge += safeDt;
-      const progress = trail.fadeAge / FADE_DURATION;
+      const progress = trail.fadeAge / _fadeDuration();
 
       if (progress >= 1) {
         this._removeTrail(trail);

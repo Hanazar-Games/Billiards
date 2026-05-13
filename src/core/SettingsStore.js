@@ -40,6 +40,9 @@ const DEFAULTS = {
   // Controls — Effects & UI
   screenShakeIntensity: 1.0,
   uiAnimSpeed: 1.0,
+  fxAnimSpeed: 1.0,
+  particleIntensity: 1.0,
+  trailFadeDuration: 5.0,
 
   // Mouse inversion
   invertMouseX: true,

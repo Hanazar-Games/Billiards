@@ -17,6 +17,16 @@ export function animMs(baseMs) {
 }
 
 /**
+ * Return a duration scaled by the user's fxAnimSpeed setting.
+ * Used for gameplay FX (particles, trails, shockwaves) — separate from UI speed.
+ * @param {number} baseMs - base duration at 1.0x speed
+ * @returns {number} scaled duration
+ */
+export function fxAnimMs(baseMs) {
+  return baseMs / _clampSpeed(settings.get('fxAnimSpeed'));
+}
+
+/**
  * Return a duration in seconds scaled by the user's uiAnimSpeed setting.
  * Useful for cssText strings that need "0.3s" format.
  * @param {number} baseSec - base duration in seconds at 1.0x speed

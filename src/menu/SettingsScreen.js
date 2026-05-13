@@ -262,6 +262,18 @@ export class SettingsScreen {
     this._rowSelect('画质等级', QUALITY_OPTIONS, settings.get('quality'), (v) => {
       settings.set('quality', v);
     });
+
+    // ── FX Animation ──
+    this._sectionTitle('特效动画', true);
+    this._rowSlider('FX 动画速度', Math.round((settings.get('fxAnimSpeed') ?? 1.0) * 100), 50, 200, '%', (v) => {
+      settings.set('fxAnimSpeed', v / 100);
+    });
+    this._rowSlider('粒子效果强度', Math.round((settings.get('particleIntensity') ?? 1.0) * 100), 20, 200, '%', (v) => {
+      settings.set('particleIntensity', v / 100);
+    });
+    this._rowSlider('拖尾淡出时间', Math.round((settings.get('trailFadeDuration') ?? 5.0) * 10), 20, 100, 's', (v) => {
+      settings.set('trailFadeDuration', v / 10);
+    });
   }
 
   _buildGameplayContent() {
@@ -524,7 +536,7 @@ export class SettingsScreen {
     wrap.appendChild(desc);
 
     const ver = document.createElement('div');
-    ver.textContent = 'Version 1.2.3';
+    ver.textContent = 'Version 1.2.4';
     ver.style.cssText = 'font-size: 13px; color: rgba(255,255,255,0.35); margin-top: 8px;';
     wrap.appendChild(ver);
 
@@ -532,6 +544,42 @@ export class SettingsScreen {
     copy.textContent = '© 2026 Hanazar Games. All rights reserved.';
     copy.style.cssText = 'font-size: 12px; color: rgba(255,255,255,0.25); margin-top: 4px;';
     wrap.appendChild(copy);
+
+    // ── Links ──
+    const linksWrap = document.createElement('div');
+    linksWrap.style.cssText = 'display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:10px;';
+
+    const makeLink = (text, url) => {
+      const a = document.createElement('a');
+      a.textContent = text;
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.style.cssText = `
+        display:inline-block;padding:7px 14px;border-radius:8px;
+        background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);
+        color:rgba(255,255,255,0.65);font-size:12px;font-weight:600;
+        text-decoration:none;cursor:pointer;
+        transition:all calc(0.2s / var(--ui-anim-speed)) ease;
+      `;
+      a.onmouseenter = () => {
+        a.style.background = 'rgba(255,255,255,0.12)';
+        a.style.borderColor = 'rgba(255,255,255,0.25)';
+        a.style.color = '#fff';
+      };
+      a.onmouseleave = () => {
+        a.style.background = 'rgba(255,255,255,0.06)';
+        a.style.borderColor = 'rgba(255,255,255,0.1)';
+        a.style.color = 'rgba(255,255,255,0.65)';
+      };
+      return a;
+    };
+
+    linksWrap.appendChild(makeLink('🏠 Hanazar Games', 'https://github.com/Hanazar-Games'));
+    linksWrap.appendChild(makeLink('📁 项目仓库', 'https://github.com/Hanazar-Games/Billiards'));
+    linksWrap.appendChild(makeLink('🐛 问题反馈', 'https://github.com/Hanazar-Games/Billiards/issues'));
+    linksWrap.appendChild(makeLink('👤 开发者', 'https://github.com/hanazarochikawa'));
+    wrap.appendChild(linksWrap);
 
     this._contentArea.appendChild(wrap);
   }

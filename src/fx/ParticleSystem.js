@@ -10,6 +10,8 @@
  * cleaned up when all particles expire. Maximum ~300 particles alive.
  */
 import * as THREE from 'three';
+import { settings } from '../core/SettingsStore.js';
+import { fxAnimMs } from '../core/AnimSpeed.js';
 
 const CHALK_COLOR = 0xa8d8ea;
 const SPARK_COLORS = [0xffd700, 0xff6b6b, 0x4ecdc4, 0xffe66d, 0xffffff];
@@ -42,10 +44,14 @@ export class ParticleSystem {
    * @param {THREE.Vector3} direction - shot direction (normalized)
    * @param {number} power - shot power (0-100)
    */
+  _getIntensityMult() {
+    return Math.max(0.2, settings.get('particleIntensity') ?? 1.0);
+  }
+
   spawnChalkDust(position, direction, power) {
     if (!this.enabled) return;
-
-    const count = Math.min(10 + Math.floor(power / 6), 28);
+    const mult = this._getIntensityMult();
+    const count = Math.min(Math.floor((10 + power / 6) * mult), Math.floor(40 * mult));
     const data = this._allocParticleData(count);
 
     for (let i = 0; i < count; i++) {
@@ -63,7 +69,7 @@ export class ParticleSystem {
         z: direction.z * speed + (Math.random() - 0.5) * spread * speed,
       });
 
-      data.lifetimes.push(0.25 + Math.random() * 0.35);
+      data.lifetimes.push(fxAnimMs((0.25 + Math.random() * 0.35) * 1000) / 1000);
       data.maxLifetimes.push(data.lifetimes[i]);
       // size is handled by PointsMaterial.size, not per-particle
     }
@@ -87,8 +93,8 @@ export class ParticleSystem {
    */
   spawnCollisionSparks(position, intensity) {
     if (!this.enabled) return;
-
-    const count = Math.min(6 + Math.floor(intensity * 2), 20);
+    const mult = this._getIntensityMult();
+    const count = Math.min(Math.floor((6 + intensity * 2) * mult), Math.floor(30 * mult));
     if (count <= 0) return;
 
     const data = this._allocParticleData(count);
@@ -107,7 +113,7 @@ export class ParticleSystem {
         z: Math.sin(angle) * speed,
       });
 
-      data.lifetimes.push(0.15 + Math.random() * 0.2);
+      data.lifetimes.push(fxAnimMs((0.15 + Math.random() * 0.2) * 1000) / 1000);
       data.maxLifetimes.push(data.lifetimes[i]);
     }
 
@@ -131,8 +137,8 @@ export class ParticleSystem {
    */
   spawnPocketFlash(position) {
     if (!this.enabled) return;
-
-    const count = 24;
+    const mult = this._getIntensityMult();
+    const count = Math.max(6, Math.floor(24 * mult));
     const data = this._allocParticleData(count);
 
     for (let i = 0; i < count; i++) {
@@ -148,7 +154,7 @@ export class ParticleSystem {
         z: Math.sin(angle) * (2 + Math.random() * 4),
       });
 
-      data.lifetimes.push(0.4 + Math.random() * 0.3);
+      data.lifetimes.push(fxAnimMs((0.4 + Math.random() * 0.3) * 1000) / 1000);
       data.maxLifetimes.push(data.lifetimes[i]);
       // size is handled by PointsMaterial.size, not per-particle
     }
@@ -174,9 +180,9 @@ export class ParticleSystem {
    */
   spawnPocketFountain(position, ballId) {
     if (!this.enabled) return;
-
+    const mult = this._getIntensityMult();
     const color = FOUNTAIN_COLORS[ballId] ?? FLASH_COLOR;
-    const count = 18 + Math.floor(Math.random() * 10);
+    const count = Math.max(6, Math.floor((18 + Math.random() * 10) * mult));
     const data = this._allocParticleData(count);
 
     for (let i = 0; i < count; i++) {
@@ -193,7 +199,7 @@ export class ParticleSystem {
         z: Math.sin(angle) * (1 + Math.random() * 3),
       });
 
-      data.lifetimes.push(0.5 + Math.random() * 0.4);
+      data.lifetimes.push(fxAnimMs((0.5 + Math.random() * 0.4) * 1000) / 1000);
       data.maxLifetimes.push(data.lifetimes[i]);
     }
 

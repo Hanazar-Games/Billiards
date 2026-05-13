@@ -552,7 +552,7 @@ export class UI {
     this._pauseHideTimer = setTimeout(() => {
       if (this.pauseOverlay) this.pauseOverlay.style.display = 'none';
       this._pauseHideTimer = null;
-    }, 300);
+    }, animMs(300));
   }
 
   showInGameSettings(audioManager) {
@@ -628,7 +628,7 @@ export class UI {
     this._settingsHideTimer = setTimeout(() => {
       if (this.settingsOverlay) this.settingsOverlay.style.display = 'none';
       this._settingsHideTimer = null;
-    }, 300);
+    }, animMs(300));
   }
 
   flashRed() {

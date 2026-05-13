@@ -5,6 +5,8 @@
  * in the centre of the screen that scales up and fades out,
  * giving immediate feedback on how hard the shot was.
  */
+import { settings } from '../core/SettingsStore.js';
+
 const TIERS = [
   { threshold: 0.00, label: '轻推', color: '#4ecdc4', scale: 0.9 },
   { threshold: 0.22, label: '中力', color: '#a8e063', scale: 1.0 },
@@ -67,8 +69,9 @@ export class PowerLabel {
     this.el.style.color = tier.color;
 
     const duration = 0.55 + t * 0.35; // 0.55s … 0.9s
+    const speed = Math.max(0.2, settings.get('fxAnimSpeed') ?? 1.0);
     this._startTime = performance.now();
-    this._duration = duration * 1000;
+    this._duration = (duration * 1000) / speed;
     this._tierScale = tier.scale;
 
     if (this._animId) cancelAnimationFrame(this._animId);
