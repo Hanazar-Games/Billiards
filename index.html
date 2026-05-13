@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Billiards v1.2.1</title>
+  <style>
+    :root {
+      --felt: #106442;
+      --felt-bright: #18a46a;
+      --ink: #090b0d;
+      --panel: rgba(12, 15, 18, 0.72);
+      --panel-strong: rgba(14, 17, 21, 0.88);
+      --line: rgba(255,255,255,0.16);
+      --line-strong: rgba(255,255,255,0.28);
+      --text: #f4f7f4;
+      --muted: rgba(244,247,244,0.64);
+      --gold: #d8b15f;
+      --red: #b9123f;
+      --blue: #1877c9;
+      --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+      --ui-anim-speed: 1;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #app {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0b0d0e;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    canvas { display: block; }
+    #ui-layer {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      padding: 18px 24px;
+      user-select: none;
+    }
+    #top-bar {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(110px, 150px) minmax(260px, 1fr) minmax(110px, 150px);
+      align-items: start;
+      gap: 18px;
+      width: 100%;
+    }
+    #power-bar-container {
+      position: absolute;
+      bottom: 48px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(420px, 42vw);
+      height: 18px;
+      background: rgba(8,10,12,0.62);
+      border: 1px solid rgba(255,255,255,0.42);
+      border-radius: 999px;
+      overflow: hidden;
+      pointer-events: none;
+      box-shadow: inset 0 1px 8px rgba(0,0,0,0.75), 0 10px 28px rgba(0,0,0,0.35);
+      display: none;
+    }
+    #power-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #27f59a 0%, #f7df4d 54%, #ff3d57 100%);
+      box-shadow: 0 0 14px rgba(255,255,255,0.2);
+    }
+    #message {
+      text-align: center;
+      justify-self: center;
+      max-width: 640px;
+      min-height: 42px;
+      padding: 10px 18px;
+      font-size: 16px;
+      font-weight: 650;
+      color: var(--text);
+      line-height: 1.32;
+      letter-spacing: 0;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.75);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 12px 34px rgba(0,0,0,0.28);
+      backdrop-filter: blur(10px);
+      animation: uiFloatIn calc(420ms / var(--ui-anim-speed)) var(--ease) both;
+    }
+    .player-badge {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-weight: 750;
+      font-size: 14px;
+      color: var(--text);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+      text-align: center;
+      transition: all calc(0.3s / var(--ui-anim-speed)) ease;
+      min-width: 118px;
+      border: 1px solid var(--line);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.25);
+      backdrop-filter: blur(8px);
+      animation: uiFloatIn calc(420ms / var(--ui-anim-speed)) var(--ease) both;
+    }
+    #player1 { background: linear-gradient(135deg, rgba(168, 110, 60, 0.86), rgba(110, 65, 30, 0.82)); }
+    #player2 { background: linear-gradient(135deg, rgba(60, 65, 75, 0.86), rgba(35, 40, 50, 0.82)); }
+    .player-badge.active {
+      border-color: rgba(255,255,255,0.9);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 0 22px rgba(255,255,255,0.22), 0 12px 32px rgba(0,0,0,0.32);
+      transform: translateY(-1px);
+    }
+    #version-tag {
+      position: absolute;
+      bottom: 10px;
+      right: 14px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+      pointer-events: none;
+    }
+    #menu-layer {
+      position: absolute; inset: 0;
+      z-index: 20; pointer-events: auto;
+      background:
+        linear-gradient(135deg, rgba(16,100,66,0.34) 0%, rgba(9,11,13,0.0) 34%),
+        linear-gradient(25deg, rgba(122,26,38,0.22) 0%, rgba(9,11,13,0.0) 36%),
+        linear-gradient(180deg, #101412 0%, #07090a 100%);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    #menu-layer::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent 78%);
+      pointer-events: none;
+    }
+    .menu-title {
+      font-size: clamp(40px, 6vw, 68px); font-weight: 900;
+      color: var(--text); letter-spacing: 4px;
+      text-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 34px rgba(24,164,106,0.22);
+      margin-bottom: 12px;
+      animation: titleFloat calc(3s / var(--ui-anim-speed)) ease-in-out infinite;
+    }
+    @keyframes titleFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .menu-btn {
+      width: min(380px, calc(100vw - 48px)); padding: 16px 18px;
+      background: rgba(12,15,18,0.68);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      backdrop-filter: blur(14px);
+      cursor: pointer; transition: transform calc(180ms / var(--ui-anim-speed)) var(--ease), background calc(180ms / var(--ui-anim-speed)) ease, border-color calc(180ms / var(--ui-anim-speed)) ease, box-shadow calc(180ms / var(--ui-anim-speed)) ease;
+      text-align: left; pointer-events: auto;
+      display: flex; flex-direction: column; gap: 4px;
+      box-shadow: 0 12px 34px rgba(0,0,0,0.24);
+      position: relative;
+      overflow: hidden;
+    }
+    .menu-btn:hover {
+      background: rgba(20,26,30,0.86);
+      border-color: rgba(216,177,95,0.48);
+      transform: translateY(-2px);
+      box-shadow: 0 18px 46px rgba(0,0,0,0.34), inset 3px 0 0 rgba(216,177,95,0.74);
+    }
+    .menu-btn:active { transform: translateY(0); }
+    .menu-btn-title {
+      font-size: 17px;
+      font-weight: 780;
+      color: var(--text);
+      letter-spacing: 0;
+    }
+    .menu-btn-desc {
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0;
+    }
+    .panel-surface {
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.44);
+      backdrop-filter: blur(18px);
+    }
+    .ui-action {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--text);
+      cursor: pointer;
+      transition: transform calc(160ms / var(--ui-anim-speed)) var(--ease), background calc(160ms / var(--ui-anim-speed)) ease, border-color calc(160ms / var(--ui-anim-speed)) ease;
+    }
+    .ui-action:hover {
+      background: rgba(255,255,255,0.14);
+      border-color: var(--line-strong);
+      transform: translateY(-1px);
+    }
+    #ui-layer { display: none; }
+    @keyframes uiFloatIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(10px) scale(0.985); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes settingsTabIn {
+      from { opacity: 0; transform: translateX(-8px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes settingsCardIn {
+      from { opacity: 0; transform: translateY(10px) scale(0.985); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @media (max-width: 760px) {
+      #ui-layer { padding: 12px; }
+      #top-bar {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      #message {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        font-size: 13px;
+        padding: 8px 10px;
+        max-width: none;
+      }
+      .player-badge {
+        min-width: 0;
+        font-size: 13px;
+      }
+      #power-bar-container {
+        width: calc(100vw - 96px);
+      }
+    }
+
+    /* JS-error diagnostic overlay */
+    /* ── Intro / Loading Screen ── */
+    #intro-screen {
+      position: fixed; inset: 0;
+      z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      background: #07090a;
+      transition: opacity calc(1.2s / var(--ui-anim-speed)) cubic-bezier(0.4, 0, 0.2, 1), visibility calc(1.2s / var(--ui-anim-speed));
+    }
+    #intro-screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .intro-bg {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 40%, rgba(16,100,66,0.18) 0%, transparent 55%),
+        radial-gradient(ellipse at 30% 70%, rgba(122,26,38,0.10) 0%, transparent 45%),
+        radial-gradient(ellipse at 70% 60%, rgba(24,119,201,0.08) 0%, transparent 45%);
+      animation: introBgPulse calc(4s / var(--ui-anim-speed)) ease-in-out infinite;
+    }
+    @keyframes introBgPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    .intro-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .intro-brand {
+      font-size: clamp(18px, 2.4vw, 26px);
+      font-weight: 500;
+      color: rgba(244,247,244,0.55);
+      letter-spacing: 8px;
+      text-transform: uppercase;
+      opacity: 0;
+      transform: translateY(12px);
+      animation: introFadeIn calc(0.8s / var(--ui-anim-speed)) var(--ease) 0.2s forwards;
+    }
+    .intro-line {
+      width: 0;
+      height: 1.5px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      margin: 6px 0;
+      animation: introLineExpand calc(1s / var(--ui-anim-speed)) var(--ease) 0.6s forwards;
+    }
+    @keyframes introLineExpand {
+      to { width: min(320px, 60vw); }
+    }
+    .intro-title {
+      font-size: clamp(52px, 9vw, 96px);
+      font-weight: 900;
+      color: var(--text);
+      letter-spacing: 6px;
+      text-shadow:
+        0 0 40px rgba(24,164,106,0.25),
+        0 0 80px rgba(24,164,106,0.12),
+        0 8px 32px rgba(0,0,0,0.6);
+      opacity: 0;
+      transform: translateY(18px) scale(0.96);
+      animation: introTitleIn calc(1s / var(--ui-anim-speed)) var(--ease) 0.5s forwards;
+    }
+    @keyframes introTitleIn {
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .intro-subtitle {
+      font-size: clamp(16px, 2.2vw, 24px);
+      font-weight: 400;
+      color: rgba(244,247,244,0.5);
+      letter-spacing: 10px;
+      opacity: 0;
+      animation: introFadeIn calc(0.8s / var(--ui-anim-speed)) var(--ease) 0.9s forwards;
+    }
+    .intro-progress-wrap {
+      margin-top: 32px;
+      width: min(360px, 70vw);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      animation: introFadeIn calc(0.6s / var(--ui-anim-speed)) var(--ease) 1.1s forwards;
+    }
+    .intro-progress-track {
+      width: 100%;
+      height: 4px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .intro-progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #18a46a, #d8b15f);
+      border-radius: 999px;
+      box-shadow: 0 0 12px rgba(24,164,106,0.45);
+      transition: width calc(0.35s / var(--ui-anim-speed)) cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    .intro-percent {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(244,247,244,0.45);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 1px;
+    }
+    .intro-loading-text {
+      font-size: 12px;
+      color: rgba(244,247,244,0.3);
+      letter-spacing: 2px;
+      margin-top: 4px;
+      opacity: 0;
+      animation: introFadeIn calc(0.6s / var(--ui-anim-speed)) var(--ease) 1.3s forwards;
+    }
+    @keyframes introFadeIn {
+      to { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; transform: translateY(8px); }
+    }
+    @keyframes floatTextUp {
+      0%   { opacity: 1; transform: translate(-50%, -50%) translateY(0) scale(1); }
+      40%  { opacity: 1; transform: translate(-50%, -50%) translateY(-18px) scale(1.1); }
+      100% { opacity: 0; transform: translate(-50%, -50%) translateY(-44px) scale(0.85); }
+    }
+
+    #js-error-overlay {
+      position: fixed; inset: 0;
+      z-index: 99999;
+      background: rgba(6,8,10,0.94);
+      backdrop-filter: blur(16px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    #js-error-overlay.visible { display: flex; }
+    #js-error-card {
+      width: 100%; max-width: 720px;
+      background: rgba(16,20,24,0.98);
+      border: 1px solid rgba(185,18,63,0.45);
+      border-radius: 18px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.65), 0 0 0 1px rgba(185,18,63,0.15), inset 0 1px 0 rgba(255,255,255,0.04);
+      overflow: hidden;
+      animation: errorCardIn calc(0.4s / var(--ui-anim-speed)) cubic-bezier(0.2,0.8,0.2,1) both;
+    }
+    #js-error-header {
+      display: flex; align-items: center; gap: 14px;
+      padding: 22px 26px 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    #js-error-header .icon {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: rgba(185,18,63,0.12);
+      border: 1px solid rgba(185,18,63,0.35);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    #js-error-header h2 {
+      color: #fff; font-size: 18px; font-weight: 700; margin: 0;
+      letter-spacing: 0.2px;
+    }
+    #js-error-header .sub {
+      color: rgba(255,255,255,0.45); font-size: 13px; margin-top: 3px;
+    }
+    #js-error-phase {
+      padding: 10px 26px;
+      background: rgba(185,18,63,0.06);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      color: rgba(255,120,120,0.7); font-size: 12px; font-weight: 600;
+      letter-spacing: 0.3px; text-transform: uppercase;
+    }
+    #js-error-content {
+      padding: 18px 26px;
+      max-height: 38vh;
+      overflow: auto;
+      font-family: 'SFMono-Regular', 'Consolas', 'Courier New', monospace;
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: #ff8a8a;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    #js-error-content .err-block {
+      margin-bottom: 12px; padding: 12px 14px;
+      background: rgba(185,18,63,0.06);
+      border-radius: 10px;
+      border-left: 3px solid rgba(185,18,63,0.5);
+    }
+    #js-error-content .err-block:last-child { margin-bottom: 0; }
+    #js-error-content .err-time {
+      color: rgba(255,255,255,0.35); font-size: 11px; margin-bottom: 6px;
+    }
+    #js-error-footer {
+      display: flex; gap: 12px;
+      padding: 16px 26px 22px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .err-btn {
+      padding: 10px 20px; border-radius: 10px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.75);
+      transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+    }
+    .err-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+    .err-btn.primary {
+      background: rgba(185,18,63,0.12);
+      border-color: rgba(185,18,63,0.4);
+      color: #ff8a9a;
+    }
+    .err-btn.primary:hover { background: rgba(185,18,63,0.22); }
+    @keyframes errorCardIn {
+      from { opacity: 0; transform: translateY(18px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+  </style>
+  <script type="module" crossorigin src="/Billiards/assets/index-C1gGIivV.js"></script>
+  <link rel="modulepreload" crossorigin href="/Billiards/assets/three-DQplaIfc.js">
+  <link rel="modulepreload" crossorigin href="/Billiards/assets/physics-CuNEbKnu.js">
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- Intro / Loading Screen -->
+  <div id="intro-screen">
+    <div class="intro-bg"></div>
+    <div class="intro-content">
+      <div class="intro-brand">Hanazar Products</div>
+      <div class="intro-line"></div>
+      <div class="intro-title">Billiards</div>
+      <div class="intro-subtitle">3D台球游戏</div>
+      <div class="intro-progress-wrap">
+        <div class="intro-progress-track">
+          <div class="intro-progress-fill" id="intro-progress-fill"></div>
+        </div>
+        <div class="intro-percent" id="intro-percent">0%</div>
+      </div>
+      <div class="intro-loading-text" id="intro-loading-text">Loading... 加载中...</div>
+    </div>
+  </div>
+
+  <div id="menu-layer">
+    <div id="boot-message" style="position:relative;z-index:1;color:rgba(244,247,244,0.82);font-size:14px;text-align:center;line-height:1.6;padding:24px;">
+      正在加载 3D Billiards...
+    </div>
+  </div>
+  <div id="ui-layer">
+    <div id="top-bar">
+      <div id="player1" class="player-badge active">Player 1</div>
+      <div id="message">Aim with mouse, hold LEFT CLICK to charge, release to shoot.<br>Hold SHIFT + LEFT drag to pan, SHIFT + RIGHT drag to orbit. Wheel to zoom.</div>
+      <div id="player2" class="player-badge">Player 2</div>
+    </div>
+    <div id="power-bar-container">
+      <div id="power-bar-fill"></div>
+    </div>
+    <div id="version-tag">v1.2.1</div>
+  </div>
+
+  <!-- Diagnostic overlay for JS errors -->
+  <div id="js-error-overlay">
+    <div id="js-error-card">
+      <div id="js-error-header">
+        <div class="icon">⚠️</div>
+        <div>
+          <h2>游戏加载失败</h2>
+          <div class="sub">Initialization Failed — 初始化过程中发生错误</div>
+        </div>
+      </div>
+      <div id="js-error-phase" style="display:none;">加载阶段: 未知</div>
+      <div id="js-error-content"></div>
+      <div id="js-error-footer">
+        <button class="err-btn primary" onclick="location.reload()">🔄 重新加载</button>
+        <button class="err-btn" onclick="document.getElementById('js-error-overlay').classList.remove('visible')">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Catch errors that happen before or outside the module script
+    function _escHtml(s) {
+      if (s == null) return '';
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function _formatErrorBlock(msg, extra) {
+      var time = new Date().toLocaleTimeString();
+      return '<div class="err-block"><div class="err-time">' + _escHtml(time) + '</div>' +
+        _escHtml(msg).replace(/\n/g, '<br>') +
+        (extra ? '<br><span style="color:rgba(255,255,255,0.35);">' + _escHtml(extra) + '</span>' : '') +
+        '</div>';
+    }
+    window.addEventListener('error', function(e) {
+      var overlay = document.getElementById('js-error-overlay');
+      var content = document.getElementById('js-error-content');
+      if (overlay && content) {
+        var extra = 'Source: ' + (e.filename || 'unknown') + ' — Line ' + (e.lineno || 'N/A') + ':' + (e.colno || 'N/A');
+        content.innerHTML = (content.innerHTML || '') + _formatErrorBlock('Error: ' + e.message, extra);
+        overlay.classList.add('visible');
+      }
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      var overlay = document.getElementById('js-error-overlay');
+      var content = document.getElementById('js-error-content');
+      if (overlay && content) {
+        var reason = e.reason;
+        if (typeof reason === 'object' && reason !== null) {
+          try {
+            reason = (reason.stack || reason.message || JSON.stringify(reason));
+          } catch (err) {
+            reason = '[object with circular reference]';
+          }
+        }
+        content.innerHTML = (content.innerHTML || '') + _formatErrorBlock('Unhandled Promise Rejection:\n' + reason, '');
+        overlay.classList.add('visible');
+      }
+    });
+
+    if (window.location.protocol === 'file:') {
+      var bootMessage = document.getElementById('boot-message');
+      if (bootMessage) {
+        bootMessage.textContent = '请通过开发服务器打开本项目：npm install 后运行 npm run dev，再访问 http://localhost:5173。直接打开 index.html 无法加载 Three.js 模块。';
+      }
+    }
+  </script>
+
+</body>
+</html>
