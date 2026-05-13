@@ -195,24 +195,29 @@ export class UI {
     this.settingsOverlay = document.createElement('div');
     this.settingsOverlay.style.cssText = `
       position: fixed; inset: 0; z-index: 60;
-      background: rgba(5,7,8,0.88);
-      backdrop-filter: blur(16px);
-      display: none; flex-direction: column;
-      align-items: center; justify-content: flex-start;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center;
       opacity: 0; transition: opacity 0.3s ease;
-      overflow-y: auto; padding: 40px 24px;
     `;
 
     const settingsPanel = document.createElement('div');
     settingsPanel.style.cssText = `
-      width: min(520px, 100%);
-      display: flex; flex-direction: column; gap: 16px;
+      width: min(520px, 92vw); max-height: min(580px, 80vh);
+      background: #161616;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.6);
     `;
 
     const settingsHeader = document.createElement('div');
     settingsHeader.style.cssText = `
       display: flex; align-items: center; gap: 14px;
-      margin-bottom: 4px;
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
     `;
     const settingsBack = document.createElement('button');
     settingsBack.textContent = '←';
@@ -237,108 +242,121 @@ export class UI {
     const settingsTitle = document.createElement('div');
     settingsTitle.textContent = '设置';
     settingsTitle.style.cssText = `
-      font-size: 20px; font-weight: 800; color: var(--text);
-      letter-spacing: 2px;
+      font-size: 18px; font-weight: 700; color: #fff;
+      letter-spacing: 0.5px;
     `;
     settingsHeader.appendChild(settingsTitle);
     settingsPanel.appendChild(settingsHeader);
 
     this._inGameSettingCards = [];
 
-    // Helper: create a compact card
+    // Scrollable content area
+    const settingsContent = document.createElement('div');
+    settingsContent.style.cssText = `
+      flex: 1; overflow-y: auto;
+      padding: 8px 20px 20px;
+    `;
+
+    // Helper: row item with label + control + divider
     const createCard = (title, subtitle, control) => {
       const card = document.createElement('div');
       card.style.cssText = `
-        background: var(--panel-strong);
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 16px 20px;
         display: flex; justify-content: space-between; align-items: center;
-        box-shadow: 0 8px 28px rgba(0,0,0,0.22);
-        backdrop-filter: blur(12px);
+        padding: 13px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+        gap: 16px;
       `;
       const text = document.createElement('div');
-      text.style.cssText = 'display:flex;flex-direction:column;gap:2px;';
+      text.style.cssText = 'display:flex;flex-direction:column;gap:1px;min-width:0;';
       const t = document.createElement('div');
       t.textContent = title;
-      t.style.cssText = 'font-size:14px;font-weight:750;color:var(--text);';
+      t.style.cssText = 'font-size:14px;font-weight:600;color:rgba(255,255,255,0.85);white-space:nowrap;';
       text.appendChild(t);
       if (subtitle) {
         const s = document.createElement('div');
         s.textContent = subtitle;
-        s.style.cssText = 'font-size:12px;color:var(--muted);';
+        s.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);';
         text.appendChild(s);
       }
       card.appendChild(text);
       card.appendChild(control);
-      settingsPanel.appendChild(card);
+      settingsContent.appendChild(card);
       this._inGameSettingCards.push(card);
       return card;
     };
 
-    // Toggle helper
+    // Toggle helper — iOS style
     const createToggle = (checked, onChange) => {
       const wrap = document.createElement('label');
-      wrap.style.cssText = 'position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;cursor:pointer;';
+      wrap.style.cssText = 'position:relative;display:inline-block;width:48px;height:28px;flex-shrink:0;cursor:pointer;';
       const input = document.createElement('input');
       input.type = 'checkbox';
       input.checked = checked;
-      input.style.cssText = 'opacity:0;width:0;height:0;';
-      const slider = document.createElement('span');
-      slider.style.cssText = `
-        position:absolute;cursor:pointer;inset:0;
-        background:rgba(255,255,255,0.12);border-radius:999px;
-        transition:background 0.25s ease;border:1px solid rgba(255,255,255,0.1);
-      `;
+      input.style.cssText = 'opacity:0;width:0;height:0;position:absolute;';
+      const track = document.createElement('span');
       const knob = document.createElement('span');
-      knob.style.cssText = `
-        position:absolute;height:20px;width:20px;left:2px;bottom:2px;
-        background:#fff;border-radius:50%;
-        transition:transform 0.25s var(--ease);
-        box-shadow:0 2px 6px rgba(0,0,0,0.3);
-      `;
-      slider.appendChild(knob);
       const update = () => {
         const on = input.checked;
-        slider.style.background = on ? 'var(--felt-bright)' : 'rgba(255,255,255,0.12)';
-        slider.style.borderColor = on ? 'rgba(24,164,106,0.5)' : 'rgba(255,255,255,0.1)';
-        knob.style.transform = on ? 'translateX(20px)' : 'translateX(0)';
+        track.style.cssText = `
+          position:absolute;inset:0;border-radius:999px;
+          background:${on ? '#34c759' : 'rgba(255,255,255,0.14)'};
+          transition:background 0.25s ease;
+        `;
+        knob.style.cssText = `
+          position:absolute;top:2px;left:2px;
+          width:24px;height:24px;border-radius:50%;
+          background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.3);
+          transition:transform 0.25s cubic-bezier(0.2,0.8,0.2,1);
+          transform:translateX(${on ? '20px' : '0'});
+        `;
       };
       update();
       input.addEventListener('change', () => { update(); onChange(input.checked); });
       wrap.appendChild(input);
-      wrap.appendChild(slider);
+      wrap.appendChild(track);
+      wrap.appendChild(knob);
       return { wrap, input };
     };
 
-    // Slider helper
+    // Slider helper — white-knob style
     const createSlider = (value, min, max, onChange) => {
       const wrap = document.createElement('div');
-      wrap.style.cssText = 'display:flex;align-items:center;gap:10px;min-width:140px;flex-shrink:0;';
+      wrap.style.cssText = 'display:flex;align-items:center;gap:14px;min-width:160px;flex-shrink:0;';
       const trackWrap = document.createElement('div');
-      trackWrap.style.cssText = 'position:relative;flex:1;height:24px;display:flex;align-items:center;';
+      trackWrap.style.cssText = 'position:relative;flex:1;height:20px;display:flex;align-items:center;';
       const track = document.createElement('div');
-      track.style.cssText = 'width:100%;height:4px;background:rgba(255,255,255,0.1);border-radius:999px;position:relative;overflow:hidden;';
+      track.style.cssText = 'width:100%;height:4px;background:rgba(255,255,255,0.1);border-radius:999px;position:relative;';
       const fill = document.createElement('div');
-      fill.style.cssText = 'height:100%;width:0%;background:linear-gradient(90deg,var(--felt-bright),var(--gold));border-radius:999px;transition:width 0.1s ease;';
+      fill.style.cssText = 'height:100%;width:0%;background:rgba(255,255,255,0.5);border-radius:999px;transition:width 0.08s ease;';
       track.appendChild(fill);
       trackWrap.appendChild(track);
+
+      const thumb = document.createElement('div');
+      thumb.style.cssText = `
+        position:absolute;top:50%;left:0%;
+        width:16px;height:16px;border-radius:50%;background:#fff;
+        box-shadow:0 2px 6px rgba(0,0,0,0.35);
+        transform:translate(-50%,-50%);pointer-events:none;
+        transition:left 0.08s ease;
+      `;
+      trackWrap.appendChild(thumb);
 
       const input = document.createElement('input');
       input.type = 'range';
       input.min = min; input.max = max; input.step = 1;
       input.value = value;
       input.style.cssText = 'position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;';
-      const updateFill = () => {
-        fill.style.width = `${((input.value - min) / (max - min)) * 100}%`;
+      const update = () => {
+        const pct = ((input.value - min) / (max - min)) * 100;
+        fill.style.width = `${pct}%`;
+        thumb.style.left = `${pct}%`;
       };
-      updateFill();
-      input.addEventListener('input', () => { updateFill(); onChange(parseFloat(input.value)); });
+      update();
+      input.addEventListener('input', () => { update(); onChange(parseFloat(input.value)); });
       trackWrap.appendChild(input);
 
       const label = document.createElement('div');
       label.textContent = Math.round(input.value) + '%';
-      label.style.cssText = 'font-size:12px;font-weight:700;color:var(--text);min-width:36px;text-align:right;font-variant-numeric:tabular-nums;';
+      label.style.cssText = 'font-size:13px;font-weight:600;color:rgba(255,255,255,0.5);min-width:40px;text-align:right;font-variant-numeric:tabular-nums;';
       input.addEventListener('input', () => { label.textContent = Math.round(input.value) + '%'; });
 
       wrap.appendChild(trackWrap);
@@ -346,34 +364,49 @@ export class UI {
       return { wrap, input };
     };
 
-    // Select helper
+    // Select helper — pill group
     const createSelect = (value, options, onChange) => {
       const wrap = document.createElement('div');
-      wrap.style.cssText = 'position:relative;flex-shrink:0;';
-      const select = document.createElement('select');
-      select.style.cssText = 'appearance:none;-webkit-appearance:none;background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:8px;padding:7px 28px 7px 12px;color:var(--text);font-size:13px;font-weight:650;cursor:pointer;min-width:110px;transition:all 0.2s ease;';
-      select.onmouseenter = () => { select.style.background = 'rgba(255,255,255,0.1)'; select.style.borderColor = 'var(--line-strong)'; };
-      select.onmouseleave = () => { select.style.background = 'rgba(255,255,255,0.06)'; select.style.borderColor = 'var(--line)'; };
+      wrap.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0;';
+      const btns = [];
       options.forEach(o => {
-        const opt = document.createElement('option');
-        opt.value = o.value; opt.textContent = o.label;
-        opt.style.cssText = 'background:#1a1e22;color:#f4f7f4;';
-        select.appendChild(opt);
+        const btn = document.createElement('button');
+        btn.textContent = o.label;
+        const active = o.value === value;
+        btn.style.cssText = `
+          padding:6px 14px;border-radius:999px;
+          background:${active ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.05)'};
+          border:1px solid ${active ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'};
+          color:${active ? '#fff' : 'rgba(255,255,255,0.55)'};
+          font-size:12px;font-weight:600;cursor:pointer;
+          transition:all 0.2s ease;
+        `;
+        btn.onmouseenter = () => { if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.1)'; };
+        btn.onmouseleave = () => { if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.05)'; };
+        btn.addEventListener('click', () => {
+          btns.forEach(b => {
+            b.dataset.active = '';
+            b.style.background = 'rgba(255,255,255,0.05)';
+            b.style.borderColor = 'rgba(255,255,255,0.1)';
+            b.style.color = 'rgba(255,255,255,0.55)';
+          });
+          btn.dataset.active = 'true';
+          btn.style.background = 'rgba(255,255,255,0.14)';
+          btn.style.borderColor = 'rgba(255,255,255,0.2)';
+          btn.style.color = '#fff';
+          onChange(o.value);
+        });
+        btns.push(btn);
+        wrap.appendChild(btn);
       });
-      select.value = value;
-      select.addEventListener('change', () => onChange(select.value));
-      const arrow = document.createElement('span');
-      arrow.textContent = '▼';
-      arrow.style.cssText = 'position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--muted);pointer-events:none;';
-      wrap.appendChild(select);
-      wrap.appendChild(arrow);
-      return { wrap, select };
+      return { wrap };
     };
 
     this._inGameSettings = {
       createToggle, createSlider, createSelect, createCard,
     };
 
+    settingsPanel.appendChild(settingsContent);
     this.settingsOverlay.appendChild(settingsPanel);
     document.body.appendChild(this.settingsOverlay);
   }
@@ -554,20 +587,20 @@ export class UI {
     s.createCard('粒子效果', '击球火花与进球喷泉特效', partInput.parentElement);
 
     // Quality
-    const { select: qualSelect } = s.createSelect(
+    const { wrap: qualWrap } = s.createSelect(
       settings.get('quality'),
       [{ value: 'low', label: '低' }, { value: 'medium', label: '中' }, { value: 'high', label: '高' }],
       (v) => settings.set('quality', v)
     );
-    s.createCard('画质等级', '调整渲染质量以平衡性能', qualSelect.parentElement);
+    s.createCard('画质等级', '调整渲染质量以平衡性能', qualWrap);
 
     // Camera
-    const { select: camSelect } = s.createSelect(
+    const { wrap: camWrap } = s.createSelect(
       settings.get('defaultCamera'),
       [{ value: 'free', label: '自由视角' }, { value: 'top', label: '俯视视角' }, { value: 'follow', label: '跟随视角' }],
       (v) => settings.set('defaultCamera', v)
     );
-    s.createCard('默认视角', '进入游戏时的初始相机模式', camSelect.parentElement);
+    s.createCard('默认视角', '进入游戏时的初始相机模式', camWrap);
 
     this._settingsBackBtn.onclick = () => this.hideInGameSettings();
     this.settingsOverlay.style.display = 'flex';
