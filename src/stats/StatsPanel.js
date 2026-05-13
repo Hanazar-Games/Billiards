@@ -34,7 +34,7 @@ export class StatsPanel {
       cursor: pointer;
       pointer-events: auto;
       backdrop-filter: blur(4px);
-      transition: background 0.2s, transform 0.2s;
+      transition: background calc(0.2s / var(--ui-anim-speed)), transform 0.2s;
       z-index: 10;
     `;
     this.toggleBtn.onmouseenter = () => {
@@ -62,7 +62,7 @@ export class StatsPanel {
       border-radius: 12px;
       backdrop-filter: blur(10px);
       pointer-events: auto;
-      transition: max-height 0.35s ease, opacity 0.25s ease;
+      transition: max-height calc(0.35s / var(--ui-anim-speed)) ease, opacity 0.25s ease;
       opacity: 0;
       padding: 0 14px;
       color: #fff;

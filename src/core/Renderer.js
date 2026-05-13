@@ -161,8 +161,10 @@ export class Renderer {
   onCameraPointerMove(e) {
     if (!this._cameraDragMode) return;
 
-    const dx = e.clientX - this._cameraLastX;
-    const dy = e.clientY - this._cameraLastY;
+    const invX = (settings.get('invertMouseX') !== false) ? -1 : 1;
+    const invY = (settings.get('invertMouseY') !== false) ? -1 : 1;
+    const dx = (e.clientX - this._cameraLastX) * invX;
+    const dy = (e.clientY - this._cameraLastY) * invY;
     this._cameraLastX = e.clientX;
     this._cameraLastY = e.clientY;
 
@@ -211,9 +213,8 @@ export class Renderer {
     const fov = THREE.MathUtils.degToRad(this.camera.fov);
     const worldHeight = 2 * Math.tan(fov / 2) * targetDistance;
     const worldWidth = worldHeight * this.camera.aspect;
-    const sens = settings.get('mouseSensitivity') || 1.0;
-    const panX = -dx * sens * worldWidth / Math.max(1, this.width);
-    const panY = dy * sens * worldHeight / Math.max(1, this.height);
+    const panX = -dx * worldWidth / Math.max(1, this.width);
+    const panY = dy * worldHeight / Math.max(1, this.height);
 
     this.camera.getWorldDirection(this._cameraPanDelta);
     this._cameraPanRight.crossVectors(this._cameraPanDelta, this.camera.up).normalize();
@@ -236,8 +237,10 @@ export class Renderer {
   }
 
   onWheel(e) {
-    let dx = e.deltaX;
-    let dy = e.deltaY;
+    const invX = (settings.get('invertMouseX') !== false) ? -1 : 1;
+    const invY = (settings.get('invertMouseY') !== false) ? -1 : 1;
+    let dx = e.deltaX * invX;
+    let dy = e.deltaY * invY;
     if (e.deltaMode === 1) { // LINE
       dx *= 20;
       dy *= 20;
@@ -252,18 +255,27 @@ export class Renderer {
     const panSens = (settings.get('cameraPanSens') || 1.0);
     const trackSens = (settings.get('trackpadSens') || 1.0);
 
+    // Pinch-to-zoom (macOS trackpad) is signaled by ctrlKey/metaKey on the wheel event.
+    const isPinch = e.ctrlKey || e.metaKey;
+    // Distinguish mouse wheel (mostly vertical) from trackpad two-finger drag:
+    // Mouse wheel typically has |dx| ≈ 0 and |dy| ≫ 0 — keep OrbitControls zoom for that.
+    const isMouseWheel = Math.abs(dx) < 2 && Math.abs(dy) > 2;
+
+    if (isPinch) {
+      // Pinch-to-zoom always goes to OrbitControls
+      return;
+    }
+
     if (this._shiftCameraControl) {
-      // Shift + two-finger = Pan
+      // Shift + two-finger drag = Pan
       e.preventDefault();
       this.panCamera(dx * 0.3 * sens * panSens * trackSens, dy * 0.3 * sens * panSens * trackSens);
       return;
     }
 
     // Two-finger without Shift = Orbit (free look)
-    // Distinguish mouse wheel (mostly vertical) from trackpad two-finger drag:
-    // Mouse wheel typically has |dx| ≈ 0 and |dy| ≫ 0 — keep OrbitControls zoom for that.
-    const isMouseWheel = Math.abs(dx) < 2 && Math.abs(dy) > 2;
-    if (isMouseWheel) return; // let OrbitControls handle zoom
+    // Mouse wheel (mostly vertical) → let OrbitControls handle zoom
+    if (isMouseWheel) return;
 
     e.preventDefault();
     const target = this.controls.target;

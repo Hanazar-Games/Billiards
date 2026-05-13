@@ -1,0 +1,46 @@
+import { settings } from './SettingsStore.js';
+
+const CSS_VAR = '--ui-anim-speed';
+
+/**
+ * Return a duration in milliseconds scaled by the user's uiAnimSpeed setting.
+ * @param {number} baseMs - base duration at 1.0x speed
+ * @returns {number} scaled duration
+ */
+export function animMs(baseMs) {
+  const speed = settings.get('uiAnimSpeed') || 1;
+  return baseMs / speed;
+}
+
+/**
+ * Return a duration in seconds scaled by the user's uiAnimSpeed setting.
+ * Useful for cssText strings that need "0.3s" format.
+ * @param {number} baseSec - base duration in seconds at 1.0x speed
+ * @returns {string} e.g. "0.3s"
+ */
+export function animSec(baseSec) {
+  const speed = settings.get('uiAnimSpeed') || 1;
+  return (baseSec / speed).toFixed(3).replace(/\.?0+$/, '') + 's';
+}
+
+/**
+ * Sync the CSS custom property with the current uiAnimSpeed value.
+ * Call once at boot and whenever settings change.
+ */
+export function syncAnimSpeedCss() {
+  const speed = settings.get('uiAnimSpeed') || 1;
+  document.documentElement.style.setProperty(CSS_VAR, String(speed));
+}
+
+/**
+ * Auto-sync CSS variable on settings changes.
+ * Call once at boot.
+ */
+export function autoSyncAnimSpeed() {
+  syncAnimSpeedCss();
+  window.addEventListener('settingsChanged', (e) => {
+    if (e.detail?.key === 'uiAnimSpeed') {
+      syncAnimSpeedCss();
+    }
+  });
+}

@@ -24,6 +24,8 @@ import { ShotReplay } from '../replay/ShotReplay.js';
 import { ChallengePanel } from '../challenges/ChallengePanel.js';
 import { ChallengeManager } from '../challenges/ChallengeManager.js';
 import { ChallengeResult } from '../challenges/ChallengeResult.js';
+import { animMs } from '../core/AnimSpeed.js';
+
 
 export class MenuSystem {
   constructor(container) {
@@ -453,7 +455,7 @@ export class MenuSystem {
     this.replayEngine.play();
     this.replayEngine.onComplete = () => {
       // Auto-stop after playback completes
-      this._replayCompleteTimeout = setTimeout(() => this._stopReplayPlayback(), 800);
+      this._replayCompleteTimeout = setTimeout(() => this._stopReplayPlayback(), animMs(800));
     };
 
     // Show controls

@@ -125,6 +125,25 @@ export class Cue {
     this.mesh.visible = true;
   }
 
+  /**
+   * Snap the cue tip to the ball surface for a "strike" visual frame.
+   * Call immediately after applyImpulse; the cue will appear to have just hit the ball.
+   */
+  strikeSnap(ballPosition, direction) {
+    if (!this.visible) return;
+    const aim = this._worldAxis.copy(direction).setY(0).normalize();
+    const tipAtSurface = ballPosition.clone().addScaledVector(aim, -BALL.radius * 1.02);
+    tipAtSurface.y = ballPosition.y + 2.5;
+    this.mesh.position.copy(tipAtSurface);
+    this._quat.setFromUnitVectors(this._localAxis, aim.negate());
+    const tiltAxis = new THREE.Vector3().crossVectors(aim, new THREE.Vector3(0, 1, 0)).normalize();
+    if (tiltAxis.lengthSq() > 0.001) {
+      const tiltQuat = new THREE.Quaternion().setFromAxisAngle(tiltAxis, 0.06);
+      this._quat.premultiply(tiltQuat);
+    }
+    this.mesh.quaternion.copy(this._quat);
+  }
+
   dispose() {
     this.mesh.traverse((child) => {
       if (child.geometry) child.geometry.dispose();

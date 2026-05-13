@@ -19,6 +19,7 @@
       --red: #b9123f;
       --blue: #1877c9;
       --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+      --ui-anim-speed: 1;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #app {
@@ -82,7 +83,7 @@
       border-radius: 8px;
       box-shadow: 0 12px 34px rgba(0,0,0,0.28);
       backdrop-filter: blur(10px);
-      animation: uiFloatIn 420ms var(--ease) both;
+      animation: uiFloatIn calc(420ms / var(--ui-anim-speed)) var(--ease) both;
     }
     .player-badge {
       padding: 12px 16px;
@@ -92,15 +93,15 @@
       color: var(--text);
       text-shadow: 0 1px 2px rgba(0,0,0,0.8);
       text-align: center;
-      transition: all 0.3s ease;
+      transition: all calc(0.3s / var(--ui-anim-speed)) ease;
       min-width: 118px;
       border: 1px solid var(--line);
       box-shadow: 0 10px 28px rgba(0,0,0,0.25);
       backdrop-filter: blur(8px);
-      animation: uiFloatIn 420ms var(--ease) both;
+      animation: uiFloatIn calc(420ms / var(--ui-anim-speed)) var(--ease) both;
     }
-    #player1 { background: linear-gradient(135deg, rgba(194, 16, 63, 0.86), rgba(128, 11, 42, 0.82)); }
-    #player2 { background: linear-gradient(135deg, rgba(33, 136, 222, 0.86), rgba(18, 83, 154, 0.82)); }
+    #player1 { background: linear-gradient(135deg, rgba(168, 110, 60, 0.86), rgba(110, 65, 30, 0.82)); }
+    #player2 { background: linear-gradient(135deg, rgba(60, 65, 75, 0.86), rgba(35, 40, 50, 0.82)); }
     .player-badge.active {
       border-color: rgba(255,255,255,0.9);
       box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 0 22px rgba(255,255,255,0.22), 0 12px 32px rgba(0,0,0,0.32);
@@ -139,7 +140,7 @@
       color: var(--text); letter-spacing: 4px;
       text-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 34px rgba(24,164,106,0.22);
       margin-bottom: 12px;
-      animation: titleFloat 3s ease-in-out infinite;
+      animation: titleFloat calc(3s / var(--ui-anim-speed)) ease-in-out infinite;
     }
     @keyframes titleFloat {
       0%, 100% { transform: translateY(0); }
@@ -151,7 +152,7 @@
       border: 1px solid var(--line);
       border-radius: 8px;
       backdrop-filter: blur(14px);
-      cursor: pointer; transition: transform 180ms var(--ease), background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+      cursor: pointer; transition: transform calc(180ms / var(--ui-anim-speed)) var(--ease), background calc(180ms / var(--ui-anim-speed)) ease, border-color calc(180ms / var(--ui-anim-speed)) ease, box-shadow calc(180ms / var(--ui-anim-speed)) ease;
       text-align: left; pointer-events: auto;
       display: flex; flex-direction: column; gap: 4px;
       box-shadow: 0 12px 34px rgba(0,0,0,0.24);
@@ -189,7 +190,7 @@
       border-radius: 8px;
       color: var(--text);
       cursor: pointer;
-      transition: transform 160ms var(--ease), background 160ms ease, border-color 160ms ease;
+      transition: transform calc(160ms / var(--ui-anim-speed)) var(--ease), background calc(160ms / var(--ui-anim-speed)) ease, border-color calc(160ms / var(--ui-anim-speed)) ease;
     }
     .ui-action:hover {
       background: rgba(255,255,255,0.14);
@@ -242,7 +243,7 @@
       z-index: 100;
       display: flex; align-items: center; justify-content: center;
       background: #07090a;
-      transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1), visibility 1.2s;
+      transition: opacity calc(1.2s / var(--ui-anim-speed)) cubic-bezier(0.4, 0, 0.2, 1), visibility calc(1.2s / var(--ui-anim-speed));
     }
     #intro-screen.hidden {
       opacity: 0;
@@ -255,7 +256,7 @@
         radial-gradient(ellipse at 50% 40%, rgba(16,100,66,0.18) 0%, transparent 55%),
         radial-gradient(ellipse at 30% 70%, rgba(122,26,38,0.10) 0%, transparent 45%),
         radial-gradient(ellipse at 70% 60%, rgba(24,119,201,0.08) 0%, transparent 45%);
-      animation: introBgPulse 4s ease-in-out infinite;
+      animation: introBgPulse calc(4s / var(--ui-anim-speed)) ease-in-out infinite;
     }
     @keyframes introBgPulse {
       0%, 100% { opacity: 1; }
@@ -278,14 +279,14 @@
       text-transform: uppercase;
       opacity: 0;
       transform: translateY(12px);
-      animation: introFadeIn 0.8s var(--ease) 0.2s forwards;
+      animation: introFadeIn calc(0.8s / var(--ui-anim-speed)) var(--ease) 0.2s forwards;
     }
     .intro-line {
       width: 0;
       height: 1.5px;
       background: linear-gradient(90deg, transparent, var(--gold), transparent);
       margin: 6px 0;
-      animation: introLineExpand 1s var(--ease) 0.6s forwards;
+      animation: introLineExpand calc(1s / var(--ui-anim-speed)) var(--ease) 0.6s forwards;
     }
     @keyframes introLineExpand {
       to { width: min(320px, 60vw); }
@@ -301,7 +302,7 @@
         0 8px 32px rgba(0,0,0,0.6);
       opacity: 0;
       transform: translateY(18px) scale(0.96);
-      animation: introTitleIn 1s var(--ease) 0.5s forwards;
+      animation: introTitleIn calc(1s / var(--ui-anim-speed)) var(--ease) 0.5s forwards;
     }
     @keyframes introTitleIn {
       to { opacity: 1; transform: translateY(0) scale(1); }
@@ -312,7 +313,7 @@
       color: rgba(244,247,244,0.5);
       letter-spacing: 10px;
       opacity: 0;
-      animation: introFadeIn 0.8s var(--ease) 0.9s forwards;
+      animation: introFadeIn calc(0.8s / var(--ui-anim-speed)) var(--ease) 0.9s forwards;
     }
     .intro-progress-wrap {
       margin-top: 32px;
@@ -322,7 +323,7 @@
       align-items: center;
       gap: 10px;
       opacity: 0;
-      animation: introFadeIn 0.6s var(--ease) 1.1s forwards;
+      animation: introFadeIn calc(0.6s / var(--ui-anim-speed)) var(--ease) 1.1s forwards;
     }
     .intro-progress-track {
       width: 100%;
@@ -337,7 +338,7 @@
       background: linear-gradient(90deg, #18a46a, #d8b15f);
       border-radius: 999px;
       box-shadow: 0 0 12px rgba(24,164,106,0.45);
-      transition: width 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      transition: width calc(0.35s / var(--ui-anim-speed)) cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
     .intro-percent {
       font-size: 13px;
@@ -352,27 +353,110 @@
       letter-spacing: 2px;
       margin-top: 4px;
       opacity: 0;
-      animation: introFadeIn 0.6s var(--ease) 1.3s forwards;
+      animation: introFadeIn calc(0.6s / var(--ui-anim-speed)) var(--ease) 1.3s forwards;
     }
     @keyframes introFadeIn {
       to { opacity: 1; transform: translateY(0); }
       from { opacity: 0; transform: translateY(8px); }
     }
+    @keyframes floatTextUp {
+      0%   { opacity: 1; transform: translate(-50%, -50%) translateY(0) scale(1); }
+      40%  { opacity: 1; transform: translate(-50%, -50%) translateY(-18px) scale(1.1); }
+      100% { opacity: 0; transform: translate(-50%, -50%) translateY(-44px) scale(0.85); }
+    }
 
     #js-error-overlay {
       position: fixed; inset: 0;
       z-index: 99999;
-      background: rgba(0,0,0,0.92);
-      color: #ff5252;
-      padding: 40px;
-      font-family: 'Consolas', 'Courier New', monospace;
-      font-size: 14px;
-      white-space: pre-wrap;
-      overflow: auto;
+      background: rgba(6,8,10,0.94);
+      backdrop-filter: blur(16px);
       display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      font-family: 'Segoe UI', system-ui, sans-serif;
     }
-    #js-error-overlay.visible { display: block; }
-    #js-error-overlay h2 { color: #fff; margin-bottom: 16px; }
+    #js-error-overlay.visible { display: flex; }
+    #js-error-card {
+      width: 100%; max-width: 720px;
+      background: rgba(16,20,24,0.98);
+      border: 1px solid rgba(185,18,63,0.45);
+      border-radius: 18px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.65), 0 0 0 1px rgba(185,18,63,0.15), inset 0 1px 0 rgba(255,255,255,0.04);
+      overflow: hidden;
+      animation: errorCardIn calc(0.4s / var(--ui-anim-speed)) cubic-bezier(0.2,0.8,0.2,1) both;
+    }
+    #js-error-header {
+      display: flex; align-items: center; gap: 14px;
+      padding: 22px 26px 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    #js-error-header .icon {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: rgba(185,18,63,0.12);
+      border: 1px solid rgba(185,18,63,0.35);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    #js-error-header h2 {
+      color: #fff; font-size: 18px; font-weight: 700; margin: 0;
+      letter-spacing: 0.2px;
+    }
+    #js-error-header .sub {
+      color: rgba(255,255,255,0.45); font-size: 13px; margin-top: 3px;
+    }
+    #js-error-phase {
+      padding: 10px 26px;
+      background: rgba(185,18,63,0.06);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      color: rgba(255,120,120,0.7); font-size: 12px; font-weight: 600;
+      letter-spacing: 0.3px; text-transform: uppercase;
+    }
+    #js-error-content {
+      padding: 18px 26px;
+      max-height: 38vh;
+      overflow: auto;
+      font-family: 'SFMono-Regular', 'Consolas', 'Courier New', monospace;
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: #ff8a8a;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    #js-error-content .err-block {
+      margin-bottom: 12px; padding: 12px 14px;
+      background: rgba(185,18,63,0.06);
+      border-radius: 10px;
+      border-left: 3px solid rgba(185,18,63,0.5);
+    }
+    #js-error-content .err-block:last-child { margin-bottom: 0; }
+    #js-error-content .err-time {
+      color: rgba(255,255,255,0.35); font-size: 11px; margin-bottom: 6px;
+    }
+    #js-error-footer {
+      display: flex; gap: 12px;
+      padding: 16px 26px 22px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .err-btn {
+      padding: 10px 20px; border-radius: 10px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.75);
+      transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+    }
+    .err-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+    .err-btn.primary {
+      background: rgba(185,18,63,0.12);
+      border-color: rgba(185,18,63,0.4);
+      color: #ff8a9a;
+    }
+    .err-btn.primary:hover { background: rgba(185,18,63,0.22); }
+    @keyframes errorCardIn {
+      from { opacity: 0; transform: translateY(18px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
   </style>
 </head>
 <body>
@@ -415,20 +499,37 @@
 
   <!-- Diagnostic overlay for JS errors -->
   <div id="js-error-overlay">
-    <h2>⚠️ JavaScript Error</h2>
-    <div id="js-error-content"></div>
+    <div id="js-error-card">
+      <div id="js-error-header">
+        <div class="icon">⚠️</div>
+        <div>
+          <h2>游戏加载失败</h2>
+          <div class="sub">Initialization Failed — 初始化过程中发生错误</div>
+        </div>
+      </div>
+      <div id="js-error-phase" style="display:none;">加载阶段: 未知</div>
+      <div id="js-error-content"></div>
+      <div id="js-error-footer">
+        <button class="err-btn primary" onclick="location.reload()">🔄 重新加载</button>
+        <button class="err-btn" onclick="document.getElementById('js-error-overlay').classList.remove('visible')">关闭</button>
+      </div>
+    </div>
   </div>
 
   <script>
     // Catch errors that happen before or outside the module script
+    function _formatErrorBlock(msg, extra) {
+      var time = new Date().toLocaleTimeString();
+      return '<div class="err-block"><div class="err-time">' + time + '</div>' +
+        msg.replace(/\n/g, '<br>') + (extra ? '<br><span style="color:rgba(255,255,255,0.35);">' + extra + '</span>' : '') +
+        '</div>';
+    }
     window.addEventListener('error', function(e) {
       var overlay = document.getElementById('js-error-overlay');
       var content = document.getElementById('js-error-content');
       if (overlay && content) {
-        content.textContent = (content.textContent ? content.textContent + '\n---\n' : '') +
-          'Error: ' + e.message + '\n' +
-          'Source: ' + (e.filename || e.target.src || 'unknown') + '\n' +
-          'Line: ' + (e.lineno || 'N/A') + ':' + (e.colno || 'N/A');
+        var extra = 'Source: ' + (e.filename || 'unknown') + ' — Line ' + (e.lineno || 'N/A') + ':' + (e.colno || 'N/A');
+        content.innerHTML = (content.innerHTML || '') + _formatErrorBlock('Error: ' + e.message, extra);
         overlay.classList.add('visible');
       }
     });
@@ -436,8 +537,11 @@
       var overlay = document.getElementById('js-error-overlay');
       var content = document.getElementById('js-error-content');
       if (overlay && content) {
-        content.textContent = (content.textContent ? content.textContent + '\n---\n' : '') +
-          'Unhandled Promise Rejection:\n' + e.reason;
+        var reason = e.reason;
+        if (typeof reason === 'object' && reason !== null) {
+          reason = (reason.stack || reason.message || JSON.stringify(reason));
+        }
+        content.innerHTML = (content.innerHTML || '') + _formatErrorBlock('Unhandled Promise Rejection:\n' + reason, '');
         overlay.classList.add('visible');
       }
     });

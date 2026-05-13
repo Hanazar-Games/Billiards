@@ -9,6 +9,8 @@
  */
 import { CHALLENGES } from './ChallengeData.js';
 import { ChallengeManager } from './ChallengeManager.js';
+import { animMs } from '../core/AnimSpeed.js';
+
 
 export class ChallengePanel {
   constructor(onSelectChallenge, onBack) {

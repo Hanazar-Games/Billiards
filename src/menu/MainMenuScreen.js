@@ -1,3 +1,5 @@
+import { animMs } from '../core/AnimSpeed.js';
+
 /**
  * MainMenuScreen — The primary entry screen with mode selection.
  *
@@ -30,7 +32,7 @@ export class MainMenuScreen {
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       width: 100%; height: 100%;
-      transition: opacity 0.35s cubic-bezier(0.2,0.8,0.2,1), transform 0.35s cubic-bezier(0.2,0.8,0.2,1);
+      transition: opacity calc(0.35s / var(--ui-anim-speed)) cubic-bezier(0.2,0.8,0.2,1), transform 0.35s cubic-bezier(0.2,0.8,0.2,1);
       position: relative;
       z-index: 1;
     `;
@@ -158,7 +160,7 @@ export class MainMenuScreen {
     if (!this.container) return;
     this.container.style.opacity = '0';
     this.container.style.transform = 'scale(0.96)';
-    setTimeout(callback, 400);
+    setTimeout(callback, animMs(400));
   }
 
   show() {

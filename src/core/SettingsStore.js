@@ -40,6 +40,10 @@ const DEFAULTS = {
   screenShakeIntensity: 1.0,
   uiAnimSpeed: 1.0,
 
+  // Mouse inversion
+  invertMouseX: true,
+  invertMouseY: true,
+
   // Keybindings
   keybindingPreset: 'win',
   customKeybindingPresets: {},

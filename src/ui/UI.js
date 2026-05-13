@@ -1,4 +1,6 @@
 import { settings } from '../core/SettingsStore.js';
+import { animMs } from '../core/AnimSpeed.js';
+
 
 export class UI {
   constructor() {
@@ -28,7 +30,7 @@ export class UI {
       padding: 9px 18px; font-size: 13px; font-weight: 750;
       background: rgba(18,20,23,0.62); color: #fff; border: 1px solid rgba(255,255,255,0.22);
       border-radius: 8px; cursor: pointer; pointer-events: auto; backdrop-filter: blur(10px);
-      display: none; transition: background 0.2s;
+      display: none; transition: background calc(0.2s / var(--ui-anim-speed));
       box-shadow: 0 10px 30px rgba(0,0,0,0.28);
     `;
     this.resetBtn.onmouseenter = () => this.resetBtn.style.background = 'rgba(255,255,255,0.18)';
@@ -110,7 +112,7 @@ export class UI {
       color: #fff; font-size: 18px; cursor: pointer; pointer-events: auto;
       display: flex; align-items: center; justify-content: center;
       backdrop-filter: blur(10px); z-index: 10;
-      transition: all 0.2s ease; box-shadow: 0 8px 24px rgba(0,0,0,0.22);
+      transition: all calc(0.2s / var(--ui-anim-speed)) ease; box-shadow: 0 8px 24px rgba(0,0,0,0.22);
     `;
     this.pauseBtn.onmouseenter = () => {
       this.pauseBtn.style.background = 'rgba(255,255,255,0.14)';
@@ -132,7 +134,7 @@ export class UI {
       backdrop-filter: blur(12px);
       display: none; flex-direction: column;
       align-items: center; justify-content: center;
-      opacity: 0; transition: opacity 0.3s ease;
+      opacity: 0; transition: opacity calc(0.3s / var(--ui-anim-speed)) ease;
     `;
 
     // Pause menu panel
@@ -146,7 +148,7 @@ export class UI {
       display: flex; flex-direction: column;
       gap: 14px; align-items: center;
       box-shadow: 0 24px 80px rgba(0,0,0,0.5);
-      animation: panelIn 0.4s var(--ease) both;
+      animation: panelIn calc(0.4s / var(--ui-anim-speed)) var(--ease) both;
     `;
 
     const pauseTitle = document.createElement('div');
@@ -168,7 +170,7 @@ export class UI {
         border-radius: 10px;
         color: var(--text); font-size: 15px; font-weight: 750;
         cursor: pointer; pointer-events: auto;
-        transition: all 0.2s ease;
+        transition: all calc(0.2s / var(--ui-anim-speed)) ease;
         ${style || ''}
       `;
       btn.onmouseenter = () => {
@@ -198,7 +200,7 @@ export class UI {
       background: rgba(0,0,0,0.65);
       backdrop-filter: blur(8px);
       display: none; align-items: center; justify-content: center;
-      opacity: 0; transition: opacity 0.3s ease;
+      opacity: 0; transition: opacity calc(0.3s / var(--ui-anim-speed)) ease;
     `;
 
     const settingsPanel = document.createElement('div');
@@ -226,7 +228,7 @@ export class UI {
       background: rgba(255,255,255,0.06); border: 1px solid var(--line);
       color: var(--text); font-size: 16px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s ease; flex-shrink: 0;
+      transition: all calc(0.2s / var(--ui-anim-speed)) ease; flex-shrink: 0;
     `;
     settingsBack.onmouseenter = () => {
       settingsBack.style.background = 'rgba(255,255,255,0.12)';
@@ -299,13 +301,13 @@ export class UI {
         track.style.cssText = `
           position:absolute;inset:0;border-radius:999px;
           background:${on ? '#34c759' : 'rgba(255,255,255,0.14)'};
-          transition:background 0.25s ease;
+          transition:background calc(0.25s / var(--ui-anim-speed)) ease;
         `;
         knob.style.cssText = `
           position:absolute;top:2px;left:2px;
           width:24px;height:24px;border-radius:50%;
           background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.3);
-          transition:transform 0.25s cubic-bezier(0.2,0.8,0.2,1);
+          transition:transform calc(0.25s / var(--ui-anim-speed)) cubic-bezier(0.2,0.8,0.2,1);
           transform:translateX(${on ? '20px' : '0'});
         `;
       };
@@ -326,7 +328,7 @@ export class UI {
       const track = document.createElement('div');
       track.style.cssText = 'width:100%;height:4px;background:rgba(255,255,255,0.1);border-radius:999px;position:relative;';
       const fill = document.createElement('div');
-      fill.style.cssText = 'height:100%;width:0%;background:rgba(255,255,255,0.5);border-radius:999px;transition:width 0.08s ease;';
+      fill.style.cssText = 'height:100%;width:0%;background:rgba(255,255,255,0.5);border-radius:999px;transition:width calc(0.08s / var(--ui-anim-speed)) ease;';
       track.appendChild(fill);
       trackWrap.appendChild(track);
 
@@ -336,7 +338,7 @@ export class UI {
         width:16px;height:16px;border-radius:50%;background:#fff;
         box-shadow:0 2px 6px rgba(0,0,0,0.35);
         transform:translate(-50%,-50%);pointer-events:none;
-        transition:left 0.08s ease;
+        transition:left calc(0.08s / var(--ui-anim-speed)) ease;
       `;
       trackWrap.appendChild(thumb);
 
@@ -379,7 +381,7 @@ export class UI {
           border:1px solid ${active ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'};
           color:${active ? '#fff' : 'rgba(255,255,255,0.55)'};
           font-size:12px;font-weight:600;cursor:pointer;
-          transition:all 0.2s ease;
+          transition:all calc(0.2s / var(--ui-anim-speed)) ease;
         `;
         btn.onmouseenter = () => { if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.1)'; };
         btn.onmouseleave = () => { if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.05)'; };
@@ -520,6 +522,7 @@ export class UI {
 
   showPauseMenu() {
     if (!this.pauseOverlay) return;
+    if (this._pauseHideTimer) { clearTimeout(this._pauseHideTimer); this._pauseHideTimer = null; }
     this.pauseOverlay.style.display = 'flex';
     requestAnimationFrame(() => {
       this.pauseOverlay.style.opacity = '1';
@@ -529,8 +532,9 @@ export class UI {
   hidePauseMenu() {
     if (!this.pauseOverlay) return;
     this.pauseOverlay.style.opacity = '0';
-    setTimeout(() => {
+    this._pauseHideTimer = setTimeout(() => {
       if (this.pauseOverlay) this.pauseOverlay.style.display = 'none';
+      this._pauseHideTimer = null;
     }, 300);
   }
 
@@ -603,6 +607,7 @@ export class UI {
     s.createCard('默认视角', '进入游戏时的初始相机模式', camWrap);
 
     this._settingsBackBtn.onclick = () => this.hideInGameSettings();
+    if (this._settingsHideTimer) { clearTimeout(this._settingsHideTimer); this._settingsHideTimer = null; }
     this.settingsOverlay.style.display = 'flex';
     requestAnimationFrame(() => {
       this.settingsOverlay.style.opacity = '1';
@@ -612,9 +617,51 @@ export class UI {
   hideInGameSettings() {
     if (!this.settingsOverlay) return;
     this.settingsOverlay.style.opacity = '0';
-    setTimeout(() => {
+    this._settingsHideTimer = setTimeout(() => {
       if (this.settingsOverlay) this.settingsOverlay.style.display = 'none';
+      this._settingsHideTimer = null;
     }, 300);
+  }
+
+  /**
+   * Brief red flash overlay for foul/scratch feedback.
+   */
+  flashRed() {
+    const uiLayer = document.getElementById('ui-layer');
+    if (!uiLayer) return;
+    let flash = document.getElementById('ui-red-flash');
+    if (!flash) {
+      flash = document.createElement('div');
+      flash.id = 'ui-red-flash';
+      flash.style.cssText = `
+        position: absolute; inset: 0; pointer-events: none; z-index: 5;
+        background: radial-gradient(circle at center, rgba(185,18,63,0.18) 0%, transparent 70%);
+        opacity: 0; transition: opacity calc(0.25s / var(--ui-anim-speed)) ease;
+      `;
+      uiLayer.appendChild(flash);
+    }
+    flash.style.opacity = '1';
+    setTimeout(() => { if (flash) flash.style.opacity = '0'; }, animMs(350));
+  }
+
+  /**
+   * Floating text that rises and fades — used for pocketed-ball feedback.
+   */
+  showFloatingText(text, screenX, screenY, color = '#d8b15f') {
+    const uiLayer = document.getElementById('ui-layer');
+    if (!uiLayer) return;
+    const el = document.createElement('div');
+    el.textContent = text;
+    el.style.cssText = `
+      position: absolute; left: ${screenX}px; top: ${screenY}px;
+      transform: translate(-50%, -50%);
+      font-size: 18px; font-weight: 800; color: ${color};
+      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+      pointer-events: none; z-index: 10; white-space: nowrap;
+      animation: floatTextUp calc(1.2s / var(--ui-anim-speed)) ease-out forwards;
+    `;
+    uiLayer.appendChild(el);
+    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, animMs(1200));
   }
 
   destroy() {
@@ -622,6 +669,8 @@ export class UI {
       clearTimeout(this._messageTimer);
       this._messageTimer = null;
     }
+    const flash = document.getElementById('ui-red-flash');
+    if (flash && flash.parentNode) flash.parentNode.removeChild(flash);
     // Remove all tracked event listeners
     for (const { el, type, fn } of this._aiListeners) {
       el.removeEventListener(type, fn);

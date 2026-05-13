@@ -23,6 +23,8 @@ import { ShotRecorder } from '../replay/ShotRecorder.js';
 import { settings } from '../core/SettingsStore.js';
 import { keyBindings } from '../input/KeyBindings.js';
 import { BALL, TABLE, POCKET, SHOT } from '../config.js';
+import { animMs } from '../core/AnimSpeed.js';
+
 
 export class Game {
   constructor(renderer, physics, audioManager = null) {
@@ -43,6 +45,7 @@ export class Game {
     this.aiPlayer = null;
     this.trajectory = null;
     this.powerLabel = null;
+    this.achievements = null;
     this.statsTracker = new StatsTracker();
     this.statsPanel = new StatsPanel();
     this.particles = new ParticleSystem(this.scene);
@@ -573,8 +576,12 @@ export class Game {
     this.trails.startRecording(cueBall);
     this.recorder.start(this.ballsManager, this.mode, force, this.cueTipOffset);
 
-    this.cue.hide();
-    this.trajectory.setVisible(false);
+    // Strike snap: cue visually touches the ball for one frame before hiding
+    this.cue.strikeSnap(cueBall.mesh.position, this.aimDirection);
+    setTimeout(() => {
+      this.cue.hide();
+      this.trajectory.setVisible(false);
+    }, animMs(70));
 
     // Auto-switch to follow mode if enabled
     if (settings.get('autoFollowCueBall') && this.cameraMode !== 'follow') {
@@ -704,6 +711,16 @@ export class Game {
           }
           // Coloured fountain per ball
           this.particles.spawnPocketFountain(pocket, entry.id);
+          // Floating score text above pocket
+          if (this.renderer?.camera) {
+            const p = new THREE.Vector3(pocket.x, pocket.y + 15, pocket.z);
+            p.project(this.renderer.camera);
+            const sx = (p.x * 0.5 + 0.5) * this.renderer.width;
+            const sy = (-p.y * 0.5 + 0.5) * this.renderer.height;
+            const txt = entry.id === 8 ? '🎱 8号球!' : (entry.id === 0 ? '⚠️ 白球' : `+${entry.id}`);
+            const col = entry.id === 0 ? '#ff6b6b' : (entry.id === 8 ? '#fff' : '#d8b15f');
+            this.ui.showFloatingText(txt, sx, sy, col);
+          }
         }
       }
 
@@ -773,6 +790,7 @@ export class Game {
       if (cuePocketed) {
         this.ballsManager.resetCueBallIfPocketed();
         this.audio.playFoul();
+        this.ui.flashRed();
       }
       this.state = 'AIM';
       this.power = 0;
@@ -878,6 +896,7 @@ export class Game {
         this.audio.playWin();
       } else {
         this.audio.playFoul();
+        this.ui.flashRed();
       }
       return;
     }
@@ -891,6 +910,7 @@ export class Game {
 
     if (result.foul || result.scratch) {
       this.audio.playFoul();
+      this.ui.flashRed();
       this.achievements.onFoul();
     }
 
@@ -1054,7 +1074,7 @@ export class Game {
       background: rgba(12,14,17,0.6); color: #fff;
       border: 1px solid rgba(255,255,255,0.18);
       border-radius: 8px; cursor: pointer; pointer-events: auto;
-      backdrop-filter: blur(10px); transition: all 0.2s;
+      backdrop-filter: blur(10px); transition: all calc(0.2s / var(--ui-anim-speed));
       box-shadow: 0 10px 28px rgba(0,0,0,0.26);
       z-index: 15;
     `;
@@ -1136,7 +1156,7 @@ export class Game {
       background: #ff3b30; border: 1.5px solid #fff;
       box-shadow: 0 0 6px rgba(255,59,48,0.7);
       transform: translate(-50%, -50%); pointer-events: none;
-      top: 50%; left: 50%; transition: top 0.08s, left 0.08s;
+      top: 50%; left: 50%; transition: top calc(0.08s / var(--ui-anim-speed)), left 0.08s;
     `;
     ballWrap.appendChild(marker);
 
@@ -1322,7 +1342,7 @@ export class Game {
         pointer-events: none;
         z-index: 15;
         max-width: 220px;
-        transition: border-color 0.3s;
+        transition: border-color calc(0.3s / var(--ui-anim-speed));
       `;
       const uiLayer = document.getElementById('ui-layer');
       if (uiLayer) uiLayer.appendChild(el);

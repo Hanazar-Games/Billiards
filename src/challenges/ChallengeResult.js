@@ -94,7 +94,7 @@ export class ChallengeResult {
       background: ${bg};
       border: 1px solid rgba(255,255,255,0.2);
       border-radius: 10px;
-      cursor: pointer; transition: all 0.2s;
+      cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed));
       pointer-events: auto;
     `;
   }

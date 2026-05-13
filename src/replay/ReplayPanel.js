@@ -191,7 +191,7 @@ export class ReplayPanel {
         background: rgba(0,230,118,0.2);
         border: 1px solid rgba(0,230,118,0.4);
         border-radius: 8px;
-        cursor: pointer; transition: all 0.2s;
+        cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed));
         pointer-events: auto;
       `;
       playBtn.onmouseenter = () => {
@@ -214,7 +214,7 @@ export class ReplayPanel {
         background: rgba(255,255,255,0.08);
         border: 1px solid rgba(255,255,255,0.15);
         border-radius: 8px;
-        cursor: pointer; transition: all 0.2s;
+        cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed));
         pointer-events: auto;
       `;
       delBtn.onmouseenter = () => {
@@ -292,7 +292,7 @@ export class ReplayPanel {
       width: 0%; height: 100%;
       background: linear-gradient(90deg, #00e676, #00bcd4);
       border-radius: 3px;
-      transition: width 0.1s linear;
+      transition: width calc(0.1s / var(--ui-anim-speed)) linear;
     `;
     this.progressBar.appendChild(this.progressFill);
     this.controlContainer.appendChild(this.progressBar);
@@ -314,7 +314,7 @@ export class ReplayPanel {
       background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.16);
       border-radius: 8px;
-      cursor: pointer; transition: all 0.2s;
+      cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed));
       pointer-events: auto;
       min-width: ${width};
       text-align: center;

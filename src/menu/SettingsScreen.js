@@ -6,6 +6,8 @@
  */
 import { settings } from '../core/SettingsStore.js';
 import { keyBindings, ACTIONS, ACTION_CATEGORIES } from '../input/KeyBindings.js';
+import { animMs } from '../core/AnimSpeed.js';
+
 
 const CATEGORIES = [
   { id: 'audio',     label: '音频', letter: 'A' },
@@ -63,7 +65,7 @@ export class SettingsScreen {
       align-items: center; justify-content: center;
       background: rgba(0,0,0,0.65);
       backdrop-filter: blur(8px);
-      opacity: 0; transition: opacity 0.3s ease;
+      opacity: 0; transition: opacity calc(0.3s / var(--ui-anim-speed)) ease;
     `;
 
     // ── Panel ──
@@ -99,7 +101,7 @@ export class SettingsScreen {
       border: 1px solid rgba(255,255,255,0.1);
       color: rgba(255,255,255,0.6); font-size: 16px;
       cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s ease;
+      transition: all calc(0.2s / var(--ui-anim-speed)) ease;
     `;
     closeBtn.onmouseenter = () => {
       closeBtn.style.background = 'rgba(255,255,255,0.12)';
@@ -131,7 +133,7 @@ export class SettingsScreen {
       tab.style.cssText = `
         display: flex; align-items: center; gap: 12px;
         padding: 10px 14px; border-radius: 12px;
-        cursor: pointer; transition: all 0.18s ease;
+        cursor: pointer; transition: all calc(0.18s / var(--ui-anim-speed)) ease;
         user-select: none;
       `;
       const badge = document.createElement('div');
@@ -141,11 +143,11 @@ export class SettingsScreen {
         background: rgba(255,255,255,0.08);
         display: flex; align-items: center; justify-content: center;
         font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.55);
-        flex-shrink: 0; transition: all 0.18s ease;
+        flex-shrink: 0; transition: all calc(0.18s / var(--ui-anim-speed)) ease;
       `;
       const label = document.createElement('span');
       label.textContent = cat.label;
-      label.style.cssText = 'font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.55); transition: color 0.18s ease;';
+      label.style.cssText = 'font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.55); transition: color calc(0.18s / var(--ui-anim-speed)) ease;';
       tab.appendChild(badge);
       tab.appendChild(label);
       tab.onclick = () => this._switchCategory(cat.id);
@@ -177,6 +179,12 @@ export class SettingsScreen {
       els.badge.style.color = active ? '#fff' : 'rgba(255,255,255,0.55)';
       els.label.style.color = active ? '#fff' : 'rgba(255,255,255,0.55)';
     });
+
+    // Clear content listeners to prevent memory leak on tab switches
+    this._listeners.forEach(({ el, type, fn }) => {
+      if (el) el.removeEventListener(type, fn);
+    });
+    this._listeners = [];
 
     this._contentArea.innerHTML = '';
     const builder = `_build${id[0].toUpperCase() + id.slice(1)}Content`;
@@ -264,51 +272,33 @@ export class SettingsScreen {
     this._sectionTitle('控制');
     this._sectionSubtitle('灵敏度设置与键盘快捷键');
 
-    // ── Camera sensitivity ──
-    this._sectionTitle('视角控制', true);
-    this._rowSlider('鼠标灵敏度', Math.round(settings.get('mouseSensitivity') * 100), 50, 200, '%', (v) => {
-      settings.set('mouseSensitivity', v / 100);
-    });
-    this._rowSlider('视角旋转速度', Math.round(settings.get('cameraRotateSens') * 100), 30, 200, '%', (v) => {
-      settings.set('cameraRotateSens', v / 100);
-    });
-    this._rowSlider('视角平移速度', Math.round(settings.get('cameraPanSens') * 100), 30, 200, '%', (v) => {
-      settings.set('cameraPanSens', v / 100);
-    });
-    this._rowSlider('滚轮缩放速度', Math.round(settings.get('cameraZoomSens') * 100), 30, 200, '%', (v) => {
-      settings.set('cameraZoomSens', v / 100);
-    });
+    // ── Camera sensitivity (expandable) ──
+    const camWrap = this._createCollapsible('视角控制灵敏度', true);
+    this._rowToggleIn(camWrap, '反转鼠标 X 轴', settings.get('invertMouseX'), (v) => settings.set('invertMouseX', v));
+    this._rowToggleIn(camWrap, '反转鼠标 Y 轴', settings.get('invertMouseY'), (v) => settings.set('invertMouseY', v));
+    this._rowSliderIn(camWrap, '鼠标灵敏度', Math.round(settings.get('mouseSensitivity') * 100), 50, 200, '%', (v) => settings.set('mouseSensitivity', v / 100));
+    this._rowSliderIn(camWrap, '视角旋转速度', Math.round(settings.get('cameraRotateSens') * 100), 30, 200, '%', (v) => settings.set('cameraRotateSens', v / 100));
+    this._rowSliderIn(camWrap, '视角平移速度', Math.round(settings.get('cameraPanSens') * 100), 30, 200, '%', (v) => settings.set('cameraPanSens', v / 100));
+    this._rowSliderIn(camWrap, '滚轮缩放速度', Math.round(settings.get('cameraZoomSens') * 100), 30, 200, '%', (v) => settings.set('cameraZoomSens', v / 100));
 
-    // ── Shot & aim sensitivity ──
-    this._sectionTitle('击球与瞄准', true);
-    this._rowSlider('击球力度灵敏度', Math.round(settings.get('shotPowerSens') * 100), 50, 200, '%', (v) => {
-      settings.set('shotPowerSens', v / 100);
-    });
-    this._rowSlider('瞄准响应速度', Math.round(settings.get('aimSens') * 100), 50, 200, '%', (v) => {
-      settings.set('aimSens', v / 100);
-    });
-    this._rowSlider('球杆旋转步长', Math.round(settings.get('spinStepSens') * 100), 30, 200, '%', (v) => {
-      settings.set('spinStepSens', v / 100);
-    });
-    this._rowSlider('触控板灵敏度', Math.round(settings.get('trackpadSens') * 100), 30, 200, '%', (v) => {
-      settings.set('trackpadSens', v / 100);
-    });
+    // ── Shot & aim sensitivity (expandable) ──
+    const shotWrap = this._createCollapsible('击球与瞄准灵敏度', true);
+    this._rowSliderIn(shotWrap, '击球力度灵敏度', Math.round(settings.get('shotPowerSens') * 100), 50, 200, '%', (v) => settings.set('shotPowerSens', v / 100));
+    this._rowSliderIn(shotWrap, '瞄准响应速度', Math.round(settings.get('aimSens') * 100), 50, 200, '%', (v) => settings.set('aimSens', v / 100));
+    this._rowSliderIn(shotWrap, '球杆旋转步长', Math.round(settings.get('spinStepSens') * 100), 30, 200, '%', (v) => settings.set('spinStepSens', v / 100));
+    this._rowSliderIn(shotWrap, '触控板灵敏度', Math.round(settings.get('trackpadSens') * 100), 30, 200, '%', (v) => settings.set('trackpadSens', v / 100));
 
-    // ── Effects & UI sensitivity ──
-    this._sectionTitle('特效与界面', true);
-    this._rowSlider('屏幕震动强度', Math.round(settings.get('screenShakeIntensity') * 100), 0, 200, '%', (v) => {
-      settings.set('screenShakeIntensity', v / 100);
-    });
-    this._rowSlider('界面动画速度', Math.round(settings.get('uiAnimSpeed') * 100), 50, 150, '%', (v) => {
-      settings.set('uiAnimSpeed', v / 100);
-    });
+    // ── Effects & UI sensitivity (expandable) ──
+    const fxWrap = this._createCollapsible('特效与界面灵敏度', false);
+    this._rowSliderIn(fxWrap, '屏幕震动强度', Math.round(settings.get('screenShakeIntensity') * 100), 0, 200, '%', (v) => settings.set('screenShakeIntensity', v / 100));
+    this._rowSliderIn(fxWrap, '界面动画速度', Math.round(settings.get('uiAnimSpeed') * 100), 50, 150, '%', (v) => settings.set('uiAnimSpeed', v / 100));
 
-    // ── Preset selector ──
-    this._sectionTitle('快捷键预设', true);
-    this._sectionSubtitle('选择适合你的设备类型', true);
+    // ── Keybindings (collapsed by default) ──
+    const kbWrap = this._createCollapsible('快捷键', false);
 
+    // Preset selector
     const presetWrap = document.createElement('div');
-    presetWrap.style.cssText = 'display: flex; gap: 10px; justify-content: center; margin-bottom: 20px;';
+    presetWrap.style.cssText = 'display: flex; gap: 10px; justify-content: center; margin: 8px 0 16px;';
     const presets = [
       { id: 'mac',    label: 'Mac',    icon: '⌘' },
       { id: 'win',    label: 'Win',    icon: '⊞' },
@@ -320,86 +310,77 @@ export class SettingsScreen {
       const active = currentPreset === p.id;
       btn.style.cssText = `
         display: flex; align-items: center; gap: 6px;
-        padding: 8px 18px; border-radius: 999px;
+        padding: 7px 16px; border-radius: 999px;
         background: ${active ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.05)'};
         border: 1px solid ${active ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)'};
         color: ${active ? '#fff' : 'rgba(255,255,255,0.55)'};
-        font-size: 13px; font-weight: 600; cursor: pointer;
-        transition: all 0.2s ease;
+        font-size: 12px; font-weight: 600; cursor: pointer;
+        transition: all calc(0.2s / var(--ui-anim-speed)) ease;
       `;
-      btn.innerHTML = `<span style="font-size:15px;">${p.icon}</span><span>${p.label}</span>`;
+      btn.innerHTML = `<span style="font-size:14px;">${p.icon}</span><span>${p.label}</span>`;
       btn.onmouseenter = () => { if (!active) btn.style.background = 'rgba(255,255,255,0.1)'; };
       btn.onmouseleave = () => { if (!active) btn.style.background = 'rgba(255,255,255,0.05)'; };
-      const clickFn = () => {
-        keyBindings.applyPreset(p.id);
-        this._switchCategory('controls');
-      };
+      const clickFn = () => { keyBindings.applyPreset(p.id); this._switchCategory('controls'); };
       btn.addEventListener('click', clickFn);
       this._listeners.push({ el: btn, type: 'click', fn: clickFn });
       presetWrap.appendChild(btn);
     });
-    this._contentArea.appendChild(presetWrap);
+    kbWrap.appendChild(presetWrap);
 
-    // ── Keybindings by category ──
+    // Keybindings by category
     const displayPreset = keyBindings.getCurrentPreset().split(':')[0] || 'win';
     ACTION_CATEGORIES.forEach(cat => {
       const catTitle = document.createElement('div');
       catTitle.textContent = cat.label;
       catTitle.style.cssText = `
-        font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.55);
+        font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.45);
         text-transform: uppercase; letter-spacing: 1px;
-        margin-top: 16px; margin-bottom: 8px;
-        padding-left: 4px;
+        margin-top: 12px; margin-bottom: 6px; padding-left: 4px;
       `;
-      this._contentArea.appendChild(catTitle);
-
+      kbWrap.appendChild(catTitle);
       Object.entries(cat.actions).forEach(([actionKey, def]) => {
         const isMobile = displayPreset === 'mobile';
         const displayKey = keyBindings.getDisplayBinding(actionKey, displayPreset);
-        this._keyRow(def.label, displayKey, actionKey, !isMobile && keyBindings.isBindable(actionKey), (newKey) => {
+        this._keyRowIn(kbWrap, def.label, displayKey, actionKey, !isMobile && keyBindings.isBindable(actionKey), (newKey) => {
           keyBindings.setBinding(actionKey, newKey);
         });
       });
     });
 
-    // ── Custom presets ──
-    this._sectionTitle('自定义预设', true);
-    this._sectionSubtitle('保存你当前的快捷键配置', true);
+    // ── Custom presets (collapsed by default) ──
+    const customWrap = this._createCollapsible('自定义预设', false);
+    const sub = document.createElement('div');
+    sub.textContent = '保存你当前的快捷键配置';
+    sub.style.cssText = 'font-size: 12px; color: rgba(255,255,255,0.4); text-align: center; margin-bottom: 10px;';
+    customWrap.appendChild(sub);
 
     const saveWrap = document.createElement('div');
-    saveWrap.style.cssText = 'display: flex; gap: 10px; margin-bottom: 14px;';
-
+    saveWrap.style.cssText = 'display: flex; gap: 10px; margin-bottom: 10px;';
     const input = document.createElement('input');
     input.type = 'text';
     input.placeholder = '预设名称…';
     input.style.cssText = `
-      flex: 1; padding: 10px 14px; border-radius: 10px;
+      flex: 1; padding: 9px 12px; border-radius: 10px;
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.1);
-      color: #fff; font-size: 14px; outline: none;
-      transition: border-color 0.2s ease;
+      color: #fff; font-size: 13px; outline: none;
+      transition: border-color calc(0.2s / var(--ui-anim-speed)) ease;
     `;
     input.onfocus = () => { input.style.borderColor = 'rgba(255,255,255,0.25)'; };
     input.onblur = () => { input.style.borderColor = 'rgba(255,255,255,0.1)'; };
     saveWrap.appendChild(input);
 
     const saveBtn = document.createElement('button');
-    saveBtn.textContent = '保存预设';
+    saveBtn.textContent = '保存';
     saveBtn.style.cssText = `
-      padding: 10px 18px; border-radius: 10px;
+      padding: 9px 16px; border-radius: 10px;
       background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.15);
       color: rgba(255,255,255,0.8); font-size: 13px; font-weight: 600;
-      cursor: pointer; transition: all 0.2s ease; flex-shrink: 0;
+      cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed)) ease; flex-shrink: 0;
     `;
-    saveBtn.onmouseenter = () => {
-      saveBtn.style.background = 'rgba(255,255,255,0.14)';
-      saveBtn.style.color = '#fff';
-    };
-    saveBtn.onmouseleave = () => {
-      saveBtn.style.background = 'rgba(255,255,255,0.08)';
-      saveBtn.style.color = 'rgba(255,255,255,0.8)';
-    };
+    saveBtn.onmouseenter = () => { saveBtn.style.background = 'rgba(255,255,255,0.14)'; saveBtn.style.color = '#fff'; };
+    saveBtn.onmouseleave = () => { saveBtn.style.background = 'rgba(255,255,255,0.08)'; saveBtn.style.color = 'rgba(255,255,255,0.8)'; };
     const onSave = () => {
       const name = input.value.trim();
       if (!name) { this._toast('请输入预设名称'); return; }
@@ -411,90 +392,63 @@ export class SettingsScreen {
     saveBtn.addEventListener('click', onSave);
     this._listeners.push({ el: saveBtn, type: 'click', fn: onSave });
     saveWrap.appendChild(saveBtn);
-    this._contentArea.appendChild(saveWrap);
+    customWrap.appendChild(saveWrap);
 
-    // List saved custom presets
     const customPresets = keyBindings.listCustomPresets();
     if (customPresets.length > 0) {
       customPresets.forEach(name => {
         const row = document.createElement('div');
-        row.style.cssText = `
-          display: flex; justify-content: space-between; align-items: center;
-          padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
-        `;
+        row.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);';
         const lbl = document.createElement('span');
         lbl.textContent = name;
-        lbl.style.cssText = 'font-size: 14px; color: rgba(255,255,255,0.7);';
+        lbl.style.cssText = 'font-size: 13px; color: rgba(255,255,255,0.7);';
         row.appendChild(lbl);
-
         const right = document.createElement('div');
-        right.style.cssText = 'display: flex; gap: 8px;';
-
+        right.style.cssText = 'display: flex; gap: 6px;';
         const loadBtn = document.createElement('button');
         loadBtn.textContent = '加载';
-        loadBtn.style.cssText = `
-          padding: 5px 12px; border-radius: 8px;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.1);
-          color: rgba(255,255,255,0.5); font-size: 12px; font-weight: 600;
-          cursor: pointer; transition: all 0.2s ease;
-        `;
-        loadBtn.onmouseenter = () => {
-          loadBtn.style.background = 'rgba(255,255,255,0.1)';
-          loadBtn.style.color = '#fff';
-        };
-        loadBtn.onmouseleave = () => {
-          loadBtn.style.background = 'rgba(255,255,255,0.05)';
-          loadBtn.style.color = 'rgba(255,255,255,0.5)';
-        };
-        const onLoad = () => {
-          keyBindings.loadCustomPreset(name);
-          this._toast(`已加载预设「${name}」`);
-          this._switchCategory('controls');
-        };
+        loadBtn.style.cssText = 'padding: 4px 10px; border-radius: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); font-size: 11px; font-weight: 600; cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed)) ease;';
+        loadBtn.onmouseenter = () => { loadBtn.style.background = 'rgba(255,255,255,0.1)'; loadBtn.style.color = '#fff'; };
+        loadBtn.onmouseleave = () => { loadBtn.style.background = 'rgba(255,255,255,0.05)'; loadBtn.style.color = 'rgba(255,255,255,0.5)'; };
+        const onLoad = () => { keyBindings.loadCustomPreset(name); this._toast(`已加载预设「${name}」`); this._switchCategory('controls'); };
         loadBtn.addEventListener('click', onLoad);
         this._listeners.push({ el: loadBtn, type: 'click', fn: onLoad });
         right.appendChild(loadBtn);
-
         const delBtn = document.createElement('button');
         delBtn.textContent = '删除';
-        delBtn.style.cssText = `
-          padding: 5px 12px; border-radius: 8px;
-          background: rgba(185,18,63,0.06);
-          border: 1px solid rgba(185,18,63,0.25);
-          color: rgba(255,100,100,0.7); font-size: 12px; font-weight: 600;
-          cursor: pointer; transition: all 0.2s ease;
-        `;
-        delBtn.onmouseenter = () => {
-          delBtn.style.background = 'rgba(185,18,63,0.12)';
-          delBtn.style.borderColor = 'rgba(185,18,63,0.4)';
-        };
-        delBtn.onmouseleave = () => {
-          delBtn.style.background = 'rgba(185,18,63,0.06)';
-          delBtn.style.borderColor = 'rgba(185,18,63,0.25)';
-        };
-        const onDel = () => {
-          keyBindings.deleteCustomPreset(name);
-          this._toast(`预设「${name}」已删除`);
-          this._switchCategory('controls');
-        };
+        delBtn.style.cssText = 'padding: 4px 10px; border-radius: 6px; background: rgba(185,18,63,0.06); border: 1px solid rgba(185,18,63,0.25); color: rgba(255,100,100,0.7); font-size: 11px; font-weight: 600; cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed)) ease;';
+        delBtn.onmouseenter = () => { delBtn.style.background = 'rgba(185,18,63,0.12)'; delBtn.style.borderColor = 'rgba(185,18,63,0.4)'; };
+        delBtn.onmouseleave = () => { delBtn.style.background = 'rgba(185,18,63,0.06)'; delBtn.style.borderColor = 'rgba(185,18,63,0.25)'; };
+        const onDel = () => { keyBindings.deleteCustomPreset(name); this._toast(`预设「${name}」已删除`); this._switchCategory('controls'); };
         delBtn.addEventListener('click', onDel);
         this._listeners.push({ el: delBtn, type: 'click', fn: onDel });
         right.appendChild(delBtn);
-
         row.appendChild(right);
-        this._contentArea.appendChild(row);
+        customWrap.appendChild(row);
       });
     }
-
-    // ── Reset to default ──
-    this._dangerButton('恢复为默认快捷键', () => {
+    const resetBtn = document.createElement('button');
+    resetBtn.textContent = '恢复为默认快捷键';
+    resetBtn.style.cssText = `
+      width: 100%; padding: 12px; margin-top: 10px;
+      background: rgba(185,18,63,0.08);
+      border: 1px solid rgba(185,18,63,0.35);
+      border-radius: 10px;
+      color: #ff6b8a; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+    `;
+    resetBtn.onmouseenter = () => { resetBtn.style.background = 'rgba(185,18,63,0.15)'; resetBtn.style.borderColor = 'rgba(185,18,63,0.5)'; };
+    resetBtn.onmouseleave = () => { resetBtn.style.background = 'rgba(185,18,63,0.08)'; resetBtn.style.borderColor = 'rgba(185,18,63,0.35)'; };
+    const onReset = () => {
       if (confirm('确定要恢复为默认快捷键吗？所有自定义修改将丢失。')) {
         keyBindings.resetToDefaults();
         this._toast('已恢复为默认快捷键');
         this._switchCategory('controls');
       }
-    });
+    };
+    resetBtn.addEventListener('click', onReset);
+    this._listeners.push({ el: resetBtn, type: 'click', fn: onReset });
+    customWrap.appendChild(resetBtn);
   }
 
   _buildOtherContent() {
@@ -567,6 +521,65 @@ export class SettingsScreen {
     this._contentArea.appendChild(el);
   }
 
+  _createCollapsible(title, defaultOpen = false) {
+    const block = document.createElement('div');
+    block.style.cssText = `
+      margin: 8px 0 16px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      overflow: hidden;
+    `;
+
+    const header = document.createElement('div');
+    header.style.cssText = `
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 14px;
+      cursor: pointer; user-select: none;
+      transition: background calc(0.2s / var(--ui-anim-speed)) ease;
+    `;
+    header.onmouseenter = () => { header.style.background = 'rgba(255,255,255,0.03)'; };
+    header.onmouseleave = () => { header.style.background = 'transparent'; };
+
+    const label = document.createElement('span');
+    label.textContent = title;
+    label.style.cssText = 'font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.85);';
+    header.appendChild(label);
+
+    const arrow = document.createElement('span');
+    arrow.textContent = '▸';
+    arrow.style.cssText = `
+      font-size: 13px; color: rgba(255,255,255,0.35);
+      transform: rotate(${defaultOpen ? 90 : 0}deg);
+      transition: transform calc(0.25s / var(--ui-anim-speed)) cubic-bezier(0.4,0,0.2,1);
+      display: inline-block;
+    `;
+    header.appendChild(arrow);
+    block.appendChild(header);
+
+    const body = document.createElement('div');
+    body.style.cssText = `
+      max-height: ${defaultOpen ? '2000px' : '0px'};
+      overflow: hidden;
+      transition: max-height calc(0.35s / var(--ui-anim-speed)) cubic-bezier(0.4,0,0.2,1);
+      padding: ${defaultOpen ? '0 14px 10px' : '0 14px'};
+    `;
+    block.appendChild(body);
+
+    let isOpen = defaultOpen;
+    const toggle = () => {
+      isOpen = !isOpen;
+      arrow.style.transform = `rotate(${isOpen ? 90 : 0}deg)`;
+      body.style.maxHeight = isOpen ? '2000px' : '0px';
+      body.style.padding = isOpen ? '0 14px 10px' : '0 14px';
+    };
+    header.addEventListener('click', toggle);
+    this._listeners.push({ el: header, type: 'click', fn: toggle });
+
+    this._contentArea.appendChild(block);
+    return body;
+  }
+
   _sectionSubtitle(text) {
     const el = document.createElement('div');
     el.textContent = text;
@@ -610,6 +623,97 @@ export class SettingsScreen {
     this._contentArea.appendChild(row);
   }
 
+  _rowSliderIn(container, label, value, min, max, unit, onChange) {
+    const row = document.createElement('div');
+    row.style.cssText = `
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+      gap: 16px;
+    `;
+    const left = document.createElement('span');
+    left.textContent = label;
+    left.style.cssText = 'font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.8); flex-shrink: 0;';
+    row.appendChild(left);
+    const slider = this._createSlider(value, min, max, unit, onChange);
+    slider.style.flex = '1';
+    slider.style.maxWidth = '260px';
+    row.appendChild(slider);
+    container.appendChild(row);
+  }
+
+  _rowToggleIn(container, label, checked, onChange) {
+    const row = document.createElement('div');
+    row.style.cssText = `
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+    `;
+    const left = document.createElement('span');
+    left.textContent = label;
+    left.style.cssText = 'font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.8);';
+    row.appendChild(left);
+    row.appendChild(this._createSwitch(checked, onChange));
+    container.appendChild(row);
+  }
+
+  _keyRowIn(container, label, displayKey, actionKey, bindable, onBind) {
+    const row = document.createElement('div');
+    row.style.cssText = `
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+    `;
+    const lbl = document.createElement('span');
+    lbl.textContent = label;
+    lbl.style.cssText = 'font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.75);';
+    row.appendChild(lbl);
+    const right = document.createElement('div');
+    right.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+    const keyTag = document.createElement('span');
+    keyTag.textContent = this._formatKey(displayKey);
+    keyTag.style.cssText = `
+      padding: 4px 8px; border-radius: 6px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.5);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px; font-weight: 600;
+    `;
+    right.appendChild(keyTag);
+    if (bindable) {
+      const bindBtn = document.createElement('button');
+      bindBtn.textContent = '修改';
+      bindBtn.style.cssText = `
+        padding: 4px 10px; border-radius: 6px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: rgba(255,255,255,0.4);
+        font-size: 11px; font-weight: 600; cursor: pointer;
+        transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+      `;
+      bindBtn.onmouseenter = () => { bindBtn.style.background = 'rgba(255,255,255,0.1)'; bindBtn.style.color = 'rgba(255,255,255,0.8)'; };
+      bindBtn.onmouseleave = () => { bindBtn.style.background = 'rgba(255,255,255,0.04)'; bindBtn.style.color = 'rgba(255,255,255,0.4)'; };
+      const onClick = () => {
+        if (bindBtn.dataset.waiting === 'true') return;
+        bindBtn.dataset.waiting = 'true';
+        bindBtn.textContent = '按下新键…';
+        bindBtn.style.color = '#d8b15f';
+        bindBtn.style.borderColor = 'rgba(216,177,95,0.4)';
+        keyBindings.startListening(actionKey, (action, newKey) => {
+          bindBtn.dataset.waiting = 'false';
+          bindBtn.textContent = '修改';
+          bindBtn.style.color = 'rgba(255,255,255,0.4)';
+          bindBtn.style.borderColor = 'rgba(255,255,255,0.1)';
+          keyTag.textContent = this._formatKey(newKey);
+          onBind(newKey);
+        });
+      };
+      bindBtn.addEventListener('click', onClick);
+      this._listeners.push({ el: bindBtn, type: 'click', fn: onClick });
+      right.appendChild(bindBtn);
+    }
+    row.appendChild(right);
+    container.appendChild(row);
+  }
+
   _rowSelect(label, options, value, onChange) {
     const row = document.createElement('div');
     row.style.cssText = `
@@ -633,7 +737,7 @@ export class SettingsScreen {
         border: 1px solid ${active ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'};
         color: ${active ? '#fff' : 'rgba(255,255,255,0.55)'};
         font-size: 13px; font-weight: 600; cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all calc(0.2s / var(--ui-anim-speed)) ease;
       `;
       btn.onmouseenter = () => {
         if (!active) btn.style.background = 'rgba(255,255,255,0.1)';
@@ -685,7 +789,7 @@ export class SettingsScreen {
         border: 1px solid rgba(255,255,255,0.1);
         color: rgba(255,255,255,0.45);
         font-size: 12px; font-weight: 600; cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all calc(0.2s / var(--ui-anim-speed)) ease;
       `;
       bindBtn.onmouseenter = () => {
         bindBtn.style.background = 'rgba(255,255,255,0.1)';
@@ -729,7 +833,7 @@ export class SettingsScreen {
       border: 1px solid rgba(185,18,63,0.35);
       border-radius: 12px;
       color: #ff6b8a; font-size: 15px; font-weight: 600;
-      cursor: pointer; transition: all 0.2s ease;
+      cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed)) ease;
     `;
     btn.onmouseenter = () => {
       btn.style.background = 'rgba(185,18,63,0.15)';
@@ -754,7 +858,7 @@ export class SettingsScreen {
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 12px;
       color: rgba(255,255,255,0.7); font-size: 15px; font-weight: 600;
-      cursor: pointer; transition: all 0.2s ease;
+      cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed)) ease;
     `;
     btn.onmouseenter = () => {
       btn.style.background = 'rgba(255,255,255,0.1)';
@@ -793,14 +897,14 @@ export class SettingsScreen {
       track.style.cssText = `
         position: absolute; inset: 0; border-radius: 999px;
         background: ${on ? '#34c759' : 'rgba(255,255,255,0.15)'};
-        transition: background 0.25s ease;
+        transition: background calc(0.25s / var(--ui-anim-speed)) ease;
       `;
       knob.style.cssText = `
         position: absolute; top: 2px; left: 2px;
         width: 24px; height: 24px; border-radius: 50%;
         background: #fff;
         box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-        transition: transform 0.25s cubic-bezier(0.2,0.8,0.2,1);
+        transition: transform calc(0.25s / var(--ui-anim-speed)) cubic-bezier(0.2,0.8,0.2,1);
         transform: translateX(${on ? '20px' : '0'});
       `;
     };
@@ -833,7 +937,7 @@ export class SettingsScreen {
     fill.style.cssText = `
       height: 100%; width: 0%;
       background: rgba(255,255,255,0.6);
-      border-radius: 999px; transition: width 0.08s ease;
+      border-radius: 999px; transition: width calc(0.08s / var(--ui-anim-speed)) ease;
     `;
     track.appendChild(fill);
     trackWrap.appendChild(track);
@@ -845,7 +949,7 @@ export class SettingsScreen {
       background: #fff;
       box-shadow: 0 2px 8px rgba(0,0,0,0.4);
       transform: translate(-50%, -50%);
-      pointer-events: none; transition: left 0.08s ease;
+      pointer-events: none; transition: left calc(0.08s / var(--ui-anim-speed)) ease;
     `;
     trackWrap.appendChild(thumb);
 
@@ -908,13 +1012,13 @@ export class SettingsScreen {
       background: rgba(30,30,30,0.92); border: 1px solid rgba(255,255,255,0.1);
       color: #fff; font-size: 13px; font-weight: 600;
       z-index: 200; pointer-events: none;
-      animation: settingsCardIn 0.3s ease both;
+      animation: settingsCardIn calc(0.3s / var(--ui-anim-speed)) ease both;
     `;
     document.body.appendChild(el);
     setTimeout(() => {
       el.style.opacity = '0';
       el.style.transition = 'opacity 0.3s ease';
-      setTimeout(() => el.remove(), 300);
+      setTimeout(() => el.remove(), animMs(300));
     }, 2000);
   }
 
@@ -932,7 +1036,7 @@ export class SettingsScreen {
   hide() {
     if (!this.container) return;
     this.container.style.opacity = '0';
-    setTimeout(() => { if (this.container) this.container.style.display = 'none'; }, 300);
+    setTimeout(() => { if (this.container) this.container.style.display = 'none'; }, animMs(300));
   }
 
   destroy() {

@@ -8,6 +8,8 @@
    *   - Progress counters
    */
 import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from './AchievementData.js';
+import { animMs } from '../core/AnimSpeed.js';
+
 
 export class AchievementPanel {
   constructor(achievementSystem) {
@@ -51,7 +53,7 @@ export class AchievementPanel {
       box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 16px ${cat.color}22;
       transform: translateX(120%);
       opacity: 0;
-      transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+      transition: transform calc(0.5s / var(--ui-anim-speed)) cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
       pointer-events: auto;
       min-width: 280px;
     `;
@@ -209,7 +211,7 @@ export class AchievementPanel {
           color: #f4f7f4; background: rgba(255,255,255,0.08);
           border: 1px solid rgba(255,255,255,0.14);
           border-radius: 8px; cursor: pointer;
-          pointer-events: auto; transition: all 0.2s;
+          pointer-events: auto; transition: all calc(0.2s / var(--ui-anim-speed));
         `;
         btn.onmouseenter = () => {
           btn.style.background = 'rgba(255,255,255,0.16)';
@@ -247,7 +249,7 @@ export class AchievementPanel {
         background: ${isUnlocked ? 'rgba(12,15,18,0.74)' : 'rgba(12,15,18,0.42)'};
         border: 1px solid ${isUnlocked ? cat.color + '44' : 'rgba(255,255,255,0.08)'};
         border-radius: 8px;
-        transition: all 0.2s;
+        transition: all calc(0.2s / var(--ui-anim-speed));
         opacity: ${isUnlocked ? 1 : 0.55};
         box-shadow: 0 14px 38px rgba(0,0,0,0.22);
       `;

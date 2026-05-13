@@ -1,4 +1,5 @@
 import { MenuSystem } from './menu/MenuSystem.js';
+import { autoSyncAnimSpeed, animMs } from './core/AnimSpeed.js';
 
 /* ── Loading Screen Progress ── */
 const introScreen = document.getElementById('intro-screen');
@@ -20,11 +21,24 @@ function hideIntroScreen(delay = 600) {
   }, delay);
 }
 
+let __initPhase = 'boot';
+function setInitPhase(phase) { __initPhase = phase; }
+
 function showError(msg) {
   const overlay = document.getElementById('js-error-overlay');
   const content = document.getElementById('js-error-content');
+  const phaseEl = document.getElementById('js-error-phase');
   if (overlay && content) {
-    content.textContent = (content.textContent ? content.textContent + '\n---\n' : '') + msg;
+    const time = new Date().toLocaleTimeString();
+    const block = document.createElement('div');
+    block.className = 'err-block';
+    block.innerHTML = '<div class="err-time">' + time + ' — Phase: ' + __initPhase + '</div>' +
+      msg.replace(/\n/g, '<br>');
+    content.appendChild(block);
+    if (phaseEl) {
+      phaseEl.style.display = 'block';
+      phaseEl.textContent = 'Failed during: ' + __initPhase;
+    }
     overlay.classList.add('visible');
   } else {
     const div = document.createElement('div');
@@ -43,30 +57,37 @@ try {
   }
 
   // Phase 1 — DOM & core modules loaded (we're already here)
+  setInitPhase('core-modules');
   updateLoadingProgress(15, 'Loading core modules... 加载核心模块...');
 
   // Phase 2 — MenuSystem initializes Renderer + Physics + Audio
+  setInitPhase('engine-init');
   updateLoadingProgress(35, 'Initializing engine... 初始化引擎...');
   const menu = new MenuSystem(container);
 
   // Phase 3 — Menu UI built
+  setInitPhase('menu-build');
   updateLoadingProgress(75, 'Building menu... 构建菜单...');
 
   // Remove legacy boot message
   document.getElementById('boot-message')?.remove();
 
   // Phase 4 — Finalize
+  setInitPhase('finalize');
   updateLoadingProgress(100, 'Ready! 准备就绪!');
   const elapsed = performance.now() - initStart;
   const minDelay = Math.max(0, 2000 - elapsed);
   hideIntroScreen(minDelay);
 
+  // Sync CSS animation speed variable with settings
+  autoSyncAnimSpeed();
+
   // Success indicator — remove after 3s
   const ok = document.createElement('div');
   ok.textContent = '✓ init OK';
-  ok.style.cssText = 'position:fixed;top:4px;left:4px;z-index:99999;background:rgba(0,0,0,0.7);color:#0f0;padding:4px 8px;font-size:11px;font-family:monospace;border-radius:4px;transition:opacity 0.5s;';
+  ok.style.cssText = `position:fixed;top:4px;left:4px;z-index:99999;background:rgba(0,0,0,0.7);color:#0f0;padding:4px 8px;font-size:11px;font-family:monospace;border-radius:4px;transition:opacity calc(0.5s / var(--ui-anim-speed));`;
   document.body.appendChild(ok);
-  setTimeout(() => { ok.style.opacity = '0'; setTimeout(() => ok.remove(), 500); }, 3000);
+  setTimeout(() => { ok.style.opacity = '0'; setTimeout(() => ok.remove(), animMs(500)); }, animMs(3000));
 
 } catch (err) {
   showError('INIT ERROR: ' + err.message + '\n' + (err.stack || ''));
