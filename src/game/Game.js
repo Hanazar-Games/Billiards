@@ -79,6 +79,7 @@ export class Game {
 
     this.turnPocketedIds = [];
     this._isBreakShot = false;
+    this._wasShiftCameraControl = false;
 
     // Listener refs for clean disposal
     this._ballCollideListeners = new Map(); // ballId -> listener fn
@@ -283,6 +284,8 @@ export class Game {
   }
 
   onMouseMove() {
+    // Freeze aim while in camera-control mode
+    if (this.renderer._shiftCameraControl) return;
     if (this.ballInHand && this.state === 'AIM') {
       this.updateBallInHandPreview();
       return;
@@ -1321,7 +1324,18 @@ export class Game {
   }
 
   _updateCamera() {
-    if (this.renderer._shiftCameraControl) return;
+    if (this.renderer._shiftCameraControl) {
+      this._wasShiftCameraControl = true;
+      return;
+    }
+
+    // Shift was just released: snap aim to the current camera view
+    if (this._wasShiftCameraControl) {
+      this._wasShiftCameraControl = false;
+      if (this.state === 'AIM' && !this.ballInHand) {
+        this._snapAimToCameraView();
+      }
+    }
 
     // Screen shake takes over camera position briefly; skip follow/orbit.
     if (this.screenShake?.active) {
@@ -1357,6 +1371,25 @@ export class Game {
       // Re-enable orbit controls when leaving follow mode
       this.renderer.controls.enabled = true;
     }
+  }
+
+  _snapAimToCameraView() {
+    const cueBall = this.ballsManager.getCueBall();
+    if (!cueBall || cueBall.pocketed) return;
+
+    const ballPos = cueBall.mesh.position;
+
+    // Project camera look direction onto the table plane (XZ)
+    const camDir = this._tmpVec3c;
+    this.camera.getWorldDirection(camDir);
+    camDir.y = 0;
+    if (camDir.lengthSq() < 0.001) return;
+    camDir.normalize();
+
+    this.aimDirection.copy(camDir);
+    this.lockedAimDirection.copy(camDir);
+    this.cue.setAim(ballPos, this.aimDirection);
+    this.updateTrajectory();
   }
 
   dispose() {

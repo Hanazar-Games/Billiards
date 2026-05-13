@@ -70,12 +70,14 @@ export class Renderer {
     this._onCameraPointerDown = this.onCameraPointerDown.bind(this);
     this._onCameraPointerMove = this.onCameraPointerMove.bind(this);
     this._onCameraPointerUp = this.onCameraPointerUp.bind(this);
+    this._onWheel = this.onWheel.bind(this);
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('keyup', this._onKeyUp);
     window.addEventListener('blur', this._onBlur);
     this.renderer.domElement.addEventListener('pointerdown', this._onCameraPointerDown);
     window.addEventListener('pointermove', this._onCameraPointerMove);
     window.addEventListener('pointerup', this._onCameraPointerUp);
+    this.renderer.domElement.addEventListener('wheel', this._onWheel, { passive: false });
 
     // Lights
     this.setupLights();
@@ -130,6 +132,7 @@ export class Renderer {
       this._cameraDragMode = null;
     }
     this.controls.enableRotate = false;
+    this.controls.enableZoom = !active; // disable OrbitControls zoom while shift is held
     this._updateCameraCursor();
   }
 
@@ -222,8 +225,25 @@ export class Renderer {
     if (active) {
       this.renderer.domElement.style.cursor = this._cameraDragMode === 'pan' ? 'move' : 'grabbing';
     } else {
-      this.renderer.domElement.style.cursor = this._shiftCameraControl ? 'crosshair' : '';
+      this.renderer.domElement.style.cursor = this._shiftCameraControl ? 'move' : '';
     }
+  }
+
+  onWheel(e) {
+    if (!this._shiftCameraControl) return;
+    e.preventDefault();
+
+    let dx = e.deltaX;
+    let dy = e.deltaY;
+    if (e.deltaMode === 1) { // LINE
+      dx *= 20;
+      dy *= 20;
+    } else if (e.deltaMode === 2) { // PAGE
+      dx *= 100;
+      dy *= 100;
+    }
+
+    this.panCamera(dx * 0.3, dy * 0.3);
   }
 
   render() {
@@ -239,6 +259,7 @@ export class Renderer {
     this.renderer.domElement.removeEventListener('pointerdown', this._onCameraPointerDown);
     window.removeEventListener('pointermove', this._onCameraPointerMove);
     window.removeEventListener('pointerup', this._onCameraPointerUp);
+    this.renderer.domElement.removeEventListener('wheel', this._onWheel);
     if (this.controls) {
       this.controls.dispose();
     }
