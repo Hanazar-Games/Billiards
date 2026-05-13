@@ -18,6 +18,7 @@ export class Rules {
     this.firstBallHit = null;
     this.railContactAfterFirstHit = false;
     this.scratch = false;
+    this.breakRailContacts = new Set();
   }
 
   // Called at start of a shot to reset per-shot tracking
@@ -27,6 +28,7 @@ export class Rules {
     this.scratch = false;
     this.firstBallHit = null;
     this.railContactAfterFirstHit = false;
+    this.breakRailContacts.clear();
     // Remember whether the table was open BEFORE this shot
     this.wasOpenTable = (this.player1Group === null);
   }
@@ -38,9 +40,12 @@ export class Rules {
     }
   }
 
-  recordCushionHit() {
+  recordCushionHit(ballId) {
     if (this.firstBallHit !== null) {
       this.railContactAfterFirstHit = true;
+    }
+    if (this.breakShot && ballId !== 0 && ballId !== undefined) {
+      this.breakRailContacts.add(ballId);
     }
   }
 
@@ -60,7 +65,10 @@ export class Rules {
     let pocketedOpponent = 0;
     let pocketedEight = false;
 
-    for (const id of pocketedIds) {
+    // Deduplicate pocketed IDs
+    const uniquePocketed = [...new Set(pocketedIds)];
+
+    for (const id of uniquePocketed) {
       const type = getBallType(id);
       if (type === BALL_TYPE.EIGHT) {
         pocketedEight = true;
@@ -70,26 +78,6 @@ export class Rules {
       } else if (type === BALL_TYPE.STRIPE) {
         if (currentGroup === 'stripe') pocketedOwn++;
         else if (currentGroup === 'solid') pocketedOpponent++;
-      }
-    }
-
-    // Group assignment on first legal pocket after break
-    // Group assignment only on a legal shot that hit a valid ball first
-    if (!this.breakShot && currentGroup === null && pocketedIds.length > 0 && !cueBallPocketed && this.firstBallHit !== null && this.firstBallHit !== 8) {
-      const firstPocketed = pocketedIds[0];
-      const firstType = getBallType(firstPocketed);
-      if (firstType === BALL_TYPE.SOLID) {
-        this.assignGroup(this.currentPlayer, 'solid');
-        this.assignGroup(opponent, 'stripe');
-        currentGroup = 'solid';
-        pocketedOwn = pocketedIds.filter(id => getBallType(id) === BALL_TYPE.SOLID).length;
-        pocketedOpponent = pocketedIds.filter(id => getBallType(id) === BALL_TYPE.STRIPE).length;
-      } else if (firstType === BALL_TYPE.STRIPE) {
-        this.assignGroup(this.currentPlayer, 'stripe');
-        this.assignGroup(opponent, 'solid');
-        currentGroup = 'stripe';
-        pocketedOwn = pocketedIds.filter(id => getBallType(id) === BALL_TYPE.STRIPE).length;
-        pocketedOpponent = pocketedIds.filter(id => getBallType(id) === BALL_TYPE.SOLID).length;
       }
     }
 
@@ -123,8 +111,21 @@ export class Rules {
         };
       }
 
+      // Illegal break: nothing pocketed AND fewer than 4 object balls hit a rail
+      if (uniquePocketed.length === 0 && this.breakRailContacts.size < 4) {
+        return {
+          nextPlayer: opponent,
+          foul: true,
+          scratch: false,
+          ballInHand: true,
+          ballInHandBehindLine: true,
+          message: 'Break foul: fewer than 4 balls hit a rail. Opponent gets ball-in-hand behind the head string.',
+          gameOver: false,
+        };
+      }
+
       // Nothing pocketed on break: opponent's turn, table still OPEN
-      if (pocketedIds.length === 0) {
+      if (uniquePocketed.length === 0) {
         return {
           nextPlayer: opponent,
           foul: false,
@@ -143,12 +144,33 @@ export class Rules {
       };
     }
 
-    // All foul checks (must come BEFORE 8-ball win/loss check)
+    // All foul checks (must come BEFORE group assignment and 8-ball win/loss check)
     if (!cueBallPocketed && this.firstBallHit === null) {
       this.foul = true;
     }
-    if (!cueBallPocketed && this.firstBallHit !== null && pocketedIds.length === 0 && !this.railContactAfterFirstHit) {
+    if (!cueBallPocketed && this.firstBallHit !== null && uniquePocketed.length === 0 && !this.railContactAfterFirstHit) {
       this.foul = true;
+    }
+
+    // Group assignment on first legal pocket after break (only on non-foul, non-break shots)
+    if (!this.breakShot && currentGroup === null && uniquePocketed.length > 0 && !this.foul && this.firstBallHit !== null && this.firstBallHit !== 8) {
+      const hasSolid = uniquePocketed.some(id => getBallType(id) === BALL_TYPE.SOLID);
+      const hasStripe = uniquePocketed.some(id => getBallType(id) === BALL_TYPE.STRIPE);
+      // WPA: if both solid and stripe pocketed on same shot, table remains open
+      if (hasSolid && !hasStripe) {
+        this.assignGroup(this.currentPlayer, 'solid');
+        this.assignGroup(opponent, 'stripe');
+        currentGroup = 'solid';
+        pocketedOwn = uniquePocketed.filter(id => getBallType(id) === BALL_TYPE.SOLID).length;
+        pocketedOpponent = uniquePocketed.filter(id => getBallType(id) === BALL_TYPE.STRIPE).length;
+      } else if (hasStripe && !hasSolid) {
+        this.assignGroup(this.currentPlayer, 'stripe');
+        this.assignGroup(opponent, 'solid');
+        currentGroup = 'stripe';
+        pocketedOwn = uniquePocketed.filter(id => getBallType(id) === BALL_TYPE.STRIPE).length;
+        pocketedOpponent = uniquePocketed.filter(id => getBallType(id) === BALL_TYPE.SOLID).length;
+      }
+      // If both solid and stripe pocketed, table remains open (currentGroup stays null)
     }
 
     // 8-ball first-hit foul: ALWAYS illegal to hit the 8-ball first
@@ -207,7 +229,7 @@ export class Rules {
     }
 
     // Track pocketed balls
-    for (const id of pocketedIds) {
+    for (const id of uniquePocketed) {
       const type = getBallType(id);
       const isCurrentPlayersBall =
         (currentGroup === 'solid' && type === BALL_TYPE.SOLID) ||
@@ -231,10 +253,10 @@ export class Rules {
       message = cueBallPocketed
         ? 'Scratch! Opponent gets ball-in-hand.'
         : 'Foul! Opponent gets ball-in-hand.';
-    } else if (pocketedOwn === 0) {
+    } else if (pocketedOwn === 0 && !this.foul) {
       nextPlayer = opponent;
       message = 'No ball pocketed. Opponent\'s turn.';
-    } else {
+    } else if (!this.foul) {
       message = `Pocketed ${pocketedOwn}! Your turn continues.`;
     }
 

@@ -1,6 +1,47 @@
-# 3D Billiards v1.2.2 — Latest Update
+# 3D Billiards v1.2.3 — Latest Update
 
-## What's New in v1.2.2
+## What's New in v1.2.3
+
+### Gameplay & Rules Overhaul
+
+A full audit of game rules, AI behavior, and core mechanics uncovered and fixed **15+ issues** — from silent broken features to rule violations.
+
+### Critical Fixes
+
+| # | File | Issue |
+|---|------|-------|
+| 1 | `Game.js` | **Pocket FX/achievements/replay completely broken** — `isFirstTime` was always `false` because IDs were pre-added to `turnPocketedIds` in an accumulation loop, causing the visual FX loop to skip every ball. **Result:** no pocket flash, no fountain particles, no floating text (`+1`, `🎱 8号球!`), no achievement triggers, no replay pocket recording |
+| 2 | `InputHandler.js` | **Soft-lock in CHARGING state** — releasing the mouse over a UI button (e.g., "Concede", "Settings") swallowed the `mouseup` event. `Game.state` remained `CHARGING` forever with no recovery. **Fix:** always notify game of mouse-up; added `Escape` key to cancel charging and ball-in-hand preview |
+| 3 | `NineBallRules.js` | **9-ball mode broken after 1st ball pocketed** — `targetBall` was initialized to `1` and `setTargetBall()` was **never called anywhere in the codebase**. Every post-break shot validated against ball 1, so hitting the 2-ball (or any higher) first was incorrectly flagged as a foul |
+| 4 | `NineBallRules.js` | **4-ball-to-rail break rule was dead code** — an early `return` at `pocketedIds.length === 0` made the rail-check branch unreachable. Dry breaks with <4 balls to rails were treated as legal |
+| 5 | `NineBallRules.js` | **Foul shots did not track pocketed object balls** — the code skipped `trackPocketedBalls()` on foul, with a comment claiming "object balls are spotted on foul" (wrong for 9-ball). Pocketed balls vanished from game state, desynchronizing the table |
+| 6 | `Rules.js` (8-ball) | **Illegal break not detected** — no 4-object-ball-to-cushion check on break. A break where nothing is pocketed and only 1–3 balls touch a cushion was treated as legal |
+| 7 | `Rules.js` (8-ball) | **Mixed solid+stripe on open table incorrectly assigned group** — WPA Rule 3.9: pocketing both a solid and stripe on the same shot keeps the table open. The code used only `pocketedIds[0]` to determine group, ignoring mixed pockets |
+
+### AI Improvements
+
+| # | File | Change |
+|---|------|--------|
+| 8 | `AIPlayer.js` | **"Miss" mechanic reworked** — instead of abandoning the best shot for a completely random (often suicidal) alternative, the AI now **perturbs the best shot's angle and power** by a small noise amount. Looks humanly imperfect rather than intentionally stupid |
+| 9 | `AIPlayer.js` | **Strategic spin for HARD difficulty** — no longer pure random spin. Hard AI now uses: **draw** (bottom spin) on powerful shots to control cue ball, **follow** (top spin) on soft shots for gentle roll, and tiny side spin on desperate shots to avoid straight-in scratches |
+| 10 | `AIPlayer.js` | **Safety play enabled** — the previously-unused `safetyAwareness` setting is now active. When the best shot has a low score (<60) and safety awareness triggers, the AI plays a safety instead of a desperation shot |
+
+### Gameplay Polish
+
+| # | File | Change |
+|---|------|--------|
+| 11 | `Game.js` | **Physics safety timeout** — if balls somehow never reach zero velocity (floating-point edge case), the shot is force-resolved after **20 seconds** instead of soft-locking forever |
+| 12 | `Game.js` | **Head-string placement fixed** — `isCueBallPlacementLegal` now correctly rejects positions past the head string (`z > headStringZ`). Previously it allowed half a ball radius past the line, giving the player an unfair advantage |
+| 13 | `Game.js` | **Auto-follow camera switches back** — after a shot resolves, if `autoFollowCueBall` is enabled, the camera returns to the user's default camera mode (free/top) instead of staying stuck in follow mode |
+| 14 | `Game.js` | **Game-over UI now updates stats** — `_updatePlayerStats()` is called when the game ends so the bottom HUD shows final remaining-ball counts |
+| 15 | `Rules.js` / `NineBallRules.js` | **Distinct ball tracking for break rails** — `breakRailContacts` is now a `Set` of ball IDs instead of a raw counter, correctly implementing the "4 distinct object balls" requirement |
+
+---
+
+## Previous Releases
+
+<details>
+<summary><strong>v1.2.2</strong> — Cue Themes + Deep Bug-Fix Audit</summary>
 
 ### Cue Stick Themes
 
@@ -39,10 +80,7 @@ A second full-system audit uncovered and fixed **16 issues** across UI/UX, audio
 | 14 | `index.html` | `<html lang="en">` contradicted the Chinese UI; screen readers mispronounced content | 🟡 Medium |
 | 15 | `index.html` | `mask-image` lacked `-webkit-mask-image` prefix — Safari rendered the decorative grid overlay fully opaque instead of fading | 🟡 Medium |
 | 16 | `UI.js` | `_flashTimer` was not initialized in the constructor, creating an implicit global on first `flashRed()` call | 🟢 Low |
-
----
-
-## Previous Releases
+</details>
 
 <details>
 <summary><strong>v1.2.1</strong> — Animation Sync, Error Modal, Strike Snap, Foul Flash, Floating Text, Minimap</summary>

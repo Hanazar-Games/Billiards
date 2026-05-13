@@ -86,6 +86,7 @@ export class Game {
     this._tmpVec3d = new THREE.Vector3();
 
     this.turnPocketedIds = [];
+    this._shotStartTime = null;
     this._isBreakShot = false;
     this._wasShiftCameraControl = false;
 
@@ -357,6 +358,7 @@ export class Game {
       return;
     }
     this.state = 'SHOOTING';
+    this._shotStartTime = performance.now();
     this.charging = false;
     this.dragStart = null;
     this.shoot();
@@ -441,7 +443,7 @@ export class Game {
     // Behind the head string restriction (break foul ball-in-hand)
     if (behindHeadString) {
       const headStringZ = -TABLE.depth / 2 * 0.55;
-      if (z > headStringZ + BALL.radius * 0.5) return false;
+      if (z > headStringZ) return false;
     }
 
     for (const pocket of this.table.getPocketPositions()) {
@@ -498,7 +500,7 @@ export class Game {
     const x = Math.max(-halfW, Math.min(halfW, point.x));
     let z;
     if (this.ballInHandBehindLine) {
-      z = Math.max(-halfD, Math.min(headStringZ - BALL.radius * 0.5, point.z));
+      z = Math.max(-halfD, Math.min(headStringZ, point.z));
     } else {
       z = Math.max(-halfD, Math.min(halfD, point.z));
     }
@@ -672,6 +674,7 @@ export class Game {
 
     // Shoot
     this.state = 'SHOOTING';
+    this._shotStartTime = performance.now();
     this.charging = false;
     this.shoot();
   }
@@ -689,14 +692,14 @@ export class Game {
     this.ballsManager.sync();
 
     if (this.state === 'SHOOTING') {
-      const newlyPocketed = this.ballsManager.checkPockets(pocketPositions);
-
-      // Accumulate pocketed ball IDs across frames of a single shot
-      for (const entry of newlyPocketed) {
-        if (!this.turnPocketedIds.includes(entry.id)) {
-          this.turnPocketedIds.push(entry.id);
-        }
+      // Physics safety timeout: force turn resolution after 20s
+      if (!this._shotStartTime) this._shotStartTime = performance.now();
+      if (performance.now() - this._shotStartTime > 20000) {
+        this.resolveTurn(this.turnPocketedIds);
+        this._shotStartTime = null;
+        return;
       }
+      const newlyPocketed = this.ballsManager.checkPockets(pocketPositions);
 
       if (newlyPocketed.length > 0) {
         this.audio.playPocket();
@@ -738,6 +741,7 @@ export class Game {
       }
 
       if (this.ballsManager.allStopped()) {
+        this._shotStartTime = null;
         this.resolveTurn(this.turnPocketedIds);
       }
     }
@@ -914,6 +918,7 @@ export class Game {
         this.audio.playFoul();
         this.ui.flashRed();
       }
+      this._updatePlayerStats();
       return;
     }
 
@@ -951,6 +956,16 @@ export class Game {
     this.ui.setPower(0);
     this.cue.show();
     this.setAimTrajectoryVisible(true);
+
+    // Auto-switch camera back from follow mode after shot resolves
+    if (this.cameraMode === 'follow' && settings.get('autoFollowCueBall')) {
+      const defaultCam = settings.get('defaultCamera');
+      if (defaultCam && defaultCam !== 'follow') {
+        this.cameraMode = defaultCam;
+        if (defaultCam === 'top') this._resetCameraTop();
+        else if (defaultCam === 'free') this._resetCameraFree();
+      }
+    }
 
     if (result.ballInHand) {
       this.startBallInHand(result.message, result.ballInHandBehindLine);
@@ -1058,6 +1073,7 @@ export class Game {
     this.charging = false;
     this.dragStart = null;
     this.turnPocketedIds = [];
+    this._shotStartTime = null;
     this._isBreakShot = false;
     this.gameStartTime = performance.now();
     this.cameraMode = 'free';
@@ -1267,6 +1283,27 @@ export class Game {
     this._onKeyDown = (e) => {
       const key = e.key.toLowerCase();
       const mods = { ctrl: e.ctrlKey, shift: e.shiftKey, alt: e.altKey, meta: e.metaKey };
+
+      // Escape cancels charging and ball-in-hand preview
+      if (key === 'escape') {
+        if (this.state === 'CHARGING') {
+          this.state = 'AIM';
+          this.power = 0;
+          this.charging = false;
+          this.dragStart = null;
+          this.ui.setPower(0);
+          this.cue.show();
+          return;
+        }
+        if (this.ballInHand) {
+          this.ballInHand = false;
+          this.ballInHandValid = false;
+          this.state = 'AIM';
+          this.cue.show();
+          this.ui.setMessage('自由球已取消。');
+          return;
+        }
+      }
 
       // Camera mode switching (works in any state)
       if (keyBindings.matches('cameraFree', key, mods)) {

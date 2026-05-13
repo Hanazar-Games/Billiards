@@ -20,6 +20,7 @@ export class InputHandler {
 
     if (typeof window !== 'undefined' && window.PointerEvent) {
       element.addEventListener('pointermove', this._handlePointerMove);
+      element.addEventListener('pointerup', this._handleMouseUp);
       if ('onpointerrawupdate' in window) {
         element.addEventListener('pointerrawupdate', this._handlePointerMove);
       }
@@ -70,11 +71,9 @@ export class InputHandler {
     this.mouseY = e.clientY;
     if (e.button === 0 && this.isDown) {
       this.isDown = false;
-      // Don't trigger shot if released over interactive UI elements (buttons, inputs, selects)
-      const tag = e.target.tagName;
-      if (tag !== 'BUTTON' && tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'LABEL') {
-        if (this.onMouseUp) this.onMouseUp(e);
-      }
+      // Always notify game of mouse-up to prevent soft-lock in CHARGING state.
+      // Game.js will ignore the release if it lands on interactive UI.
+      if (this.onMouseUp) this.onMouseUp(e);
     } else if (e.button === 2 && this.rightDown) {
       this.rightDown = false;
       if (this.onRightMouseUp) this.onRightMouseUp();
@@ -84,6 +83,7 @@ export class InputHandler {
   dispose() {
     this.element.removeEventListener('mousemove', this._handleMouseMove);
     this.element.removeEventListener('pointermove', this._handlePointerMove);
+    this.element.removeEventListener('pointerup', this._handleMouseUp);
     this.element.removeEventListener('pointerrawupdate', this._handlePointerMove);
     this.element.removeEventListener('mousedown', this._handleMouseDown);
     window.removeEventListener('mouseup', this._handleMouseUp);

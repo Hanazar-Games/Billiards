@@ -25,10 +25,9 @@ export class NineBallRules {
     this.scratch = false;
     this.firstBallHit = null;
     this.railContactAfterFirstHit = false;
-    this.targetBall = 1; // lowest ball on table
     this.breakShot = true;
     this.pocketedBalls = []; // all pocketed ball IDs
-    this.breakRailContacts = 0; // balls contacting rail on break (for 4-ball rule)
+    this.breakRailContacts = new Set(); // distinct balls contacting rail on break (for 4-ball rule)
   }
 
   startShot(player) {
@@ -49,14 +48,16 @@ export class NineBallRules {
     if (this.firstBallHit !== null) {
       this.railContactAfterFirstHit = true;
     }
-    // Count unique balls hitting a rail during break shot (WPA 4-ball rule)
+    // Track distinct object balls hitting a rail during break shot (WPA 4-ball rule)
     if (this.breakShot && ballId !== 0 && ballId !== undefined) {
-      // Simple count — a ball may hit rail multiple times, but we just need
-      // to know whether at least 4 distinct balls contacted a rail.
-      // We approximate by incrementing each cushion hit; on break, any
-      // substantial rail contact usually indicates the ball reached the rail.
-      this.breakRailContacts++;
+      this.breakRailContacts.add(ballId);
     }
+  }
+
+  _currentTarget() {
+    let target = 1;
+    while (target <= 9 && this.pocketedBalls.includes(target)) target++;
+    return target > 9 ? 9 : target;
   }
 
   setTargetBall(target) {
@@ -171,9 +172,9 @@ export class NineBallRules {
       }
 
       // Check WPA 4-ball-to-rail rule: if no ball pocketed, at least 4
-      // balls must hit a rail (or the cue ball must hit a rail after
-      // contacting the 1-ball). We approximate with breakRailContacts >= 4.
-      if (pocketedIds.length === 0 && this.breakRailContacts < 4) {
+      // distinct object balls must hit a rail (or cue ball must hit a rail
+      // after contacting the 1-ball).
+      if (pocketedIds.length === 0 && this.breakRailContacts.size < 4 && !this.railContactAfterFirstHit) {
         this.foul = true;
         return {
           nextPlayer: opponent,
@@ -190,7 +191,7 @@ export class NineBallRules {
         nextPlayer: this.currentPlayer,
         foul: false,
         scratch: false,
-        message: 'Break: legal. Your turn continues.',
+        message: pocketedIds.length > 0 ? 'Break: legal. Your turn continues.' : 'Break: legal. Table is open.',
         gameOver: false,
       };
     }
@@ -198,7 +199,8 @@ export class NineBallRules {
     // Normal shot (not break)
 
     // Foul: did not hit the target ball first
-    if (!cueBallPocketed && this.firstBallHit !== null && this.firstBallHit !== this.targetBall) {
+    const targetBall = this._currentTarget();
+    if (!cueBallPocketed && this.firstBallHit !== null && this.firstBallHit !== targetBall) {
       this.foul = true;
     }
 
@@ -221,8 +223,9 @@ export class NineBallRules {
         const idx = this.pocketedBalls.indexOf(9);
         if (idx !== -1) this.pocketedBalls.splice(idx, 1);
       }
-      // On a foul, any pocketed object balls are spotted — do NOT track them.
-      // Only track balls pocketed on LEGAL shots.
+      // Track pocketed balls (WPA: object balls pocketed on foul remain pocketed;
+      // only the 9-ball is spotted if pocketed on foul).
+      this.trackPocketedBalls(pocketedIds.filter(id => id !== 9));
       return {
         nextPlayer: opponent,
         foul: true,
@@ -234,8 +237,8 @@ export class NineBallRules {
       };
     }
 
-    // Track pocketed balls
-    this.trackPocketedBalls(pocketedIds);
+    // Track pocketed balls (already tracked above if foul; track here for legal shots)
+    if (!this.foul) this.trackPocketedBalls(pocketedIds);
 
     // Check for 9-ball win (9 pocketed on legal shot)
     if (ninePocketed) {
