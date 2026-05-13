@@ -234,9 +234,6 @@ export class Renderer {
   }
 
   onWheel(e) {
-    if (!this._shiftCameraControl) return;
-    e.preventDefault();
-
     let dx = e.deltaX;
     let dy = e.deltaY;
     if (e.deltaMode === 1) { // LINE
@@ -247,7 +244,39 @@ export class Renderer {
       dy *= 100;
     }
 
-    this.panCamera(dx * 0.3, dy * 0.3);
+    const sens = settings.get('mouseSensitivity') || 1.0;
+
+    if (this._shiftCameraControl) {
+      // Shift + two-finger = Pan
+      e.preventDefault();
+      this.panCamera(dx * 0.3 * sens, dy * 0.3 * sens);
+      return;
+    }
+
+    // Two-finger without Shift = Orbit (free look)
+    // Distinguish mouse wheel (mostly vertical) from trackpad two-finger drag:
+    // Mouse wheel typically has |dx| ≈ 0 and |dy| ≫ 0 — keep OrbitControls zoom for that.
+    const isMouseWheel = Math.abs(dx) < 2 && Math.abs(dy) > 2;
+    if (isMouseWheel) return; // let OrbitControls handle zoom
+
+    e.preventDefault();
+    const target = this.controls.target;
+    this._cameraOffset.copy(this.camera.position).sub(target);
+    this._cameraSpherical.setFromVector3(this._cameraOffset);
+    this._cameraSpherical.theta -= dx * 0.003 * sens;
+    this._cameraSpherical.phi -= dy * 0.003 * sens;
+    this._cameraSpherical.phi = Math.max(
+      0.12,
+      Math.min(this.controls.maxPolarAngle, this._cameraSpherical.phi)
+    );
+    this._cameraSpherical.radius = Math.max(
+      this.controls.minDistance,
+      Math.min(this.controls.maxDistance, this._cameraSpherical.radius)
+    );
+    this._cameraOffset.setFromSpherical(this._cameraSpherical);
+    this.camera.position.copy(target).add(this._cameraOffset);
+    this.camera.lookAt(target);
+    this.controls.update();
   }
 
   render() {
