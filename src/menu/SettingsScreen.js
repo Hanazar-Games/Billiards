@@ -261,6 +261,20 @@ export class SettingsScreen {
       settings.set('defaultCamera', v);
     });
 
+    // ── Minimap ──
+    this._sectionTitle('小地图', true);
+    this._row('显示小地图',
+      this._createSwitch(settings.get('minimapEnabled'), (v) => {
+        settings.set('minimapEnabled', v);
+      })
+    );
+    this._rowSlider('小地图尺寸', settings.get('minimapSize'), 80, 260, 'px', (v) => {
+      settings.set('minimapSize', v);
+    });
+    this._rowSlider('小地图透明度', Math.round(settings.get('minimapOpacity') * 100), 20, 100, '%', (v) => {
+      settings.set('minimapOpacity', v / 100);
+    });
+
     this._row('自动追踪白球',
       this._createSwitch(settings.get('autoFollowCueBall'), (v) => {
         settings.set('autoFollowCueBall', v);

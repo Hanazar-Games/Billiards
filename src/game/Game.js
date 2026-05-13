@@ -9,6 +9,7 @@ import { NineBallRules } from './NineBallRules.js';
 import { AchievementSystem } from '../achievements/AchievementSystem.js';
 import { AchievementPanel } from '../achievements/AchievementPanel.js';
 import { UI } from '../ui/UI.js';
+import { Minimap } from '../ui/Minimap.js';
 import { AudioManager } from '../audio/AudioManager.js';
 import { AIPlayer, AI_DIFFICULTY } from '../ai/AIPlayer.js';
 import { TrajectoryPredictor } from './TrajectoryPredictor.js';
@@ -53,6 +54,7 @@ export class Game {
     this.shockwaves = new ImpactShockwave(this.scene);
     this.screenShake = new ScreenShake(this.camera);
     this.powerLabel = new PowerLabel();
+    this.minimap = new Minimap();
     this.recorder = new ShotRecorder();
     this.replayLibrary = null; // injected by MenuSystem
 
@@ -143,6 +145,11 @@ export class Game {
     this.statsTracker.reset();
     this.particles.clear();
     this.gameStartTime = performance.now();
+
+    // Mount minimap into UI layer
+    const uiLayer = document.getElementById('ui-layer');
+    if (uiLayer) this.minimap.mount(uiLayer);
+    if (this.table) this.minimap.setPocketPositions(this.table.getPocketPositions());
 
     this.ui.setPlayerTurn(1);
     if (this.mode === 'freeplay') {
@@ -742,6 +749,10 @@ export class Game {
     this.particles.update(dt);
     this.shockwaves.update(dt);
     this.screenShake.update(dt);
+    if (this.minimap && this.ballsManager) {
+      this.minimap.updateBallData(this.ballsManager.balls);
+      this.minimap.draw();
+    }
     if (this.challengeManager) {
       this._updateChallengeHUD();
       // Auto-end challenge when completed or failed (debounced, 2s delay)
@@ -1609,6 +1620,10 @@ export class Game {
     if (this.powerLabel) {
       this.powerLabel.dispose();
       this.powerLabel = null;
+    }
+    if (this.minimap) {
+      this.minimap.dispose();
+      this.minimap = null;
     }
 
     // Stop audio (only dispose if we own the instance)

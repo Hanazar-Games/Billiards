@@ -44,6 +44,11 @@ const DEFAULTS = {
   invertMouseX: true,
   invertMouseY: true,
 
+  // Minimap
+  minimapEnabled: true,
+  minimapSize: 140,
+  minimapOpacity: 0.85,
+
   // Keybindings
   keybindingPreset: 'win',
   customKeybindingPresets: {},
