@@ -45,7 +45,7 @@ export class Renderer {
     this.controls.enableRotate = false;
     this.controls.enablePan = false;
     this.controls.enableZoom = true;
-    this.controls.zoomSpeed = 0.85;
+    this.controls.zoomSpeed = 0.85 * (settings.get('cameraZoomSens') || 1.0);
     this.controls.target.set(0, 0, 0);
     this.controls.mouseButtons = {
       LEFT: THREE.MOUSE.ROTATE,
@@ -168,8 +168,10 @@ export class Renderer {
 
     const sens = settings.get('mouseSensitivity') || 1.0;
 
+    const rotateSens = (settings.get('cameraRotateSens') || 1.0);
     if (this._cameraDragMode === 'pan') {
-      this.panCamera(dx * sens, dy * sens);
+      const panSens = (settings.get('cameraPanSens') || 1.0);
+      this.panCamera(dx * sens * panSens, dy * sens * panSens);
       e.preventDefault();
       return;
     }
@@ -177,8 +179,8 @@ export class Renderer {
     const target = this.controls.target;
     this._cameraOffset.copy(this.camera.position).sub(target);
     this._cameraSpherical.setFromVector3(this._cameraOffset);
-    this._cameraSpherical.theta -= dx * 0.006 * sens;
-    this._cameraSpherical.phi -= dy * 0.006 * sens;
+    this._cameraSpherical.theta -= dx * 0.006 * sens * rotateSens;
+    this._cameraSpherical.phi -= dy * 0.006 * sens * rotateSens;
     this._cameraSpherical.phi = Math.max(0.12, Math.min(this.controls.maxPolarAngle, this._cameraSpherical.phi));
     this._cameraSpherical.radius = Math.max(
       this.controls.minDistance,
@@ -246,10 +248,14 @@ export class Renderer {
 
     const sens = settings.get('mouseSensitivity') || 1.0;
 
+    const rotateSens = (settings.get('cameraRotateSens') || 1.0);
+    const panSens = (settings.get('cameraPanSens') || 1.0);
+    const trackSens = (settings.get('trackpadSens') || 1.0);
+
     if (this._shiftCameraControl) {
       // Shift + two-finger = Pan
       e.preventDefault();
-      this.panCamera(dx * 0.3 * sens, dy * 0.3 * sens);
+      this.panCamera(dx * 0.3 * sens * panSens * trackSens, dy * 0.3 * sens * panSens * trackSens);
       return;
     }
 
@@ -263,8 +269,8 @@ export class Renderer {
     const target = this.controls.target;
     this._cameraOffset.copy(this.camera.position).sub(target);
     this._cameraSpherical.setFromVector3(this._cameraOffset);
-    this._cameraSpherical.theta -= dx * 0.003 * sens;
-    this._cameraSpherical.phi -= dy * 0.003 * sens;
+    this._cameraSpherical.theta -= dx * 0.003 * sens * rotateSens * trackSens;
+    this._cameraSpherical.phi -= dy * 0.003 * sens * rotateSens * trackSens;
     this._cameraSpherical.phi = Math.max(
       0.12,
       Math.min(this.controls.maxPolarAngle, this._cameraSpherical.phi)

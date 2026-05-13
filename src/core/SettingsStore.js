@@ -24,8 +24,23 @@ const DEFAULTS = {
   defaultCamera: 'free', // 'free' | 'top' | 'follow'
   autoFollowCueBall: false,
 
-  // Controls
+  // Controls — Camera
   mouseSensitivity: 1.0,
+  cameraRotateSens: 1.0,
+  cameraPanSens: 1.0,
+  cameraZoomSens: 1.0,
+
+  // Controls — Shot & Aim
+  shotPowerSens: 1.0,
+  aimSens: 1.0,
+  spinStepSens: 1.0,
+  trackpadSens: 1.0,
+
+  // Controls — Effects & UI
+  screenShakeIntensity: 1.0,
+  uiAnimSpeed: 1.0,
+
+  // Keybindings
   keybindingPreset: 'win',
   customKeybindingPresets: {},
   keyBindings: {

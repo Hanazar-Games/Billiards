@@ -10,6 +10,7 @@
  * to zero rather than snapping back to a stale original position.
  */
 import * as THREE from 'three';
+import { settings } from '../core/SettingsStore.js';
 
 const _UP = new THREE.Vector3(0, 1, 0);
 
@@ -35,10 +36,11 @@ export class ScreenShake {
     const maxPower = 82;
     const t = Math.min(power / maxPower, 1.0);
 
+    const shakeScale = settings.get('screenShakeIntensity') ?? 1.0;
     this.active = true;
     this.age = 0;
-    this.duration = 0.18 + t * 0.35; // 0.18s … 0.53s
-    this.intensity = 0.3 + t * 2.2;  // 0.3 … 2.5 units
+    this.duration = (0.18 + t * 0.35) * shakeScale; // 0.18s … 0.53s
+    this.intensity = (0.3 + t * 2.2) * shakeScale;  // 0.3 … 2.5 units
     this._currentOffset.set(0, 0, 0);
 
     // Build two perpendicular axes for shake

@@ -380,7 +380,8 @@ export class Game {
     const dragX = this.input.mouseX - this.dragStart.x;
     const dragY = this.input.mouseY - this.dragStart.y;
     const pullDistance = Math.max(0, dragX * pullX + dragY * pullY);
-    this.power = Math.min(SHOT.maxPower, pullDistance * 0.42);
+    const powerSens = settings.get('shotPowerSens') || 1.0;
+    this.power = Math.min(SHOT.maxPower, pullDistance * 0.42 * powerSens);
     this.ui.setPower((this.power / SHOT.maxPower) * 100);
 
     const cuePullback = (this.power / SHOT.maxPower) * 24;
@@ -1248,7 +1249,7 @@ export class Game {
 
       // Cue tip offset controls only in AIM/CHARGING
       if (this.state !== 'AIM' && this.state !== 'CHARGING') return;
-      const step = 0.15;
+      const step = 0.15 * (settings.get('spinStepSens') || 1.0);
       let changed = false;
       // Prevent default for any bound spin key
       if (keyBindings.matches('spinUp', key, mods) || keyBindings.matches('spinDown', key, mods) ||

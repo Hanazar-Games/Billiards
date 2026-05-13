@@ -262,10 +262,45 @@ export class SettingsScreen {
 
   _buildControlsContent() {
     this._sectionTitle('控制');
-    this._sectionSubtitle('鼠标灵敏度与键盘快捷键');
+    this._sectionSubtitle('灵敏度设置与键盘快捷键');
 
+    // ── Camera sensitivity ──
+    this._sectionTitle('视角控制', true);
     this._rowSlider('鼠标灵敏度', Math.round(settings.get('mouseSensitivity') * 100), 50, 200, '%', (v) => {
       settings.set('mouseSensitivity', v / 100);
+    });
+    this._rowSlider('视角旋转速度', Math.round(settings.get('cameraRotateSens') * 100), 30, 200, '%', (v) => {
+      settings.set('cameraRotateSens', v / 100);
+    });
+    this._rowSlider('视角平移速度', Math.round(settings.get('cameraPanSens') * 100), 30, 200, '%', (v) => {
+      settings.set('cameraPanSens', v / 100);
+    });
+    this._rowSlider('滚轮缩放速度', Math.round(settings.get('cameraZoomSens') * 100), 30, 200, '%', (v) => {
+      settings.set('cameraZoomSens', v / 100);
+    });
+
+    // ── Shot & aim sensitivity ──
+    this._sectionTitle('击球与瞄准', true);
+    this._rowSlider('击球力度灵敏度', Math.round(settings.get('shotPowerSens') * 100), 50, 200, '%', (v) => {
+      settings.set('shotPowerSens', v / 100);
+    });
+    this._rowSlider('瞄准响应速度', Math.round(settings.get('aimSens') * 100), 50, 200, '%', (v) => {
+      settings.set('aimSens', v / 100);
+    });
+    this._rowSlider('球杆旋转步长', Math.round(settings.get('spinStepSens') * 100), 30, 200, '%', (v) => {
+      settings.set('spinStepSens', v / 100);
+    });
+    this._rowSlider('触控板灵敏度', Math.round(settings.get('trackpadSens') * 100), 30, 200, '%', (v) => {
+      settings.set('trackpadSens', v / 100);
+    });
+
+    // ── Effects & UI sensitivity ──
+    this._sectionTitle('特效与界面', true);
+    this._rowSlider('屏幕震动强度', Math.round(settings.get('screenShakeIntensity') * 100), 0, 200, '%', (v) => {
+      settings.set('screenShakeIntensity', v / 100);
+    });
+    this._rowSlider('界面动画速度', Math.round(settings.get('uiAnimSpeed') * 100), 50, 150, '%', (v) => {
+      settings.set('uiAnimSpeed', v / 100);
     });
 
     // ── Preset selector ──
