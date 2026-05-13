@@ -160,12 +160,6 @@ export class Game {
     } else {
       this.ui.setMessage('标准 8 球规则：开球后按进球分配全色/花色；清完本组后打进 8 号球获胜。');
     }
-    this.ui.setupAIControls(
-      (enabled) => this.setAIEnabled(enabled),
-      (difficulty) => this.setAIDifficulty(difficulty),
-      (enabled) => this.audio.toggleSound(enabled)
-    );
-
     // Pause menu controls
     this.ui.setupPauseControls(
       () => this._togglePause(),
@@ -174,10 +168,13 @@ export class Game {
       () => { if (this.onReturnToMenu) this.onReturnToMenu(); }
     );
 
-    // Hide AI panel during challenge mode
-    if (this.challengeManager) {
-      this.ui.aiPanel.style.display = 'none';
-    }
+    // Concede button
+    this.ui.setupConcede(() => this._concede());
+
+    // Match info
+    const objective = this._getObjectiveText();
+    this.ui.setMatchInfo(objective);
+    this._updatePlayerStats();
     this._onToggleTrajectory = (e) => {
       this.trajectoryEnabled = Boolean(e.detail);
       this.setAimTrajectoryVisible(this.state === 'AIM');
@@ -750,6 +747,11 @@ export class Game {
     this.particles.update(dt);
     this.shockwaves.update(dt);
     this.screenShake.update(dt);
+
+    // Update match timer
+    if (this.gameStartTime) {
+      this.ui.updateTimer(performance.now() - this.gameStartTime);
+    }
     if (this.minimap && this.ballsManager) {
       this.minimap.updateBallData(this.ballsManager.balls);
       this.minimap.draw();
@@ -921,6 +923,7 @@ export class Game {
 
     const status = this.rules.getStatus();
     this.ui.setPlayerGroups(status.player1Group, status.player2Group);
+    this._updatePlayerStats();
 
     if (result.foul || result.scratch) {
       this.audio.playFoul();
@@ -1073,6 +1076,8 @@ export class Game {
     }
     this.ui.hideResetButton();
     this.ui.showResetButton(() => this.resetGame());
+    this.ui.setMatchInfo(this._getObjectiveText());
+    this._updatePlayerStats();
     this.cue.show();
     this.setAimTrajectoryVisible(true);
   }
@@ -1463,6 +1468,38 @@ export class Game {
   _hidePause() {
     this.paused = false;
     this.ui.hidePauseMenu();
+  }
+
+  _getObjectiveText() {
+    if (this.challengeManager) return '挑战模式';
+    if (this.mode === 'freeplay') return '练习模式 · 自由击球';
+    if (this.mode === '9ball') return '9球模式 · 先进9号球获胜';
+    if (this.aiEnabled) return '标准8球 · 对战AI · 清台获胜';
+    return '标准8球 · 清台获胜';
+  }
+
+  _updatePlayerStats() {
+    const status = this.rules ? this.rules.getStatus() : null;
+    const p2Name = this.aiEnabled ? 'AI' : 'Player 2';
+    this.ui.setPlayerStats({
+      p1Name: 'Player 1',
+      p1Group: status?.player1Group ?? null,
+      p1Remaining: status?.player1Remaining ?? 7,
+      p2Name,
+      p2Group: status?.player2Group ?? null,
+      p2Remaining: status?.player2Remaining ?? 7,
+    });
+  }
+
+  _concede() {
+    if (this.mode === 'freeplay') return;
+    const winner = this.currentPlayer === 1 ? 2 : 1;
+    this.ui.setMessage(`Player ${winner} 获胜！（对手认输）`, 0);
+    this.state = 'GAME_OVER';
+    this.cue.hide();
+    this.audio.playWin();
+    this.ui.showResetButton(() => this.resetGame());
+    this.ui.setPlayerTurn(winner);
   }
 
   _openInGameSettings() {

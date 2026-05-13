@@ -9,13 +9,16 @@ export class UI {
     this.message = document.getElementById('message');
     this.powerFill = document.getElementById('power-bar-fill');
     this._messageTimer = null;
-    this._messageId = 0; // monotonic counter to prevent stale timers clearing new messages
-    this._aiListeners = []; // { el, type, fn }
+    this._messageId = 0;
+    this._aiListeners = [];
     this._flashTimer = null;
     this._pauseHideTimer = null;
     this._settingsHideTimer = null;
     this._floatTimers = [];
 
+    const uiLayer = document.getElementById('ui-layer');
+
+    // ── Player group labels (kept for compatibility, shown inside badges) ──
     this.player1Group = document.createElement('div');
     this.player1Group.id = 'player1-group';
     this.player1Group.style.cssText = 'font-size:12px;opacity:0.8;margin-top:4px;';
@@ -26,87 +29,78 @@ export class UI {
     this.player2Group.style.cssText = 'font-size:12px;opacity:0.8;margin-top:4px;';
     if (this.player2Badge) this.player2Badge.appendChild(this.player2Group);
 
-    // Reset button
-    this.resetBtn = document.createElement('button');
-    this.resetBtn.textContent = 'New Game';
-    this.resetBtn.style.cssText = `
-      position: absolute; top: 70px; left: 50%; transform: translateX(-50%);
-      padding: 9px 18px; font-size: 13px; font-weight: 750;
-      background: rgba(18,20,23,0.62); color: #fff; border: 1px solid rgba(255,255,255,0.22);
-      border-radius: 8px; cursor: pointer; pointer-events: auto; backdrop-filter: blur(10px);
-      display: none; transition: background calc(0.2s / var(--ui-anim-speed));
-      box-shadow: 0 10px 30px rgba(0,0,0,0.28);
-    `;
-    this.resetBtn.onmouseenter = () => this.resetBtn.style.background = 'rgba(255,255,255,0.18)';
-    this.resetBtn.onmouseleave = () => this.resetBtn.style.background = 'rgba(18,20,23,0.62)';
-    const uiLayer = document.getElementById('ui-layer');
-    if (uiLayer) uiLayer.appendChild(this.resetBtn);
+    // ── Bottom HUD ──
+    this.bottomHud = document.createElement('div');
+    this.bottomHud.id = 'bottom-hud';
 
-    // AI controls container
-    this.aiPanel = document.createElement('div');
-    this.aiPanel.style.cssText = `
-      position: absolute; top: 122px; left: 50%; transform: translateX(-50%);
-      display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-      pointer-events: auto; background: rgba(10,12,15,0.58);
-      padding: 9px 14px; border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.16);
-      backdrop-filter: blur(12px);
-      box-shadow: 0 12px 32px rgba(0,0,0,0.26);
-    `;
+    // Main info row
+    const hudMain = document.createElement('div');
+    hudMain.id = 'bottom-hud-main';
 
-    // AI toggle
-    this.aiToggle = document.createElement('label');
-    this.aiToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;';
-    this.aiToggle.innerHTML = `
-      <input type="checkbox" id="ai-toggle" style="cursor:pointer;">
-      <span>vs AI</span>
-    `;
-    this.aiPanel.appendChild(this.aiToggle);
+    // Player 1 side
+    this._hudP1 = document.createElement('div');
+    this._hudP1.className = 'hud-side hud-left';
+    this._hudP1Name = document.createElement('div');
+    this._hudP1Name.className = 'hud-name active';
+    this._hudP1Name.textContent = 'Player 1';
+    this._hudP1Detail = document.createElement('div');
+    this._hudP1Detail.className = 'hud-detail';
+    this._hudP1.appendChild(this._hudP1Name);
+    this._hudP1.appendChild(this._hudP1Detail);
+    hudMain.appendChild(this._hudP1);
 
-    // Difficulty select
-    this.diffSelect = document.createElement('select');
-    this.diffSelect.id = 'ai-difficulty';
-    this.diffSelect.style.cssText = `
-      background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 6px; padding: 4px 9px; font-size: 12px; cursor: pointer;
-    `;
-    this.diffSelect.innerHTML = `
-      <option value="easy" style="background:#333;">Easy</option>
-      <option value="normal" style="background:#333;" selected>Normal</option>
-      <option value="hard" style="background:#333;">Hard</option>
-    `;
-    this.aiPanel.appendChild(this.diffSelect);
+    // Center: timer + objective
+    this._hudCenter = document.createElement('div');
+    this._hudCenter.className = 'hud-center';
+    this._hudTimer = document.createElement('div');
+    this._hudTimer.className = 'hud-timer';
+    this._hudTimer.textContent = '00:00';
+    this._hudObjective = document.createElement('div');
+    this._hudObjective.className = 'hud-objective';
+    this._hudObjective.textContent = '';
+    this._hudCenter.appendChild(this._hudTimer);
+    this._hudCenter.appendChild(this._hudObjective);
+    hudMain.appendChild(this._hudCenter);
 
-    // Trajectory toggle
-    this.trajToggle = document.createElement('label');
-    this.trajToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;margin-left:4px;';
-    this.trajToggle.innerHTML = `
-      <input type="checkbox" id="traj-toggle" checked style="cursor:pointer;">
-      <span>Aim Line</span>
-    `;
-    this.aiPanel.appendChild(this.trajToggle);
+    // Player 2 side
+    this._hudP2 = document.createElement('div');
+    this._hudP2.className = 'hud-side hud-right';
+    this._hudP2Name = document.createElement('div');
+    this._hudP2Name.className = 'hud-name';
+    this._hudP2Name.textContent = 'Player 2';
+    this._hudP2Detail = document.createElement('div');
+    this._hudP2Detail.className = 'hud-detail';
+    this._hudP2.appendChild(this._hudP2Name);
+    this._hudP2.appendChild(this._hudP2Detail);
+    hudMain.appendChild(this._hudP2);
 
-    // Shot trail toggle
-    this.trailToggle = document.createElement('label');
-    this.trailToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;margin-left:4px;';
-    this.trailToggle.innerHTML = `
-      <input type="checkbox" id="trail-toggle" checked style="cursor:pointer;">
-      <span>Trail</span>
-    `;
-    this.aiPanel.appendChild(this.trailToggle);
+    this.bottomHud.appendChild(hudMain);
 
-    // Sound toggle
-    this.soundToggle = document.createElement('label');
-    this.soundToggle.style.cssText = 'display:flex;align-items:center;gap:6px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;margin-left:4px;border-left:1px solid rgba(255,255,255,0.18);padding-left:12px;';
-    this.soundToggle.innerHTML = `
-      <input type="checkbox" id="sound-toggle" style="cursor:pointer;">
-      <span>Sound</span>
-    `;
-    this.aiPanel.appendChild(this.soundToggle);
+    // Action buttons row
+    const hudActions = document.createElement('div');
+    hudActions.id = 'bottom-hud-actions';
 
-    if (uiLayer) uiLayer.appendChild(this.aiPanel);
+    this._hudNewGameBtn = document.createElement('button');
+    this._hudNewGameBtn.className = 'hud-btn';
+    this._hudNewGameBtn.textContent = 'New Game';
+    this._hudNewGameBtn.style.display = 'none';
+    hudActions.appendChild(this._hudNewGameBtn);
 
-    // Pause button (top-right gear)
+    this._hudConcedeBtn = document.createElement('button');
+    this._hudConcedeBtn.className = 'hud-btn hud-btn-danger';
+    this._hudConcedeBtn.textContent = '认输';
+    hudActions.appendChild(this._hudConcedeBtn);
+
+    this._hudSettingsBtn = document.createElement('button');
+    this._hudSettingsBtn.className = 'hud-btn';
+    this._hudSettingsBtn.textContent = '⚙️ 设置';
+    hudActions.appendChild(this._hudSettingsBtn);
+
+    this.bottomHud.appendChild(hudActions);
+
+    if (uiLayer) uiLayer.appendChild(this.bottomHud);
+
+    // ── Pause button (top-right gear) ──
     this.pauseBtn = document.createElement('button');
     this.pauseBtn.textContent = '⚙️';
     this.pauseBtn.style.cssText = `
@@ -130,7 +124,7 @@ export class UI {
     };
     if (uiLayer) uiLayer.appendChild(this.pauseBtn);
 
-    // Pause overlay (fullscreen dark backdrop)
+    // ── Pause overlay ──
     this.pauseOverlay = document.createElement('div');
     this.pauseOverlay.style.cssText = `
       position: fixed; inset: 0; z-index: 50;
@@ -141,7 +135,6 @@ export class UI {
       opacity: 0; transition: opacity calc(0.3s / var(--ui-anim-speed)) ease;
     `;
 
-    // Pause menu panel
     const pausePanel = document.createElement('div');
     pausePanel.style.cssText = `
       background: var(--panel-strong);
@@ -256,14 +249,12 @@ export class UI {
 
     this._inGameSettingCards = [];
 
-    // Scrollable content area
     const settingsContent = document.createElement('div');
     settingsContent.style.cssText = `
       flex: 1; overflow-y: auto;
       padding: 8px 20px 20px;
     `;
 
-    // Helper: row item with label + control + divider
     const createCard = (title, subtitle, control) => {
       const card = document.createElement('div');
       card.style.cssText = `
@@ -290,7 +281,6 @@ export class UI {
       return card;
     };
 
-    // Toggle helper — iOS style
     const createToggle = (checked, onChange) => {
       const wrap = document.createElement('label');
       wrap.style.cssText = 'position:relative;display:inline-block;width:48px;height:28px;flex-shrink:0;cursor:pointer;';
@@ -323,7 +313,6 @@ export class UI {
       return { wrap, input };
     };
 
-    // Slider helper — white-knob style
     const createSlider = (value, min, max, onChange) => {
       const wrap = document.createElement('div');
       wrap.style.cssText = 'display:flex;align-items:center;gap:14px;min-width:160px;flex-shrink:0;';
@@ -370,7 +359,6 @@ export class UI {
       return { wrap, input };
     };
 
-    // Select helper — pill group
     const createSelect = (value, options, onChange) => {
       const wrap = document.createElement('div');
       wrap.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0;';
@@ -422,33 +410,9 @@ export class UI {
     this._aiListeners.push({ el, type, fn });
   }
 
+  // Kept for backward-compat; top-bar AI controls removed — settings overlay handles these now
   setupAIControls(onAIToggle, onDiffChange, onSoundToggle) {
-    const checkbox = this.aiToggle.querySelector('input');
-    const onAIChange = (e) => {
-      const enabled = e.target.checked;
-      onAIToggle(enabled);
-      this.diffSelect.disabled = !enabled;
-      this.diffSelect.style.opacity = enabled ? '1' : '0.4';
-      if (this.player2Badge) {
-        this.player2Badge.childNodes[0].textContent = enabled ? 'AI' : 'Player 2';
-      }
-    };
-    this._addTrackedListener(checkbox, 'change', onAIChange);
-
-    const onDiff = (e) => onDiffChange(e.target.value);
-    this._addTrackedListener(this.diffSelect, 'change', onDiff);
-
-    const trajCheckbox = this.trajToggle.querySelector('input');
-    const onTraj = (e) => window.dispatchEvent(new CustomEvent('toggleTrajectory', { detail: e.target.checked }));
-    this._addTrackedListener(trajCheckbox, 'change', onTraj);
-
-    const trailCheckbox = this.trailToggle.querySelector('input');
-    const onTrail = (e) => window.dispatchEvent(new CustomEvent('toggleShotTrail', { detail: e.target.checked }));
-    this._addTrackedListener(trailCheckbox, 'change', onTrail);
-
-    const soundCheckbox = this.soundToggle.querySelector('input');
-    const onSound = (e) => { if (onSoundToggle) onSoundToggle(e.target.checked); };
-    this._addTrackedListener(soundCheckbox, 'change', onSound);
+    // No-op: controls moved to in-game settings panel
   }
 
   setPower(pct) {
@@ -477,6 +441,37 @@ export class UI {
     }
   }
 
+  // ── Bottom HUD API ──
+
+  setMatchInfo(objectiveText) {
+    if (this._hudObjective) this._hudObjective.textContent = objectiveText || '';
+  }
+
+  updateTimer(elapsedMs) {
+    if (!this._hudTimer) return;
+    const totalSec = Math.floor(elapsedMs / 1000);
+    const min = String(Math.floor(totalSec / 60)).padStart(2, '0');
+    const sec = String(totalSec % 60).padStart(2, '0');
+    this._hudTimer.textContent = `${min}:${sec}`;
+  }
+
+  setPlayerStats({ p1Name, p1Group, p1Remaining, p2Name, p2Group, p2Remaining }) {
+    if (this._hudP1Name) this._hudP1Name.textContent = p1Name || 'Player 1';
+    if (this._hudP2Name) this._hudP2Name.textContent = p2Name || 'Player 2';
+
+    const groupLabel = (g) => {
+      if (!g) return '未分组';
+      return g === 'solid' ? '● 全色' : '◯ 花色';
+    };
+
+    if (this._hudP1Detail) {
+      this._hudP1Detail.innerHTML = `<span class="hud-group">${groupLabel(p1Group)}</span><span class="hud-remain">剩 ${p1Remaining ?? 7}</span>`;
+    }
+    if (this._hudP2Detail) {
+      this._hudP2Detail.innerHTML = `<span class="hud-group">${groupLabel(p2Group)}</span><span class="hud-remain">剩 ${p2Remaining ?? 7}</span>`;
+    }
+  }
+
   setPlayerTurn(player) {
     if (!this.player1Badge || !this.player2Badge) return;
     if (player === 1) {
@@ -485,6 +480,12 @@ export class UI {
     } else {
       this.player1Badge.classList.remove('active');
       this.player2Badge.classList.add('active');
+    }
+    if (this._hudP1Name) {
+      this._hudP1Name.classList.toggle('active', player === 1);
+    }
+    if (this._hudP2Name) {
+      this._hudP2Name.classList.toggle('active', player === 2);
     }
   }
 
@@ -502,26 +503,38 @@ export class UI {
   }
 
   showResetButton(onClick) {
-    this.resetBtn.style.display = 'block';
-    this.resetBtn.onclick = onClick;
+    if (this._hudNewGameBtn) {
+      this._hudNewGameBtn.style.display = 'inline-block';
+      this._hudNewGameBtn.onclick = onClick;
+    }
   }
 
   hideResetButton() {
-    this.resetBtn.style.display = 'none';
-    this.resetBtn.onclick = null;
+    if (this._hudNewGameBtn) {
+      this._hudNewGameBtn.style.display = 'none';
+      this._hudNewGameBtn.onclick = null;
+    }
   }
 
   setupPauseControls(onPauseClick, onResume, onSettings, onQuit) {
     if (this.pauseBtn) {
       this.pauseBtn.onclick = onPauseClick;
     }
-    // Clear old actions
+    if (this._hudSettingsBtn) {
+      this._hudSettingsBtn.onclick = onSettings;
+    }
     this._pauseActions.forEach(btn => btn.remove());
     this._pauseActions = [];
 
     this._addPauseAction('继续游戏', '', onResume);
     this._addPauseAction('设置', '', onSettings);
     this._addPauseAction('返回主菜单', 'color: #ff8a9a; border-color: rgba(185,18,63,0.35);', onQuit);
+  }
+
+  setupConcede(onConcede) {
+    if (this._hudConcedeBtn) {
+      this._hudConcedeBtn.onclick = onConcede;
+    }
   }
 
   showPauseMenu() {
@@ -544,13 +557,10 @@ export class UI {
 
   showInGameSettings(audioManager) {
     if (!this.settingsOverlay) return;
-    // Rebuild cards to sync current values
     const s = this._inGameSettings;
-    // Clear old cards except header/back button
     this._inGameSettingCards.forEach(c => c.remove());
     this._inGameSettingCards = [];
 
-    // Sound toggle
     const { input: soundInput } = s.createToggle(
       settings.get('soundEnabled'),
       (v) => {
@@ -560,14 +570,12 @@ export class UI {
     );
     s.createCard('音效', '开启或关闭所有游戏音效', soundInput.parentElement);
 
-    // Master volume
     const { wrap: volWrap } = s.createSlider(
       settings.get('masterVolume'), 0, 100,
       (v) => { settings.set('masterVolume', v); if (audioManager) audioManager.setMasterVolume(v); }
     );
     s.createCard('主音量', '整体输出音量', volWrap);
 
-    // Trajectory
     const { input: trajInput } = s.createToggle(
       settings.get('trajectoryEnabled'),
       (v) => {
@@ -577,7 +585,6 @@ export class UI {
     );
     s.createCard('轨迹预测线', '显示白球击球后的运动轨迹', trajInput.parentElement);
 
-    // Shot trails
     const { input: trailInput } = s.createToggle(
       settings.get('shotTrailsEnabled'),
       (v) => {
@@ -587,14 +594,12 @@ export class UI {
     );
     s.createCard('击球拖尾', '球运动时的尾迹效果', trailInput.parentElement);
 
-    // Particles
     const { input: partInput } = s.createToggle(
       settings.get('particlesEnabled'),
       (v) => settings.set('particlesEnabled', v)
     );
     s.createCard('粒子效果', '击球火花与进球喷泉特效', partInput.parentElement);
 
-    // Quality
     const { wrap: qualWrap } = s.createSelect(
       settings.get('quality'),
       [{ value: 'low', label: '低' }, { value: 'medium', label: '中' }, { value: 'high', label: '高' }],
@@ -602,7 +607,6 @@ export class UI {
     );
     s.createCard('画质等级', '调整渲染质量以平衡性能', qualWrap);
 
-    // Camera
     const { wrap: camWrap } = s.createSelect(
       settings.get('defaultCamera'),
       [{ value: 'free', label: '自由视角' }, { value: 'top', label: '俯视视角' }, { value: 'follow', label: '跟随视角' }],
@@ -627,9 +631,6 @@ export class UI {
     }, 300);
   }
 
-  /**
-   * Brief red flash overlay for foul/scratch feedback.
-   */
   flashRed() {
     const uiLayer = document.getElementById('ui-layer');
     if (!uiLayer) return;
@@ -653,9 +654,6 @@ export class UI {
     }, animMs(350));
   }
 
-  /**
-   * Floating text that rises and fades — used for pocketed-ball feedback.
-   */
   showFloatingText(text, screenX, screenY, color = '#d8b15f') {
     const uiLayer = document.getElementById('ui-layer');
     if (!uiLayer) return;
@@ -692,7 +690,6 @@ export class UI {
     if (flash && flash.parentNode) flash.parentNode.removeChild(flash);
     const floats = document.querySelectorAll('.ui-float-text');
     floats.forEach(el => { if (el.parentNode) el.parentNode.removeChild(el); });
-    // Remove all tracked event listeners
     for (const { el, type, fn } of this._aiListeners) {
       el.removeEventListener(type, fn);
     }
@@ -704,32 +701,29 @@ export class UI {
     if (this.player2Group && this.player2Group.parentNode) {
       this.player2Group.parentNode.removeChild(this.player2Group);
     }
-    if (this.resetBtn) {
-      this.resetBtn.onmouseenter = null;
-      this.resetBtn.onmouseleave = null;
-      this.resetBtn.onclick = null;
-      if (this.resetBtn.parentNode) this.resetBtn.parentNode.removeChild(this.resetBtn);
-    }
-    if (this.aiPanel && this.aiPanel.parentNode) {
-      this.aiPanel.parentNode.removeChild(this.aiPanel);
-    }
     this.player1Badge = null;
     this.player2Badge = null;
     this.message = null;
     this.powerFill = null;
     this.player1Group = null;
     this.player2Group = null;
-    this.resetBtn = null;
-    this.aiPanel = null;
-    this.aiToggle = null;
-    this.diffSelect = null;
-    this.trajToggle = null;
-    this.trailToggle = null;
-    this.soundToggle = null;
-    this._pauseHideTimer = null;
-    this._settingsHideTimer = null;
-    this._flashTimer = null;
-    this._floatTimers = [];
+
+    if (this.bottomHud && this.bottomHud.parentNode) {
+      this.bottomHud.parentNode.removeChild(this.bottomHud);
+    }
+    this.bottomHud = null;
+    this._hudP1 = null;
+    this._hudP1Name = null;
+    this._hudP1Detail = null;
+    this._hudP2 = null;
+    this._hudP2Name = null;
+    this._hudP2Detail = null;
+    this._hudCenter = null;
+    this._hudTimer = null;
+    this._hudObjective = null;
+    this._hudNewGameBtn = null;
+    this._hudConcedeBtn = null;
+    this._hudSettingsBtn = null;
 
     if (this.pauseBtn) {
       this.pauseBtn.onmouseenter = null;
