@@ -1259,18 +1259,23 @@ export class Game {
           break;
       }
       if (keyBindings.matches('spinUp', key)) {
+        e.preventDefault();
         this.cueTipOffset.y = Math.min(0.88, this.cueTipOffset.y + step);
         changed = true;
       } else if (keyBindings.matches('spinDown', key)) {
+        e.preventDefault();
         this.cueTipOffset.y = Math.max(-0.88, this.cueTipOffset.y - step);
         changed = true;
       } else if (keyBindings.matches('spinLeft', key)) {
+        e.preventDefault();
         this.cueTipOffset.x = Math.max(-0.88, this.cueTipOffset.x - step);
         changed = true;
       } else if (keyBindings.matches('spinRight', key)) {
+        e.preventDefault();
         this.cueTipOffset.x = Math.min(0.88, this.cueTipOffset.x + step);
         changed = true;
       } else if (keyBindings.matches('spinReset', key)) {
+        e.preventDefault();
         this.cueTipOffset.x = 0;
         this.cueTipOffset.y = 0;
         changed = true;

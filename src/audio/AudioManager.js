@@ -393,6 +393,8 @@ export class AudioManager {
       this.ctx = null;
     }
     this._masterGain = null;
+    this._bgmGain = null;
+    this._sfxGain = null;
     this.enabled = false;
     this.initialized = false;
     this._lastSfxTime.clear();

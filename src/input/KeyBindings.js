@@ -27,6 +27,12 @@ export class KeyBindings {
     this._waitingAction = null;
     this._waitingCallback = null;
     this._keyDownHandler = this._onKeyDown.bind(this);
+    this._onSettingsChanged = (e) => {
+      if (e.detail.key === 'keyBindings') {
+        this._bindings = this._load();
+      }
+    };
+    window.addEventListener('settingsChanged', this._onSettingsChanged);
   }
 
   _load() {
@@ -88,15 +94,16 @@ export class KeyBindings {
 
   /** Enter "listening" mode: the next key pressed becomes the new binding for action. */
   startListening(action, onKey) {
+    this.cancelListening();
     this._waitingAction = action;
     this._waitingCallback = onKey;
-    window.addEventListener('keydown', this._keyDownHandler, { once: true });
+    window.addEventListener('keydown', this._keyDownHandler);
   }
 
   cancelListening() {
+    window.removeEventListener('keydown', this._keyDownHandler);
     this._waitingAction = null;
     this._waitingCallback = null;
-    window.removeEventListener('keydown', this._keyDownHandler);
   }
 
   _onKeyDown(e) {
@@ -104,6 +111,7 @@ export class KeyBindings {
     // Ignore modifier-only keys
     if (['shift', 'control', 'alt', 'meta'].includes(e.key.toLowerCase())) return;
     const key = e.key.toLowerCase();
+    window.removeEventListener('keydown', this._keyDownHandler);
     this._waitingCallback(this._waitingAction, key);
     this._waitingAction = null;
     this._waitingCallback = null;

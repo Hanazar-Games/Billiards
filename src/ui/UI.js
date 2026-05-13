@@ -520,11 +520,11 @@ export class UI {
     s.createCard('音效', '开启或关闭所有游戏音效', soundInput.parentElement);
 
     // Master volume
-    const { input: volInput } = s.createSlider(
+    const { wrap: volWrap } = s.createSlider(
       settings.get('masterVolume'), 0, 100,
       (v) => { settings.set('masterVolume', v); if (audioManager) audioManager.setMasterVolume(v); }
     );
-    s.createCard('主音量', '整体输出音量', volInput.parentElement);
+    s.createCard('主音量', '整体输出音量', volWrap);
 
     // Trajectory
     const { input: trajInput } = s.createToggle(
@@ -651,7 +651,12 @@ export class UI {
       }
       this._inGameSettingCards.forEach(c => {
         const inputs = c.querySelectorAll('input, select');
-        inputs.forEach(i => { i.onchange = null; i.oninput = null; });
+        inputs.forEach(i => {
+          const clone = i.cloneNode(true);
+          i.parentNode.replaceChild(clone, i);
+        });
+        const btns = c.querySelectorAll('button');
+        btns.forEach(b => { b.onmouseenter = null; b.onmouseleave = null; b.onclick = null; });
       });
       this._inGameSettingCards = [];
       if (this.settingsOverlay.parentNode) this.settingsOverlay.parentNode.removeChild(this.settingsOverlay);

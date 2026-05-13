@@ -414,14 +414,15 @@ export class SettingsScreen {
     };
     update();
 
-    input.addEventListener('change', () => {
+    const onChangeFn = () => {
       update();
       onChange(input.checked);
-    });
+    };
+    input.addEventListener('change', onChangeFn);
 
     wrap.appendChild(input);
     wrap.appendChild(slider);
-    this._listeners.push({ el: input, type: 'change', fn: () => {} });
+    this._listeners.push({ el: input, type: 'change', fn: onChangeFn });
     return wrap;
   }
 
@@ -486,13 +487,15 @@ export class SettingsScreen {
       font-size: 13px; font-weight: 700; color: var(--text);
       min-width: 40px; text-align: right; font-variant-numeric: tabular-nums;
     `;
-    input.addEventListener('input', () => {
+    const onLabelFn = () => {
       valueLabel.textContent = this._formatValue(key, input.value);
-    });
+    };
+    input.addEventListener('input', onLabelFn);
 
     wrap.appendChild(trackWrap);
     wrap.appendChild(valueLabel);
-    this._listeners.push({ el: input, type: 'input', fn: () => {} });
+    this._listeners.push({ el: input, type: 'input', fn: onInputFn });
+    this._listeners.push({ el: input, type: 'input', fn: onLabelFn });
     return wrap;
   }
 
@@ -530,7 +533,8 @@ export class SettingsScreen {
     });
     select.value = settings.get(key);
 
-    select.addEventListener('change', () => onChange(select.value));
+    const onSelectFn = () => onChange(select.value);
+    select.addEventListener('change', onSelectFn);
 
     const arrow = document.createElement('span');
     arrow.textContent = '▼';
@@ -541,7 +545,7 @@ export class SettingsScreen {
 
     wrap.appendChild(select);
     wrap.appendChild(arrow);
-    this._listeners.push({ el: select, type: 'change', fn: () => {} });
+    this._listeners.push({ el: select, type: 'change', fn: onSelectFn });
     return wrap;
   }
 
@@ -660,7 +664,7 @@ export class SettingsScreen {
         });
       };
 
-      bindBtn.onclick = onBindClick;
+      bindBtn.addEventListener('click', onBindClick);
       this._listeners.push({ el: bindBtn, type: 'click', fn: onBindClick });
 
       right.appendChild(keyDisplay);

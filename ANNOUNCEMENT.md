@@ -1,6 +1,78 @@
-# 3D Billiards v1.1.0 — Latest Update
+# 3D Billiards v1.2.0 — Latest Update
 
-## What's New in v1.1.0
+## What's New in v1.2.0
+
+### Full Settings Panel — Sidebar + Cards Layout
+
+A brand-new settings screen inspired by hanazargames.com, with a sidebar tab navigation and card-based controls:
+
+- **Audio** — master sound toggle, master volume slider, music volume slider, SFX volume slider. All volumes are independently adjustable and persist across sessions.
+- **Graphics** — trajectory prediction toggle, particle effects toggle, shot-trail toggle, quality preset (Low / Medium / High).
+- **Gameplay** — default camera mode (Free / Top / Follow), auto-follow cue ball toggle.
+- **Controls** — mouse sensitivity slider (0.5× – 2.0×), full key-bindings grid.
+- **General** — one-click reset all settings to defaults.
+
+Settings are persisted in `localStorage` via `SettingsStore`; every change dispatches a `settingsChanged` event so Game, Renderer, and AudioManager react instantly.
+
+### In-Game Pause Menu
+
+Press **ESC** (or click the ⚙️ gear in the top-right corner) during any match to open the pause overlay:
+
+- **Resume** — instantly return to the match.
+- **Settings** — opens a compact in-game settings panel with the most-used options (sound, volume, trajectory, trails, particles, quality, camera) without leaving the table.
+- **Return to Main Menu** — cleanly disposes the current session and fades back to the menu.
+
+The pause state freezes physics stepping and game logic; the 3D scene continues to render behind the translucent backdrop.
+
+### Configurable Key Bindings
+
+All 9 keyboard shortcuts are now editable from the Settings → Controls tab:
+
+| Action | Default Key |
+|--------|-------------|
+| Free Camera | `1` |
+| Top Camera | `2` |
+| Follow Camera | `3` |
+| High Spin (高杆) | `W` |
+| Low Spin (低杆) | `S` |
+| Left English (左塞) | `A` |
+| Right English (右塞) | `D` |
+| Reset Spin | `R` |
+| Pause | `Esc` |
+
+Click **修改** next to any action → the button turns gold and reads "按下新键…" → press any key → the new binding is saved immediately. Conflicting bindings are automatically swapped (the old owner is unbound). `KeyBindings` persists via `SettingsStore` and is shared across sessions.
+
+### Camera & Input Improvements
+
+- **Shift-release snap-to-view** — when you release Shift after adjusting the camera, the cue stick automatically re-aligns to the camera's current look direction. No more hunting for the mouse cursor to re-aim.
+- **Trackpad two-finger pan** — while holding Shift, two-finger swipe on a Mac trackpad pans the camera (maps `wheel` events to `panCamera`). `OrbitControls` zoom is suppressed during Shift so the gesture feels native.
+- **Mouse sensitivity** — a new slider in Settings → Controls scales camera pan, orbit, and wheel speed from 0.5× to 2.0×.
+
+### Audio Volume Architecture
+
+`AudioManager` now maintains three separate gain nodes:
+
+- `_masterGain` — global on/off switch (`toggleSound`)
+- `_bgmGain` — background-music volume (`setMusicVolume`)
+- `_sfxGain` — sound-effects volume (`setSFXVolume`)
+
+All BGM oscillators and noise floor route through `_bgmGain`; all SFX (cue hit, collision, cushion, pocket, win, foul) route through `_sfxGain`. This means you can mute music while keeping SFX loud, or vice-versa.
+
+### Bug Fixes
+
+- **SettingsScreen** — `_listeners` now stores the real event-handler references (was storing empty arrow functions), so `destroy()` correctly removes every listener.
+- **KeyBindings.startListening()** — no longer uses `{ once: true }`. Modifier keys (Shift / Ctrl / Alt / Meta) are ignored without killing the listener, so you can hold Shift and then press your desired key.
+- **KeyBindings** — now listens to `settingsChanged` and auto-reloads when the user hits "Reset All Settings".
+- **Game.js spin controls** — restored missing `e.preventDefault()` calls so WASD keys don't scroll the page when used for spin.
+- **UI.js in-game settings** — slider cards now correctly append the full control wrapper (including the value label), not just the inner track.
+- **AudioManager.dispose()** — now nulls `_bgmGain` and `_sfxGain` alongside `_masterGain`.
+
+---
+
+## Previous Releases
+
+<details>
+<summary><strong>v1.1.0</strong> — Shot Impact FX, Audio Overhaul, Rule Fixes</summary>
 
 ### Shot Impact FX System — Feel Every Hit
 
@@ -65,10 +137,7 @@ Fixed 10 overlapping/clipping geometry issues in `Table.js`:
 ### Stability
 
 - `GameLoop` now has an error boundary: catches exceptions in `update()`/`render()`, stops the loop after 3 consecutive errors instead of freezing forever.
-
----
-
-## Previous Releases
+</details>
 
 <details>
 <summary><strong>v1.0.0</strong> — Initial Release</summary>
