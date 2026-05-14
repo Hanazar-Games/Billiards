@@ -656,6 +656,11 @@ export class Game {
 
     await new Promise(resolve => {
       const tick = () => {
+        // Respect pause state — stop charging while paused
+        if (this.paused) {
+          requestAnimationFrame(tick);
+          return;
+        }
         const elapsed = performance.now() - chargeStart;
         const progress = Math.min(elapsed / chargeDuration, 1);
         this.power = targetPower * progress;
@@ -1540,7 +1545,9 @@ export class Game {
   }
 
   _openInGameSettings() {
-    this.ui.showInGameSettings(this.audio);
+    this.ui.showInGameSettings(this.audio, () => {
+      if (this.paused) this.ui.showPauseMenu();
+    });
   }
 
   _applySettings() {

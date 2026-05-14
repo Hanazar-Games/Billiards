@@ -556,7 +556,7 @@ export class UI {
     }, animMs(300));
   }
 
-  showInGameSettings(audioManager) {
+  showInGameSettings(audioManager, onClose = null) {
     if (!this.settingsOverlay) return;
     // Hide pause overlay first to prevent double-backdrop
     if (this.pauseOverlay) {
@@ -567,6 +567,7 @@ export class UI {
         this._pauseHideTimer = null;
       }, animMs(300));
     }
+    this._onInGameSettingsClose = onClose;
     const s = this._inGameSettings;
     this._inGameSettingCards.forEach(c => c.remove());
     this._inGameSettingCards = [];
@@ -624,7 +625,13 @@ export class UI {
     );
     s.createCard('默认视角', '进入游戏时的初始相机模式', camWrap);
 
-    this._settingsBackBtn.onclick = () => this.hideInGameSettings();
+    this._settingsBackBtn.onclick = () => {
+      this.hideInGameSettings();
+      if (this._onInGameSettingsClose) {
+        this._onInGameSettingsClose();
+        this._onInGameSettingsClose = null;
+      }
+    };
     if (this._settingsHideTimer) { clearTimeout(this._settingsHideTimer); this._settingsHideTimer = null; }
     this.settingsOverlay.style.display = 'flex';
     requestAnimationFrame(() => {

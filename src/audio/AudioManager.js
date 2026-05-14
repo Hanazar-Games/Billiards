@@ -134,7 +134,7 @@ export class AudioManager {
     this.soundEnabled = enabled;
     if (this._masterGain) {
       const v = enabled ? (this._masterVolume ?? 1.0) : 0.0;
-      this._masterGain.gain.setTargetAtTime(v, this.ctx?.currentTime ?? 0, 0.02);
+      this._masterGain.gain.setTargetAtTime(v, this.ctx?.currentTime ?? 0, 0.05);
     }
     if (enabled) {
       this.startBGM();
@@ -230,12 +230,6 @@ export class AudioManager {
   }
 
   resume() {
-    if (this.ctx && (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted')) {
-      this.ctx.resume().catch(() => {});
-    }
-  }
-
-  _permanentGestureHandler = () => {
     if (this.ctx && (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted')) {
       this.ctx.resume().catch(() => {});
     }

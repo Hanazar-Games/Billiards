@@ -239,7 +239,15 @@ export class MenuSystem {
     this.game.replayLibrary = this.replayLibrary;
     this.game.challengeManager = this.challengeManager;
 
-    await this.game.init(modeConfig);
+    try {
+      await this.game.init(modeConfig);
+    } catch (err) {
+      console.error('Challenge game init failed:', err);
+      this.state = 'MENU';
+      if (menuLayer) { menuLayer.style.display = 'flex'; menuLayer.style.opacity = '1'; }
+      if (uiLayer) uiLayer.style.display = 'none';
+      return;
+    }
     this.game.onReturnToMenu = () => this._stopChallenge();
 
     // Create and start game loop
@@ -346,7 +354,15 @@ export class MenuSystem {
     const modeConfig = this._getModeConfig(mode);
 
     // Initialize game with mode
-    await this.game.init(modeConfig);
+    try {
+      await this.game.init(modeConfig);
+    } catch (err) {
+      console.error('Game init failed:', err);
+      this.state = 'MENU';
+      if (menuLayer) { menuLayer.style.display = 'flex'; menuLayer.style.opacity = '1'; }
+      if (uiLayer) uiLayer.style.display = 'none';
+      return;
+    }
 
     // Set up game-over callback
     this.game.onReturnToMenu = () => this._returnToMenu();
@@ -582,12 +598,12 @@ export class MenuSystem {
     }
 
     // Clean up game and replay
-    if (this.game) this.game.dispose();
-    if (this.replayEngine) this.replayEngine.stop();
-    if (this.replayPanel) this.replayPanel.destroy();
-    if (this.challengePanel) this.challengePanel.destroy();
-    if (this.challengeResult) this.challengeResult.destroy();
-    if (this.achievementPanel) this.achievementPanel.destroy();
+    try { if (this.game) this.game.dispose(); } catch (e) { console.warn('Game dispose error:', e); }
+    try { if (this.replayEngine) this.replayEngine.stop(); } catch (e) {}
+    try { if (this.replayPanel) this.replayPanel.destroy(); } catch (e) {}
+    try { if (this.challengePanel) this.challengePanel.destroy(); } catch (e) {}
+    try { if (this.challengeResult) this.challengeResult.destroy(); } catch (e) {}
+    try { if (this.achievementPanel) this.achievementPanel.destroy(); } catch (e) {}
 
     // Clean up shared core
     this.renderer.dispose();

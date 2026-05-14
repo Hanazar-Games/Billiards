@@ -48,7 +48,7 @@ export class SettingsScreen {
     this._currentCategory = 'audio';
     this._tabEls = new Map();
     this._contentArea = null;
-    this._toastTimer = null;
+    this._toastTimers = [];
     this._hideTimer = null;
     this._buildUI();
   }
