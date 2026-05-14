@@ -20,7 +20,7 @@
  *   - Per-effect cooldowns prevent machine-gun distortion.
  */
 
-const SFX_COOLDOWN_MS = 40; // min gap between identical SFX
+const SFX_COOLDOWN_MS = 20; // min gap between identical SFX
 
 export class AudioManager {
   constructor() {
@@ -222,16 +222,20 @@ export class AudioManager {
   stopBGM() {
     const t = this.ctx ? this.ctx.currentTime : 0;
     for (const node of this.bgmNodes) {
-      try {
-        if (node.stop) node.stop(t);
-        if (node.disconnect) node.disconnect();
-      } catch (e) {}
+      try { if (node.stop) node.stop(t); } catch (e) {}
+      try { if (node.disconnect) node.disconnect(); } catch (e) {}
     }
     this.bgmNodes = [];
-    this._bgmWasPlaying = false;
+    // NOTE: do NOT reset _bgmWasPlaying here — visibilitychange handler needs it
   }
 
   resume() {
+    if (this.ctx && (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted')) {
+      this.ctx.resume().catch(() => {});
+    }
+  }
+
+  _permanentGestureHandler = () => {
     if (this.ctx && (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted')) {
       this.ctx.resume().catch(() => {});
     }

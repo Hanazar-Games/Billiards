@@ -1,10 +1,77 @@
-# 3D Billiards v1.2.3 — Latest Update
+# 3D Billiards v1.2.5 — Latest Update
 
-## What's New in v1.2.3
+## What's New in v1.2.5
 
-### Gameplay & Rules Overhaul
+### UI/UX/SFX/BGM Deep Audit & Polish
 
-A full audit of game rules, AI behavior, and core mechanics uncovered and fixed **15+ issues** — from silent broken features to rule violations.
+A comprehensive third-round audit of the entire user-experience, audio, and visual-effects stack fixed **20+ issues** — from native audio-node leaks to UI button overlap, from English leftovers to listener leaks.
+
+### Critical Fixes
+
+| # | File | Issue |
+|---|------|-------|
+| 1 | `AudioManager.js` | **`stopBGM()` destroyed `_bgmWasPlaying`** — the flag was reset to `false` inside `stopBGM()`, so switching browser tabs permanently killed BGM recovery. **Fix:** removed the erroneous assignment; the visibility-change handler now correctly restores BGM when returning to the tab |
+| 2 | `AudioManager.js` | **SFX node leak on `stop()` failure** — a single `try-catch` around both `node.stop()` and `node.disconnect()` meant a thrown `stop()` skipped `disconnect()`. **Fix:** split into two independent `try-catch` blocks so `disconnect()` always runs |
+| 3 | `SettingsScreen.js` | **Keybinding listener leak** — clicking "修改" installs a global `window.keydown` listener via `keyBindings.startListening()`. If the user switched to another settings tab without pressing a key, the listener was never removed. **Fix:** `_switchCategory()` now calls `keyBindings.cancelListening()` first |
+| 4 | `SettingsScreen.js` | **Toast timer accumulation** — `_toastTimer` was overwritten on every new toast, leaving orphaned nested timers in memory. **Fix:** track all active toast timers in `_toastTimers[]` and clear every entry on `destroy()` |
+| 5 | `SettingsScreen.js` | **`localStorage.clear()` wiped the entire origin** — the "清除本地缓存" button called `localStorage.clear()`, destroying data for other apps on the same domain. **Fix:** now only removes keys prefixed with `billiards_` |
+| 6 | `MenuSystem.js` | **Physics-body iteration skip** — `_quit()` used `forEach((b) => removeBody(b))` on the live `world.bodies` array, causing every other body to be skipped because cannon-es re-indexes after each removal. **Fix:** copy the array with `[...world.bodies]` before iterating |
+| 7 | `MenuSystem.js` | **Async transition race** — `_startGame()` awaited a 500 ms fade-out but never re-checked `this.state`; rapid menu navigation could launch a game into a destroyed/transitioned state. **Fix:** state guard after every `await _delay()` |
+| 8 | `Game.js` | **Back-to-menu button overlapped pause button** — both `#back-to-menu` and the ⚙️ pause button were absolutely-positioned at `top: 18px; right: 24px`, making the pause gear unclickable. **Fix:** moved back-to-menu to the top-left corner |
+
+### Audio Polish
+
+| # | File | Change |
+|---|------|--------|
+| 9 | `AudioManager.js` | **SFX cooldown halved** — `SFX_COOLDOWN_MS` reduced from 40 ms → 20 ms. Multiple balls pocketed in the same frame (break shots, combo pockets) now produce distinct sounds instead of being swallowed by cooldown |
+| 10 | `AudioManager.js` | **`toggleSound()` respects master volume** — previously enabling sound reset master gain to `1.0`, ignoring the user's slider. Now restores `_masterVolume` |
+
+### UI/UX Hardening
+
+| # | File | Change |
+|---|------|--------|
+| 11 | `UI.js` | **Pause/settings overlay timer leaks fixed** — `hidePauseMenu()` and `hideInGameSettings()` now clear their hide timers before setting new ones; `destroy()` cancels both timers |
+| 12 | `UI.js` | **No double backdrop** — opening in-game settings now first fades out the pause overlay, preventing two dark backdrops from stacking |
+| 13 | `UI.js` | **`flashRed()` DOM cleanup** — the red-flash overlay is now removed in `destroy()` instead of persisting forever |
+| 14 | `UI.js` | **Player groups now in Chinese** — badge labels changed from "Solids / Stripes" to "全色 / 花色" to match the bottom HUD |
+| 15 | `UI.js` | **"New Game" → "再来一局"** — bottom HUD reset button now uses Chinese copy |
+| 16 | `index.html` | **Initial message Chinese** — the default `#message` text is now fully localized |
+| 17 | `Game.js` | **AI messages localized** — "AI is thinking..." and "AI failed to plan a shot..." replaced with Chinese equivalents |
+| 18 | `main.js` | **Engine-init error boundary** — `new MenuSystem(container)` is now wrapped in `try/catch` with `showError()`, preventing an infinite loading spinner if Renderer or PhysicsWorld initialization fails |
+| 19 | `MenuSystem.js` | **Promise chain catch** — `_initAudio().then(() => _setupMenu())` now has a `.catch()` handler that routes errors to the diagnostic overlay |
+
+### FX Parameterization (v1.2.4 carry-over)
+
+All visual-effect durations and intensities are now user-adjustable in **Settings → Graphics → 特效动画**:
+
+- **FX 动画速度** — scales particle lifetimes, shockwave expansion, and power-label hold time
+- **粒子效果强度** — multiplies spark count, fountain count, and chalk-dust count (0.2× – 2.0×)
+- **拖尾淡出时间** — controls how long shot-trail lines linger before vanishing (2.0 – 10.0 s)
+
+---
+
+## Previous Releases
+
+<details>
+<summary><strong>v1.2.4</strong> — FX Parameters & Animation Sync</summary>
+
+### FX Adjustable Parameters
+
+Three new sliders in **Settings → Graphics → 特效动画**:
+
+| Parameter | Range | Effect |
+|-----------|-------|--------|
+| FX 动画速度 | 50% – 200% | Scales all JS-driven effect durations (shockwave, particles, power label) |
+| 粒子效果强度 | 20% – 200% | Multiplies spawn counts for chalk dust, collision sparks, pocket fountains |
+| 拖尾淡出时间 | 2.0 – 10.0 s | How long cue-ball trail lines remain visible after a shot |
+
+### Animation Sync
+
+- `UI.hidePauseMenu()` / `UI.hideInGameSettings()` transitioned from hardcoded `300 ms` to `animMs(300)`, keeping CSS and JS in sync with the user's animation-speed preference
+</details>
+
+<details>
+<summary><strong>v1.2.3</strong> — Gameplay & Rules Overhaul</summary>
 
 ### Critical Fixes
 
@@ -35,10 +102,7 @@ A full audit of game rules, AI behavior, and core mechanics uncovered and fixed 
 | 13 | `Game.js` | **Auto-follow camera switches back** — after a shot resolves, if `autoFollowCueBall` is enabled, the camera returns to the user's default camera mode (free/top) instead of staying stuck in follow mode |
 | 14 | `Game.js` | **Game-over UI now updates stats** — `_updatePlayerStats()` is called when the game ends so the bottom HUD shows final remaining-ball counts |
 | 15 | `Rules.js` / `NineBallRules.js` | **Distinct ball tracking for break rails** — `breakRailContacts` is now a `Set` of ball IDs instead of a raw counter, correctly implementing the "4 distinct object balls" requirement |
-
----
-
-## Previous Releases
+</details>
 
 <details>
 <summary><strong>v1.2.2</strong> — Cue Themes + Deep Bug-Fix Audit</summary>
@@ -126,7 +190,7 @@ Text rises, scales up slightly, then fades and shrinks over ~1.2 s.
 
 A 220×120 table minimap appears in the bottom-right corner during gameplay:
 
-- **Ball dots** colored by type (solids / stripes / 8-ball / cue ball)
+- **Ball dots** coloured by type (solids / stripes / 8-ball / cue ball)
 - **Pocket markers** with brief white flash on score
 - **White-ball trail** showing recent movement path
 - Toggle, size, and opacity controls in Settings → Gameplay

@@ -69,6 +69,11 @@ export class MenuSystem {
       if (typeof window !== 'undefined' && window.updateLoadingProgress) {
         window.updateLoadingProgress(60, 'Loading assets... 加载资源...');
       }
+    }).catch((err) => {
+      console.warn('Menu setup failed:', err);
+      if (typeof window !== 'undefined' && window.showError) {
+        window.showError('MENU SETUP ERROR: ' + (err?.message || String(err)));
+      }
     });
   }
 
@@ -318,6 +323,11 @@ export class MenuSystem {
 
     // Wait for fade-out
     await this._delay(animMs(500));
+    if (this.state !== 'TRANSITION') {
+      // State changed during fade (e.g., quit) — restore menu visibility
+      if (menuLayer) { menuLayer.style.display = 'flex'; menuLayer.style.opacity = '1'; }
+      return;
+    }
     if (menuLayer) menuLayer.style.display = 'none';
 
     // Show game UI
@@ -581,7 +591,11 @@ export class MenuSystem {
 
     // Clean up shared core
     this.renderer.dispose();
-    this.physics?.world?.bodies?.forEach((b) => this.physics.world.removeBody(b));
+    // Remove bodies by copying array first to avoid mutation-during-iteration
+    const bodies = this.physics?.world?.bodies ? [...this.physics.world.bodies] : [];
+    bodies.forEach((b) => {
+      try { this.physics.world.removeBody(b); } catch (e) {}
+    });
 
     // Clean up audio
     if (this.audio) {

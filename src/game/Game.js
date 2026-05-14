@@ -601,7 +601,7 @@ export class Game {
   async startAITurn() {
     if (this.state === 'AI_THINKING') return;
     this.state = 'AI_THINKING';
-    this.ui.setMessage('AI is thinking...');
+    this.ui.setMessage('AI 思考中…');
     this.trajectory.setVisible(false);
     this.cue.hide();
 
@@ -614,7 +614,7 @@ export class Game {
         this.state = 'AIM';
         this.power = 0;
         this.ui.setPower(0);
-        this.ui.setMessage('AI failed to plan a shot. Player control restored.', 4000);
+        this.ui.setMessage('AI 规划失败，已恢复玩家控制。', 4000);
         this.cue.show();
         this.setAimTrajectoryVisible(true);
       }
@@ -1106,7 +1106,7 @@ export class Game {
     btn.id = 'back-to-menu';
     btn.textContent = '返回菜单';
     btn.style.cssText = `
-      position: absolute; top: 18px; right: 24px;
+      position: absolute; top: 18px; left: 24px;
       padding: 10px 17px; font-size: 13px; font-weight: 750;
       background: rgba(12,14,17,0.6); color: #fff;
       border: 1px solid rgba(255,255,255,0.18);

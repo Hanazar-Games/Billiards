@@ -82,7 +82,7 @@ export class UI {
 
     this._hudNewGameBtn = document.createElement('button');
     this._hudNewGameBtn.className = 'hud-btn';
-    this._hudNewGameBtn.textContent = 'New Game';
+    this._hudNewGameBtn.textContent = '再来一局';
     this._hudNewGameBtn.style.display = 'none';
     hudActions.appendChild(this._hudNewGameBtn);
 
@@ -491,12 +491,12 @@ export class UI {
 
   setPlayerGroups(p1Group, p2Group) {
     if (p1Group) {
-      this.player1Group.textContent = p1Group === 'solid' ? '● Solids' : '◯ Stripes';
+      this.player1Group.textContent = p1Group === 'solid' ? '● 全色' : '◯ 花色';
     } else {
       this.player1Group.textContent = '';
     }
     if (p2Group) {
-      this.player2Group.textContent = p2Group === 'solid' ? '● Solids' : '◯ Stripes';
+      this.player2Group.textContent = p2Group === 'solid' ? '● 全色' : '◯ 花色';
     } else {
       this.player2Group.textContent = '';
     }
@@ -549,6 +549,7 @@ export class UI {
   hidePauseMenu() {
     if (!this.pauseOverlay) return;
     this.pauseOverlay.style.opacity = '0';
+    if (this._pauseHideTimer) { clearTimeout(this._pauseHideTimer); }
     this._pauseHideTimer = setTimeout(() => {
       if (this.pauseOverlay) this.pauseOverlay.style.display = 'none';
       this._pauseHideTimer = null;
@@ -557,6 +558,15 @@ export class UI {
 
   showInGameSettings(audioManager) {
     if (!this.settingsOverlay) return;
+    // Hide pause overlay first to prevent double-backdrop
+    if (this.pauseOverlay) {
+      this.pauseOverlay.style.opacity = '0';
+      if (this._pauseHideTimer) clearTimeout(this._pauseHideTimer);
+      this._pauseHideTimer = setTimeout(() => {
+        if (this.pauseOverlay) this.pauseOverlay.style.display = 'none';
+        this._pauseHideTimer = null;
+      }, animMs(300));
+    }
     const s = this._inGameSettings;
     this._inGameSettingCards.forEach(c => c.remove());
     this._inGameSettingCards = [];
@@ -625,6 +635,7 @@ export class UI {
   hideInGameSettings() {
     if (!this.settingsOverlay) return;
     this.settingsOverlay.style.opacity = '0';
+    if (this._settingsHideTimer) { clearTimeout(this._settingsHideTimer); }
     this._settingsHideTimer = setTimeout(() => {
       if (this.settingsOverlay) this.settingsOverlay.style.display = 'none';
       this._settingsHideTimer = null;
@@ -669,7 +680,11 @@ export class UI {
       animation: floatTextUp calc(1.2s / var(--ui-anim-speed)) ease-out forwards;
     `;
     uiLayer.appendChild(el);
-    const t = setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, animMs(1200));
+    const t = setTimeout(() => {
+      if (el.parentNode) el.parentNode.removeChild(el);
+      const idx = this._floatTimers.indexOf(t);
+      if (idx !== -1) this._floatTimers.splice(idx, 1);
+    }, animMs(1200));
     this._floatTimers.push(t);
   }
 

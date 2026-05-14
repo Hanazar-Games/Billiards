@@ -182,6 +182,8 @@ export class SettingsScreen {
   }
 
   _switchCategory(id) {
+    // Cancel any pending keybinding listen to prevent global listener leak
+    keyBindings.cancelListening();
     this._currentCategory = id;
     this._tabEls.forEach((els, catId) => {
       const active = catId === id;
@@ -513,7 +515,13 @@ export class SettingsScreen {
 
     this._button('清除本地缓存', () => {
       if (confirm('确定要清除所有本地存储的数据吗？')) {
-        localStorage.clear();
+        // Only remove keys belonging to this game
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('billiards_')) keys.push(k);
+        }
+        keys.forEach(k => localStorage.removeItem(k));
         this._toast('本地缓存已清除，刷新后生效');
       }
     });
@@ -536,7 +544,7 @@ export class SettingsScreen {
     wrap.appendChild(desc);
 
     const ver = document.createElement('div');
-    ver.textContent = 'Version 1.2.4';
+    ver.textContent = 'Version 1.2.5';
     ver.style.cssText = 'font-size: 13px; color: rgba(255,255,255,0.35); margin-top: 8px;';
     wrap.appendChild(ver);
 
@@ -1111,11 +1119,14 @@ export class SettingsScreen {
       animation: settingsCardIn calc(0.3s / var(--ui-anim-speed)) ease both;
     `;
     document.body.appendChild(el);
-    this._toastTimer = setTimeout(() => {
+    if (!this._toastTimers) this._toastTimers = [];
+    const fadeTimer = setTimeout(() => {
       el.style.opacity = '0';
       el.style.transition = 'opacity calc(0.3s / var(--ui-anim-speed)) ease';
-      this._toastTimer = setTimeout(() => { if (el.parentNode) el.remove(); }, animMs(300));
+      const removeTimer = setTimeout(() => { if (el.parentNode) el.remove(); }, animMs(300));
+      this._toastTimers = (this._toastTimers || []).filter(t => t !== fadeTimer && t !== removeTimer);
     }, 2000);
+    this._toastTimers.push(fadeTimer);
   }
 
   _syncAllControls() {
@@ -1141,7 +1152,7 @@ export class SettingsScreen {
       el.removeEventListener(type, fn);
     });
     this._listeners = [];
-    if (this._toastTimer) { clearTimeout(this._toastTimer); this._toastTimer = null; }
+    if (this._toastTimers) { this._toastTimers.forEach(t => clearTimeout(t)); this._toastTimers = []; }
     if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
     this._tabEls.forEach(({ tab }) => {
       if (tab) { tab.onclick = null; }

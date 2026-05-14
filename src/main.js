@@ -69,7 +69,13 @@ try {
   // Phase 2 — MenuSystem initializes Renderer + Physics + Audio
   setInitPhase('engine-init');
   updateLoadingProgress(35, 'Initializing engine... 初始化引擎...');
-  const menu = new MenuSystem(container);
+  let menu;
+  try {
+    menu = new MenuSystem(container);
+  } catch (err) {
+    showError('ENGINE INIT ERROR: ' + err.message + '\n' + (err.stack || ''));
+    throw err;
+  }
 
   // Phase 3 — Menu UI built
   setInitPhase('menu-build');
@@ -88,10 +94,10 @@ try {
   // Sync CSS animation speed variable with settings
   autoSyncAnimSpeed();
 
-  // Success indicator — remove after 3s
+  // Success indicator — remove after 3s (z-index below error overlay)
   const ok = document.createElement('div');
   ok.textContent = '✓ init OK';
-  ok.style.cssText = `position:fixed;top:4px;left:4px;z-index:99999;background:rgba(0,0,0,0.7);color:#0f0;padding:4px 8px;font-size:11px;font-family:monospace;border-radius:4px;transition:opacity calc(0.5s / var(--ui-anim-speed));`;
+  ok.style.cssText = `position:fixed;top:4px;left:4px;z-index:99998;background:rgba(0,0,0,0.7);color:#0f0;padding:4px 8px;font-size:11px;font-family:monospace;border-radius:4px;transition:opacity calc(0.5s / var(--ui-anim-speed));`;
   document.body.appendChild(ok);
   setTimeout(() => { ok.style.opacity = '0'; setTimeout(() => ok.remove(), animMs(500)); }, animMs(3000));
 
