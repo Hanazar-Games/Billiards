@@ -11,13 +11,14 @@ import { animMs } from '../core/AnimSpeed.js';
  *  - Back button when returning from settings
  */
 export class MainMenuScreen {
-  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onShowChallenges, onQuit) {
+  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onShowChallenges, onQuit, onLanMultiplayer) {
     this.onSelectMode = onSelectMode;
     this.onSettings = onSettings;
     this.onAchievements = onAchievements;
     this.onShowReplays = onShowReplays;
     this.onShowChallenges = onShowChallenges;
     this.onQuit = onQuit;
+    this.onLanMultiplayer = onLanMultiplayer;
     this.container = null;
     this._fadeTimer = null;
     this._hideTimer = null;
@@ -102,6 +103,11 @@ export class MainMenuScreen {
       if (this.onShowChallenges) this.onShowChallenges();
     });
 
+    // LAN Multiplayer
+    this._addButton(btnGroup, '局域网联机', '同一 Wi-Fi 下创建或加入房间，与好友对战', () => {
+      if (this.onLanMultiplayer) this.onLanMultiplayer();
+    });
+
     this.container.appendChild(btnGroup);
 
     // Quit button (bottom-right)
@@ -128,7 +134,7 @@ export class MainMenuScreen {
 
     // Version
     const version = document.createElement('div');
-    version.textContent = 'v1.3.5';
+    version.textContent = 'v1.3.6';
     version.style.cssText = `
       position: absolute; bottom: 44px; left: 40px;
       font-size: 12px; color: rgba(244,247,244,0.32);

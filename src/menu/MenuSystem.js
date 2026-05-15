@@ -24,6 +24,7 @@ import { ShotReplay } from '../replay/ShotReplay.js';
 import { ChallengePanel } from '../challenges/ChallengePanel.js';
 import { ChallengeManager } from '../challenges/ChallengeManager.js';
 import { ChallengeResult } from '../challenges/ChallengeResult.js';
+import { LanRoomPanel } from './LanRoomPanel.js';
 import { animMs } from '../core/AnimSpeed.js';
 
 
@@ -119,7 +120,8 @@ export class MenuSystem {
       () => this._showAchievements(),
       () => this._showReplays(),
       () => this._showChallenges(),
-      () => this._quit()
+      () => this._quit(),
+      () => this._showLanRoom()
     );
 
     // Create achievement panel (for viewing from menu)
@@ -323,8 +325,8 @@ export class MenuSystem {
     this.challengeManager = null;
   }
 
-  async _startGame(mode) {
-    if (this.state !== 'MENU') return;
+  async _startGame(mode, networkClient = null, networkRole = null, localPlayerId = 1) {
+    if (this.state !== 'MENU' && !networkClient) return;
     this.state = 'TRANSITION';
 
     // Dispose any existing game instance before creating a new one
@@ -369,6 +371,18 @@ export class MenuSystem {
     this.game.achievements = this.achievements;
     this.game.replayLibrary = this.replayLibrary;
 
+    // Setup network if provided
+    if (networkClient && networkRole) {
+      this.game.setNetworkController(networkClient, networkRole, localPlayerId);
+      if (networkRole === 'host') {
+        this.game.networkPlayer1Name = '玩家 1 (房主)';
+        this.game.networkPlayer2Name = '玩家 2';
+      } else {
+        this.game.networkPlayer1Name = '玩家 1 (房主)';
+        this.game.networkPlayer2Name = '玩家 2 (你)';
+      }
+    }
+
     // Configure mode
     const modeConfig = this._getModeConfig(mode);
 
@@ -389,7 +403,9 @@ export class MenuSystem {
     // Create and start game loop
     this.loop = new GameLoop({
       update: (dt) => {
-        this.physics.step(dt);
+        if (!this.game || this.game.networkRole !== 'client') {
+          this.physics.step(dt);
+        }
         this.game.update(dt);
       },
       render: () => {
@@ -400,6 +416,21 @@ export class MenuSystem {
 
     this.state = 'PLAYING';
     this.loop.start();
+  }
+
+  _showLanRoom() {
+    this.mainMenu.hide();
+    this.lanRoomPanel = new LanRoomPanel(
+      (client, mode) => this._startNetworkGame(client, mode),
+      () => this._showMainMenu()
+    );
+    this.lanRoomPanel.show();
+  }
+
+  async _startNetworkGame(client, mode) {
+    const role = client.isHost ? 'host' : 'client';
+    const localId = client.playerId || 1;
+    await this._startGame('local2p', client, role, localId);
   }
 
   _getModeConfig(mode) {
@@ -431,6 +462,12 @@ export class MenuSystem {
     if (this.game) {
       this.game.dispose();
       this.game = null;
+    }
+
+    // Clean up LAN room panel if present
+    if (this.lanRoomPanel) {
+      this.lanRoomPanel.destroy();
+      this.lanRoomPanel = null;
     }
 
     // Hide game UI

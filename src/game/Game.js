@@ -25,6 +25,7 @@ import { ShotRecorder } from '../replay/ShotRecorder.js';
 import { settings } from '../core/SettingsStore.js';
 import { keyBindings } from '../input/KeyBindings.js';
 import { BALL, TABLE, POCKET, SHOT } from '../config.js';
+import { GameStateSerializer } from '../net/GameStateSerializer.js';
 import { animMs } from '../core/AnimSpeed.js';
 
 
@@ -80,6 +81,15 @@ export class Game {
     this.mode = 'local2p'; // 'freeplay' | 'local2p' | 'vsai'
     this.onReturnToMenu = null;
     this.paused = false;
+
+    // Network multiplayer fields
+    this.networkMode = null; // null | 'lan'
+    this.networkRole = null; // null | 'host' | 'client'
+    this.localPlayerId = 1;
+    this.networkController = null;
+    this._lastSnapshotTime = 0;
+    this.networkPlayer1Name = '玩家 1';
+    this.networkPlayer2Name = '玩家 2';
 
     this._tmpVec2 = new THREE.Vector2();
     this._tmpVec3a = new THREE.Vector3();
@@ -330,6 +340,7 @@ export class Game {
   onMouseDown(e) {
     if (this.state !== 'AIM') return;
     if (this.aiEnabled && this.currentPlayer === 2) return; // AI turn
+    if (this.networkMode && !this.isLocalPlayerTurn()) return; // Network: not your turn
     if (this.ballInHand) {
       this.confirmBallInHandPlacement();
       return;
@@ -555,6 +566,18 @@ export class Game {
     const cueBall = this.ballsManager.getCueBall();
     if (!cueBall) return;
 
+    // Client sends shot intent to host; host executes physically
+    if (this.networkMode && this.networkRole === 'client' && this.isLocalPlayerTurn()) {
+      this.networkController?.sendShotInput(this.aimDirection, this.power, this.cueTipOffset);
+      this.state = 'SHOOTING';
+      this._shotStartTime = performance.now();
+      this.charging = false;
+      this.dragStart = null;
+      this.cue.hide();
+      this.trajectory.setVisible(false);
+      return;
+    }
+
     // Track whether this shot is the break shot for achievement purposes
     this._isBreakShot = this.rules.breakShot;
     this.rules.startShot(this.currentPlayer);
@@ -697,57 +720,64 @@ export class Game {
 
   update(dt) {
     if (this.paused) return;
+    const isClient = this.networkRole === 'client';
     const pocketPositions = this.table.getPocketPositions();
-    this.ballsManager.updatePhysicsGuards(dt, pocketPositions);
-    this.ballsManager.sync();
+
+    if (!isClient) {
+      this.ballsManager.updatePhysicsGuards(dt, pocketPositions);
+      this.ballsManager.sync();
+    }
 
     if (this.state === 'SHOOTING') {
-      // Physics safety timeout: force turn resolution after 20s
-      if (!this._shotStartTime) this._shotStartTime = performance.now();
-      if (performance.now() - this._shotStartTime > 20000) {
-        this.resolveTurn(this.turnPocketedIds);
-        this._shotStartTime = null;
-        return;
-      }
-      const newlyPocketed = this.ballsManager.checkPockets(pocketPositions);
+      if (!isClient) {
+        // Physics safety timeout: force turn resolution after 20s
+        if (!this._shotStartTime) this._shotStartTime = performance.now();
+        if (performance.now() - this._shotStartTime > 20000) {
+          this.resolveTurn(this.turnPocketedIds);
+          this._shotStartTime = null;
+          return;
+        }
+        const newlyPocketed = this.ballsManager.checkPockets(pocketPositions);
 
-      if (newlyPocketed.length > 0) {
-        this.audio.playPocket();
-        const flashed = new Set();
-        for (const entry of newlyPocketed) {
-          const pocket = pocketPositions[entry.pocketIndex];
-          if (!pocket) continue;
-          const isFirstTime = !this.turnPocketedIds.includes(entry.id);
-          if (isFirstTime) {
-            this.turnPocketedIds.push(entry.id);
-            this.achievements.onPocket(entry.id, pocket, this.mode);
-            this.recorder.recordPocket(entry.id);
-            if (this.challengeManager) this.challengeManager.onPocket(entry.id);
-            // Ball return visual: cloned mesh drops through pocket into tray
-            // Skip cue ball — it gets respotted, so showing it in the tray
-            // would look like a duplicate.
-            const pBall = this.ballsManager.getBall(entry.id);
-            if (pBall && this.ballReturn && entry.id !== 0) {
-              this.ballReturn.animateBallReturn(pBall.mesh, pocket);
+        if (newlyPocketed.length > 0) {
+          this.audio.playPocket();
+          const flashed = new Set();
+          for (const entry of newlyPocketed) {
+            const pocket = pocketPositions[entry.pocketIndex];
+            if (!pocket) continue;
+            const isFirstTime = !this.turnPocketedIds.includes(entry.id);
+            if (isFirstTime) {
+              this.turnPocketedIds.push(entry.id);
+              this.achievements.onPocket(entry.id, pocket, this.mode);
+              this.recorder.recordPocket(entry.id);
+              if (this.challengeManager) this.challengeManager.onPocket(entry.id);
+              const pBall = this.ballsManager.getBall(entry.id);
+              if (pBall && this.ballReturn && entry.id !== 0) {
+                this.ballReturn.animateBallReturn(pBall.mesh, pocket);
+              }
+            }
+            if (isFirstTime) {
+              if (!flashed.has(entry.pocketIndex)) {
+                flashed.add(entry.pocketIndex);
+                this.particles.spawnPocketFlash(pocket);
+              }
+              this.particles.spawnPocketFountain(pocket, entry.id);
+              if (this.renderer?.camera && this.renderer.width > 0 && this.renderer.height > 0) {
+                const p = this._tmpVec3a.set(pocket.x, pocket.y + 15, pocket.z);
+                p.project(this.renderer.camera);
+                const sx = (p.x * 0.5 + 0.5) * this.renderer.width;
+                const sy = (-p.y * 0.5 + 0.5) * this.renderer.height;
+                const txt = entry.id === 8 ? '🎱 8号球!' : (entry.id === 0 ? '⚠️ 白球' : `+${entry.id}`);
+                const col = entry.id === 0 ? '#ff6b6b' : (entry.id === 8 ? '#fff' : '#d8b15f');
+                this.ui.showFloatingText(txt, sx, sy, col);
+              }
             }
           }
-          // Visual FX only on first detection per ball
-          if (isFirstTime) {
-            if (!flashed.has(entry.pocketIndex)) {
-              flashed.add(entry.pocketIndex);
-              this.particles.spawnPocketFlash(pocket);
-            }
-            this.particles.spawnPocketFountain(pocket, entry.id);
-            if (this.renderer?.camera && this.renderer.width > 0 && this.renderer.height > 0) {
-              const p = this._tmpVec3a.set(pocket.x, pocket.y + 15, pocket.z);
-              p.project(this.renderer.camera);
-              const sx = (p.x * 0.5 + 0.5) * this.renderer.width;
-              const sy = (-p.y * 0.5 + 0.5) * this.renderer.height;
-              const txt = entry.id === 8 ? '🎱 8号球!' : (entry.id === 0 ? '⚠️ 白球' : `+${entry.id}`);
-              const col = entry.id === 0 ? '#ff6b6b' : (entry.id === 8 ? '#fff' : '#d8b15f');
-              this.ui.showFloatingText(txt, sx, sy, col);
-            }
-          }
+        }
+
+        if (this.ballsManager.allStopped()) {
+          this._shotStartTime = null;
+          this.resolveTurn(this.turnPocketedIds);
         }
       }
 
@@ -755,11 +785,6 @@ export class Game {
       if (cueBall && !cueBall.pocketed) {
         this.trails.recordPoint(cueBall);
         if (this.challengeManager) this.challengeManager.onShotUpdate(cueBall);
-      }
-
-      if (this.ballsManager.allStopped()) {
-        this._shotStartTime = null;
-        this.resolveTurn(this.turnPocketedIds);
       }
     }
 
@@ -806,6 +831,16 @@ export class Game {
     // Fade table lights when they obstruct the camera view
     if (this.room) {
       this.room.updateLampOpacity(this.camera);
+    }
+
+    // Host broadcasts snapshot during shooting (20–30 Hz)
+    if (!isClient && this.networkRole === 'host' && this.state === 'SHOOTING') {
+      const now = performance.now();
+      if (now - this._lastSnapshotTime > 50) {
+        this._lastSnapshotTime = now;
+        const snapshot = GameStateSerializer.serializeGameState(this);
+        this.networkController?.sendStateSnapshot(snapshot);
+      }
     }
   }
 
@@ -975,6 +1010,13 @@ export class Game {
     this.cue.show();
     this.setAimTrajectoryVisible(true);
 
+    // Host broadcasts final state after turn resolution
+    if (this.networkRole === 'host' && this.networkController) {
+      const snapshot = GameStateSerializer.serializeGameState(this);
+      this.networkController.sendStateSnapshot(snapshot);
+      this.networkController.sendTurnResolved({ nextPlayer: result.nextPlayer, foul: result.foul, scratch: result.scratch, message: result.message });
+    }
+
     // Auto-switch camera back from follow mode after shot resolves
     if (this.cameraMode === 'follow' && settings.get('autoFollowCueBall')) {
       const defaultCam = settings.get('defaultCamera');
@@ -1124,6 +1166,12 @@ export class Game {
     this._updatePlayerStats();
     this.cue.show();
     this.setAimTrajectoryVisible(true);
+
+    // Host broadcasts initial snapshot after reset
+    if (this.networkRole === 'host' && this.networkController) {
+      const snapshot = GameStateSerializer.serializeGameState(this);
+      this.networkController.sendStateSnapshot(snapshot);
+    }
   }
 
   _addBackToMenuButton() {
@@ -1568,15 +1616,57 @@ export class Game {
 
   _updatePlayerStats() {
     const status = this.rules ? this.rules.getStatus() : null;
-    const p2Name = this.aiEnabled ? 'AI' : '玩家 2';
+    const p2Name = this.aiEnabled ? 'AI' : (this.networkPlayer2Name || '玩家 2');
+    const p1Name = this.networkPlayer1Name || '玩家 1';
     this.ui.setPlayerStats({
-      p1Name: '玩家 1',
+      p1Name,
       p1Group: status?.player1Group ?? null,
       p1Remaining: status?.player1Remaining ?? 7,
       p2Name,
       p2Group: status?.player2Group ?? null,
       p2Remaining: status?.player2Remaining ?? 7,
     });
+  }
+
+  // ── Network multiplayer methods ──
+
+  setNetworkController(controller, role, localPlayerId) {
+    this.networkController = controller;
+    this.networkRole = role;
+    this.localPlayerId = localPlayerId || 1;
+    this.networkMode = role ? 'lan' : null;
+    if (controller) {
+      controller.addEventListener('stateSnapshot', (e) => {
+        if (this.networkRole === 'client' && e.detail.snapshot) {
+          GameStateSerializer.applyGameState(this, e.detail.snapshot);
+        }
+      });
+      controller.addEventListener('shotInput', (e) => {
+        if (this.networkRole === 'host') {
+          this.applyRemoteShot(e.detail);
+        }
+      });
+    }
+  }
+
+  isLocalPlayerTurn() {
+    if (!this.networkMode) return true;
+    return this.currentPlayer === this.localPlayerId;
+  }
+
+  applyRemoteShot(shotInput) {
+    if (this.networkRole !== 'host') return;
+    this.aimDirection.set(shotInput.aimDirection.x, 0, shotInput.aimDirection.z).normalize();
+    this.cueTipOffset = { x: shotInput.cueTipOffset?.x || 0, y: shotInput.cueTipOffset?.y || 0 };
+    this.power = shotInput.power || 0;
+    this.lockedAimDirection.copy(this.aimDirection);
+    const cueBall = this.ballsManager?.getCueBall();
+    if (cueBall) {
+      this.cue.setAim(cueBall.mesh.position, this.aimDirection);
+    }
+    this.state = 'SHOOTING';
+    this._shotStartTime = performance.now();
+    this.shoot();
   }
 
   _concede() {

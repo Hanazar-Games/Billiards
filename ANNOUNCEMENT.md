@@ -1,6 +1,45 @@
-# 3D Billiards v1.3.5 — Latest Update
+# 3D Billiards v1.3.6 — Latest Update
 
-## What's New in v1.3.5
+## What's New in v1.3.6
+
+### LAN Multiplayer Room — Local Network 2-Player 8-Ball
+
+A complete host-authoritative multiplayer prototype for playing 8-ball over the same Wi-Fi / LAN.
+
+| # | Feature | Detail |
+|---|---------|--------|
+| 1 | **Create Room** | Host clicks "局域网联机" → "创建房间" → 4-6 char alphanumeric room ID is generated |
+| 2 | **Join Room** | Guest enters room ID and clicks "加入房间" |
+| 3 | **Host-Authoritative Sync** | Host runs full physics + rules; clients render snapshots at ~20 Hz |
+| 4 | **Shot Relay** | When it's your turn, aim and shoot normally — `shotInput` is sent to host, host executes the physics shot, then broadcasts the resulting state |
+| 5 | **Client-Side Prediction** | Client immediately enters `SHOOTING` state and hides the cue; visual ball positions are overwritten by host snapshots as they arrive |
+| 6 | **Turn Enforcement** | Only the current player's client accepts mouse input; others are ignored |
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `server/lan-server.js` | Node.js WebSocket relay — creates/joins rooms, forwards messages, enforces host-only broadcasts |
+| `src/net/NetworkClient.js` | Frontend WebSocket client — EventTarget API, auto-reconnects, handles all message types |
+| `src/net/GameStateSerializer.js` | Serializes ball positions/velocities/quaternions, rules state, and UI info into compact snapshots |
+| `src/menu/LanRoomPanel.js` | In-menu room UI — create/join buttons, player list, room ID display, start-game button |
+
+### Modified Files (Minimal Intrusion)
+
+| File | Change |
+|------|--------|
+| `Game.js` | Added `networkMode`/`networkRole`/`localPlayerId`; `setNetworkController()` wires snapshot/shotInput listeners; `shoot()` sends `shotInput` on client; `update()` skips physics/rules on client; `resolveTurn()` broadcasts final state from host |
+| `MenuSystem.js` | `_startGame()` accepts optional `networkClient/role/localPlayerId`; GameLoop skips `physics.step()` for client; added `_showLanRoom()` and `_startNetworkGame()` |
+| `MainMenuScreen.js` | Added "局域网联机" button with callback |
+| `package.json` | Added `"host": "node server/lan-server.js"` script; added `ws` dependency |
+| `README.md` | Added LAN multiplayer setup instructions |
+
+---
+
+## Previous Releases
+
+<details>
+<summary><strong>v1.3.5</strong> — Comprehensive Bug Audit & Hardening</summary>
 
 ### Comprehensive Bug Audit & Hardening — Memory, Physics, Camera, AI
 
@@ -28,11 +67,8 @@ A full-system fifth-round audit fixed **9 critical issues** spanning memory leak
 
 | # | File | Fix |
 |---|------|-----|
-| 9 | `index.html` / `MainMenuScreen.js` / `README.md` / `SettingsScreen.js` | All hard-coded version strings bumped to **v1.3.5** |
-
----
-
-## Previous Releases
+| 9 | `index.html` / `MainMenuScreen.js` / `README.md` / `SettingsScreen.js` / `ANNOUNCEMENT.md` | All hard-coded version strings bumped to **v1.3.5** |
+</details>
 
 <details>
 <summary><strong>v1.3.4</strong> — Camera Default View & Wall Safety Margin</summary>
