@@ -13,6 +13,9 @@ export class Room {
     this.createFloor();
     this.createWalls();
     this.createFurniture();
+    this.createPaintings();
+    this.createPlants();
+    this.createPlaque();
     this.createTableLights();
   }
 
@@ -362,6 +365,366 @@ export class Room {
     }
 
     this._lampCrossbarMat = crossbarMat;
+  }
+
+  // ── Paintings (Chinese-style landscape) ──
+  createPaintings() {
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f, roughness: 0.55, metalness: 0.12 });
+    const innerMat = new THREE.MeshStandardMaterial({ color: 0xc9a96e, roughness: 0.35, metalness: 0.65 });
+
+    // Front wall — one large painting
+    this._addPainting(0, 140, -ROOM.halfDepth + 4, 70, 95, 0, frameMat, innerMat);
+
+    // Back wall — two smaller paintings flanking the plaque area
+    this._addPainting(-90, 155, ROOM.halfDepth - 4, 52, 70, Math.PI, frameMat, innerMat);
+    this._addPainting(90, 155, ROOM.halfDepth - 4, 52, 70, Math.PI, frameMat, innerMat);
+
+    // Side walls — one each
+    this._addPainting(-ROOM.halfWidth + 4, 140, 0, 55, 75, Math.PI / 2, frameMat, innerMat);
+    this._addPainting(ROOM.halfWidth - 4, 140, 0, 55, 75, -Math.PI / 2, frameMat, innerMat);
+  }
+
+  _addPainting(x, y, z, w, h, rotY, frameMat, innerMat) {
+    const group = new THREE.Group();
+    group.position.set(x, y, z);
+    group.rotation.y = rotY;
+
+    // Canvas texture
+    const tex = this._createLandscapeTexture(w, h);
+    const canvasMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, metalness: 0.0 });
+
+    // Frame border
+    const border = 3.5;
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(w + border * 2, h + border * 2, 3),
+      frameMat
+    );
+    frame.castShadow = true;
+    group.add(frame);
+
+    // Inner gold trim
+    const trim = new THREE.Mesh(
+      new THREE.BoxGeometry(w + border * 0.6, h + border * 0.6, 3.5),
+      innerMat
+    );
+    group.add(trim);
+
+    // Canvas
+    const canvasMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, h),
+      canvasMat
+    );
+    canvasMesh.position.z = 1.8;
+    group.add(canvasMesh);
+
+    this.meshGroup.add(group);
+  }
+
+  _createLandscapeTexture(w, h) {
+    const W = 256;
+    const H = Math.round(W * (h / w));
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // Sky gradient
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#b8c5d6');
+    grad.addColorStop(0.4, '#d4ddd8');
+    grad.addColorStop(1, '#e8e0d0');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Distant mountains
+    ctx.fillStyle = '#7a8a9a';
+    ctx.beginPath();
+    ctx.moveTo(0, H * 0.55);
+    ctx.lineTo(W * 0.15, H * 0.35);
+    ctx.lineTo(W * 0.35, H * 0.5);
+    ctx.lineTo(W * 0.5, H * 0.3);
+    ctx.lineTo(W * 0.7, H * 0.48);
+    ctx.lineTo(W * 0.85, H * 0.38);
+    ctx.lineTo(W, H * 0.52);
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.fill();
+
+    // Mid mountains
+    ctx.fillStyle = '#5a6a72';
+    ctx.beginPath();
+    ctx.moveTo(0, H * 0.72);
+    ctx.lineTo(W * 0.2, H * 0.55);
+    ctx.lineTo(W * 0.4, H * 0.68);
+    ctx.lineTo(W * 0.6, H * 0.5);
+    ctx.lineTo(W * 0.8, H * 0.62);
+    ctx.lineTo(W, H * 0.58);
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.fill();
+
+    // Foreground hills
+    ctx.fillStyle = '#3a4a42';
+    ctx.beginPath();
+    ctx.moveTo(0, H * 0.88);
+    ctx.lineTo(W * 0.25, H * 0.78);
+    ctx.lineTo(W * 0.5, H * 0.85);
+    ctx.lineTo(W * 0.75, H * 0.75);
+    ctx.lineTo(W, H * 0.82);
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.fill();
+
+    // Mist / fog layer
+    const mist = ctx.createLinearGradient(0, H * 0.45, 0, H * 0.75);
+    mist.addColorStop(0, 'rgba(255,255,255,0)');
+    mist.addColorStop(0.5, 'rgba(255,255,255,0.25)');
+    mist.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = mist;
+    ctx.fillRect(0, H * 0.45, W, H * 0.3);
+
+    // Sun / moon
+    ctx.beginPath();
+    ctx.arc(W * 0.75, H * 0.18, W * 0.06, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,240,200,0.55)';
+    ctx.fill();
+
+    // Red seal stamp (Chinese painting signature style)
+    ctx.fillStyle = '#b03030';
+    ctx.fillRect(W * 0.85, H * 0.82, W * 0.08, W * 0.08);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }
+
+  // ── Potted plants ──
+  createPlants() {
+    const positions = [
+      [-ROOM.halfWidth + 25, -ROOM.halfDepth + 25],
+      [ROOM.halfWidth - 25, -ROOM.halfDepth + 25],
+      [-ROOM.halfWidth + 25, ROOM.halfDepth - 25],
+      [ROOM.halfWidth - 25, ROOM.halfDepth - 25],
+    ];
+    for (const [x, z] of positions) {
+      this.createPlant(x, z);
+    }
+  }
+
+  createPlant(x, z) {
+    const potMat = new THREE.MeshStandardMaterial({
+      color: 0x5c3a28,
+      roughness: 0.85,
+      metalness: 0.05,
+    });
+    const soilMat = new THREE.MeshStandardMaterial({
+      color: 0x2a1e14,
+      roughness: 0.95,
+      metalness: 0.0,
+    });
+    const leafMat = new THREE.MeshStandardMaterial({
+      color: 0x2d5a28,
+      roughness: 0.72,
+      metalness: 0.02,
+    });
+    const darkLeafMat = new THREE.MeshStandardMaterial({
+      color: 0x1a3a18,
+      roughness: 0.78,
+      metalness: 0.02,
+    });
+
+    const group = new THREE.Group();
+    group.position.set(x, 0, z);
+
+    // Pot (truncated cone)
+    const pot = new THREE.Mesh(
+      new THREE.CylinderGeometry(14, 10, 18, 20),
+      potMat
+    );
+    pot.position.y = 9;
+    pot.castShadow = true;
+    pot.receiveShadow = true;
+    group.add(pot);
+
+    // Soil surface
+    const soil = new THREE.Mesh(
+      new THREE.CylinderGeometry(12.5, 12.5, 1.5, 20),
+      soilMat
+    );
+    soil.position.y = 17.5;
+    group.add(soil);
+
+    // Main foliage ball
+    const mainBall = new THREE.Mesh(
+      new THREE.SphereGeometry(16, 24, 24),
+      leafMat
+    );
+    mainBall.position.y = 34;
+    mainBall.scale.set(1, 1.15, 1);
+    mainBall.castShadow = true;
+    group.add(mainBall);
+
+    // Secondary smaller balls for variety
+    const offsets = [
+      [-8, 28, -6],
+      [9, 30, 5],
+      [0, 38, 10],
+      [-5, 32, 10],
+    ];
+    for (const [ox, oy, oz] of offsets) {
+      const s = 0.5 + Math.random() * 0.4;
+      const ball = new THREE.Mesh(
+        new THREE.SphereGeometry(10 * s, 16, 16),
+        Math.random() > 0.5 ? leafMat : darkLeafMat
+      );
+      ball.position.set(ox, oy, oz);
+      ball.castShadow = true;
+      group.add(ball);
+    }
+
+    this.meshGroup.add(group);
+  }
+
+  // ── "厚德载物" plaque ──
+  createPlaque() {
+    const boardW = 160;
+    const boardH = 42;
+    const boardD = 5;
+
+    const woodMat = new THREE.MeshStandardMaterial({
+      color: 0x1a0f08,
+      roughness: 0.55,
+      metalness: 0.15,
+    });
+    const goldMat = new THREE.MeshStandardMaterial({
+      color: 0xd4af37,
+      roughness: 0.35,
+      metalness: 0.75,
+    });
+    const borderMat = new THREE.MeshStandardMaterial({
+      color: 0x8a6a3a,
+      roughness: 0.4,
+      metalness: 0.55,
+    });
+
+    const group = new THREE.Group();
+    // Centre of back wall, above the sofas
+    group.position.set(0, 175, ROOM.halfDepth - 5);
+    group.rotation.y = Math.PI;
+
+    // Main board
+    const board = new THREE.Mesh(
+      new THREE.BoxGeometry(boardW, boardH, boardD),
+      woodMat
+    );
+    board.castShadow = true;
+    group.add(board);
+
+    // Outer gold border frame
+    const frameT = 3;
+    const frameD = boardD + 1.5;
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(boardW + frameT * 2, boardH + frameT * 2, frameD),
+      borderMat
+    );
+    frame.position.z = -0.5;
+    frame.castShadow = true;
+    group.add(frame);
+
+    // Inner board (slightly recessed)
+    const inner = new THREE.Mesh(
+      new THREE.BoxGeometry(boardW - 6, boardH - 6, boardD + 0.5),
+      woodMat
+    );
+    inner.position.z = 0.5;
+    group.add(inner);
+
+    // Text texture
+    const textTex = this._createPlaqueTexture();
+    const textMat = new THREE.MeshStandardMaterial({
+      map: textTex,
+      transparent: true,
+      roughness: 0.4,
+      metalness: 0.6,
+    });
+    const textMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(boardW - 12, boardH - 12),
+      textMat
+    );
+    textMesh.position.z = boardD / 2 + 1;
+    group.add(textMesh);
+
+    // Decorative corner pieces
+    const cornerSize = 10;
+    const corners = [
+      [-boardW / 2 + 12, -boardH / 2 + 12],
+      [boardW / 2 - 12, -boardH / 2 + 12],
+      [-boardW / 2 + 12, boardH / 2 - 12],
+      [boardW / 2 - 12, boardH / 2 - 12],
+    ];
+    for (const [cx, cy] of corners) {
+      const c = new THREE.Mesh(
+        new THREE.BoxGeometry(cornerSize, cornerSize, boardD + 2),
+        borderMat
+      );
+      c.position.set(cx, cy, 0);
+      group.add(c);
+    }
+
+    this.meshGroup.add(group);
+  }
+
+  _createPlaqueTexture() {
+    const W = 512;
+    const H = 128;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // Transparent background
+    ctx.clearRect(0, 0, W, H);
+
+    // Hand-brush style text
+    ctx.fillStyle = '#e8c86a';
+    ctx.font = 'bold 72px "KaiTi", "STKaiti", "SimKaiti", "楷体", serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Slight random offset per character to simulate hand-written feel
+    const text = '厚德载物';
+    const totalWidth = ctx.measureText(text).width;
+    let currentX = W / 2 - totalWidth / 2;
+    const baseY = H / 2;
+
+    for (const char of text) {
+      const cw = ctx.measureText(char).width;
+      const offsetX = (Math.random() - 0.5) * 3;
+      const offsetY = (Math.random() - 0.5) * 3;
+      const rot = (Math.random() - 0.5) * 0.04;
+      ctx.save();
+      ctx.translate(currentX + cw / 2 + offsetX, baseY + offsetY);
+      ctx.rotate(rot);
+      ctx.fillText(char, 0, 0);
+      ctx.restore();
+      currentX += cw;
+    }
+
+    // Subtle ink bleed / stamp edges
+    ctx.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 60; i++) {
+      const sx = Math.random() * W;
+      const sy = Math.random() * H;
+      const sr = Math.random() * 3 + 0.5;
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
   }
 
   updateLampOpacity(camera) {
