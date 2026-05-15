@@ -94,8 +94,8 @@ export class Rules {
           ballInHand: true,
           ballInHandBehindLine: true,
           message: cueBallPocketed
-            ? 'Break scratch! Opponent gets ball-in-hand behind the head string.'
-            : 'Break foul: no ball hit. Opponent gets ball-in-hand behind the head string.',
+            ? '开球犯规：白球落袋！对手获得开球线后自由球'
+            : '开球犯规：没有球被撞到。对手获得开球线后自由球',
           respotEightBall: pocketedEight,
         };
       }
@@ -106,7 +106,7 @@ export class Rules {
           nextPlayer: this.currentPlayer,
           foul: false,
           scratch: false,
-          message: '8-ball on break — respotted. Table is still open.',
+          message: '开球进8号球 — 重新摆回。台面仍为开放状态。',
           respotEightBall: true,
         };
       }
@@ -119,7 +119,7 @@ export class Rules {
           scratch: false,
           ballInHand: true,
           ballInHandBehindLine: true,
-          message: 'Break foul: fewer than 4 balls hit a rail. Opponent gets ball-in-hand behind the head string.',
+          message: '开球犯规：少于4颗球碰库。对手获得开球线后自由球',
           gameOver: false,
         };
       }
@@ -130,7 +130,7 @@ export class Rules {
           nextPlayer: opponent,
           foul: false,
           scratch: false,
-          message: 'Break: no balls pocketed. Table is open.',
+          message: '开球：没有球进袋。台面开放。',
         };
       }
 
@@ -140,7 +140,7 @@ export class Rules {
         nextPlayer: this.currentPlayer,
         foul: false,
         scratch: false,
-        message: 'Break: legal. Table is still open.',
+        message: '开球有效。台面仍为开放状态。',
       };
     }
 
@@ -219,12 +219,12 @@ export class Rules {
         // Pocketed 8-ball too early or on foul = lose
         this.gameOver = true;
         this.winner = opponent;
-        return { gameOver: true, winner: opponent, foul: true, message: '8-ball pocketed illegally! You lose!' };
+        return { gameOver: true, winner: opponent, foul: true, message: '非法打进8号球！你输了！' };
       } else {
         // Legal 8-ball pocket = win
         this.gameOver = true;
         this.winner = this.currentPlayer;
-        return { gameOver: true, winner: this.currentPlayer, message: 'You win!' };
+        return { gameOver: true, winner: this.currentPlayer, message: '恭喜你赢了！' };
       }
     }
 
@@ -251,13 +251,13 @@ export class Rules {
     if (this.foul) {
       nextPlayer = opponent;
       message = cueBallPocketed
-        ? 'Scratch! Opponent gets ball-in-hand.'
-        : 'Foul! Opponent gets ball-in-hand.';
+        ? '白球落袋！对手获得自由球。'
+        : '犯规！对手获得自由球。';
     } else if (pocketedOwn === 0 && !this.foul) {
       nextPlayer = opponent;
-      message = 'No ball pocketed. Opponent\'s turn.';
+      message = '没有球进袋。轮到对手。';
     } else if (!this.foul) {
-      message = `Pocketed ${pocketedOwn}! Your turn continues.`;
+      message = `打进 ${pocketedOwn} 颗球！继续击球。`;
     }
 
     return {

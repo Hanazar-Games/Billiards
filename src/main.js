@@ -1,5 +1,6 @@
 import { MenuSystem } from './menu/MenuSystem.js';
 import { autoSyncAnimSpeed, animMs } from './core/AnimSpeed.js';
+import { VERSION_TAG } from './core/Version.js';
 
 /* ── Loading Screen Progress ── */
 const introScreen = document.getElementById('intro-screen');
@@ -34,7 +35,7 @@ function showError(msg) {
     block.className = 'err-block';
     const timeDiv = document.createElement('div');
     timeDiv.className = 'err-time';
-    timeDiv.textContent = time + ' — Phase: ' + __initPhase;
+    timeDiv.textContent = time + ' — 阶段：' + __initPhase;
     block.appendChild(timeDiv);
     msg.split('\n').forEach((line, i) => {
       if (i > 0) block.appendChild(document.createElement('br'));
@@ -43,7 +44,7 @@ function showError(msg) {
     content.appendChild(block);
     if (phaseEl) {
       phaseEl.style.display = 'block';
-      phaseEl.textContent = 'Failed during: ' + __initPhase;
+      phaseEl.textContent = '出错阶段：' + __initPhase;
     }
     overlay.classList.add('visible');
   } else {
@@ -64,11 +65,11 @@ try {
 
   // Phase 1 — DOM & core modules loaded (we're already here)
   setInitPhase('core-modules');
-  updateLoadingProgress(15, 'Loading core modules... 加载核心模块...');
+  updateLoadingProgress(15, '加载核心模块...');
 
   // Phase 2 — MenuSystem initializes Renderer + Physics + Audio
   setInitPhase('engine-init');
-  updateLoadingProgress(35, 'Initializing engine... 初始化引擎...');
+  updateLoadingProgress(35, '初始化引擎...');
   let menu;
   try {
     menu = new MenuSystem(container);
@@ -79,24 +80,29 @@ try {
 
   // Phase 3 — Menu UI built
   setInitPhase('menu-build');
-  updateLoadingProgress(75, 'Building menu... 构建菜单...');
+  updateLoadingProgress(75, '构建菜单...');
 
   // Remove legacy boot message
   document.getElementById('boot-message')?.remove();
 
   // Phase 4 — Finalize
   setInitPhase('finalize');
-  updateLoadingProgress(100, 'Ready! 准备就绪!');
+  updateLoadingProgress(100, '准备就绪！');
   const elapsed = performance.now() - initStart;
   const minDelay = Math.max(0, 2000 - elapsed);
   hideIntroScreen(minDelay);
+
+  // Sync version display from single source of truth
+  document.title = '3D Billiards ' + VERSION_TAG;
+  const verTag = document.getElementById('version-tag');
+  if (verTag) verTag.textContent = VERSION_TAG;
 
   // Sync CSS animation speed variable with settings
   autoSyncAnimSpeed();
 
   // Success indicator — remove after 3s (z-index below error overlay)
   const ok = document.createElement('div');
-  ok.textContent = '✓ init OK';
+  ok.textContent = '✓ 初始化完成';
   ok.style.cssText = `position:fixed;top:4px;left:4px;z-index:99998;background:rgba(0,0,0,0.7);color:#0f0;padding:4px 8px;font-size:11px;font-family:monospace;border-radius:4px;transition:opacity calc(0.5s / var(--ui-anim-speed));`;
   document.body.appendChild(ok);
   setTimeout(() => { ok.style.opacity = '0'; setTimeout(() => ok.remove(), animMs(500)); }, animMs(3000));

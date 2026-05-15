@@ -74,7 +74,7 @@ export class MenuSystem {
     this._initAudio().then(() => {
       this._setupMenu();
       if (typeof window !== 'undefined' && window.updateLoadingProgress) {
-        window.updateLoadingProgress(60, 'Loading assets... 加载资源...');
+        window.updateLoadingProgress(60, '加载资源...');
       }
     }).catch((err) => {
       console.warn('Menu setup failed:', err);
@@ -86,14 +86,14 @@ export class MenuSystem {
 
   async _initAudio() {
     if (typeof window !== 'undefined' && window.updateLoadingProgress) {
-      window.updateLoadingProgress(45, 'Loading audio... 加载音频...');
+      window.updateLoadingProgress(45, '加载音频...');
     }
     try {
       const { AudioManager } = await import('../audio/AudioManager.js');
       this.audio = new AudioManager();
       this.audio.init();
       if (typeof window !== 'undefined' && window.updateLoadingProgress) {
-        window.updateLoadingProgress(55, 'Audio ready... 音频就绪...');
+        window.updateLoadingProgress(55, '音频就绪...');
       }
     } catch (e) {
       console.warn('Audio init failed:', e);

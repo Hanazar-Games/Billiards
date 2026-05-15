@@ -103,7 +103,7 @@ export class NineBallRules {
           foul: true,
           scratch: true,
           ballInHand: true,
-          message: 'Break scratch! Opponent ball-in-hand.',
+          message: '开球犯规：白球落袋！对手获得自由球',
           gameOver: false,
           respotNineBall: pocketedIds.includes(9),
         };
@@ -121,7 +121,7 @@ export class NineBallRules {
           foul: true,
           scratch: false,
           ballInHand: true,
-          message: 'Break foul: no ball hit. Opponent ball-in-hand.',
+          message: '开球犯规：没有球被撞到。对手获得自由球',
           gameOver: false,
           respotNineBall: pocketedIds.includes(9),
         };
@@ -140,7 +140,7 @@ export class NineBallRules {
           foul: true,
           scratch: false,
           ballInHand: true,
-          message: 'Break: must hit 1-ball first! Foul.',
+          message: '开球犯规：必须先撞到1号球！',
           gameOver: false,
           respotNineBall: pocketedIds.includes(9),
         };
@@ -153,7 +153,7 @@ export class NineBallRules {
         return {
           gameOver: true,
           winner: this.currentPlayer,
-          message: '9-ball on the break! You win!',
+          message: '开球进9号球！你赢了！',
         };
       }
 
@@ -169,7 +169,7 @@ export class NineBallRules {
             foul: true,
             scratch: false,
             ballInHand: true,
-            message: 'Break foul: fewer than 4 balls hit a rail. Opponent ball-in-hand.',
+            message: '开球犯规：少于4颗球碰库。对手获得自由球',
             gameOver: false,
           };
         }
@@ -177,7 +177,7 @@ export class NineBallRules {
           nextPlayer: opponent,
           foul: false,
           scratch: false,
-          message: 'Break: no balls pocketed.',
+          message: '开球：没有球进袋。',
           gameOver: false,
         };
       }
@@ -187,7 +187,7 @@ export class NineBallRules {
         nextPlayer: this.currentPlayer,
         foul: false,
         scratch: false,
-        message: pocketedIds.length > 0 ? 'Break: legal. Your turn continues.' : 'Break: legal. Table is open.',
+        message: pocketedIds.length > 0 ? '开球有效。继续击球。' : '开球有效。台面开放。',
         gameOver: false,
       };
     }
@@ -227,7 +227,7 @@ export class NineBallRules {
         foul: true,
         scratch: this.scratch,
         ballInHand: true,
-        message: this.scratch ? 'Scratch! Opponent ball-in-hand.' : 'Foul! Opponent ball-in-hand.',
+        message: this.scratch ? '白球落袋！对手获得自由球。' : '犯规！对手获得自由球。',
         gameOver: false,
         respotNineBall: ninePocketedOnFoul,
       };
@@ -243,7 +243,7 @@ export class NineBallRules {
       return {
         gameOver: true,
         winner: this.currentPlayer,
-        message: '9-ball pocketed! You win!',
+        message: '打进9号球！你赢了！',
       };
     }
 
@@ -251,8 +251,8 @@ export class NineBallRules {
     const pocketedAny = pocketedIds.length > 0;
     const nextPlayer = pocketedAny ? this.currentPlayer : opponent;
     const message = pocketedAny
-      ? `Pocketed ${pocketedIds.length} ball(s)! Your turn continues.`
-      : 'No balls pocketed. Opponent\'s turn.';
+      ? `打进 ${pocketedIds.length} 颗球！继续击球。`
+      : '没有球进袋。轮到对手。';
 
     return {
       nextPlayer,
