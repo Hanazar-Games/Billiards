@@ -58,7 +58,7 @@ export class Room {
 
     for (let z = -depth / 2; z <= depth / 2; z += 48) {
       const line = new THREE.Mesh(new THREE.BoxGeometry(width, 0.2, 0.8), lineMat);
-      line.position.set(0, -TABLE.height - 69.8, z);
+      line.position.set(0, -TABLE.height - 69.85, z);
       this.meshGroup.add(line);
     }
   }
@@ -590,13 +590,24 @@ export class Room {
       roughness: 0.9,
       metalness: 0.0,
     });
+    const trayMat = new THREE.MeshStandardMaterial({
+      color: 0x6b4a35,
+      roughness: 0.7,
+      metalness: 0.1,
+    });
+    const pebbleMat = new THREE.MeshStandardMaterial({
+      color: 0x5a5548,
+      roughness: 0.92,
+      metalness: 0.05,
+    });
 
-    // Four green tones for realistic foliage layers
+    // Five green tones for richer foliage layers
     const leafMats = [
       new THREE.MeshStandardMaterial({ color: 0x2d5a28, roughness: 0.72, metalness: 0.02 }),
       new THREE.MeshStandardMaterial({ color: 0x4a8a3a, roughness: 0.68, metalness: 0.02 }),
       new THREE.MeshStandardMaterial({ color: 0x6ab050, roughness: 0.65, metalness: 0.02 }),
       new THREE.MeshStandardMaterial({ color: 0x1a3a18, roughness: 0.78, metalness: 0.02 }),
+      new THREE.MeshStandardMaterial({ color: 0x7ab860, roughness: 0.62, metalness: 0.02 }),
     ];
 
     const group = new THREE.Group();
@@ -612,6 +623,25 @@ export class Room {
     pot.receiveShadow = true;
     group.add(pot);
 
+    // Decorative pot rim
+    const rim = new THREE.Mesh(
+      new THREE.TorusGeometry(13.6, 0.7, 8, 20),
+      potMat
+    );
+    rim.position.y = 18;
+    rim.rotation.x = Math.PI / 2;
+    rim.castShadow = true;
+    group.add(rim);
+
+    // Pot saucer underneath
+    const saucer = new THREE.Mesh(
+      new THREE.CylinderGeometry(11.5, 10.5, 1.0, 20),
+      trayMat
+    );
+    saucer.position.y = 0.5;
+    saucer.receiveShadow = true;
+    group.add(saucer);
+
     // Soil surface
     const soil = new THREE.Mesh(
       new THREE.CylinderGeometry(12.5, 12.5, 1.5, 20),
@@ -620,14 +650,35 @@ export class Room {
     soil.position.y = 17.5;
     group.add(soil);
 
-    // Main stem rising from soil
-    const mainStem = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.4, 2.2, 26, 8),
-      stemMat
-    );
-    mainStem.position.y = 18 + 13;
-    mainStem.castShadow = true;
-    group.add(mainStem);
+    // Small pebbles / moss on soil
+    for (let i = 0; i < 8; i++) {
+      const pebble = new THREE.Mesh(
+        new THREE.SphereGeometry(0.5 + Math.random() * 0.7, 6, 5),
+        pebbleMat
+      );
+      const r = Math.random() * 9;
+      const theta = Math.random() * Math.PI * 2;
+      pebble.position.set(r * Math.cos(theta), 18.3 + Math.random() * 0.4, r * Math.sin(theta));
+      pebble.scale.y = 0.35 + Math.random() * 0.25;
+      pebble.castShadow = true;
+      group.add(pebble);
+    }
+
+    // Main stem with slight curve — built from 3 segments
+    for (let i = 0; i < 3; i++) {
+      const segH = 9;
+      const t = i / 2;
+      const rTop = 2.0 - t * 0.6;
+      const rBot = 2.0 - (t - 0.5) * 0.6;
+      const seg = new THREE.Mesh(
+        new THREE.CylinderGeometry(Math.max(0.8, rTop), Math.max(1.0, rBot), segH, 8),
+        stemMat
+      );
+      seg.position.set(t * 1.2, 19 + i * segH * 0.92, 0);
+      seg.rotation.z = t * 0.06;
+      seg.castShadow = true;
+      group.add(seg);
+    }
 
     // Helper: add a branch with leaves at its tip
     const addBranch = (startY, tiltAngle, length, thickness) => {
@@ -636,51 +687,84 @@ export class Room {
       branchGrp.rotation.z = tiltAngle;
 
       const branch = new THREE.Mesh(
-        new THREE.CylinderGeometry(thickness * 0.55, thickness, length, 6),
+        new THREE.CylinderGeometry(thickness * 0.5, thickness, length, 6),
         stemMat
       );
       branch.position.y = length / 2;
       branch.castShadow = true;
       branchGrp.add(branch);
 
-      // Leaves at branch tip
-      const leafCount = 3 + Math.floor(Math.random() * 3);
+      // Node ring where leaves cluster
+      const nodeRing = new THREE.Mesh(
+        new THREE.TorusGeometry(thickness * 0.65, 0.25, 5, 8),
+        stemMat
+      );
+      nodeRing.position.y = length * 0.82;
+      nodeRing.rotation.x = Math.PI / 2;
+      branchGrp.add(nodeRing);
+
+      // Primary leaves at branch tip — arranged in a loose cluster
+      const leafCount = 4 + Math.floor(Math.random() * 4);
       for (let i = 0; i < leafCount; i++) {
         const mat = leafMats[Math.floor(Math.random() * leafMats.length)];
         const leaf = new THREE.Mesh(
-          new THREE.SphereGeometry(2.5 + Math.random() * 2.5, 7, 5),
+          new THREE.SphereGeometry(2.0 + Math.random() * 2.5, 7, 5),
           mat
         );
         leaf.scale.set(
-          1.0 + Math.random() * 0.6,
-          0.25 + Math.random() * 0.15,
-          0.7 + Math.random() * 0.4
+          1.2 + Math.random() * 0.7,
+          0.18 + Math.random() * 0.12,
+          0.65 + Math.random() * 0.45
         );
+        const clusterR = 2.5 + Math.random() * 3;
+        const clusterAngle = (i / leafCount) * Math.PI * 2 + Math.random() * 0.6;
         leaf.position.set(
-          (Math.random() - 0.5) * 5,
-          length + Math.random() * 3,
-          (Math.random() - 0.5) * 5
+          Math.cos(clusterAngle) * clusterR * 0.5,
+          length + Math.random() * 3.5,
+          Math.sin(clusterAngle) * clusterR * 0.5
         );
         leaf.rotation.set(
-          Math.random() * 0.6,
+          Math.random() * 0.8 - 0.4,
           Math.random() * Math.PI * 2,
-          Math.random() * 0.6
+          Math.random() * 0.8 - 0.4
         );
         leaf.castShadow = true;
         branchGrp.add(leaf);
       }
+
+      // Secondary smaller leaves along the branch body
+      const secCount = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < secCount; i++) {
+        const mat = leafMats[Math.floor(Math.random() * leafMats.length)];
+        const leaf = new THREE.Mesh(
+          new THREE.SphereGeometry(1.0 + Math.random() * 0.9, 6, 4),
+          mat
+        );
+        leaf.scale.set(1.1, 0.2, 0.65);
+        const t = 0.35 + Math.random() * 0.45;
+        leaf.position.set(
+          (Math.random() - 0.5) * 2.5,
+          length * t,
+          (Math.random() - 0.5) * 2.5
+        );
+        leaf.rotation.set(Math.random(), Math.random(), Math.random());
+        leaf.castShadow = true;
+        branchGrp.add(leaf);
+      }
+
       return branchGrp;
     };
 
     // Branch configurations: startY, tilt, length, thickness
     const branchCfgs = [
-      { y: 20, a: 0.45, len: 11, thick: 1.1 },
-      { y: 24, a: -0.55, len: 13, thick: 1.0 },
-      { y: 28, a: 0.65, len: 9, thick: 0.85 },
-      { y: 22, a: -0.35, len: 10, thick: 1.05 },
-      { y: 30, a: 0.25, len: 8, thick: 0.75 },
-      { y: 26, a: -0.75, len: 12, thick: 0.95 },
-      { y: 32, a: 0.15, len: 7, thick: 0.65 },
+      { y: 20, a: 0.5, len: 12, thick: 1.05 },
+      { y: 24, a: -0.6, len: 14, thick: 0.95 },
+      { y: 28, a: 0.7, len: 10, thick: 0.8 },
+      { y: 22, a: -0.4, len: 11, thick: 1.0 },
+      { y: 30, a: 0.3, len: 9, thick: 0.7 },
+      { y: 26, a: -0.8, len: 13, thick: 0.9 },
+      { y: 32, a: 0.2, len: 8, thick: 0.6 },
+      { y: 18, a: 0.65, len: 10, thick: 0.85 },
     ];
     for (const cfg of branchCfgs) {
       const b = addBranch(cfg.y, cfg.a, cfg.len, cfg.thick);
@@ -688,22 +772,62 @@ export class Room {
       group.add(b);
     }
 
+    // Draping vines — soft hanging tendrils from lower branches
+    const addDrape = (startY, sideAngle) => {
+      const drapeGrp = new THREE.Group();
+      drapeGrp.position.y = startY;
+      drapeGrp.rotation.y = sideAngle;
+
+      const drapeLen = 7 + Math.random() * 6;
+      const drape = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.25, 0.1, drapeLen, 4),
+        leafMats[1]
+      );
+      drape.position.set(0, -drapeLen / 2, 4 + Math.random() * 3);
+      drapeGrp.add(drape);
+
+      // Drape leaves
+      const drapeLeafCount = 3 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < drapeLeafCount; i++) {
+        const mat = leafMats[Math.floor(Math.random() * leafMats.length)];
+        const leaf = new THREE.Mesh(
+          new THREE.SphereGeometry(1.3 + Math.random() * 1.0, 6, 4),
+          mat
+        );
+        leaf.scale.set(1.0, 0.22, 0.7);
+        const t = Math.random();
+        leaf.position.set(
+          (Math.random() - 0.5) * 1.5,
+          -drapeLen * t,
+          4 + Math.random() * 3
+        );
+        leaf.rotation.set(Math.random(), Math.random(), Math.random());
+        leaf.castShadow = true;
+        drapeGrp.add(leaf);
+      }
+      return drapeGrp;
+    };
+    for (let i = 0; i < 3; i++) {
+      const drape = addDrape(18 + Math.random() * 8, Math.random() * Math.PI * 2);
+      group.add(drape);
+    }
+
     // Top canopy clusters for volume
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 12; i++) {
       const mat = leafMats[Math.floor(Math.random() * leafMats.length)];
       const cluster = new THREE.Mesh(
-        new THREE.SphereGeometry(3.5 + Math.random() * 3, 8, 6),
+        new THREE.SphereGeometry(3.0 + Math.random() * 3, 8, 6),
         mat
       );
       const theta = Math.random() * Math.PI * 2;
-      const phi = Math.random() * Math.PI * 0.45;
-      const r = 6 + Math.random() * 7;
+      const phi = Math.random() * Math.PI * 0.5;
+      const r = 5 + Math.random() * 8;
       cluster.position.set(
         r * Math.sin(phi) * Math.cos(theta),
-        38 + Math.random() * 10,
+        38 + Math.random() * 12,
         r * Math.sin(phi) * Math.sin(theta)
       );
-      cluster.scale.set(1, 0.5 + Math.random() * 0.4, 1);
+      cluster.scale.set(1, 0.45 + Math.random() * 0.35, 1);
       cluster.rotation.set(Math.random(), Math.random(), Math.random());
       cluster.castShadow = true;
       group.add(cluster);

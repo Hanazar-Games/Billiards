@@ -11,8 +11,8 @@ export class Renderer {
 
     // Scene
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x1a1a1a);
-    this.scene.fog = new THREE.Fog(0x1a1a1a, 600, 2500);
+    this.scene.background = new THREE.Color(0xf5e6c8);
+    this.scene.fog = new THREE.Fog(0xe8dcc8, 800, 2800);
 
     // Camera
     this.camera = new THREE.PerspectiveCamera(
