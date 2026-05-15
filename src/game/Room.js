@@ -393,6 +393,22 @@ export class Room {
     crossbar.position.set(0, railY + 14, 0);
     this.meshGroup.add(crossbar);
 
+    // Suspension rods — connect crossbar to ceiling
+    const rodMat = new THREE.MeshStandardMaterial({
+      color: 0x8a7a68,
+      roughness: 0.35,
+      metalness: 0.65,
+    });
+    const ceilingY = ROOM.wallHeight;
+    const crossbarTopY = railY + 14 + 1.5; // top face of crossbar
+    const rodLen = ceilingY - crossbarTopY;
+    for (const z of [-TABLE.depth * 0.3, 0, TABLE.depth * 0.3]) {
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, rodLen, 12), rodMat);
+      rod.position.set(0, crossbarTopY + rodLen / 2, z);
+      rod.castShadow = true;
+      this.meshGroup.add(rod);
+    }
+
     this._lampDiffusers = [];
     this._lampLights = [];
     const lampZs = [-TABLE.depth * 0.3, 0, TABLE.depth * 0.3];
@@ -412,6 +428,14 @@ export class Room {
       this.meshGroup.add(spot.target);
       this._lampLights.push(spot);
     }
+
+    // Dedicated spotlight aimed at the "厚德载物" plaque on the back wall
+    const plaqueSpot = new THREE.SpotLight(0xffeedd, 1.0, 260, Math.PI / 5.5, 0.45, 1.2);
+    plaqueSpot.position.set(0, 152, 320);
+    plaqueSpot.target.position.set(0, 105, ROOM.halfDepth - 5);
+    plaqueSpot.castShadow = false;
+    this.meshGroup.add(plaqueSpot);
+    this.meshGroup.add(plaqueSpot.target);
 
     this._lampCrossbarMat = crossbarMat;
   }

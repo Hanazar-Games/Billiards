@@ -1,8 +1,37 @@
-# 3D Billiards v1.2.9 — Latest Update
+# 3D Billiards v1.3.0 — Latest Update
 
-## What's New in v1.2.9
+## What's New in v1.3.0
+
+### Lighting Detail — Suspension Rods & Plaque Spotlight
+
+| # | Change | Detail |
+|---|--------|--------|
+| 1 | **Table lights now hang from ceiling** | Three brushed-metal suspension rods (`0x8a7a68`, `metalness: 0.65`) connect the crossbar directly to the ceiling, eliminating the floating-lamp look |
+| 2 | **Dedicated plaque spotlight** | A warm `SpotLight(0xffeedd, 1.0, 260)` is mounted above the table and aimed at the "厚德载物" plaque on the back wall, making the calligraphy stand out even under dim ambient conditions |
+
+---
+
+## Previous Releases
+
+<details>
+<summary><strong>v1.2.9</strong> — Full Room Redecoration: Beige Theme, Carpet Floor, Calligraphy Plaque</summary>
 
 ### Full Room Redecoration — Beige Theme, Carpet Floor, Calligraphy Plaque
+
+The billiard hall has been completely redecorated into a warm, inviting beige-toned space:
+
+| # | Change | Detail |
+|---|--------|--------|
+| 1 | **Walls → warm beige** | Colour changed from brown `#3d3028` → cream `#f5e6c8`; wainscot, chair-rail, and baseboard all harmonised in matching beige tones |
+| 2 | **Ceiling → warm beige** | Colour `#2a2520` → `#f5e6c8`, emissive removed — now reads as a real surface |
+| 3 | **Floor → carpet** | Deep grey `#141414` replaced by soft beige `#e0d5c0` with `roughness: 0.92` for a plush carpet feel; grid lines recoloured to subtle `#d4c8b0` |
+| 4 | **Paintings removed** | All 5 landscape paintings on front/back/side walls removed per design direction |
+| 5 | **"厚德载物" plaque enhanced** | Canvas resolution doubled (512×128 → 1024×256); multi-layer brush rendering with ink-wash shadow, gold body, dark core, fly-white (飞白) streaks, ink splatter, and a red seal stamp — much closer to real brush calligraphy |
+| 6 | **Lighting tuned for light walls** | Ambient / main / fill / rim all softened to prevent over-exposure on the highly reflective beige surfaces |
+</details>
+
+<details>
+<summary><strong>v1.2.8</strong> — Room Remodeling: Lower Walls, Brighter Lighting, Visible Ceiling</summary>
 
 The billiard hall has been completely redecorated into a warm, inviting beige-toned space:
 
