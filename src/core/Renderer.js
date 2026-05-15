@@ -234,10 +234,12 @@ export class Renderer {
   _clampCameraToRoom() {
     const cam = this.camera.position;
     const tgt = this.controls.target;
+    const wallMargin = 25;
 
-    // Clamp camera position
-    cam.x = Math.max(-ROOM.halfWidth, Math.min(ROOM.halfWidth, cam.x));
-    cam.z = Math.max(-ROOM.halfDepth, Math.min(ROOM.halfDepth, cam.z));
+    // Clamp camera position — keep a safe margin from walls to prevent
+    // the camera from seeing through or clipping into wall geometry.
+    cam.x = Math.max(-ROOM.halfWidth + wallMargin, Math.min(ROOM.halfWidth - wallMargin, cam.x));
+    cam.z = Math.max(-ROOM.halfDepth + wallMargin, Math.min(ROOM.halfDepth - wallMargin, cam.z));
     cam.y = Math.max(ROOM.minCameraY, Math.min(ROOM.maxCameraY, cam.y));
 
     // Clamp orbit target (keep it within a slightly smaller inner zone so

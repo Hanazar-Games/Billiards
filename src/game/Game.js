@@ -1100,7 +1100,10 @@ export class Game {
     this._shotStartTime = null;
     this._isBreakShot = false;
     this.gameStartTime = performance.now();
-    this.cameraMode = 'free';
+    const defaultCam = settings.get('defaultCamera') || 'free';
+    this.cameraMode = defaultCam;
+    if (defaultCam === 'top') this._resetCameraTop();
+    else if (defaultCam === 'free') this._resetCameraFree();
     this.powerLabel?.dispose();
     this.ui.setPower(0);
     this.ui.setPlayerTurn(1);
@@ -1386,7 +1389,7 @@ export class Game {
   _resetCameraFree() {
     this.screenShake?.cancel();
     const cam = this.camera;
-    cam.position.set(0, 180, 220);
+    cam.position.set(140, 180, 100);
     cam.lookAt(0, 0, 0);
     if (this.renderer.controls) {
       this.renderer.controls.target.set(0, 0, 0);
