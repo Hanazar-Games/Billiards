@@ -96,9 +96,9 @@ export function getBallType(id) {
 export const ROOM = {
   halfWidth: 260,
   halfDepth: 380,
-  wallHeight: 280,
+  wallHeight: 160,
   minCameraY: 10,
-  maxCameraY: 340,
+  maxCameraY: 220,
 };
 
 // Camera

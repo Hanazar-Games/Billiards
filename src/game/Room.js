@@ -66,7 +66,7 @@ export class Room {
   // ── Walls ──
   createWalls() {
     const wallMat = new THREE.MeshStandardMaterial({
-      color: 0x2e231c,
+      color: 0x3d3028,
       roughness: 0.88,
       metalness: 0.02,
     });
@@ -321,10 +321,12 @@ export class Room {
   // ── Ceiling ──
   createCeiling() {
     const ceilMat = new THREE.MeshStandardMaterial({
-      color: 0x1a1a1a,
+      color: 0x2a2520,
       roughness: 0.9,
       metalness: 0.02,
       side: THREE.DoubleSide,
+      emissive: 0x1a1814,
+      emissiveIntensity: 0.15,
     });
     const w = ROOM.halfWidth * 2;
     const d = ROOM.halfDepth * 2;
@@ -351,11 +353,24 @@ export class Room {
       line.position.set(0, ROOM.wallHeight - 0.3, z);
       this.meshGroup.add(line);
     }
+
+    // Recessed ceiling downlights — soft fill for walls and room ambience
+    const downLightPositions = [
+      [-120, -240], [0, -240], [120, -240],
+      [-120, -80],  [0, -80],  [120, -80],
+      [-120, 80],   [0, 80],   [120, 80],
+      [-120, 240],  [0, 240],  [120, 240],
+    ];
+    for (const [x, z] of downLightPositions) {
+      const pl = new THREE.PointLight(0xffe8c8, 0.35, 280, 1.6);
+      pl.position.set(x, ROOM.wallHeight - 2, z);
+      this.meshGroup.add(pl);
+    }
   }
 
   // ── Table lights ──
   createTableLights() {
-    const railY = 235;
+    const railY = 140;
     const glowMat = new THREE.MeshStandardMaterial({
       color: 0xfff1cc,
       emissive: 0xffd98a,
@@ -409,15 +424,15 @@ export class Room {
     const innerMat = new THREE.MeshStandardMaterial({ color: 0xc9a96e, roughness: 0.35, metalness: 0.65 });
 
     // Front wall — one large painting
-    this._addPainting(0, 140, -ROOM.halfDepth + 4, 70, 95, 0, frameMat, innerMat);
+    this._addPainting(0, 85, -ROOM.halfDepth + 4, 70, 95, 0, frameMat, innerMat);
 
     // Back wall — two smaller paintings flanking the plaque area
-    this._addPainting(-90, 155, ROOM.halfDepth - 4, 52, 70, Math.PI, frameMat, innerMat);
-    this._addPainting(90, 155, ROOM.halfDepth - 4, 52, 70, Math.PI, frameMat, innerMat);
+    this._addPainting(-90, 95, ROOM.halfDepth - 4, 52, 70, Math.PI, frameMat, innerMat);
+    this._addPainting(90, 95, ROOM.halfDepth - 4, 52, 70, Math.PI, frameMat, innerMat);
 
     // Side walls — one each
-    this._addPainting(-ROOM.halfWidth + 4, 140, 0, 55, 75, Math.PI / 2, frameMat, innerMat);
-    this._addPainting(ROOM.halfWidth - 4, 140, 0, 55, 75, -Math.PI / 2, frameMat, innerMat);
+    this._addPainting(-ROOM.halfWidth + 4, 85, 0, 55, 75, Math.PI / 2, frameMat, innerMat);
+    this._addPainting(ROOM.halfWidth - 4, 85, 0, 55, 75, -Math.PI / 2, frameMat, innerMat);
   }
 
   _addPainting(x, y, z, w, h, rotY, frameMat, innerMat) {
@@ -645,7 +660,7 @@ export class Room {
 
     const group = new THREE.Group();
     // Centre of back wall, above the sofas
-    group.position.set(0, 175, ROOM.halfDepth - 5);
+    group.position.set(0, 105, ROOM.halfDepth - 5);
     group.rotation.y = Math.PI;
 
     // Main board
