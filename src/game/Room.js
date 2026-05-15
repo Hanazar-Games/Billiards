@@ -64,20 +64,22 @@ export class Room {
     const glowMat = new THREE.MeshStandardMaterial({
       color: 0xfff1cc,
       emissive: 0xffd98a,
-      emissiveIntensity: 1.8,
+      emissiveIntensity: 1.2,
       roughness: 0.2,
-      transparent: false,
+      transparent: true,
       opacity: 1.0,
+      depthWrite: false,
     });
 
     const crossbarMat = new THREE.MeshStandardMaterial({
       color: 0x2b2418,
       emissive: 0x4a3214,
-      emissiveIntensity: 0.35,
+      emissiveIntensity: 0.25,
       roughness: 0.45,
       metalness: 0.25,
-      transparent: false,
+      transparent: true,
       opacity: 1.0,
+      depthWrite: false,
     });
     const crossbar = new THREE.Mesh(new THREE.BoxGeometry(4, 3, TABLE.depth * 0.68), crossbarMat);
     crossbar.position.set(0, railY + 14, 0);
@@ -131,15 +133,20 @@ export class Room {
       // When the lamp is between camera and table (distToLamp < distToTable)
       // AND aligned with the sight line (alignment near 1), fade it out.
       let targetOpacity = 1.0;
-      if (distToLamp < distToTable && alignment > 0.88) {
+      let targetEmissive = 1.2;
+      if (distToLamp < distToTable && alignment > 0.78) {
         // Sharper fade as alignment increases
-        const fade = Math.max(0, (alignment - 0.88) / (1.0 - 0.88));
-        targetOpacity = 1.0 - fade * 0.82; // down to ~0.18 opacity
+        const fade = Math.max(0, (alignment - 0.78) / (1.0 - 0.78));
+        targetOpacity = 1.0 - fade * 0.96; // down to ~0.04 opacity
+        targetEmissive = 1.2 * (1.0 - fade * 0.92);
       }
 
       const mat = diffuser.material;
       if (Math.abs(mat.opacity - targetOpacity) > 0.01) {
-        mat.opacity += (targetOpacity - mat.opacity) * 0.12;
+        mat.opacity += (targetOpacity - mat.opacity) * 0.15;
+      }
+      if (Math.abs(mat.emissiveIntensity - targetEmissive) > 0.01) {
+        mat.emissiveIntensity += (targetEmissive - mat.emissiveIntensity) * 0.15;
       }
     }
 
@@ -155,7 +162,7 @@ export class Room {
           maxFade = Math.max(maxFade, (alignment - 0.88) / 0.12);
         }
       }
-      const targetCross = Math.max(0.18, 1.0 - maxFade * 0.82);
+      const targetCross = Math.max(0.04, 1.0 - maxFade * 0.96);
       if (Math.abs(this._lampCrossbarMat.opacity - targetCross) > 0.01) {
         this._lampCrossbarMat.opacity += (targetCross - this._lampCrossbarMat.opacity) * 0.12;
       }
