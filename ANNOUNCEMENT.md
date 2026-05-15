@@ -1,8 +1,46 @@
-# 3D Billiards v1.2.8 — Latest Update
+# 3D Billiards v1.2.9 — Latest Update
 
-## What's New in v1.2.8
+## What's New in v1.2.9
+
+### Full Room Redecoration — Beige Theme, Carpet Floor, Calligraphy Plaque
+
+The billiard hall has been completely redecorated into a warm, inviting beige-toned space:
+
+| # | Change | Detail |
+|---|--------|--------|
+| 1 | **Walls → warm beige** | Colour changed from brown `#3d3028` → cream `#f5e6c8`; wainscot, chair-rail, and baseboard all harmonised in matching beige tones |
+| 2 | **Ceiling → warm beige** | Colour `#2a2520` → `#f5e6c8`, emissive removed — now reads as a real surface |
+| 3 | **Floor → carpet** | Deep grey `#141414` replaced by soft beige `#e0d5c0` with `roughness: 0.92` for a plush carpet feel; grid lines recoloured to subtle `#d4c8b0` |
+| 4 | **Paintings removed** | All 5 landscape paintings on front/back/side walls removed per design direction |
+| 5 | **"厚德载物" plaque enhanced** | Canvas resolution doubled (512×128 → 1024×256); multi-layer brush rendering with ink-wash shadow, gold body, dark core, fly-white (飞白) streaks, ink splatter, and a red seal stamp — much closer to real brush calligraphy |
+| 6 | **Lighting tuned for light walls** | Ambient / main / fill / rim all softened to prevent over-exposure on the highly reflective beige surfaces |
+
+---
+
+## Previous Releases
+
+<details>
+<summary><strong>v1.2.8</strong> — Room Remodeling: Lower Walls, Brighter Lighting, Visible Ceiling</summary>
 
 ### Room Remodeling — Lower Walls, Brighter Lighting, Visible Ceiling
+
+A complete overhaul of the billiard room's vertical proportions and lighting to eliminate the dark void above the walls and bring the space into a warm, inviting scale.
+
+| # | Change | Detail |
+|---|--------|--------|
+| 1 | **Wall height lowered** | `ROOM.wallHeight` reduced from **280 → 160**. The back wall, side walls, and all attached trims now end much closer to the table, giving the room a cosy, intimate billiard-hall feel instead of a cavernous void |
+| 2 | **Ceiling now visible** | The ceiling plane drops with the walls to **y = 160** and its colour is lightened from `#1a1a1a` → `#2a2520` with a subtle emissive wash (`0.15`), so it actually reads as a surface rather than disappearing into blackness |
+| 3 | **12 recessed downlights added** | A 3×4 grid of warm `PointLight(0xffe8c8, 0.35, 280)` is embedded in the ceiling, providing soft fill that bounces off walls and eliminates the previous pitch-black corners |
+| 4 | **Wall material brightened** | Wall colour shifted from `#2e231c` → `#3d3028` so the warm brown is visible under the new lighting instead of reading as near-black |
+| 5 | **Decor repositioned** | All 5 landscape paintings, the "厚德载物" plaque, and the 3 table lamps are shifted down proportionally to match the new wall height |
+| 6 | **Global lighting boosted** | Renderer ambient light **0.26 → 0.55**, main directional **1.65 → 2.0**, fill **0.22 → 0.35**, rim **0.38 → 0.5** |
+| 7 | **Camera vertical range tightened** | `ROOM.maxCameraY` lowered from **340 → 220** to match the new room height and prevent the camera from floating above the ceiling |
+</details>
+
+<details>
+<summary><strong>v1.2.7</strong> — Comprehensive Deep Audit & Polish</summary>
+
+### Comprehensive Deep Audit — 15+ Fixes Across All Systems
 
 A complete overhaul of the billiard room's vertical proportions and lighting to eliminate the dark void above the walls and bring the space into a warm, inviting scale.
 

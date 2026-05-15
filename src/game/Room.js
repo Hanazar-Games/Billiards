@@ -30,9 +30,9 @@ export class Room {
     const depth = TABLE.depth * 4.2;
     const geometry = new THREE.PlaneGeometry(width, depth);
     const material = new THREE.MeshStandardMaterial({
-      color: 0x141414,
-      roughness: 0.72,
-      metalness: 0.05,
+      color: 0xe0d5c0,
+      roughness: 0.92,
+      metalness: 0.0,
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.x = -Math.PI / 2;
@@ -45,8 +45,8 @@ export class Room {
 
   createFloorLines(width, depth) {
     const lineMat = new THREE.MeshStandardMaterial({
-      color: 0x262626,
-      roughness: 0.8,
+      color: 0xd4c8b0,
+      roughness: 0.9,
       metalness: 0.0,
     });
 
@@ -66,22 +66,22 @@ export class Room {
   // ── Walls ──
   createWalls() {
     const wallMat = new THREE.MeshStandardMaterial({
-      color: 0x3d3028,
+      color: 0xf5e6c8,
       roughness: 0.88,
       metalness: 0.02,
     });
     const wainscotMat = new THREE.MeshStandardMaterial({
-      color: 0x1e1510,
+      color: 0xd9c9a8,
       roughness: 0.55,
       metalness: 0.08,
     });
     const trimMat = new THREE.MeshStandardMaterial({
-      color: 0x4a3528,
+      color: 0xc4b496,
       roughness: 0.45,
       metalness: 0.15,
     });
     const baseMat = new THREE.MeshStandardMaterial({
-      color: 0x14100c,
+      color: 0xb8a88a,
       roughness: 0.4,
       metalness: 0.25,
     });
@@ -321,12 +321,10 @@ export class Room {
   // ── Ceiling ──
   createCeiling() {
     const ceilMat = new THREE.MeshStandardMaterial({
-      color: 0x2a2520,
+      color: 0xf5e6c8,
       roughness: 0.9,
       metalness: 0.02,
       side: THREE.DoubleSide,
-      emissive: 0x1a1814,
-      emissiveIntensity: 0.15,
     });
     const w = ROOM.halfWidth * 2;
     const d = ROOM.halfDepth * 2;
@@ -362,7 +360,7 @@ export class Room {
       [-120, 240],  [0, 240],  [120, 240],
     ];
     for (const [x, z] of downLightPositions) {
-      const pl = new THREE.PointLight(0xffe8c8, 0.35, 280, 1.6);
+      const pl = new THREE.PointLight(0xfff5e0, 0.28, 280, 1.6);
       pl.position.set(x, ROOM.wallHeight - 2, z);
       this.meshGroup.add(pl);
     }
@@ -420,19 +418,7 @@ export class Room {
 
   // ── Paintings (Chinese-style landscape) ──
   createPaintings() {
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f, roughness: 0.55, metalness: 0.12 });
-    const innerMat = new THREE.MeshStandardMaterial({ color: 0xc9a96e, roughness: 0.35, metalness: 0.65 });
-
-    // Front wall — one large painting
-    this._addPainting(0, 85, -ROOM.halfDepth + 4, 70, 95, 0, frameMat, innerMat);
-
-    // Back wall — two smaller paintings flanking the plaque area
-    this._addPainting(-90, 95, ROOM.halfDepth - 4, 52, 70, Math.PI, frameMat, innerMat);
-    this._addPainting(90, 95, ROOM.halfDepth - 4, 52, 70, Math.PI, frameMat, innerMat);
-
-    // Side walls — one each
-    this._addPainting(-ROOM.halfWidth + 4, 85, 0, 55, 75, Math.PI / 2, frameMat, innerMat);
-    this._addPainting(ROOM.halfWidth - 4, 85, 0, 55, 75, -Math.PI / 2, frameMat, innerMat);
+    // Paintings removed per design direction — only the "厚德载物" plaque remains.
   }
 
   _addPainting(x, y, z, w, h, rotY, frameMat, innerMat) {
@@ -726,52 +712,83 @@ export class Room {
   }
 
   _createPlaqueTexture() {
-    const W = 512;
-    const H = 128;
+    const W = 1024;
+    const H = 256;
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
     const ctx = canvas.getContext('2d');
 
-    // Transparent background
-    ctx.clearRect(0, 0, W, H);
+    // Warm rice-paper background tone (subtle, so the wood behind shows through)
+    ctx.fillStyle = 'rgba(245, 235, 210, 0.12)';
+    ctx.fillRect(0, 0, W, H);
 
-    // Hand-brush style text
-    ctx.fillStyle = '#e8c86a';
-    ctx.font = 'bold 72px "KaiTi", "STKaiti", "SimKaiti", "楷体", serif';
+    const text = '厚德载物';
+    const baseY = H / 2 + 8;
+
+    // ── Layer 1: thick ink wash shadow (gives depth) ──
+    ctx.fillStyle = 'rgba(160, 120, 40, 0.25)';
+    ctx.font = 'bold 148px "KaiTi", "STKaiti", "SimKaiti", "楷体", "华文楷体", serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.fillText(text, W / 2 + 3, baseY + 3);
 
-    // Slight random offset per character to simulate hand-written feel
-    const text = '厚德载物';
-    const totalWidth = ctx.measureText(text).width;
-    let currentX = W / 2 - totalWidth / 2;
-    const baseY = H / 2;
+    // ── Layer 2: main gold-brush body ──
+    ctx.fillStyle = '#d4a72c';
+    ctx.fillText(text, W / 2, baseY);
 
-    for (const char of text) {
-      const cw = ctx.measureText(char).width;
-      const offsetX = (Math.random() - 0.5) * 3;
-      const offsetY = (Math.random() - 0.5) * 3;
-      const rot = (Math.random() - 0.5) * 0.04;
-      ctx.save();
-      ctx.translate(currentX + cw / 2 + offsetX, baseY + offsetY);
-      ctx.rotate(rot);
-      ctx.fillText(char, 0, 0);
-      ctx.restore();
-      currentX += cw;
-    }
+    // ── Layer 3: darker core for 3D brush stroke feel ──
+    ctx.fillStyle = '#b8860b';
+    ctx.fillText(text, W / 2 - 1, baseY - 1);
 
-    // Subtle ink bleed / stamp edges
+    // ── Layer 4: dry-brush flywhite (飞白) streaks ──
     ctx.globalCompositeOperation = 'destination-out';
-    for (let i = 0; i < 60; i++) {
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 90; i++) {
       const sx = Math.random() * W;
       const sy = Math.random() * H;
-      const sr = Math.random() * 3 + 0.5;
+      const len = Math.random() * 28 + 4;
+      const angle = (Math.random() - 0.5) * Math.PI;
+      ctx.lineWidth = Math.random() * 1.8 + 0.3;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + Math.cos(angle) * len, sy + Math.sin(angle) * len);
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    // ── Layer 5: ink splatter / bleed dots ──
+    ctx.fillStyle = 'rgba(180, 140, 50, 0.35)';
+    for (let i = 0; i < 40; i++) {
+      const sx = Math.random() * W;
+      const sy = Math.random() * H;
+      const sr = Math.random() * 2.5 + 0.3;
       ctx.beginPath();
       ctx.arc(sx, sy, sr, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.globalCompositeOperation = 'source-over';
+
+    // ── Layer 6: red seal stamp (方印) ──
+    const sealSize = 42;
+    const sealX = W * 0.82;
+    const sealY = H * 0.68;
+    ctx.fillStyle = 'rgba(180, 48, 48, 0.88)';
+    ctx.fillRect(sealX - sealSize / 2, sealY - sealSize / 2, sealSize, sealSize);
+    // Seal inner texture
+    ctx.fillStyle = 'rgba(160, 38, 38, 0.6)';
+    for (let i = 0; i < 15; i++) {
+      const sx = sealX + (Math.random() - 0.5) * sealSize * 0.8;
+      const sy = sealY + (Math.random() - 0.5) * sealSize * 0.8;
+      const sr = Math.random() * 3 + 1;
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Tiny seal text
+    ctx.fillStyle = 'rgba(220, 180, 140, 0.7)';
+    ctx.font = 'bold 10px serif';
+    ctx.fillText('印', sealX, sealY + 3);
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;

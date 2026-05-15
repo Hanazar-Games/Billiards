@@ -90,11 +90,11 @@ export class Renderer {
 
   setupLights() {
     // Ambient
-    const ambient = new THREE.AmbientLight(0xe8f0ff, 0.55);
+    const ambient = new THREE.AmbientLight(0xfff8f0, 0.40);
     this.scene.add(ambient);
 
     // Main overhead lamp, aimed at the table.
-    const mainLight = new THREE.DirectionalLight(0xfff0d2, 2.0);
+    const mainLight = new THREE.DirectionalLight(0xfff5e0, 1.45);
     mainLight.position.set(60, 520, 90);
     mainLight.castShadow = false;
     mainLight.shadow.mapSize.width = 2048;
@@ -109,12 +109,12 @@ export class Renderer {
     this.scene.add(mainLight);
 
     // Fill light (cool blue from opposite side)
-    const fillLight = new THREE.DirectionalLight(0xb9d2ff, 0.35);
+    const fillLight = new THREE.DirectionalLight(0xc8d8f0, 0.22);
     fillLight.position.set(-250, 200, -200);
     this.scene.add(fillLight);
 
     // Rim light (warm, from behind table)
-    const rimLight = new THREE.DirectionalLight(0xffcf95, 0.5);
+    const rimLight = new THREE.DirectionalLight(0xffe8c8, 0.32);
     rimLight.position.set(0, 150, -400);
     this.scene.add(rimLight);
   }
