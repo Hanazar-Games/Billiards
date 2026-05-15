@@ -12,8 +12,9 @@ export class Ball {
     this.geometry = new THREE.SphereGeometry(BALL.radius, BALL.segments, BALL.segments);
 
     if (type === BALL_TYPE.CUE) {
+      const texture = this._createCueBallTexture();
       this.material = new THREE.MeshStandardMaterial({
-        color: color,
+        map: texture,
         roughness: 0.05,
         metalness: 0.1,
       });
@@ -81,6 +82,56 @@ export class Ball {
 
     // ── White spot + number ──
     this._drawBallSpot(ctx, id, type, W, H);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.anisotropy = 16;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }
+
+  _createCueBallTexture() {
+    const W = 1024;
+    const H = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // Pure white base
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+
+    const cx = W / 2;
+    const cy = H / 2;
+
+    // Red dot in the centre — standard cue-ball target spot
+    const dotR = Math.round(H * 0.065);
+
+    // Soft shadow under the dot
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.25)';
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 1;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = '#d62828';
+    ctx.fill();
+    ctx.restore();
+
+    // Highlight for 3D feel
+    ctx.beginPath();
+    ctx.arc(cx - dotR * 0.25, cy - dotR * 0.25, dotR * 0.35, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fill();
+
+    // Thin ring around the dot
+    ctx.beginPath();
+    ctx.arc(cx, cy, dotR, 0, Math.PI * 2);
+    ctx.lineWidth = Math.max(1, Math.round(dotR * 0.08));
+    ctx.strokeStyle = 'rgba(180,30,30,0.45)';
+    ctx.stroke();
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.anisotropy = 16;
