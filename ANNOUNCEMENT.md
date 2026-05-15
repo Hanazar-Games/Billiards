@@ -1,8 +1,41 @@
-# 3D Billiards v1.2.5 — Latest Update
+# 3D Billiards v1.2.6 — Latest Update
 
-## What's New in v1.2.5
+## What's New in v1.2.6
 
-### UI/UX/SFX/BGM Deep Audit & Polish
+### Room Integrity & Camera Bounds
+
+The billiard room is now fully enclosed and camera movement is strictly bounded:
+
+| # | Fix | Detail |
+|---|-----|--------|
+| 1 | **Ceiling added** | `createCeiling()` now generates a dark-brown ceiling plane (matching walls) so the room is no longer open to the void above |
+| 2 | **Camera clamped to room** | `_clampCameraToRoom()` is now called after **every** camera operation — pan, orbit, zoom, wheel, and both `_resetCameraFree()` / `_resetCameraTop()` — preventing the camera from ever leaving the 520×760 cm room |
+| 3 | **Furniture repositioned** | Sofa and coffee table were overlapping (茶几只差 20 cm 就撞上沙发扶手). Coffee table moved to z = 280 (was 150) for a realistic 90 cm gap |
+| 4 | **Replay camera bounded** | Replay auto-orbit now clamps its computed position to `ROOM` bounds so cinematic fly-bys never clip outside the room |
+
+### Gameplay & Rule Fixes
+
+| # | File | Fix |
+|---|------|-----|
+| 5 | `Game.resolveTurn()` | Scratch logic reordered: `resetCueBallIfPocketed()` is now called **after** stats/recording updates, preventing the cue-ball respawn from desynchronizing turn-resolution state |
+| 6 | `Game._updatePlayerStats()` | Default player names now use Chinese (`'玩家 1'` / `'玩家 2'` / `'AI'`) instead of the stale English `'Player 1'` |
+| 7 | `Game.resetGame()` | Ball material disposal now safely handles `Array.isArray(ball.material)` — future-proofing for multi-material balls |
+| 8 | `Room.js dispose()` | Same array-guard added for wall/ceiling/furniture materials with `child.material.forEach(m => m.dispose())` |
+
+### Version Consistency
+
+All hard-coded version strings bumped from **v1.2.5 → v1.2.6**:
+- `index.html` `<title>`
+- `MainMenuScreen.js` version label
+- `SettingsScreen.js` About section
+- `index.html` `#version-tag`
+
+---
+
+## Previous Releases
+
+<details>
+<summary><strong>v1.2.5</strong> — UI/UX/SFX/BGM Deep Audit & Polish</summary>
 
 A comprehensive third-round audit of the entire user-experience, audio, and visual-effects stack fixed **20+ issues** — from native audio-node leaks to UI button overlap, from English leftovers to listener leaks.
 
@@ -47,10 +80,7 @@ All visual-effect durations and intensities are now user-adjustable in **Setting
 - **FX 动画速度** — scales particle lifetimes, shockwave expansion, and power-label hold time
 - **粒子效果强度** — multiplies spark count, fountain count, and chalk-dust count (0.2× – 2.0×)
 - **拖尾淡出时间** — controls how long shot-trail lines linger before vanishing (2.0 – 10.0 s)
-
----
-
-## Previous Releases
+</details>
 
 <details>
 <summary><strong>v1.2.4</strong> — FX Parameters & Animation Sync</summary>
@@ -323,7 +353,7 @@ A brand-new visual feedback layer makes every shot satisfying:
 - **8-ball cleared-group check** — now counts balls pocketed on the current shot, fixing the false foul when the 7th group ball and 8-ball drop together.
 - **9-ball foul tracking** — pocketed non-9 balls on a foul are no longer permanently retained; they are correctly spotted.
 - **9-ball break validation** — added WPA 4-ball-to-rail rule. If fewer than 4 balls hit a rail on break (and nothing is pocketed), it's a foul.
-- **NineBallRules.getStatus()** — no longer mutates `this.targetBall` as a side effect.
+- **NineBallRules.getStatus()` — no longer mutates `this.targetBall` as a side effect.
 
 ### Table Geometry Fixes
 
