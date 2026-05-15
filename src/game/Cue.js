@@ -97,12 +97,21 @@ export class Cue {
     }
     offset = Math.max(offset, minOffset);
 
-    // Apply pullback AFTER rail clamp so the cue visibly moves backward.
-    offset += pullback;
-
-    const pos = ballPosition.clone().addScaledVector(aim, -offset);
+    const basePos = ballPosition.clone().addScaledVector(aim, -offset);
     // Lift cue slightly and tilt upward to avoid clipping through the table.
-    pos.y = ballPosition.y + 2.5;
+    basePos.y = ballPosition.y + 2.5;
+
+    // Apply pullback along the tilted cue axis so the cue slides straight
+    // back along its own direction rather than horizontally.
+    const tiltAngle = -0.12;
+    const axis = aim.clone().negate();
+    const tiltAx = new THREE.Vector3().crossVectors(aim, new THREE.Vector3(0, 1, 0)).normalize();
+    if (tiltAx.lengthSq() > 0.001) {
+      axis.applyAxisAngle(tiltAx, tiltAngle);
+    }
+    axis.normalize();
+
+    const pos = basePos.clone().addScaledVector(axis, pullback);
 
     this.mesh.position.copy(pos);
     this._applyTilt(aim);
@@ -113,7 +122,7 @@ export class Cue {
     this._quat.setFromUnitVectors(this._localAxis, aim.clone().negate());
     const tiltAxis = new THREE.Vector3().crossVectors(aim, new THREE.Vector3(0, 1, 0)).normalize();
     if (tiltAxis.lengthSq() > 0.001) {
-      const tiltQuat = new THREE.Quaternion().setFromAxisAngle(tiltAxis, -0.06);
+      const tiltQuat = new THREE.Quaternion().setFromAxisAngle(tiltAxis, -0.12);
       this._quat.premultiply(tiltQuat);
     }
   }
