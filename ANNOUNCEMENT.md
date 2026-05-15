@@ -1,4 +1,4 @@
-# 3D Billiards v1.3.0 — Latest Update
+# 3D Billiards v1.3.1 — Latest Update
 
 ## What's New in v1.3.0
 

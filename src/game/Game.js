@@ -1386,22 +1386,24 @@ export class Game {
   _resetCameraFree() {
     this.screenShake?.cancel();
     const cam = this.camera;
-    cam.position.set(0, 280, 260);
+    cam.position.set(0, 180, 220);
     cam.lookAt(0, 0, 0);
     if (this.renderer.controls) {
       this.renderer.controls.target.set(0, 0, 0);
       this.renderer.controls.enabled = true;
+      this.renderer._clampCameraToRoom();
     }
   }
 
   _resetCameraTop() {
     this.screenShake?.cancel();
     const cam = this.camera;
-    cam.position.set(0, 320, 0);
+    cam.position.set(0, 200, 0.1);
     cam.lookAt(0, 0, 0);
     if (this.renderer.controls) {
       this.renderer.controls.target.set(0, 0, 0);
       this.renderer.controls.enabled = true;
+      this.renderer._clampCameraToRoom();
     }
   }
 
