@@ -24,6 +24,7 @@ const DEFAULTS = {
   defaultCamera: 'free', // 'free' | 'top' | 'follow'
   autoFollowCueBall: false,
   cueTheme: 'default', // 'default' | 'black' | 'blue' | 'red' | 'green' | 'gold'
+  turnTimer: 'off', // 'off' | '30' | '60'
 
   // Controls — Camera
   mouseSensitivity: 1.0,

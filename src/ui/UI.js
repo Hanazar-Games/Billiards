@@ -8,6 +8,7 @@ export class UI {
     this.player2Badge = document.getElementById('player2');
     this.message = document.getElementById('message');
     this.powerFill = document.getElementById('power-bar-fill');
+    this.turnTimerEl = document.getElementById('turn-timer');
     this._messageTimer = null;
     this._messageId = 0;
     this._aiListeners = [];
@@ -464,6 +465,31 @@ export class UI {
     this._hudTimer.textContent = `${min}:${sec}`;
   }
 
+  setTurnTimer(seconds, maxSeconds) {
+    if (!this.turnTimerEl) return;
+    if (maxSeconds <= 0) {
+      this.turnTimerEl.style.display = 'none';
+      this.turnTimerEl.classList.remove('warning', 'danger');
+      return;
+    }
+    const s = Math.max(0, Math.ceil(seconds));
+    this.turnTimerEl.textContent = `${s}s`;
+    this.turnTimerEl.style.display = 'block';
+    this.turnTimerEl.classList.remove('warning', 'danger');
+    if (s <= 3) {
+      this.turnTimerEl.classList.add('danger');
+    } else if (s <= 5) {
+      this.turnTimerEl.classList.add('warning');
+    }
+  }
+
+  hideTurnTimer() {
+    if (this.turnTimerEl) {
+      this.turnTimerEl.style.display = 'none';
+      this.turnTimerEl.classList.remove('warning', 'danger');
+    }
+  }
+
   setPlayerStats({ p1Name, p1Group, p1Remaining, p2Name, p2Group, p2Remaining }) {
     if (this._hudP1Name) this._hudP1Name.textContent = p1Name || '玩家 1';
     if (this._hudP2Name) this._hudP2Name.textContent = p2Name || '玩家 2';
@@ -634,6 +660,13 @@ export class UI {
     );
     s.createCard('默认视角', '进入游戏时的初始相机模式', camWrap);
 
+    const { wrap: timerWrap } = s.createSelect(
+      settings.get('turnTimer') || 'off',
+      [{ value: 'off', label: '不限时' }, { value: '30', label: '30 秒' }, { value: '60', label: '60 秒' }],
+      (v) => settings.set('turnTimer', v)
+    );
+    s.createCard('回合时间', '每回合击球限时（标准模式生效）', timerWrap);
+
     this._settingsBackBtn.onclick = () => {
       this.hideInGameSettings();
       if (this._onInGameSettingsClose) {
@@ -730,6 +763,7 @@ export class UI {
     this.player2Badge = null;
     this.message = null;
     this.powerFill = null;
+    this.turnTimerEl = null;
 
     if (this.bottomHud && this.bottomHud.parentNode) {
       this.bottomHud.parentNode.removeChild(this.bottomHud);

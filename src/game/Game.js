@@ -109,6 +109,13 @@ export class Game {
     this._isBreakShot = false;
     this._wasShiftCameraControl = false;
 
+    // Turn timer
+    this._turnTimerEnabled = false;
+    this._turnTimerMax = 0; // seconds, 0 = off
+    this._turnTimerRemaining = 0;
+    this._turnTimerRunning = false;
+    this._settingsOpen = false;
+
     // Listener refs for clean disposal
     this._ballCollideListeners = new Map(); // ballId -> listener fn
     this._cueTipBallWrap = null;
@@ -138,6 +145,19 @@ export class Game {
     }
 
     this.audio.init();
+
+    // Initialize turn timer (disabled for freeplay / challenge / replay)
+    const timerSetting = settings.get('turnTimer') || 'off';
+    const isStandardMode = ['local2p', 'vsai', '9ball'].includes(this.mode) || this.matchMode;
+    if (isStandardMode && timerSetting !== 'off') {
+      this._turnTimerMax = parseInt(timerSetting, 10) || 30;
+      this._turnTimerEnabled = true;
+    } else {
+      this._turnTimerEnabled = false;
+      this._turnTimerMax = 0;
+    }
+    this._turnTimerRemaining = this._turnTimerMax;
+    this._turnTimerRunning = false;
 
     this.table = new Table(this.physics);
     this.table.addToScene(this.scene);
@@ -894,6 +914,51 @@ export class Game {
         visible: true,
       });
     }
+
+    // Turn timer
+    this._updateTurnTimer(dt);
+  }
+
+  _updateTurnTimer(dt) {
+    if (!this._turnTimerEnabled) return;
+
+    // Start timer when entering AIM state
+    if (this.state === 'AIM' && !this.paused && !this._turnTimerRunning) {
+      this._turnTimerRunning = true;
+    }
+
+    // Stop timer when not in AIM or when paused or settings open
+    if ((this.state !== 'AIM' || this.paused || this._settingsOpen) && this._turnTimerRunning) {
+      this._turnTimerRunning = false;
+    }
+
+    if (this._turnTimerRunning) {
+      this._turnTimerRemaining -= dt;
+      if (this._turnTimerRemaining <= 0) {
+        this._turnTimerRemaining = 0;
+        this._turnTimerRunning = false;
+        this._onTurnTimerExpired();
+      }
+      this.ui.setTurnTimer(this._turnTimerRemaining, this._turnTimerMax);
+    } else {
+      this.ui.hideTurnTimer();
+    }
+  }
+
+  _onTurnTimerExpired() {
+    // Foul: switch to other player with ball-in-hand
+    const otherPlayer = this.currentPlayer === 1 ? 2 : 1;
+    this.ui.setMessage(`⏰ 回合超时！${this.currentPlayer === 1 ? this.networkPlayer1Name : this.networkPlayer2Name} 犯规，${otherPlayer === 1 ? this.networkPlayer1Name : this.networkPlayer2Name} 获得自由球`, 3000);
+    this.audio.playFoul();
+    this.ui.flashRed();
+    this.currentPlayer = otherPlayer;
+    this.state = 'AIM';
+    this.ballInHand = true;
+    this.ballInHandBehindLine = false;
+    this.cue.show();
+    this._turnTimerRemaining = this._turnTimerMax;
+    this._updatePlayerStats();
+    this.ui.setPlayerTurn(this.currentPlayer);
   }
 
   resolveTurn(pocketedIds) {
@@ -1187,6 +1252,9 @@ export class Game {
 
     this.paused = false;
     this.ui.hidePauseMenu?.();
+    this.ui.hideTurnTimer?.();
+    this._turnTimerRunning = false;
+    this._turnTimerRemaining = this._turnTimerMax;
     this.currentPlayer = 1;
     this.state = 'AIM';
     this.ballInHand = false;
@@ -1863,7 +1931,9 @@ export class Game {
   }
 
   _openInGameSettings() {
+    this._settingsOpen = true;
     this.ui.showInGameSettings(this.audio, () => {
+      this._settingsOpen = false;
       if (this.paused) this.ui.showPauseMenu();
     });
   }
@@ -1905,6 +1975,20 @@ export class Game {
       case 'cueTheme':
         if (this.cue) this.cue.applyTheme(value);
         break;
+      case 'turnTimer': {
+        const isStandardMode = ['local2p', 'vsai', '9ball'].includes(this.mode) || this.matchMode;
+        if (isStandardMode && value !== 'off') {
+          this._turnTimerMax = parseInt(value, 10) || 30;
+          this._turnTimerEnabled = true;
+        } else {
+          this._turnTimerEnabled = false;
+          this._turnTimerMax = 0;
+        }
+        this._turnTimerRemaining = this._turnTimerMax;
+        this._turnTimerRunning = false;
+        this.ui.hideTurnTimer();
+        break;
+      }
     }
   }
 
@@ -2107,6 +2191,7 @@ export class Game {
     this.matchMode = false;
     this.matchStatus = null;
     this.onMatchGameEnd = null;
+    this._settingsOpen = false;
 
     this.state = 'DISPOSED';
   }
