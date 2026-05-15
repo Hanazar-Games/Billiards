@@ -86,7 +86,20 @@
       color: rgba(255,255,255,0.55);
       letter-spacing: 0.5px;
     }
-    .hud-name.active { color: #fff; text-shadow: 0 0 12px rgba(255,255,255,0.25); }
+    .hud-name.active {
+      color: #fff;
+      text-shadow: 0 0 12px rgba(255,255,255,0.25);
+      position: relative;
+    }
+    .hud-name.active::after {
+      content: '';
+      position: absolute;
+      bottom: -3px; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #d8b15f, transparent);
+      border-radius: 999px;
+      opacity: 0.8;
+    }
     .hud-detail {
       font-size: 12px; font-weight: 600;
       color: rgba(255,255,255,0.4);
@@ -180,14 +193,15 @@
       backdrop-filter: blur(8px);
       animation: uiFloatIn calc(420ms / var(--ui-anim-speed)) var(--ease) both;
     }
-    #player1 { background: linear-gradient(135deg, rgba(80, 82, 86, 0.82), rgba(55, 57, 62, 0.78)); }
-    #player2 { background: linear-gradient(135deg, rgba(80, 82, 86, 0.82), rgba(55, 57, 62, 0.78)); }
+    #player1 { background: linear-gradient(135deg, rgba(140, 110, 40, 0.72), rgba(90, 70, 25, 0.68)); border-color: rgba(216,177,95,0.25); }
+    #player2 { background: linear-gradient(135deg, rgba(35, 90, 140, 0.72), rgba(20, 55, 95, 0.68)); border-color: rgba(90,165,230,0.25); }
     .player-badge.active {
       border-color: rgba(255,255,255,0.75);
       box-shadow: 0 0 0 1px rgba(255,255,255,0.12), 0 0 18px rgba(255,255,255,0.14), 0 12px 32px rgba(0,0,0,0.32);
       transform: translateY(-1px);
-      background: linear-gradient(135deg, rgba(100, 102, 108, 0.88), rgba(70, 72, 78, 0.84)) !important;
     }
+    #player1.active { background: linear-gradient(135deg, rgba(170, 135, 55, 0.82), rgba(115, 90, 35, 0.78)) !important; }
+    #player2.active { background: linear-gradient(135deg, rgba(50, 120, 185, 0.82), rgba(30, 75, 125, 0.78)) !important; }
     #version-tag {
       position: absolute;
       bottom: 10px;
@@ -540,9 +554,9 @@
       to   { opacity: 1; transform: translateY(0) scale(1); }
     }
   </style>
-  <script type="module" crossorigin src="./assets/index-BiiGL3E_.js"></script>
-  <link rel="modulepreload" crossorigin href="./assets/three-DQplaIfc.js">
-  <link rel="modulepreload" crossorigin href="./assets/physics-CuNEbKnu.js">
+  <script type="module" crossorigin src="./assets/index-DMX64RiP.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/three-BrCeroF6.js">
+  <link rel="modulepreload" crossorigin href="./assets/physics-DAiIzLkS.js">
 </head>
 <body>
   <div id="app"></div>
