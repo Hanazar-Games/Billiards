@@ -313,7 +313,9 @@ export class BallsManager {
     const relNormalSpeed = relX * nx + relZ * nz;
     if (relNormalSpeed >= 0) return relNormalSpeed;
 
-    // Equal-mass elastic collision: split impulse 50/50
+    // Equal-mass inelastic collision: split impulse 50/50.  Restitution below
+    // 1 intentionally dissipates speed on impact, which makes clusters stop
+    // feeding unrealistically lively rebounds back into the table.
     const normalImpulse = -(1 + BALL.collisionRestitution) * relNormalSpeed * 0.5;
     av.x -= nx * normalImpulse;
     av.z -= nz * normalImpulse;

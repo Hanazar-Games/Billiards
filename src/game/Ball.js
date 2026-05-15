@@ -168,7 +168,8 @@ export class Ball {
       speed = Math.sqrt(v.x * v.x + v.z * v.z);
     }
 
-    // Enhanced braking as speed approaches zero (avoids micro-jitter)
+    // Gentle braking as speed approaches zero (avoids micro-jitter without
+    // making slow rolls feel sticky).
     if (speed > 0 && speed < BALL.slowBrakeSpeed) {
       const t = 1 - speed / BALL.slowBrakeSpeed;
       const brake = BALL.slowBrakeStrength * t * t;
@@ -187,7 +188,7 @@ export class Ball {
     // angular damping.  This prevents balls from spinning in place forever.
     if (angularSpeed > 0) {
       const isNearlyStopped = speed < BALL.stopSpeedLimit * 2.5;
-      const spinFriction = isNearlyStopped ? 5.0 : 1.0;
+      const spinFriction = isNearlyStopped ? 3.4 : 0.72;
       const spinFactor = Math.max(0, 1 - spinFriction * dt);
       av.x *= spinFactor;
       av.y *= spinFactor;

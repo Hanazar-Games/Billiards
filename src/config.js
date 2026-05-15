@@ -19,17 +19,17 @@ export const BALL = {
   mass: 0.17,                // kg
   segments: 32,              // sphere geometry detail
   restitution: 0.85,
-  collisionRestitution: 0.94,
+  collisionRestitution: 0.88,
   collisionTangentialFriction: 0.10,
   friction: 0.15,
-  damping: 0.015,            // high-speed velocity drag
-  angularDamping: 0.022,
+  damping: 0.010,            // high-speed velocity drag
+  angularDamping: 0.016,
   sleepSpeedLimit: 0.35,
   sleepAngularSpeedLimit: 0.28,
   sleepTimeLimit: 0.16,
-  rollingResistance: 10,      // cloth deceleration in cm/s^2 (≈0.10 m/s^2)
-  slowBrakeSpeed: 18,         // below this, braking ramps up as speed approaches zero
-  slowBrakeStrength: 0.6,
+  rollingResistance: 7.2,     // cloth deceleration in cm/s^2 (≈0.072 m/s^2)
+  slowBrakeSpeed: 16,         // below this, braking ramps up as speed approaches zero
+  slowBrakeStrength: 0.42,
   stopSpeedLimit: 0.18,
   maxSpeed: 520,
   boundaryRestitution: 0.74,
