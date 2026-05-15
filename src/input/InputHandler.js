@@ -84,7 +84,9 @@ export class InputHandler {
     this.element.removeEventListener('mousemove', this._handleMouseMove);
     this.element.removeEventListener('pointermove', this._handlePointerMove);
     this.element.removeEventListener('pointerup', this._handleMouseUp);
-    this.element.removeEventListener('pointerrawupdate', this._handlePointerMove);
+    if (typeof window !== 'undefined' && 'onpointerrawupdate' in window) {
+      this.element.removeEventListener('pointerrawupdate', this._handlePointerMove);
+    }
     this.element.removeEventListener('mousedown', this._handleMouseDown);
     window.removeEventListener('mouseup', this._handleMouseUp);
     this.element.removeEventListener('contextmenu', this._handleContextMenu);

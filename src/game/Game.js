@@ -1104,6 +1104,7 @@ export class Game {
     this.cameraMode = defaultCam;
     if (defaultCam === 'top') this._resetCameraTop();
     else if (defaultCam === 'free') this._resetCameraFree();
+    else if (defaultCam === 'follow') this._resetCameraFollow();
     this.powerLabel?.dispose();
     this.ui.setPower(0);
     this.ui.setPlayerTurn(1);
@@ -1410,6 +1411,24 @@ export class Game {
     }
   }
 
+  _resetCameraFollow() {
+    this.screenShake?.cancel();
+    const cueBall = this.ballsManager?.getCueBall();
+    if (cueBall && !cueBall.pocketed) {
+      const cam = this.camera;
+      const pos = cueBall.mesh.position;
+      cam.position.set(pos.x, pos.y + 120, pos.z - 140);
+      cam.lookAt(pos.x, pos.y, pos.z);
+    }
+    if (this.renderer.controls) {
+      const cueBall = this.ballsManager?.getCueBall();
+      if (cueBall && !cueBall.pocketed) {
+        this.renderer.controls.target.copy(cueBall.mesh.position);
+      }
+      this.renderer.controls.enabled = false;
+    }
+  }
+
   _updateChallengeHUD() {
     if (!this.challengeManager) return;
     const data = this.challengeManager.getHUDData();
@@ -1492,6 +1511,9 @@ export class Game {
         cam.position.y += (targetY - cam.position.y) * 0.05;
         cam.position.z += (targetZ - cam.position.z) * 0.05;
         cam.lookAt(pos.x, pos.y, pos.z);
+      } else if (cueBall && cueBall.pocketed) {
+        // Cue ball pocketed: keep camera looking at table center
+        this.camera.lookAt(0, 0, 0);
       }
     } else if (this.renderer.controls) {
       // Re-enable orbit controls when leaving follow mode
@@ -1563,6 +1585,28 @@ export class Game {
     this.ui.setMessage(`玩家 ${winner} 获胜！（对手认输）`, 0);
     this.state = 'GAME_OVER';
     this.cue.hide();
+
+    // Notify rules engine
+    if (this.rules) {
+      this.rules.gameOver = true;
+      this.rules.winner = winner;
+    }
+
+    // End stats tracking and show summary
+    const summary = this.statsTracker.endGame(winner);
+    this.statsPanel.showGameOver(summary, this.aiEnabled);
+
+    // Notify achievements
+    const duration = (performance.now() - this.gameStartTime) / 1000;
+    const stats = summary.player1 || summary.player2 ? summary : null;
+    this.achievements.onGameEnd(
+      winner, this.currentPlayer, this.mode,
+      this.aiPlayer?.difficulty || 'normal', duration, stats
+    );
+    if (this.challengeManager) {
+      this.challengeManager.onGameEnd(winner);
+    }
+
     this.audio.playWin();
     this.ui.showResetButton(() => this.resetGame());
     this.ui.setPlayerTurn(winner);
@@ -1584,6 +1628,7 @@ export class Game {
       this.cameraMode = defaultCam;
       if (defaultCam === 'top') this._resetCameraTop();
       else if (defaultCam === 'free') this._resetCameraFree();
+      else if (defaultCam === 'follow') this._resetCameraFollow();
     }
   }
 
@@ -1604,6 +1649,7 @@ export class Game {
           this.cameraMode = value;
           if (value === 'top') this._resetCameraTop();
           else if (value === 'free') this._resetCameraFree();
+          else if (value === 'follow') this._resetCameraFollow();
         }
         break;
       case 'cueTheme':

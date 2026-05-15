@@ -1,6 +1,52 @@
-# 3D Billiards v1.3.4 — Latest Update
+# 3D Billiards v1.3.5 — Latest Update
 
-## What's New in v1.3.0
+## What's New in v1.3.5
+
+### Comprehensive Bug Audit & Hardening — Memory, Physics, Camera, AI
+
+A full-system fifth-round audit fixed **9 critical issues** spanning memory leaks, physics lifecycle, camera state, and build consistency.
+
+### Critical Memory & Lifecycle Fixes
+
+| # | File | Issue | Fix |
+|---|------|-------|-----|
+| 1 | `Game.js` | **Dispose order crash** — `physics.removeBody()` was called before `removeEventListener('collide')`, causing cannon-es to dereference freed bodies | Reordered: remove listeners **first**, then destroy bodies |
+| 2 | `Cue.js` | **Geometry/material leak on reset** — cue-stick mesh segments were never disposed, leaking GPU memory every `resetGame()` | Added `dispose()` that traverses and releases all child geometries/materials |
+| 3 | `BallsManager.js` | **Double-add physics body** — `resetCueBallIfPocketed()` unconditionally called `this.physics.addBody(cue.body)` even when the body was still in the world | Now safely checks state before re-adding; prevents cannon-es assertion failures |
+| 4 | `Table.js` | **Null-physics crash on dispose** — `dispose()` threw if `this.physics` was already nulled (double-dispose or error path) | Added `if (this.physics)` guard before iterating bodies |
+
+### Camera & AI Fixes
+
+| # | File | Issue | Fix |
+|---|------|-------|-----|
+| 5 | `Renderer.js` | **Double camera reset on boot** — constructor called `_resetCameraFree()` and then `Game.init()` called it again, causing a jarring position snap | Removed duplicate initialization; camera is set once in the constructor |
+| 6 | `Game.js` | **Follow camera broken** — `defaultCamera === 'follow'` had no reset path in `resetGame()` or settings change | Added `_resetCameraFollow()`; wired into `resetGame()`, `_applySettings()`, and `_handleSettingsChange()` |
+| 7 | `AIPlayer.js` | **Runtime ReferenceError** — `SHOT.minPower` / `SHOT.maxPower` were used but `SHOT` was never imported | Added missing `import { SHOT } from '../config.js';` |
+| 8 | `Room.js` | **Variable shadowing in lamp opacity** — `updateLampOpacity()` mixed `camera.position` and a local `camPos`, causing NaN or wrong opacity calculations | Unified all references to the single `camPos` parameter |
+
+### Build Consistency
+
+| # | File | Fix |
+|---|------|-----|
+| 9 | `index.html` / `MainMenuScreen.js` / `README.md` / `SettingsScreen.js` | All hard-coded version strings bumped to **v1.3.5** |
+
+---
+
+## Previous Releases
+
+<details>
+<summary><strong>v1.3.4</strong> — Camera Default View & Wall Safety Margin</summary>
+
+### Camera Default View & Wall Safety Margin
+
+| # | Change | Detail |
+|---|--------|--------|
+| 1 | **Default camera position** | Free-camera initial position moved to `(140, 180, 100)` — a dramatic side-above angle that showcases the table and room on first load |
+| 2 | **Wall safety margin** | `_clampCameraToRoom()` now uses `wallMargin = 25` so the camera never clips inside the walls |
+</details>
+
+<details>
+<summary><strong>v1.3.0</strong> — Lighting Detail: Suspension Rods & Plaque Spotlight</summary>
 
 ### Lighting Detail — Suspension Rods & Plaque Spotlight
 
@@ -8,10 +54,7 @@
 |---|--------|--------|
 | 1 | **Table lights now hang from ceiling** | Three brushed-metal suspension rods (`0x8a7a68`, `metalness: 0.65`) connect the crossbar directly to the ceiling, eliminating the floating-lamp look |
 | 2 | **Dedicated plaque spotlight** | A warm `SpotLight(0xffeedd, 1.0, 260)` is mounted above the table and aimed at the "厚德载物" plaque on the back wall, making the calligraphy stand out even under dim ambient conditions |
-
----
-
-## Previous Releases
+</details>
 
 <details>
 <summary><strong>v1.2.9</strong> — Full Room Redecoration: Beige Theme, Carpet Floor, Calligraphy Plaque</summary>

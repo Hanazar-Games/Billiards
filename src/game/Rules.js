@@ -178,7 +178,7 @@ export class Rules {
     if (!cueBallPocketed) {
       const firstHitType = getBallType(this.firstBallHit);
       const currentList = this.currentPlayer === 1 ? this.player1Pocketed : this.player2Pocketed;
-      const justPocketedOwn = pocketedIds.filter(id => {
+      const justPocketedOwn = uniquePocketed.filter(id => {
         const t = getBallType(id);
         return (currentGroup === 'solid' && t === BALL_TYPE.SOLID) ||
                (currentGroup === 'stripe' && t === BALL_TYPE.STRIPE);
@@ -208,7 +208,7 @@ export class Rules {
       const currentList = this.currentPlayer === 1 ? this.player1Pocketed : this.player2Pocketed;
       // Count own-group balls pocketed THIS shot too, to handle
       // the case where the 7th group ball and 8-ball drop together.
-      const justPocketedOwn = pocketedIds.filter(id => {
+      const justPocketedOwn = uniquePocketed.filter(id => {
         const t = getBallType(id);
         return (currentGroup === 'solid' && t === BALL_TYPE.SOLID) ||
                (currentGroup === 'stripe' && t === BALL_TYPE.STRIPE);

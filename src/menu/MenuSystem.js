@@ -327,6 +327,16 @@ export class MenuSystem {
     if (this.state !== 'MENU') return;
     this.state = 'TRANSITION';
 
+    // Dispose any existing game instance before creating a new one
+    if (this.game) {
+      try { this.game.dispose(); } catch (e) { console.warn('Old game dispose error:', e); }
+      this.game = null;
+    }
+    if (this.loop) {
+      this.loop.stop();
+      this.loop = null;
+    }
+
     // Hide any open panels before starting the game
     if (this.replayPanel) this.replayPanel.hideList();
     if (this.achievementPanel) this.achievementPanel.hideWall();

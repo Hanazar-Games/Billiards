@@ -189,7 +189,7 @@ export class StatsPanel {
         ${row('进球', p.pocketed)}
         ${row('犯规', p.fouls)}
         ${row('滑杆', p.scratches)}
-        ${row('平均力度', typeof p.avgPower === 'number' ? p.avgPower.toFixed(1) : 'N/A')}
+        ${row('平均力度', p.avgPower)}
         ${row('最大力度', p.maxPower)}
         ${row('进球率', p.pocketRate)}
         ${row('最高连击', p.streak)}
@@ -248,7 +248,7 @@ export class StatsPanel {
         <div style="display:flex;justify-content:space-between;"><span>出杆</span><span>${Math.round(p.shots)}</span></div>
         <div style="display:flex;justify-content:space-between;"><span>进球</span><span>${Math.round(p.ballsPocketed)}</span></div>
         <div style="display:flex;justify-content:space-between;"><span>犯规</span><span>${Math.round(p.fouls)}</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>平均力度</span><span>${typeof p.avgPower === 'number' ? p.avgPower.toFixed(1) : 'N/A'}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>平均力度</span><span>${p.avgPower}</span></div>
         <div style="display:flex;justify-content:space-between;"><span>最大力度</span><span>${Math.round(p.maxPower)}</span></div>
       </div>
     `;
