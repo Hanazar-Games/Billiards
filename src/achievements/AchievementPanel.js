@@ -16,6 +16,7 @@ export class AchievementPanel {
     this.system = achievementSystem;
     this.toastContainer = null;
     this.wallContainer = null;
+    this._toastTimers = [];
     this._buildToast();
   }
 
@@ -90,13 +91,15 @@ export class AchievementPanel {
     });
 
     // Auto dismiss
-    setTimeout(() => {
+    const dismissTimer = setTimeout(() => {
       toast.style.transform = 'translateX(120%)';
       toast.style.opacity = '0';
-      setTimeout(() => {
+      const removeTimer = setTimeout(() => {
         if (toast.parentNode) toast.parentNode.removeChild(toast);
       }, 500);
+      this._toastTimers.push(removeTimer);
     }, 3500);
+    this._toastTimers.push(dismissTimer);
   }
 
   // ── Achievement Wall (Full Screen) ──
@@ -288,6 +291,8 @@ export class AchievementPanel {
   }
 
   destroy() {
+    for (const t of this._toastTimers) clearTimeout(t);
+    this._toastTimers = [];
     if (this.toastContainer && this.toastContainer.parentNode) {
       this.toastContainer.parentNode.removeChild(this.toastContainer);
     }

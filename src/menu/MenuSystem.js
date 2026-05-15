@@ -166,6 +166,7 @@ export class MenuSystem {
 
   _showAchievements() {
     this.mainMenu.hide();
+    if (this.settingsScreen) this.settingsScreen.hide();
     if (this.replayPanel) this.replayPanel.hideList();
     if (this.challengePanel) this.challengePanel.hide();
     if (this.challengeResult) this.challengeResult.hide();
@@ -174,6 +175,7 @@ export class MenuSystem {
 
   _showReplays() {
     this.mainMenu.hide();
+    if (this.settingsScreen) this.settingsScreen.hide();
     if (this.achievementPanel) this.achievementPanel.hideWall?.();
     if (this.challengePanel) this.challengePanel.hide();
     if (this.challengeResult) this.challengeResult.hide();
@@ -309,6 +311,13 @@ export class MenuSystem {
           breakPocketed: this.challengeManager.breakPocketedCount,
         }
       );
+    }
+
+    // Restore menu-layer so challenge result / panel have the menu visible underneath
+    const menuLayer = document.getElementById('menu-layer');
+    if (menuLayer) {
+      menuLayer.style.display = 'flex';
+      menuLayer.style.opacity = '1';
     }
 
     this.challengeManager = null;
@@ -535,6 +544,10 @@ export class MenuSystem {
       clearTimeout(this._replayCompleteTimeout);
       this._replayCompleteTimeout = null;
     }
+    if (this._delayTimer) {
+      clearTimeout(this._delayTimer);
+      this._delayTimer = null;
+    }
 
     // Stop replay engine
     if (this.replayEngine) {
@@ -623,9 +636,20 @@ export class MenuSystem {
     this.settingsScreen?.destroy();
     this.mainMenu = null;
     this.settingsScreen = null;
+
+    // Remove menu-layer from DOM so a fresh MenuSystem starts clean
+    const menuLayer = document.getElementById('menu-layer');
+    if (menuLayer && menuLayer.parentNode) {
+      menuLayer.parentNode.removeChild(menuLayer);
+    }
   }
 
   _delay(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise((resolve) => {
+      this._delayTimer = setTimeout(() => {
+        this._delayTimer = null;
+        resolve();
+      }, ms);
+    });
   }
 }

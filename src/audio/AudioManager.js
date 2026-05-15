@@ -136,11 +136,10 @@ export class AudioManager {
       const v = enabled ? (this._masterVolume ?? 1.0) : 0.0;
       this._masterGain.gain.setTargetAtTime(v, this.ctx?.currentTime ?? 0, 0.05);
     }
-    if (enabled) {
-      this.startBGM();
-    } else {
-      this.stopBGM();
-    }
+    // NOTE: we do NOT start/stop BGM here — that is the caller's responsibility.
+    // toggleSound() only controls the master gain (global mute).
+    // This prevents BGM from leaking into gameplay when sound is toggled
+    // from the in-game settings panel.
   }
 
   setMasterVolume(vol) {

@@ -146,6 +146,7 @@ export class Game {
 
     this.trajectory = new TrajectoryPredictor(this.scene);
 
+    this.achievements = new AchievementSystem();
     this.statsTracker.reset();
     this.particles.clear();
     this.gameStartTime = performance.now();
@@ -638,12 +639,13 @@ export class Game {
     this.aimDirection.set(decision.aimDirection.x, 0, decision.aimDirection.z).normalize();
     this.cueTipOffset = decision.cueTipOffset || { x: 0, y: 0 };
     this._updateCueTipPicker();
+    if (!this.ballsManager || !this.cue) return; // disposed during await
     this.cue.setAim(this.ballsManager.getCueBall().mesh.position, this.aimDirection);
     this.cue.show();
 
     await this.aiPlayer.delay(400); // brief aim pause
 
-    if (this.state !== 'AI_THINKING') return; // game may have been reset
+    if (this.state !== 'AI_THINKING' || !this.ballsManager) return; // game may have been reset/disposed
 
     // Charge
     this.state = 'CHARGING';
@@ -678,7 +680,7 @@ export class Game {
       tick();
     });
 
-    if (this.state !== 'CHARGING') return;
+    if (this.state !== 'CHARGING' || !this.ballsManager) return;
 
     // Shoot
     this.state = 'SHOOTING';
@@ -713,10 +715,12 @@ export class Game {
         this.audio.playPocket();
         const flashed = new Set();
         for (const entry of newlyPocketed) {
+          const pocket = pocketPositions[entry.pocketIndex];
+          if (!pocket) continue;
           const isFirstTime = !this.turnPocketedIds.includes(entry.id);
           if (isFirstTime) {
             this.turnPocketedIds.push(entry.id);
-            this.achievements.onPocket(entry.id, pocketPositions[entry.pocketIndex], this.mode);
+            this.achievements.onPocket(entry.id, pocket, this.mode);
             this.recorder.recordPocket(entry.id);
             if (this.challengeManager) this.challengeManager.onPocket(entry.id);
             // Ball return visual: cloned mesh drops through pocket into tray
@@ -724,11 +728,9 @@ export class Game {
             // would look like a duplicate.
             const pBall = this.ballsManager.getBall(entry.id);
             if (pBall && this.ballReturn && entry.id !== 0) {
-              this.ballReturn.animateBallReturn(pBall.mesh, pocketPositions[entry.pocketIndex]);
+              this.ballReturn.animateBallReturn(pBall.mesh, pocket);
             }
           }
-          const pocket = pocketPositions[entry.pocketIndex];
-          if (!pocket) continue;
           // Visual FX only on first detection per ball
           if (isFirstTime) {
             if (!flashed.has(entry.pocketIndex)) {
@@ -1079,6 +1081,8 @@ export class Game {
       chHud.parentNode.removeChild(chHud);
     }
 
+    this.paused = false;
+    this.ui.hidePauseMenu?.();
     this.currentPlayer = 1;
     this.state = 'AIM';
     this.ballInHand = false;
@@ -1089,6 +1093,9 @@ export class Game {
     this.power = 0;
     this.charging = false;
     this.dragStart = null;
+    this.aimDirection.set(0, 0, 1);
+    this.lockedAimDirection.set(0, 0, 1);
+    this._wasShiftCameraControl = false;
     this.turnPocketedIds = [];
     this._shotStartTime = null;
     this._isBreakShot = false;

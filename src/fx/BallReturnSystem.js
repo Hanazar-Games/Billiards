@@ -48,7 +48,7 @@ export class BallReturnSystem {
     const d = 26;
     const x = 0;
     const y = -20;
-    const z = -144;
+    const z = -155; // pushed back to avoid z-fighting with back apron
 
     // Bottom slab
     const bottom = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), woodMat);
@@ -202,14 +202,22 @@ export class BallReturnSystem {
   /*  Lifecycle                                                          */
   /* ------------------------------------------------------------------ */
   reset() {
-    // Remove all active animations
+    // Remove all active animations and drop references to disposed resources
     for (const a of this.active) {
-      if (a.mesh) this.scene.remove(a.mesh);
+      if (a.mesh) {
+        this.scene.remove(a.mesh);
+        a.mesh.geometry = null;
+        a.mesh.material = null;
+      }
     }
     this.active = [];
-    // Remove settled balls from tray
+    // Remove settled balls from tray and drop references
     for (const s of this.settled) {
-      if (s.mesh) this.scene.remove(s.mesh);
+      if (s.mesh) {
+        this.scene.remove(s.mesh);
+        s.mesh.geometry = null;
+        s.mesh.material = null;
+      }
     }
     this.settled = [];
     this._nextSlot = 0;

@@ -544,12 +544,12 @@ export class SettingsScreen {
     wrap.appendChild(desc);
 
     const ver = document.createElement('div');
-    ver.textContent = 'Version 1.2.5';
+    ver.textContent = '版本 1.2.7';
     ver.style.cssText = 'font-size: 13px; color: rgba(255,255,255,0.35); margin-top: 8px;';
     wrap.appendChild(ver);
 
     const copy = document.createElement('div');
-    copy.textContent = '© 2026 Hanazar Games. All rights reserved.';
+    copy.textContent = '© 2026 Hanazar Games. 保留所有权利。';
     copy.style.cssText = 'font-size: 12px; color: rgba(255,255,255,0.25); margin-top: 4px;';
     wrap.appendChild(copy);
 
@@ -1124,8 +1124,12 @@ export class SettingsScreen {
       el.style.opacity = '0';
       el.style.transition = 'opacity calc(0.3s / var(--ui-anim-speed)) ease';
       const removeTimer = setTimeout(() => { if (el.parentNode) el.remove(); }, animMs(300));
-      this._toastTimers = (this._toastTimers || []).filter(t => t !== fadeTimer && t !== removeTimer);
+      if (!this._toastTimers) this._toastTimers = [];
+      this._toastTimers.push(removeTimer);
+      // Remove the now-fired fade timer from tracking
+      this._toastTimers = this._toastTimers.filter(t => t !== fadeTimer);
     }, 2000);
+    if (!this._toastTimers) this._toastTimers = [];
     this._toastTimers.push(fadeTimer);
   }
 
@@ -1137,7 +1141,9 @@ export class SettingsScreen {
     if (!this.container) return;
     this._syncAllControls();
     this.container.style.display = 'flex';
-    requestAnimationFrame(() => { this.container.style.opacity = '1'; });
+    requestAnimationFrame(() => {
+      if (this.container) this.container.style.opacity = '1';
+    });
   }
 
   hide() {

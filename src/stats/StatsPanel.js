@@ -188,7 +188,7 @@ export class StatsPanel {
         ${row('出杆', p.shots)}
         ${row('进球', p.pocketed)}
         ${row('犯规', p.fouls)}
-        ${row('Scratches', p.scratches)}
+        ${row('滑杆', p.scratches)}
         ${row('平均力度', typeof p.avgPower === 'number' ? p.avgPower.toFixed(1) : 'N/A')}
         ${row('最大力度', p.maxPower)}
         ${row('进球率', p.pocketRate)}

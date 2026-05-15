@@ -52,6 +52,8 @@ export class ChallengeManager {
     this.totalFouls = 0;
     this.spinPocketCount = 0;
     this.breakPocketedCount = 0;
+    this.completed = false;
+    this.failed = false;
   }
 
   // ── Event hooks (called by Game.js) ──

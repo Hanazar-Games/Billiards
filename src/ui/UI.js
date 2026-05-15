@@ -531,7 +531,7 @@ export class UI {
     if (this._pauseHideTimer) { clearTimeout(this._pauseHideTimer); this._pauseHideTimer = null; }
     this.pauseOverlay.style.display = 'flex';
     requestAnimationFrame(() => {
-      this.pauseOverlay.style.opacity = '1';
+      if (this.pauseOverlay) this.pauseOverlay.style.opacity = '1';
     });
   }
 
@@ -558,6 +558,7 @@ export class UI {
     }
     this._onInGameSettingsClose = onClose;
     const s = this._inGameSettings;
+    if (!s) return;
     this._inGameSettingCards.forEach(c => c.remove());
     this._inGameSettingCards = [];
 

@@ -12,6 +12,7 @@ export class BallsManager {
 
   addToScene(scene) {
     for (const ball of this.balls) {
+      if (ball.pocketed) continue;
       scene.add(ball.mesh);
       ball.setPhysicsMaterial(this.physics.ballMaterial);
       this.physics.addBody(ball.body);

@@ -160,28 +160,24 @@ export class NineBallRules {
       // Track pocketed balls
       this.trackPocketedBalls(pocketedIds);
 
-      // If nothing pocketed and no foul, opponent's turn
+      // If nothing pocketed, check WPA 4-ball-to-rail rule before handing over
       if (pocketedIds.length === 0) {
+        if (this.breakRailContacts.size < 4 && !this.railContactAfterFirstHit) {
+          this.foul = true;
+          return {
+            nextPlayer: opponent,
+            foul: true,
+            scratch: false,
+            ballInHand: true,
+            message: 'Break foul: fewer than 4 balls hit a rail. Opponent ball-in-hand.',
+            gameOver: false,
+          };
+        }
         return {
           nextPlayer: opponent,
           foul: false,
           scratch: false,
           message: 'Break: no balls pocketed.',
-          gameOver: false,
-        };
-      }
-
-      // Check WPA 4-ball-to-rail rule: if no ball pocketed, at least 4
-      // distinct object balls must hit a rail (or cue ball must hit a rail
-      // after contacting the 1-ball).
-      if (pocketedIds.length === 0 && this.breakRailContacts.size < 4 && !this.railContactAfterFirstHit) {
-        this.foul = true;
-        return {
-          nextPlayer: opponent,
-          foul: true,
-          scratch: false,
-          ballInHand: true,
-          message: 'Break foul: fewer than 4 balls hit a rail. Opponent ball-in-hand.',
           gameOver: false,
         };
       }

@@ -1,6 +1,115 @@
-# 3D Billiards v1.2.6 — Latest Update
+# 3D Billiards v1.2.7 — Latest Update
 
-## What's New in v1.2.6
+## What's New in v1.2.7
+
+### Comprehensive Deep Audit — 15+ Fixes Across All Systems
+
+A full-system fourth-round audit uncovered and fixed **15+ issues** spanning gameplay rules, audio lifecycle, UI/UX state management, physics, and the new Ball Return System.
+
+### Critical Gameplay Fixes
+
+| # | File | Issue | Fix |
+|---|------|-------|-----|
+| 1 | `NineBallRules.js` | **Illegal break (4-ball-to-rail) was dead code** — when nothing was pocketed on break, the function returned early at line 164, making the WPA 4-ball rule unreachable | Moved the rail-check **before** the "no balls pocketed" return so dry breaks with <4 rail contacts are correctly flagged as fouls |
+| 2 | `ChallengeManager.js` | **`resetMatch()` never reset `completed`/`failed`** — after finishing a challenge and clicking "New Game", those flags stayed `true`, causing `Game.update()` to schedule `onReturnToMenu()` ~2 s after every reset | `completed` and `failed` are now reset inside `_resetMatch()` |
+| 3 | `Game.js` | **`this.achievements` was never initialized** — `AchievementSystem` was constructed in `MenuSystem` but never injected into `Game`, so all achievement calls in `Game` were no-ops | `new AchievementSystem()` is now created in `Game.init()` |
+| 4 | `BallsManager.js` | **9-ball mode leaked 6 dormant physics bodies** — balls 10‑15 were marked `pocketed` and teleported to `y=-1000`, but `addToScene()` unconditionally added every body to the physics world | `addToScene()` now skips `ball.pocketed` balls |
+
+### Critical Audio & UI Fixes
+
+| # | File | Issue | Fix |
+|---|------|-------|-----|
+| 5 | `AudioManager.js` | **`toggleSound(true)` unconditionally started BGM** — toggling sound ON from the in-game settings panel triggered the menu ambient drone inside active gameplay | `toggleSound()` now **only** controls the master gain node; BGM start/stop is left to the caller (`MenuSystem`) |
+| 6 | `MenuSystem.js` | **`_delay()` timeouts were untracked and uncancellable** — if `_quit()` was called while `_startGame()` or `_startChallenge()` awaited a fade delay, the timeout continued and the async method resumed after destruction | `_delay()` now stores its timer in `this._delayTimer`; `_quit()` clears it |
+| 7 | `MenuSystem.js` | **Challenge result never restored `menu-layer`** — `_startChallenge()` hid `menu-layer`, but `_stopChallenge()` never showed it again, leaving the main-menu container invisible if the user eventually returned to it | `_stopChallenge()` now restores `menu-layer` to `display: flex; opacity: 1` |
+| 8 | `AchievementPanel.js` | **Toast timers were completely untracked** — `showToast()` used raw `setTimeout` (2 per toast); rapid unlocks or `destroy()` during animation leaked detached DOM nodes | Added `_toastTimers[]`; both dismiss and remove timers are tracked and cleared in `destroy()` |
+| 9 | `SettingsScreen.js` | **`_toast()` `removeTimer` was never tracked** — the inner 300 ms removal timeout was created but never pushed to `_toastTimers`, so `destroy()` could not cancel it | `removeTimer` is now pushed to `_toastTimers` and the fade timer is correctly removed from the array when fired |
+| 10 | `Renderer.js` | **Wheel listener removal mismatch** — `addEventListener('wheel', ..., { passive: false })` was removed without the options object, causing some browsers to fail matching and leak the listener | `removeEventListener` now passes `{ passive: false }` |
+
+### Game Lifecycle Hardening
+
+| # | File | Issue | Fix |
+|---|------|-------|-----|
+| 11 | `Game.js` | **`resetGame()` did not reset `paused`** — resetting while the pause menu was open left the new match frozen | `this.paused = false` and `ui.hidePauseMenu()` are now called in `resetGame()` |
+| 12 | `Game.js` | **`resetGame()` leaked stale aim/camera state** — `aimDirection`, `lockedAimDirection`, and `_wasShiftCameraControl` retained values from the previous match | All three are now reset to defaults |
+| 13 | `Game.js` | **`startAITurn()` crashed on disposal** — `await aiPlayer.takeTurn()` and the charge-animation rAF could resume after `dispose()` nulled `ballsManager`, causing null-dereference | Added `!this.ballsManager` guards at every resumption point after an `await` |
+| 14 | `Game.js` | **Pocket null-guard placed after usage** — `pocketPositions[entry.pocketIndex]` was used by `animateBallReturn` **before** the defensive `if (!pocket) continue` check | Moved the `pocket` assignment and null-check to the **top** of the loop body |
+
+### Ball Return System Polish
+
+| # | File | Issue | Fix |
+|---|------|-------|-----|
+| 15 | `BallReturnSystem.js` | **Tray z-fought with back apron** — the tray at `z=-144` overlapped the back apron (`z=-137`) in both Z and Y, causing flickering faces | Tray moved to `z=-155` so its front edge clears the apron |
+| 16 | `BallReturnSystem.js` | **Clone meshes retained disposed geometry/material refs** — after `resetGame()` disposed original ball resources, clone meshes in the tray still pointed to them | `reset()` now sets `mesh.geometry = null` and `mesh.material = null` on every removed clone |
+| 17 | `BallReturnSystem.js` | **Concurrent pocket slot collision** (discovered & fixed in RC) — multiple balls pocketed on the same frame competed for the same tray slot | Monotonic `_nextSlot` allocator ensures every ball gets a unique slot |
+
+### Localization & Consistency
+
+| # | File | Fix |
+|---|------|-----|
+| 18 | `StatsPanel.js` | `Scratches` → `滑杆` |
+| 19 | `SettingsScreen.js` | `Version 1.2.5` → `版本 1.2.7` |
+| 20 | `SettingsScreen.js` | `All rights reserved.` → `保留所有权利。` |
+| 21 | `UI.js` / `MainMenuScreen.js` / `SettingsScreen.js` | RAF null-guards added to all fade-in callbacks so `destroy()` mid-animation no longer throws |
+| 22 | `MenuSystem.js` | `_showAchievements()` and `_showReplays()` now hide `settingsScreen` to prevent orphaned overlapping panels |
+| 23 | `MenuSystem.js` | `_quit()` now removes `menu-layer` from the DOM so a fresh `MenuSystem` boot starts clean |
+
+---
+
+## Previous Releases
+
+<details>
+<summary><strong>v1.2.6</strong> — Room Integrity, Camera Bounds, Ball Return System</summary>
+
+### Room Integrity & Camera Bounds
+
+The billiard room is now fully enclosed and camera movement is strictly bounded:
+
+| # | Fix | Detail |
+|---|-----|--------|
+| 1 | **Ceiling added** | `createCeiling()` now generates a dark-brown ceiling plane (matching walls) so the room is no longer open to the void above |
+| 2 | **Camera clamped to room** | `_clampCameraToRoom()` is now called after **every** camera operation — pan, orbit, zoom, wheel, and both `_resetCameraFree()` / `_resetCameraTop()` — preventing the camera from ever leaving the 520×760 cm room |
+| 3 | **Furniture repositioned** | Sofa and coffee table were overlapping (茶几只差 20 cm 就撞上沙发扶手). Coffee table moved to z = 280 (was 150) for a realistic 90 cm gap |
+| 4 | **Replay camera bounded** | Replay auto-orbit now clamps its computed position to `ROOM` bounds so cinematic fly-bys never clip outside the room |
+
+### Gameplay & Rule Fixes
+
+| # | File | Fix |
+|---|------|-----|
+| 5 | `Game.resolveTurn()` | Scratch logic reordered: `resetCueBallIfPocketed()` is now called **after** stats/recording updates, preventing the cue-ball respawn from desynchronizing turn-resolution state |
+| 6 | `Game._updatePlayerStats()` | Default player names now use Chinese (`'玩家 1'` / `'玩家 2'` / `'AI'`) instead of the stale English `'Player 1'` |
+| 7 | `Game.resetGame()` | Ball material disposal now safely handles `Array.isArray(ball.material)` — future-proofing for multi-material balls |
+| 8 | `Room.js dispose()` | Same array-guard added for wall/ceiling/furniture materials with `child.material.forEach(m => m.dispose())` |
+
+### Ball Return System — Pocketed Balls No Longer Vanish
+
+The biggest visual upgrade in v1.2.6: when an object ball drops into a pocket, it **no longer disappears into thin air**. Instead, a cloned mesh performs a three-phase animation:
+
+1. **Drop** (~220 ms) — the ball falls through the pocket mouth into the chute below the table surface
+2. **Slide** (~520 ms) — it glides horizontally beneath the table toward the head end
+3. **Settle** (~180 ms) — a slight bounce dampens into its final resting position
+
+All returned balls accumulate in a **real 3D collection tray** attached to the underside of the table head-end:
+
+- Dark wood construction with metal trim, matching the table's existing aesthetic
+- Balls arrange in a natural 8-column grid with subtle random jitter — no sterile stacking
+- Tray is fully shadow-casting and visible from low camera angles or the table end
+- **Monotonic slot allocator** guarantees that even when multiple balls are pocketed on the same frame (break shots, combo pockets), they never overlap in the tray
+- Cue ball is intentionally excluded — it gets respotted, so showing it in the tray would look like a duplicate
+
+The tray and every returned ball are properly disposed on `resetGame()` and `dispose()`, leaving no mesh or material leaks.
+
+### Version Consistency
+
+All hard-coded version strings bumped from **v1.2.5 → v1.2.6**:
+- `index.html` `<title>`
+- `MainMenuScreen.js` version label
+- `SettingsScreen.js` About section
+- `index.html` `#version-tag`
+</details>
+
+<details>
+<summary><strong>v1.2.5</strong> — UI/UX/SFX/BGM Deep Audit & Polish</summary>
 
 ### Room Integrity & Camera Bounds
 
