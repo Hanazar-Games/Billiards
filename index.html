@@ -50,14 +50,14 @@
       bottom: 108px;
       left: 50%;
       transform: translateX(-50%);
-      width: min(420px, 42vw);
-      height: 18px;
+      width: min(520px, 55vw);
+      height: 20px;
       background: rgba(8,10,12,0.62);
       border: 1px solid rgba(255,255,255,0.42);
       border-radius: 999px;
       overflow: hidden;
       pointer-events: none;
-      box-shadow: inset 0 1px 8px rgba(0,0,0,0.75), 0 10px 28px rgba(0,0,0,0.35);
+      box-shadow: inset 0 1px 8px rgba(0,0,0,0.75), 0 0 24px rgba(255,255,255,0.08), 0 10px 28px rgba(0,0,0,0.35);
       display: none;
     }
     #bottom-hud {
@@ -144,7 +144,7 @@
       width: 0%;
       height: 100%;
       background: linear-gradient(90deg, #27f59a 0%, #f7df4d 54%, #ff3d57 100%);
-      box-shadow: 0 0 14px rgba(255,255,255,0.2);
+      box-shadow: 0 0 14px rgba(255,255,255,0.2), 0 0 28px rgba(255,61,87,0.15);
     }
     #message {
       text-align: center;
@@ -540,9 +540,9 @@
       to   { opacity: 1; transform: translateY(0) scale(1); }
     }
   </style>
-  <script type="module" crossorigin src="/Billiards/assets/index-Dry49cwy.js"></script>
-  <link rel="modulepreload" crossorigin href="/Billiards/assets/three-DQplaIfc.js">
-  <link rel="modulepreload" crossorigin href="/Billiards/assets/physics-CuNEbKnu.js">
+  <script type="module" crossorigin src="./assets/index-BiiGL3E_.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/three-DQplaIfc.js">
+  <link rel="modulepreload" crossorigin href="./assets/physics-CuNEbKnu.js">
 </head>
 <body>
   <div id="app"></div>
@@ -572,9 +572,9 @@
   </div>
   <div id="ui-layer">
     <div id="top-bar">
-      <div id="player1" class="player-badge active">Player 1</div>
+      <div id="player1" class="player-badge active">玩家 1</div>
       <div id="message">移动鼠标瞄准，按住左键蓄力，松开击球。<br>按住 Shift + 左键拖动平移视角，Shift + 右键拖动旋转视角，滚轮缩放。</div>
-      <div id="player2" class="player-badge">Player 2</div>
+      <div id="player2" class="player-badge">玩家 2</div>
     </div>
     <div id="power-bar-container">
       <div id="power-bar-fill"></div>
@@ -648,5 +648,17 @@
     }
   </script>
 
+  <script>
+    (function () {
+      var isGitHubPages = window.location.hostname.endsWith('github.io');
+      var isDistPage = window.location.pathname.indexOf('/dist/') !== -1;
+      var isSourceEntry = Array.prototype.some.call(document.scripts, function (script) {
+        return script.type === 'module' && /(^|\/)src\/main\.js$/.test(script.getAttribute('src') || '');
+      });
+      if (isGitHubPages && isSourceEntry && !isDistPage) {
+        window.location.replace(new URL('dist/', window.location.href).href);
+      }
+    })();
+  </script>
 </body>
 </html>
