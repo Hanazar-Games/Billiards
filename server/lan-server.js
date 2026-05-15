@@ -263,6 +263,16 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
+    if (type === 'pocketEvent') {
+      // Host broadcasts pocket FX to all clients
+      if (!ws._isHost) {
+        send(ws, { type: 'error', error: 'Only host may broadcast pocket events' });
+        return;
+      }
+      room.broadcast({ ...data, fromHost: true }, ws);
+      return;
+    }
+
     if (type === 'chat' || type === 'ping') {
       // Simple relay
       room.broadcast({ ...data, fromPlayer: ws._playerId }, ws);

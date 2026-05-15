@@ -761,7 +761,10 @@ export class UI {
           i.parentNode.replaceChild(clone, i);
         });
         const btns = c.querySelectorAll('button');
-        btns.forEach(b => { b.onmouseenter = null; b.onmouseleave = null; b.onclick = null; });
+        btns.forEach(b => {
+          const clone = b.cloneNode(true);
+          b.parentNode.replaceChild(clone, b);
+        });
       });
       this._inGameSettingCards = [];
       if (this.settingsOverlay.parentNode) this.settingsOverlay.parentNode.removeChild(this.settingsOverlay);

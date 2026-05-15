@@ -664,6 +664,7 @@ export class MenuSystem {
     try { if (this.challengePanel) this.challengePanel.destroy(); } catch (e) {}
     try { if (this.challengeResult) this.challengeResult.destroy(); } catch (e) {}
     try { if (this.achievementPanel) this.achievementPanel.destroy(); } catch (e) {}
+    try { if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; } } catch (e) {}
 
     // Clean up shared core
     this.renderer.dispose();

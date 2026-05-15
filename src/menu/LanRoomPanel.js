@@ -101,6 +101,9 @@ export class LanRoomPanel {
       border: 1px solid rgba(255,255,255,0.15); border-radius: 8px;
       outline: none; text-transform: uppercase;
     `;
+    this._joinInput.addEventListener('input', () => {
+      this._joinInput.value = this._joinInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    });
     this._joinRow.appendChild(this._joinInput);
     card.appendChild(this._joinRow);
 

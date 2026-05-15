@@ -544,7 +544,7 @@ export class SettingsScreen {
     wrap.appendChild(desc);
 
     const ver = document.createElement('div');
-    ver.textContent = '版本 1.3.6';
+    ver.textContent = '版本 1.3.7';
     ver.style.cssText = 'font-size: 13px; color: rgba(255,255,255,0.35); margin-top: 8px;';
     wrap.appendChild(ver);
 

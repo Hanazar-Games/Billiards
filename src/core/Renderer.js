@@ -334,7 +334,7 @@ export class Renderer {
     this.renderer.domElement.removeEventListener('pointerdown', this._onCameraPointerDown);
     window.removeEventListener('pointermove', this._onCameraPointerMove);
     window.removeEventListener('pointerup', this._onCameraPointerUp);
-    this.renderer.domElement.removeEventListener('wheel', this._onWheel);
+    this.renderer.domElement.removeEventListener('wheel', this._onWheel, { passive: false });
     if (this.controls) {
       this.controls.dispose();
     }

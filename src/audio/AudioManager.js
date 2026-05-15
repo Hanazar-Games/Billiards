@@ -136,10 +136,13 @@ export class AudioManager {
       const v = enabled ? (this._masterVolume ?? 1.0) : 0.0;
       this._masterGain.gain.setTargetAtTime(v, this.ctx?.currentTime ?? 0, 0.05);
     }
-    // NOTE: we do NOT start/stop BGM here — that is the caller's responsibility.
-    // toggleSound() only controls the master gain (global mute).
-    // This prevents BGM from leaking into gameplay when sound is toggled
-    // from the in-game settings panel.
+    // Stop BGM when sound is turned off to save CPU cycles;
+    // visibilitychange will restart it when sound is re-enabled.
+    if (!enabled) {
+      this.stopBGM();
+    } else if (this._bgmWasPlaying) {
+      this.startBGM();
+    }
   }
 
   setMasterVolume(vol) {
@@ -184,7 +187,7 @@ export class AudioManager {
       lfoGain.connect(osc.frequency);
       lfo.start(t);
 
-      gain.gain.setValueAtTime(0.04, t);
+      gain.gain.setValueAtTime(0.08, t);
       osc.connect(gain);
       gain.connect(this._bgmGain || this._masterGain || this.ctx.destination);
       osc.start(t);
@@ -208,7 +211,7 @@ export class AudioManager {
     noiseFilter.frequency.value = 300;
 
     const noiseGain = this.ctx.createGain();
-    noiseGain.gain.setValueAtTime(0.015, t);
+    noiseGain.gain.setValueAtTime(0.03, t);
 
     noise.connect(noiseFilter);
     noiseFilter.connect(noiseGain);
@@ -371,6 +374,7 @@ export class AudioManager {
     if (!this._canPlay()) return;
     this.resume();
 
+    // Brighter, shorter fanfare: C-E-G-C (upward arpeggio + decay)
     const notes = [523.25, 659.25, 783.99, 1046.50];
     const t = this.ctx.currentTime;
     notes.forEach((freq, i) => {
@@ -378,12 +382,12 @@ export class AudioManager {
       const gain = this.ctx.createGain();
       osc.type = 'sine';
       osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.15, t + i * 0.12);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.12 + 0.3);
+      gain.gain.setValueAtTime(0.18, t + i * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.22);
       osc.connect(gain);
       gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
-      osc.start(t + i * 0.12);
-      osc.stop(t + i * 0.12 + 0.3);
+      osc.start(t + i * 0.08);
+      osc.stop(t + i * 0.08 + 0.22);
       this._autoDisconnect(osc, gain);
     });
   }
@@ -393,18 +397,21 @@ export class AudioManager {
     this.resume();
 
     const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(200, t);
-    osc.frequency.linearRampToValueAtTime(100, t + 0.3);
-    gain.gain.setValueAtTime(0.1, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-    osc.connect(gain);
-    gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
-    osc.start(t);
-    osc.stop(t + 0.35);
-    this._autoDisconnect(osc, gain);
+    // Two short low "buzz" blips for distinct foul feedback
+    [0, 0.12].forEach((offset) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(180, t + offset);
+      osc.frequency.exponentialRampToValueAtTime(90, t + offset + 0.12);
+      gain.gain.setValueAtTime(0.12, t + offset);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.14);
+      osc.connect(gain);
+      gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
+      osc.start(t + offset);
+      osc.stop(t + offset + 0.14);
+      this._autoDisconnect(osc, gain);
+    });
   }
 
   dispose() {

@@ -156,7 +156,9 @@ export class Game {
 
     this.trajectory = new TrajectoryPredictor(this.scene);
 
-    this.achievements = new AchievementSystem();
+    if (!this.achievements) {
+      this.achievements = new AchievementSystem();
+    }
     this.statsTracker.reset();
     this.particles.clear();
     this.gameStartTime = performance.now();
@@ -199,7 +201,7 @@ export class Game {
     };
     window.addEventListener('toggleTrajectory', this._onToggleTrajectory);
     window.addEventListener('toggleShotTrail', this._onToggleShotTrail);
-    this.ui.showResetButton(() => this.resetGame());
+    this.ui.showResetButton(() => this._onResetButtonClicked());
 
     // Back-to-menu button
     this._addBackToMenuButton();
@@ -532,6 +534,23 @@ export class Game {
       this.ui.setMessage('自由球：当前位置无效，请放在台面内且不要贴住其他球或袋口。', 2500);
       return;
     }
+
+    // Network client sends placement to host instead of applying locally
+    if (this.networkMode && this.networkRole === 'client') {
+      const cueBall = this.ballsManager?.getCueBall();
+      if (cueBall) {
+        this.networkController?.sendShotInput(
+          { x: 0, y: 0, z: 0 }, // aimDirection not used for placement
+          0,
+          { x: 0, y: 0 },
+          { x: cueBall.mesh.position.x, y: cueBall.mesh.position.y, z: cueBall.mesh.position.z }
+        );
+      }
+      this.cue.show();
+      this.ui.setMessage('等待房主确认自由球位置…', 2000);
+      return;
+    }
+
     this.ballInHand = false;
     this.ballInHandValid = false;
     this.ballInHandBehindLine = false;
@@ -568,6 +587,7 @@ export class Game {
 
     // Client sends shot intent to host; host executes physically
     if (this.networkMode && this.networkRole === 'client' && this.isLocalPlayerTurn()) {
+      const force = Math.max(this.power, SHOT.minPower);
       this.networkController?.sendShotInput(this.aimDirection, this.power, this.cueTipOffset);
       this.state = 'SHOOTING';
       this._shotStartTime = performance.now();
@@ -575,6 +595,13 @@ export class Game {
       this.dragStart = null;
       this.cue.hide();
       this.trajectory.setVisible(false);
+      // Local immediate feedback: audio + FX (host will authoritatively resolve physics)
+      this.audio.playCueHit(force);
+      this.particles.spawnChalkDust(cueBall.mesh.position, this.aimDirection, force);
+      this.shockwaves?.spawn(cueBall.mesh.position, force);
+      this.screenShake?.trigger(force, this.aimDirection);
+      this.powerLabel?.show(force);
+      this.trails.startRecording(cueBall);
       return;
     }
 
@@ -771,6 +798,10 @@ export class Game {
                 const col = entry.id === 0 ? '#ff6b6b' : (entry.id === 8 ? '#fff' : '#d8b15f');
                 this.ui.showFloatingText(txt, sx, sy, col);
               }
+              // Broadcast pocket FX to clients so they see the same visual feedback
+              if (this.networkRole === 'host' && this.networkController) {
+                this.networkController.sendPocketEvent(entry.id, entry.pocketIndex, { x: pocket.x, y: pocket.y, z: pocket.z });
+              }
             }
           }
         }
@@ -949,7 +980,7 @@ export class Game {
     if (result.gameOver) {
       this.state = 'GAME_OVER';
       this.ui.setMessage(result.message);
-      this.ui.showResetButton(() => this.resetGame());
+      this.ui.showResetButton(() => this._onResetButtonClicked());
 
       const summary = this.statsTracker.endGame(result.winner);
       this.statsPanel.showGameOver(summary, this.aiEnabled);
@@ -1161,7 +1192,7 @@ export class Game {
         : '新 8 球局：玩家 1 开球；先清完本组再打 8 号球。');
     }
     this.ui.hideResetButton();
-    this.ui.showResetButton(() => this.resetGame());
+    this.ui.showResetButton(() => this._onResetButtonClicked());
     this.ui.setMatchInfo(this._getObjectiveText());
     this._updatePlayerStats();
     this.cue.show();
@@ -1628,6 +1659,16 @@ export class Game {
     });
   }
 
+  _onResetButtonClicked() {
+    if (this.networkMode && this.networkRole === 'client') {
+      // Client asks host to reset; host will broadcast the new state
+      this.networkController?.sendShotInput({ x: 0, y: 0, z: 0 }, 0, { x: 0, y: 0 }, null, true);
+      this.ui.setMessage('已请求重新开始…', 2000);
+      return;
+    }
+    this.resetGame();
+  }
+
   // ── Network multiplayer methods ──
 
   setNetworkController(controller, role, localPlayerId) {
@@ -1646,6 +1687,26 @@ export class Game {
           this.applyRemoteShot(e.detail);
         }
       });
+      controller.addEventListener('pocketEvent', (e) => {
+        if (this.networkRole === 'client') {
+          const detail = e.detail;
+          const pocket = detail.pocket;
+          if (pocket) {
+            this.particles.spawnPocketFlash(pocket);
+            this.particles.spawnPocketFountain(pocket, detail.ballId);
+            this.audio.playPocket();
+            if (this.renderer?.camera && this.renderer.width > 0 && this.renderer.height > 0) {
+              const p = this._tmpVec3a.set(pocket.x, pocket.y + 15, pocket.z);
+              p.project(this.renderer.camera);
+              const sx = (p.x * 0.5 + 0.5) * this.renderer.width;
+              const sy = (-p.y * 0.5 + 0.5) * this.renderer.height;
+              const txt = detail.ballId === 8 ? '🎱 8号球!' : (detail.ballId === 0 ? '⚠️ 白球' : `+${detail.ballId}`);
+              const col = detail.ballId === 0 ? '#ff6b6b' : (detail.ballId === 8 ? '#fff' : '#d8b15f');
+              this.ui.showFloatingText(txt, sx, sy, col);
+            }
+          }
+        }
+      });
     }
   }
 
@@ -1656,6 +1717,40 @@ export class Game {
 
   applyRemoteShot(shotInput) {
     if (this.networkRole !== 'host') return;
+
+    // Remote reset request from client
+    if (shotInput.requestReset) {
+      this.resetGame();
+      return;
+    }
+
+    // Ball placement (free ball) — set cue ball position instead of shooting
+    if (shotInput.ballPlacement) {
+      const cueBall = this.ballsManager?.getCueBall();
+      if (cueBall) {
+        const pos = shotInput.ballPlacement;
+        const isLegal = this.isCueBallPlacementLegal(pos.x, pos.z, this.ballInHandBehindLine);
+        if (isLegal) {
+          cueBall.setPosition(pos.x, pos.y, pos.z);
+          this.ballInHand = false;
+          this.ballInHandValid = false;
+          this.ballInHandBehindLine = false;
+          this.cue.show();
+          this.setAimTrajectoryVisible(true);
+          this.updateAimDirection();
+          this.updateTrajectory();
+          this.ui.setMessage('自由球已放置。继续瞄准，后拉球杆击球。', 1800);
+        } else {
+          // Reject illegal placement and re-broadcast current state
+          this.ui.setMessage('对手自由球位置无效，已拒绝。', 2000);
+        }
+      }
+      // Broadcast updated state
+      const snapshot = GameStateSerializer.serializeGameState(this);
+      this.networkController?.sendStateSnapshot(snapshot);
+      return;
+    }
+
     this.aimDirection.set(shotInput.aimDirection.x, 0, shotInput.aimDirection.z).normalize();
     this.cueTipOffset = { x: shotInput.cueTipOffset?.x || 0, y: shotInput.cueTipOffset?.y || 0 };
     this.power = shotInput.power || 0;
@@ -1671,6 +1766,10 @@ export class Game {
 
   _concede() {
     if (this.mode === 'freeplay') return;
+    if (this.networkMode && this.networkRole === 'client') {
+      this.ui.setMessage('网络对战中无法主动认输', 2000);
+      return;
+    }
     const winner = this.currentPlayer === 1 ? 2 : 1;
     this.ui.setMessage(`玩家 ${winner} 获胜！（对手认输）`, 0);
     this.state = 'GAME_OVER';
@@ -1698,8 +1797,13 @@ export class Game {
     }
 
     this.audio.playWin();
-    this.ui.showResetButton(() => this.resetGame());
+    this.ui.showResetButton(() => this._onResetButtonClicked());
     this.ui.setPlayerTurn(winner);
+    // Host broadcasts final state after concession
+    if (this.networkRole === 'host' && this.networkController) {
+      const snapshot = GameStateSerializer.serializeGameState(this);
+      this.networkController.sendStateSnapshot(snapshot);
+    }
   }
 
   _openInGameSettings() {

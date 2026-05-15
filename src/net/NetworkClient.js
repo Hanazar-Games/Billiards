@@ -168,12 +168,14 @@ export class NetworkClient extends EventTarget {
 
   // ── Game messages ──
 
-  sendShotInput(aimDirection, power, cueTipOffset) {
+  sendShotInput(aimDirection, power, cueTipOffset, ballPlacement = null, requestReset = false) {
     return this._send({
       type: 'shotInput',
       aimDirection: { x: aimDirection.x, y: aimDirection.y, z: aimDirection.z },
       power,
       cueTipOffset: { x: cueTipOffset.x, y: cueTipOffset.y },
+      ballPlacement: ballPlacement ? { x: ballPlacement.x, y: ballPlacement.y, z: ballPlacement.z } : null,
+      requestReset,
     });
   }
 
@@ -183,6 +185,10 @@ export class NetworkClient extends EventTarget {
 
   sendTurnResolved(result) {
     return this._send({ type: 'turnResolved', result });
+  }
+
+  sendPocketEvent(ballId, pocketIndex, pocket) {
+    return this._send({ type: 'pocketEvent', ballId, pocketIndex, pocket });
   }
 
   // ── Ping keepalive ──

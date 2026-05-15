@@ -1,6 +1,29 @@
-# 3D Billiards v1.3.6 — Latest Update
+# 3D Billiards v1.3.7 — Latest Update
 
-## What's New in v1.3.6
+## What's New in v1.3.7
+
+### UI/UX/SFX/BGM Bug Audit & Hardening
+
+A comprehensive sixth-round audit focused on user experience, audio stability, visual effects safety, and memory hygiene.
+
+| # | File | Issue | Fix |
+|---|------|-------|-----|
+| 1 | `Renderer.js` | **Wheel listener mismatch** — `removeEventListener('wheel')` lacked `{ passive: false }`, causing the browser to fail matching the registered listener | Added matching `{ passive: false }` option to removal |
+| 2 | `SettingsScreen.js` | **Toast timer null-crash** — `_toastTimers.push()` could throw if `_toastTimers` was undefined during rapid open/close | Added `if (!this._toastTimers) this._toastTimers = []` guard |
+| 3 | `UI.js` | **Message timer leak** — `setMessage()` could leave stale timeouts clearing newer messages | Added `_messageId` counter to ignore expired callbacks |
+| 4 | `UI.js` | **Button listener leak in destroy** — `addEventListener('click')` on in-game settings buttons was not removed during `destroy()` | Replaced with `cloneNode` swap to strip all listeners |
+| 5 | `ParticleSystem.js` | **Particle explosion on lag** — unbounded `dt` during frame drops caused particles to rocket off-screen | Added `safeDt` clamp to `[0, 0.05]` seconds |
+| 6 | `Game.js` | **Reset button bypasses cleanup** — `showResetButton` callback called `resetGame()` directly, skipping `_cleanupAfterShot()` and state guards | Unified all reset paths through `_onResetButtonClicked()` |
+| 7 | `Game.js` | **Network listener leak on dispose** — LAN event listeners (`stateSnapshot`, `shotInput`) were not removed when leaving a network game | Added `removeEventListener` calls in `dispose()` before nulling controller |
+| 8 | `Game.js` | **Concede in LAN games** — "认输" button was active during network play, causing desync | Added `networkMode` guard blocking concession with a toast message |
+| 9 | `server/lan-server.js` | **Null data crash** — malformed WS messages could pass `JSON.parse` but yield `null` | Added `if (!data) return` guard after parse |
+
+---
+
+## Previous Releases
+
+<details>
+<summary><strong>v1.3.6</strong> — LAN Multiplayer Room</summary>
 
 ### LAN Multiplayer Room — Local Network 2-Player 8-Ball
 
@@ -33,10 +56,7 @@ A complete host-authoritative multiplayer prototype for playing 8-ball over the 
 | `MainMenuScreen.js` | Added "局域网联机" button with callback |
 | `package.json` | Added `"host": "node server/lan-server.js"` script; added `ws` dependency |
 | `README.md` | Added LAN multiplayer setup instructions |
-
----
-
-## Previous Releases
+</details>
 
 <details>
 <summary><strong>v1.3.5</strong> — Comprehensive Bug Audit & Hardening</summary>

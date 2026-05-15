@@ -63,6 +63,12 @@ export class ScreenShake {
     if (!this.active) return;
 
     this.age += dt;
+    if (this.duration <= 0 || !isFinite(this.duration)) {
+      this.active = false;
+      this.camera.position.sub(this._currentOffset);
+      this._currentOffset.set(0, 0, 0);
+      return;
+    }
     const p = this.age / this.duration;
 
     if (p >= 1.0) {
