@@ -18,16 +18,7 @@ export class UI {
 
     const uiLayer = document.getElementById('ui-layer');
 
-    // ── Player group labels (kept for compatibility, shown inside badges) ──
-    this.player1Group = document.createElement('div');
-    this.player1Group.id = 'player1-group';
-    this.player1Group.style.cssText = 'font-size:12px;opacity:0.8;margin-top:4px;';
-    if (this.player1Badge) this.player1Badge.appendChild(this.player1Group);
-
-    this.player2Group = document.createElement('div');
-    this.player2Group.id = 'player2-group';
-    this.player2Group.style.cssText = 'font-size:12px;opacity:0.8;margin-top:4px;';
-    if (this.player2Badge) this.player2Badge.appendChild(this.player2Group);
+    // ── Top-bar group labels removed: group info now shown only in bottom HUD ──
 
     // ── Bottom HUD ──
     this.bottomHud = document.createElement('div');
@@ -42,7 +33,7 @@ export class UI {
     this._hudP1.className = 'hud-side hud-left';
     this._hudP1Name = document.createElement('div');
     this._hudP1Name.className = 'hud-name active';
-    this._hudP1Name.textContent = 'Player 1';
+    this._hudP1Name.textContent = '玩家 1';
     this._hudP1Detail = document.createElement('div');
     this._hudP1Detail.className = 'hud-detail';
     this._hudP1.appendChild(this._hudP1Name);
@@ -67,7 +58,7 @@ export class UI {
     this._hudP2.className = 'hud-side hud-right';
     this._hudP2Name = document.createElement('div');
     this._hudP2Name.className = 'hud-name';
-    this._hudP2Name.textContent = 'Player 2';
+    this._hudP2Name.textContent = '玩家 2';
     this._hudP2Detail = document.createElement('div');
     this._hudP2Detail.className = 'hud-detail';
     this._hudP2.appendChild(this._hudP2Name);
@@ -456,8 +447,8 @@ export class UI {
   }
 
   setPlayerStats({ p1Name, p1Group, p1Remaining, p2Name, p2Group, p2Remaining }) {
-    if (this._hudP1Name) this._hudP1Name.textContent = p1Name || 'Player 1';
-    if (this._hudP2Name) this._hudP2Name.textContent = p2Name || 'Player 2';
+    if (this._hudP1Name) this._hudP1Name.textContent = p1Name || '玩家 1';
+    if (this._hudP2Name) this._hudP2Name.textContent = p2Name || '玩家 2';
 
     const groupLabel = (g) => {
       if (!g) return '未分组';
@@ -490,15 +481,13 @@ export class UI {
   }
 
   setPlayerGroups(p1Group, p2Group) {
-    if (p1Group) {
-      this.player1Group.textContent = p1Group === 'solid' ? '● 全色' : '◯ 花色';
-    } else {
-      this.player1Group.textContent = '';
-    }
-    if (p2Group) {
-      this.player2Group.textContent = p2Group === 'solid' ? '● 全色' : '◯ 花色';
-    } else {
-      this.player2Group.textContent = '';
+    // Group info is now shown only in bottom HUD; this method is kept for
+    // backward compatibility with Game.js callers.
+  }
+
+  setShowConcede(show) {
+    if (this._hudConcedeBtn) {
+      this._hudConcedeBtn.style.display = show ? 'inline-block' : 'none';
     }
   }
 
@@ -717,18 +706,10 @@ export class UI {
     }
     this._aiListeners = [];
 
-    if (this.player1Group && this.player1Group.parentNode) {
-      this.player1Group.parentNode.removeChild(this.player1Group);
-    }
-    if (this.player2Group && this.player2Group.parentNode) {
-      this.player2Group.parentNode.removeChild(this.player2Group);
-    }
     this.player1Badge = null;
     this.player2Badge = null;
     this.message = null;
     this.powerFill = null;
-    this.player1Group = null;
-    this.player2Group = null;
 
     if (this.bottomHud && this.bottomHud.parentNode) {
       this.bottomHud.parentNode.removeChild(this.bottomHud);

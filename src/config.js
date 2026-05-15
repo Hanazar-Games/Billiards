@@ -22,14 +22,14 @@ export const BALL = {
   collisionRestitution: 0.88,
   collisionTangentialFriction: 0.10,
   friction: 0.15,
-  damping: 0.010,            // high-speed velocity drag
-  angularDamping: 0.016,
+  damping: 0.007,            // high-speed velocity drag
+  angularDamping: 0.011,
   sleepSpeedLimit: 0.35,
   sleepAngularSpeedLimit: 0.28,
   sleepTimeLimit: 0.16,
-  rollingResistance: 7.2,     // cloth deceleration in cm/s^2 (≈0.072 m/s^2)
-  slowBrakeSpeed: 16,         // below this, braking ramps up as speed approaches zero
-  slowBrakeStrength: 0.42,
+  rollingResistance: 5.0,     // cloth deceleration in cm/s^2
+  slowBrakeSpeed: 13,         // below this, braking ramps up as speed approaches zero
+  slowBrakeStrength: 0.28,
   stopSpeedLimit: 0.18,
   maxSpeed: 520,
   boundaryRestitution: 0.74,

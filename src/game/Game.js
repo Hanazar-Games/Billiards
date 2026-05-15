@@ -169,8 +169,9 @@ export class Game {
       () => { if (this.onReturnToMenu) this.onReturnToMenu(); }
     );
 
-    // Concede button
+    // Concede button (hidden in freeplay)
     this.ui.setupConcede(() => this._concede());
+    this.ui.setShowConcede(this.mode !== 'freeplay');
 
     // Match info
     const objective = this._getObjectiveText();
@@ -1522,9 +1523,9 @@ export class Game {
 
   _updatePlayerStats() {
     const status = this.rules ? this.rules.getStatus() : null;
-    const p2Name = this.aiEnabled ? 'AI' : 'Player 2';
+    const p2Name = this.aiEnabled ? 'AI' : '玩家 2';
     this.ui.setPlayerStats({
-      p1Name: 'Player 1',
+      p1Name: '玩家 1',
       p1Group: status?.player1Group ?? null,
       p1Remaining: status?.player1Remaining ?? 7,
       p2Name,

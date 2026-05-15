@@ -18,7 +18,7 @@ export class StatsPanel {
     // Toggle button (small, bottom-right)
     this.toggleBtn = document.createElement('button');
     this.toggleBtn.textContent = '📊';
-    this.toggleBtn.title = 'Match Statistics';
+    this.toggleBtn.title = '对局统计';
     this.toggleBtn.style.cssText = `
       position: absolute;
       bottom: 90px;
@@ -84,7 +84,7 @@ export class StatsPanel {
   _renderEmpty() {
     this.content.innerHTML = `
       <div style="text-align:center;color:rgba(255,255,255,0.5);font-size:12px;">
-        Stats will appear after the first shot.
+        第一杆后显示统计
       </div>
     `;
   }
@@ -128,47 +128,47 @@ export class StatsPanel {
     const p1 = stats.player1;
     const p2 = stats.player2;
     const streakText = stats.longestStreak.count > 0
-      ? `P${stats.longestStreak.player}: ${stats.longestStreak.count} in a row`
+      ? `玩家 ${stats.longestStreak.player}：${stats.longestStreak.count} 连击`
       : '-';
 
     this.content.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <span style="font-weight:bold;font-size:14px;">📊 Match Stats</span>
+        <span style="font-weight:bold;font-size:14px;">📊 对局统计</span>
         <span style="color:rgba(255,255,255,0.6);font-size:11px;">${stats.duration}</span>
       </div>
 
       <div style="display:flex;gap:6px;margin-bottom:10px;">
         <div style="flex:1;background:rgba(220,20,60,0.35);padding:8px;border-radius:8px;text-align:center;">
-          <div style="font-weight:bold;font-size:13px;">Player 1</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;">${p1.pocketed} pocketed</div>
+          <div style="font-weight:bold;font-size:13px;">玩家 1</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;">${p1.pocketed} 进球</div>
         </div>
         <div style="flex:1;background:rgba(30,144,255,0.35);padding:8px;border-radius:8px;text-align:center;">
-          <div style="font-weight:bold;font-size:13px;">Player 2</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;">${p2.pocketed} pocketed</div>
+          <div style="font-weight:bold;font-size:13px;">玩家 2</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;">${p2.pocketed} 进球</div>
         </div>
       </div>
 
       <div style="margin-bottom:6px;font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;">
-        Player 1 Details
+        玩家 1 详情
       </div>
       ${this._renderPlayerStats(p1)}
 
       <div style="margin:10px 0 6px;font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;">
-        Player 2 Details
+        玩家 2 详情
       </div>
       ${this._renderPlayerStats(p2)}
 
       <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1);">
         <div style="display:flex;justify-content:space-between;font-size:11px;">
-          <span style="color:rgba(255,255,255,0.5);">Shots:</span>
+          <span style="color:rgba(255,255,255,0.5);">出杆：</span>
           <span>${stats.totalTurns}</span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:3px;">
-          <span style="color:rgba(255,255,255,0.5);">Best Streak:</span>
+          <span style="color:rgba(255,255,255,0.5);">最高连击：</span>
           <span>${streakText}</span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:3px;">
-          <span style="color:rgba(255,255,255,0.5);">Collisions:</span>
+          <span style="color:rgba(255,255,255,0.5);">碰撞：</span>
           <span>${stats.totalCollisions}</span>
         </div>
       </div>
@@ -185,14 +185,14 @@ export class StatsPanel {
 
     return `
       <div>
-        ${row('Shots', p.shots)}
-        ${row('Pocketed', p.pocketed)}
-        ${row('Fouls', p.fouls)}
+        ${row('出杆', p.shots)}
+        ${row('进球', p.pocketed)}
+        ${row('犯规', p.fouls)}
         ${row('Scratches', p.scratches)}
-        ${row('Avg Power', typeof p.avgPower === 'number' ? p.avgPower.toFixed(1) : 'N/A')}
-        ${row('Max Power', p.maxPower)}
-        ${row('Pocket Rate', p.pocketRate)}
-        ${row('Best Streak', p.streak)}
+        ${row('平均力度', typeof p.avgPower === 'number' ? p.avgPower.toFixed(1) : 'N/A')}
+        ${row('最大力度', p.maxPower)}
+        ${row('进球率', p.pocketRate)}
+        ${row('最高连击', p.streak)}
       </div>
     `;
   }
@@ -215,29 +215,29 @@ export class StatsPanel {
 
     const p1 = summary.player1;
     const p2 = summary.player2;
-    const winnerName = summary.winner === 1 ? 'Player 1' : (aiEnabled ? 'AI' : 'Player 2');
+    const winnerName = summary.winner === 1 ? '玩家 1' : (aiEnabled ? 'AI' : '玩家 2');
 
     this.content.innerHTML = `
       <div style="text-align:center;margin-bottom:12px;">
-        <div style="font-weight:bold;font-size:16px;color:#ffd700;">🏆 ${winnerName} Wins!</div>
+        <div style="font-weight:bold;font-size:16px;color:#ffd700;">🏆 ${winnerName} 获胜！</div>
         <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px;">
-          Match lasted ${this._fmtTime(summary.duration)}
+          对局时长 ${this._fmtTime(summary.duration)}
         </div>
       </div>
 
       <div style="display:flex;gap:6px;margin-bottom:12px;">
         <div style="flex:1;background:rgba(220,20,60,0.3);padding:10px;border-radius:8px;">
-          <div style="font-weight:bold;text-align:center;margin-bottom:6px;">Player 1</div>
+          <div style="font-weight:bold;text-align:center;margin-bottom:6px;">玩家 1</div>
           ${this._renderFinalPlayer(p1)}
         </div>
         <div style="flex:1;background:rgba(30,144,255,0.3);padding:10px;border-radius:8px;">
-          <div style="font-weight:bold;text-align:center;margin-bottom:6px;">${aiEnabled ? 'AI' : 'Player 2'}</div>
+          <div style="font-weight:bold;text-align:center;margin-bottom:6px;">${aiEnabled ? 'AI' : '玩家 2'}</div>
           ${this._renderFinalPlayer(p2)}
         </div>
       </div>
 
       <div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.4);">
-        Total shots: ${summary.totalTurns} · Collisions: ${summary.match.totalBallCollisions + summary.match.totalCushionCollisions}
+        总出杆：${summary.totalTurns} · 碰撞：${summary.match.totalBallCollisions + summary.match.totalCushionCollisions}
       </div>
     `;
   }
@@ -245,11 +245,11 @@ export class StatsPanel {
   _renderFinalPlayer(p) {
     return `
       <div style="font-size:11px;line-height:1.6;">
-        <div style="display:flex;justify-content:space-between;"><span>Shots</span><span>${Math.round(p.shots)}</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>Pocketed</span><span>${Math.round(p.ballsPocketed)}</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>Fouls</span><span>${Math.round(p.fouls)}</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>Avg Power</span><span>${typeof p.avgPower === 'number' ? p.avgPower.toFixed(1) : 'N/A'}</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>Max Power</span><span>${Math.round(p.maxPower)}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>出杆</span><span>${Math.round(p.shots)}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>进球</span><span>${Math.round(p.ballsPocketed)}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>犯规</span><span>${Math.round(p.fouls)}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>平均力度</span><span>${typeof p.avgPower === 'number' ? p.avgPower.toFixed(1) : 'N/A'}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>最大力度</span><span>${Math.round(p.maxPower)}</span></div>
       </div>
     `;
   }
