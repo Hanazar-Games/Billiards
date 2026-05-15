@@ -161,8 +161,8 @@ export class Table {
     mesh.receiveShadow = true;
     this.meshGroup.add(mesh);
 
-    // Sloped inner face — the angled surface that faces the playing area.
-    // Real cushions are triangular in cross-section, not rectangular boxes.
+    // Raised inner face (仰角) — bottom farther from centre, top closer.
+    // Real cushions have a triangular cross-section with the nose pointing inward/upward.
     if (bevelNx !== 0 || bevelNz !== 0) {
       this._addCushionBevel(x, y, z, geo, bevelNx, bevelNz);
     }
@@ -173,6 +173,12 @@ export class Table {
     });
     body.addShape(shape);
     body.position.set(x, y, z);
+
+    // Physics bevel so balls cannot clip through the visual angled face
+    if (bevelNx !== 0 || bevelNz !== 0) {
+      this._addCushionBevelPhysics(body, x, y, z, geo, bevelNx, bevelNz);
+    }
+
     this.bodies.push(body);
   }
 
@@ -183,29 +189,29 @@ export class Table {
 
     let width, len;
     if (Math.abs(nx) > 0.5) {
-      // Long rail — geometry runs along Z
       len = geo.parameters.depth;
       width = len;
     } else {
-      // Short rail — geometry runs along X
       len = geo.parameters.width;
       width = len;
     }
 
-    // 4 corners of the sloped quad
+    // 4 corners of the raised (仰角) quad — bottom farther from centre, top closer
     const v = [];
     if (Math.abs(nx) > 0.5) {
       // Long rail: bevel extends along X (nx direction)
-      v.push(cx + nx * inset, h, cz - width / 2);
-      v.push(cx + nx * inset, h, cz + width / 2);
-      v.push(cx + nx * (inset + overhang), 0, cz - width / 2);
-      v.push(cx + nx * (inset + overhang), 0, cz + width / 2);
+      // Bottom edge (farther from table centre)
+      v.push(cx + nx * inset, 0, cz - width / 2);
+      v.push(cx + nx * inset, 0, cz + width / 2);
+      // Top edge (closer to table centre — the cushion "nose")
+      v.push(cx + nx * (inset + overhang), h, cz - width / 2);
+      v.push(cx + nx * (inset + overhang), h, cz + width / 2);
     } else {
       // Short rail: bevel extends along Z (nz direction)
-      v.push(cx - width / 2, h, cz + nz * inset);
-      v.push(cx + width / 2, h, cz + nz * inset);
-      v.push(cx - width / 2, 0, cz + nz * (inset + overhang));
-      v.push(cx + width / 2, 0, cz + nz * (inset + overhang));
+      v.push(cx - width / 2, 0, cz + nz * inset);
+      v.push(cx + width / 2, 0, cz + nz * inset);
+      v.push(cx - width / 2, h, cz + nz * (inset + overhang));
+      v.push(cx + width / 2, h, cz + nz * (inset + overhang));
     }
 
     const bevelGeo = new THREE.BufferGeometry();
@@ -226,6 +232,43 @@ export class Table {
     bevelMesh.castShadow = true;
     bevelMesh.receiveShadow = true;
     this.meshGroup.add(bevelMesh);
+  }
+
+  _addCushionBevelPhysics(body, cx, cy, cz, geo, nx, nz) {
+    const h = BALL.radius * 2;
+    const inset = TABLE.cushionWidth / 2;
+    const overhang = 3.2;
+    const thickness = 3.0;
+
+    let len;
+    if (Math.abs(nx) > 0.5) {
+      len = geo.parameters.depth;
+    } else {
+      len = geo.parameters.width;
+    }
+
+    const slantLen = Math.sqrt(h * h + overhang * overhang);
+
+    // Rotated box: local X along the slant, Y = thickness (normal), Z along the rail
+    const shape = new CANNON.Box(new CANNON.Vec3(slantLen / 2, thickness / 2, len / 2));
+
+    // Offset from body centre to bevel centre
+    const offsetX = nx * (inset + overhang / 2);
+    const offsetY = 0; // h/2 === cy
+    const offsetZ = nz * (inset + overhang / 2);
+
+    // Build quaternion so local X axis aligns with the slant direction
+    const xAxis = new THREE.Vector3(nx * overhang, h, nz * overhang).normalize();
+    const zAxis = new THREE.Vector3(Math.abs(nx) > 0.5 ? 0 : 1, 0, Math.abs(nx) > 0.5 ? 1 : 0);
+    const yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis).normalize();
+    zAxis.crossVectors(xAxis, yAxis).normalize();
+
+    const m = new THREE.Matrix4();
+    m.makeBasis(xAxis, yAxis, zAxis);
+    const q3 = new THREE.Quaternion().setFromRotationMatrix(m);
+    const q = new CANNON.Quaternion(q3.x, q3.y, q3.z, q3.w);
+
+    body.addShape(shape, new CANNON.Vec3(offsetX, offsetY, offsetZ), q);
   }
 
   createPockets() {
