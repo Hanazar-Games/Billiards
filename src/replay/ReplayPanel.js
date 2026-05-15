@@ -53,6 +53,44 @@ export class ReplayPanel {
     count.style.cssText = 'font-size:14px;color:rgba(255,255,255,0.6);';
     header.appendChild(count);
 
+    const headerActions = document.createElement('div');
+    headerActions.style.cssText = 'display:flex; gap:10px; align-items:center;';
+
+    // Import / Export / Clear actions
+    const exportBtn = document.createElement('button');
+    exportBtn.textContent = '⬇ 导出';
+    exportBtn.title = '导出全部回放为 JSON 文件';
+    exportBtn.style.cssText = this._smallBtnStyle();
+    exportBtn.onclick = () => this._exportReplays();
+    headerActions.appendChild(exportBtn);
+
+    const importBtn = document.createElement('button');
+    importBtn.textContent = '⬆ 导入';
+    importBtn.title = '从 JSON 文件导入回放';
+    importBtn.style.cssText = this._smallBtnStyle();
+    importBtn.onclick = () => this._importReplays();
+    headerActions.appendChild(importBtn);
+
+    const clearBtn = document.createElement('button');
+    clearBtn.textContent = '清空';
+    clearBtn.title = '删除全部回放';
+    clearBtn.style.cssText = this._smallBtnStyle();
+    clearBtn.onmouseenter = () => {
+      clearBtn.style.background = 'rgba(255,50,50,0.2)';
+      clearBtn.style.borderColor = 'rgba(255,50,50,0.4)';
+    };
+    clearBtn.onmouseleave = () => {
+      clearBtn.style.background = 'rgba(255,255,255,0.08)';
+      clearBtn.style.borderColor = 'rgba(255,255,255,0.15)';
+    };
+    clearBtn.onclick = () => {
+      if (this.library.getCount() > 0 && confirm('确定要删除全部回放吗？此操作不可撤销。')) {
+        this.library.clear();
+        this._renderList();
+      }
+    };
+    headerActions.appendChild(clearBtn);
+
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '✕';
     closeBtn.title = '关闭';
@@ -67,8 +105,9 @@ export class ReplayPanel {
       this.hideList();
       if (this.onHideList) this.onHideList();
     };
-    header.appendChild(closeBtn);
+    headerActions.appendChild(closeBtn);
 
+    header.appendChild(headerActions);
     this.listContainer.appendChild(header);
 
     // Grid
@@ -119,13 +158,14 @@ export class ReplayPanel {
     replays.forEach((replay) => {
       const card = document.createElement('div');
       card.style.cssText = `
-        padding: 18px;
+        padding: 16px;
         background: rgba(12,15,18,0.7);
         border: 1px solid rgba(255,255,255,0.14);
-        border-radius: 8px;
+        border-radius: 10px;
         transition: transform 180ms cubic-bezier(0.2,0.8,0.2,1), background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
         pointer-events: auto;
         box-shadow: 0 14px 38px rgba(0,0,0,0.25);
+        display: flex; flex-direction: column; gap: 8px;
       `;
       card.onmouseenter = () => {
         card.style.background = 'rgba(20,26,30,0.86)';
@@ -140,90 +180,141 @@ export class ReplayPanel {
         card.style.boxShadow = '0 14px 38px rgba(0,0,0,0.25)';
       };
 
-      const topRow = document.createElement('div');
-      topRow.style.cssText = `
-        display: flex; justify-content: space-between; align-items: center;
-        margin-bottom: 10px;
-      `;
-
-      const scoreBadge = document.createElement('div');
-      scoreBadge.textContent = `精彩度 ${replay.score}`;
-      const scoreColor = replay.score >= 60 ? '#ff1744' : replay.score >= 40 ? '#ff9100' : '#00e676';
-      scoreBadge.style.cssText = `
-        font-size: 13px; font-weight: 700; color: ${scoreColor};
-        background: ${scoreColor}22;
-        padding: 4px 10px; border-radius: 6px;
-      `;
-      topRow.appendChild(scoreBadge);
-
-      const date = document.createElement('div');
-      date.textContent = new Date(replay.savedAt).toLocaleDateString();
-      date.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.4);';
-      topRow.appendChild(date);
-
-      card.appendChild(topRow);
-
-      const details = document.createElement('div');
-      details.style.cssText = `
-        font-size: 13px; color: rgba(255,255,255,0.7);
-        line-height: 1.6; margin-bottom: 14px;
-      `;
       const meta = replay.metadata || {};
+      const modeLabel = meta.mode === '9ball' ? '9球' : (meta.mode === 'freeplay' ? '练习' : '8球');
+      const spinLabel = meta.spinUsed ? '旋转 ✓' : '旋转 ✗';
       const duration = meta.duration != null ? meta.duration.toFixed(1) + '秒' : 'N/A';
       const pockets = (meta.pocketedIds || []).filter((id) => id !== 0).length;
       const collisions = meta.collisionCount || 0;
       const cushions = meta.cushionCount || 0;
-      details.innerHTML = `
-        时长: ${duration} · 进球: ${pockets}个<br>
-        碰撞: ${collisions}次 · 库边: ${cushions}次
-      `;
-      card.appendChild(details);
 
+      // Row 1: score + mode + spin + date
+      const row1 = document.createElement('div');
+      row1.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:8px;';
+
+      const leftTags = document.createElement('div');
+      leftTags.style.cssText = 'display:flex; gap:6px; align-items:center; flex-wrap:wrap;';
+
+      const scoreBadge = document.createElement('span');
+      scoreBadge.textContent = `精彩度 ${replay.score}`;
+      const scoreColor = replay.score >= 60 ? '#ff1744' : replay.score >= 40 ? '#ff9100' : '#00e676';
+      scoreBadge.style.cssText = `
+        font-size: 12px; font-weight: 700; color: ${scoreColor};
+        background: ${scoreColor}22;
+        padding: 3px 8px; border-radius: 5px;
+      `;
+      leftTags.appendChild(scoreBadge);
+
+      const modeTag = document.createElement('span');
+      modeTag.textContent = modeLabel;
+      modeTag.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.08);padding:3px 8px;border-radius:5px;';
+      leftTags.appendChild(modeTag);
+
+      const spinTag = document.createElement('span');
+      spinTag.textContent = spinLabel;
+      spinTag.style.cssText = `font-size:11px;color:${meta.spinUsed ? '#5ce6a0' : 'rgba(255,255,255,0.35)'};background:rgba(255,255,255,0.06);padding:3px 8px;border-radius:5px;`;
+      leftTags.appendChild(spinTag);
+
+      row1.appendChild(leftTags);
+
+      const date = document.createElement('div');
+      const d = new Date(replay.savedAt);
+      date.textContent = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      date.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.35); white-space:nowrap;';
+      row1.appendChild(date);
+      card.appendChild(row1);
+
+      // Row 2: editable name
+      const nameRow = document.createElement('div');
+      const nameInput = document.createElement('input');
+      nameInput.value = replay.name || '';
+      nameInput.placeholder = '点击命名…';
+      nameInput.style.cssText = `
+        width: 100%; background: transparent; border: none;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        color: rgba(255,255,255,0.85); font-size: 14px; font-weight: 600;
+        padding: 2px 0; outline: none;
+        transition: border-color 0.2s ease;
+      `;
+      nameInput.onfocus = () => { nameInput.style.borderColor = 'rgba(216,177,95,0.5)'; };
+      nameInput.onblur = () => {
+        nameInput.style.borderColor = 'rgba(255,255,255,0.08)';
+        const newName = nameInput.value.trim();
+        if (newName !== (replay.name || '')) {
+          this.library.updateName(replay.id, newName);
+        }
+      };
+      nameInput.onkeydown = (e) => { if (e.key === 'Enter') nameInput.blur(); };
+      nameRow.appendChild(nameInput);
+      card.appendChild(nameRow);
+
+      // Row 3: stats
+      const stats = document.createElement('div');
+      stats.style.cssText = 'font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.5;';
+      stats.innerHTML = `时长 ${duration} · 进球 ${pockets} · 碰撞 ${collisions} · 库边 ${cushions}`;
+      card.appendChild(stats);
+
+      // Row 4: actions
       const btnRow = document.createElement('div');
-      btnRow.style.cssText = 'display: flex; gap: 8px;';
+      btnRow.style.cssText = 'display: flex; gap: 8px; margin-top: 4px;';
 
       const playBtn = document.createElement('button');
       playBtn.textContent = '▶ 播放';
       playBtn.title = '播放回放';
       playBtn.style.cssText = `
-        flex: 1; padding: 10px 0;
-        font-size: 14px; font-weight: 600; color: #fff;
+        flex: 1; padding: 9px 0;
+        font-size: 13px; font-weight: 600; color: #fff;
         background: rgba(0,230,118,0.2);
         border: 1px solid rgba(0,230,118,0.4);
         border-radius: 8px;
         cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed));
         pointer-events: auto;
       `;
-      playBtn.onmouseenter = () => {
-        playBtn.style.background = 'rgba(0,230,118,0.3)';
-      };
-      playBtn.onmouseleave = () => {
-        playBtn.style.background = 'rgba(0,230,118,0.2)';
-      };
-      playBtn.onclick = () => {
-        if (this.onPlayReplay) this.onPlayReplay(replay);
-      };
+      playBtn.onmouseenter = () => { playBtn.style.background = 'rgba(0,230,118,0.3)'; };
+      playBtn.onmouseleave = () => { playBtn.style.background = 'rgba(0,230,118,0.2)'; };
+      playBtn.onclick = () => { if (this.onPlayReplay) this.onPlayReplay(replay); };
       btnRow.appendChild(playBtn);
+
+      const exportOneBtn = document.createElement('button');
+      exportOneBtn.textContent = '⬇';
+      exportOneBtn.title = '导出此回放';
+      exportOneBtn.style.cssText = `
+        width: 38px; font-size: 14px; color: rgba(255,255,255,0.6);
+        background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 8px; cursor: pointer;
+        transition: all calc(0.2s / var(--ui-anim-speed));
+        pointer-events: auto;
+      `;
+      exportOneBtn.onmouseenter = () => {
+        exportOneBtn.style.background = 'rgba(255,255,255,0.12)';
+        exportOneBtn.style.color = '#fff';
+      };
+      exportOneBtn.onmouseleave = () => {
+        exportOneBtn.style.background = 'rgba(255,255,255,0.06)';
+        exportOneBtn.style.color = 'rgba(255,255,255,0.6)';
+      };
+      exportOneBtn.onclick = () => this._exportSingle(replay);
+      btnRow.appendChild(exportOneBtn);
 
       const delBtn = document.createElement('button');
       delBtn.textContent = '🗑';
       delBtn.title = '删除回放';
       delBtn.style.cssText = `
-        width: 40px;
-        font-size: 16px; color: rgba(255,255,255,0.6);
-        background: rgba(255,255,255,0.08);
-        border: 1px solid rgba(255,255,255,0.15);
-        border-radius: 8px;
-        cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed));
+        width: 38px; font-size: 14px; color: rgba(255,255,255,0.5);
+        background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 8px; cursor: pointer;
+        transition: all calc(0.2s / var(--ui-anim-speed));
         pointer-events: auto;
       `;
       delBtn.onmouseenter = () => {
         delBtn.style.background = 'rgba(255,50,50,0.2)';
         delBtn.style.borderColor = 'rgba(255,50,50,0.4)';
+        delBtn.style.color = '#ff8a8a';
       };
       delBtn.onmouseleave = () => {
-        delBtn.style.background = 'rgba(255,255,255,0.08)';
-        delBtn.style.borderColor = 'rgba(255,255,255,0.15)';
+        delBtn.style.background = 'rgba(255,255,255,0.06)';
+        delBtn.style.borderColor = 'rgba(255,255,255,0.12)';
+        delBtn.style.color = 'rgba(255,255,255,0.5)';
       };
       delBtn.onclick = () => {
         this.library.delete(replay.id);
@@ -319,6 +410,64 @@ export class ReplayPanel {
       min-width: ${width};
       text-align: center;
     `;
+  }
+
+  _smallBtnStyle() {
+    return `
+      padding: 6px 12px;
+      font-size: 13px; font-weight: 600;
+      color: rgba(255,255,255,0.7);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed));
+      pointer-events: auto;
+    `;
+  }
+
+  _exportSingle(replay) {
+    const data = JSON.stringify(replay, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const name = (replay.name || 'replay').replace(/[^\w\u4e00-\u9fa5]/g, '_');
+    a.download = `billiards-replay-${name}-${replay.id.slice(-4)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  _exportReplays() {
+    const data = this.library.exportAll();
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `billiards-replays-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  _importReplays() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.style.display = 'none';
+    input.onchange = (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const count = this.library.importAll(ev.target.result);
+        this._renderList();
+        alert(count > 0 ? `成功导入 ${count} 条回放` : '导入失败：文件格式错误或数据无效');
+      };
+      reader.onerror = () => alert('文件读取失败');
+      reader.readAsText(file);
+    };
+    document.body.appendChild(input);
+    input.click();
+    setTimeout(() => { if (input.parentNode) input.parentNode.removeChild(input); }, 5000);
   }
 
   showControls() {

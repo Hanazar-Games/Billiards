@@ -56,6 +56,7 @@ export class ReplayLibrary {
     const entry = {
       id: this._generateId(),
       savedAt: Date.now(),
+      name: replayData.name || '',
       score: replayData.score,
       frameCount: replayData.frameCount,
       frames: replayData.frames,
@@ -98,6 +99,51 @@ export class ReplayLibrary {
   /** Get count of saved replays. */
   getCount() {
     return this.replays.length;
+  }
+
+  /** Update replay name. */
+  updateName(id, name) {
+    const replay = this.replays.find((r) => r.id === id);
+    if (replay) {
+      replay.name = String(name || '').trim();
+      this._save();
+      return true;
+    }
+    return false;
+  }
+
+  /** Export all replays as JSON string. */
+  exportAll() {
+    return JSON.stringify(this.replays);
+  }
+
+  /** Import replays from JSON string. Returns number imported. */
+  importAll(json) {
+    try {
+      const data = JSON.parse(json);
+      if (!Array.isArray(data)) return 0;
+      let count = 0;
+      for (const item of data) {
+        if (item && item.frames && item.frameCount >= 2) {
+          // Ensure ID uniqueness
+          if (this.replays.some((r) => r.id === item.id)) {
+            item.id = this._generateId();
+          }
+          this.replays.push(item);
+          count++;
+        }
+      }
+      // Enforce limit
+      if (this.replays.length > MAX_REPLAYS) {
+        this.replays.sort((a, b) => (a.score || 0) - (b.score || 0));
+        this.replays = this.replays.slice(-MAX_REPLAYS);
+      }
+      this._save();
+      return count;
+    } catch (e) {
+      console.warn('ReplayLibrary: import failed', e);
+      return 0;
+    }
   }
 
   /** Clear all replays. */

@@ -1,33 +1,36 @@
-# 3D Billiards v1.4.3 — Latest Update
+# 3D Billiards v1.4.4 — Latest Update
 
-## What's New in v1.4.3
+## What's New in v1.4.4
 
-### 🏗️ 架构整理（小步重构）
+### 🎬 精彩回放系统增强
 
-为未来的联机对战做准备，将 Game.js 中的核心能力拆分为独立模块，同时保持所有现有功能不变。
+| # | 功能 | 详情 |
+|---|------|------|
+| 1 | **回放列表增强** | 每张卡片显示模式标签（8球/9球/练习）、旋转是否使用、精确时间（月/日 时:分），以及进球/碰撞/库边统计 |
+| 2 | **回放命名** | 每张卡片支持点击输入框自定义名称，回车或失焦自动保存 |
+| 3 | **删除与清空** | 单条删除已有；列表顶部新增「清空」按钮一键删除全部（带确认弹窗） |
+| 4 | **播放控制** | 底部控制条支持播放/暂停切换、倍速切换（0.1x / 0.25x / 0.5x / 1.0x）、进度条拖拽定位、实时时间显示 |
+| 5 | **导出/导入 JSON** | 支持单条回放导出、全部回放批量导出为 JSON 文件；支持从 JSON 文件导入回放到本地库 |
 
-| # | 整理项 | 详情 |
-|---|--------|------|
-| 1 | **ShotInput 模块** | 新建 `src/game/ShotInput.js`，统一封装 `createShotInput(game)` 和 `applyShotInput(game, input)`。Game.js 的 `applyRemoteShot` 现在直接委托给 `applyShotInput`，网络层与游戏逻辑解耦 |
-| 2 | **序列化接口显性化** | Game.js 新增 `serializeGameState()` 和 `applyGameState(snapshot)` 方法，作为 `GameStateSerializer` 的薄包装，方便外部模块（网络、回放）直接调用 |
-| 3 | **MatchManager 提取** | 新建 `src/game/MatchManager.js` 包装 `MatchEngine` 并接管比赛比分 HUD 更新。Game.js 不再内联渲染比赛分数，而是通过 `matchManager.updateHUD(ui)` 委托；MenuSystem 统一使用 MatchManager |
-| 4 | **UI 文案常量集中** | 新建 `src/core/UIText.js`，集中存放 Game.js 中所有玩家-facing 的中文字符串（模式介绍、自由球提示、网络消息等），为后续 i18n 打基础 |
-| 5 | **重复代码清理** | 提取 `_enterAimState()`、`_endBallInHand()`、`_respotBall(id)`、`_applyCameraMode(mode)`、`_broadcastSnapshot()`、`_removeChallengeHUD()` 等 6 个共享辅助方法，消除 Game.js 中多处复制粘贴 |
+### 技术改动
 
-### 改动文件
-
-- **新增**: `src/game/ShotInput.js`, `src/game/MatchManager.js`, `src/core/UIText.js`
-- **修改**: `src/game/Game.js`, `src/menu/MenuSystem.js`, `src/core/SettingsStore.js`, `src/core/Renderer.js`
+- `src/replay/ReplayLibrary.js`：新增 `name` 字段、`updateName()`、`exportAll()`、`importAll()`
+- `src/replay/ReplayPanel.js`：重写卡片布局（标签行+命名输入+统计+操作按钮），新增导出/导入/清空按钮与交互
+- `src/replay/ShotRecorder.js` / `ShotReplay.js`：无改动，完全复用现有架构
 
 ---
 
 ## Previous Versions
 
+### v1.4.3 — 架构整理
+
+- ShotInput 模块提取、Game.js 序列化接口显性化
+- MatchManager 提取、UI 文案集中、重复代码清理
+
 ### v1.4.2 — 设置系统增强
 
 - 自定义确认弹窗、配置导入/导出 JSON、即时保存 toast
 - 性能模式 / 新手模式一键预设
-- 阴影效果独立开关
 
 ### v1.4.1 — HUD & 菜单体验优化
 
