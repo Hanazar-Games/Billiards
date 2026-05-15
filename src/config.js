@@ -92,6 +92,15 @@ export function getBallType(id) {
   return null;
 }
 
+// Room dimensions (walls / bounds)
+export const ROOM = {
+  halfWidth: 260,
+  halfDepth: 380,
+  wallHeight: 220,
+  minCameraY: 10,
+  maxCameraY: 280,
+};
+
 // Camera
 export const CAMERA = {
   fov: 45,

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { CAMERA } from '../config.js';
+import { CAMERA, ROOM } from '../config.js';
 import { settings } from './SettingsStore.js';
 
 export class Renderer {
@@ -41,7 +41,7 @@ export class Renderer {
     this.controls.dampingFactor = 0.05;
     this.controls.maxPolarAngle = Math.PI / 2 - 0.05;
     this.controls.minDistance = 80;
-    this.controls.maxDistance = 900;
+    this.controls.maxDistance = 700;
     this.controls.enableRotate = false;
     this.controls.enablePan = false;
     this.controls.enableZoom = true;
@@ -174,6 +174,7 @@ export class Renderer {
     if (this._cameraDragMode === 'pan') {
       const panSens = (settings.get('cameraPanSens') || 1.0);
       this.panCamera(dx * sens * panSens, dy * sens * panSens);
+      this._clampCameraToRoom();
       e.preventDefault();
       return;
     }
@@ -192,6 +193,7 @@ export class Renderer {
     this._cameraOffset.setFromSpherical(this._cameraSpherical);
     this.camera.position.copy(target).add(this._cameraOffset);
     this.camera.lookAt(target);
+    this._clampCameraToRoom();
     this.controls.update();
     e.preventDefault();
   }
@@ -225,7 +227,24 @@ export class Renderer {
 
     this.camera.position.add(this._cameraPanDelta);
     this.controls.target.add(this._cameraPanDelta);
+    this._clampCameraToRoom();
     this.controls.update();
+  }
+
+  _clampCameraToRoom() {
+    const cam = this.camera.position;
+    const tgt = this.controls.target;
+
+    // Clamp camera position
+    cam.x = Math.max(-ROOM.halfWidth, Math.min(ROOM.halfWidth, cam.x));
+    cam.z = Math.max(-ROOM.halfDepth, Math.min(ROOM.halfDepth, cam.z));
+    cam.y = Math.max(ROOM.minCameraY, Math.min(ROOM.maxCameraY, cam.y));
+
+    // Clamp orbit target (keep it within a slightly smaller inner zone so
+    // the camera never looks at a point outside the room)
+    tgt.x = Math.max(-ROOM.halfWidth * 0.6, Math.min(ROOM.halfWidth * 0.6, tgt.x));
+    tgt.z = Math.max(-ROOM.halfDepth * 0.6, Math.min(ROOM.halfDepth * 0.6, tgt.z));
+    tgt.y = Math.max(-20, Math.min(80, tgt.y));
   }
 
   _updateCameraCursor(active = false) {
@@ -270,6 +289,7 @@ export class Renderer {
       // Shift + two-finger drag = Pan
       e.preventDefault();
       this.panCamera(dx * 0.3 * sens * panSens * trackSens, dy * 0.3 * sens * panSens * trackSens);
+      this._clampCameraToRoom();
       return;
     }
 
@@ -294,6 +314,7 @@ export class Renderer {
     this._cameraOffset.setFromSpherical(this._cameraSpherical);
     this.camera.position.copy(target).add(this._cameraOffset);
     this.camera.lookAt(target);
+    this._clampCameraToRoom();
     this.controls.update();
   }
 
