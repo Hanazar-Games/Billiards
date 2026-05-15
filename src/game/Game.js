@@ -1368,7 +1368,7 @@ export class Game {
   _resetCameraFree() {
     this.screenShake?.cancel();
     const cam = this.camera;
-    cam.position.set(0, 320, 280);
+    cam.position.set(0, 280, 260);
     cam.lookAt(0, 0, 0);
     if (this.renderer.controls) {
       this.renderer.controls.target.set(0, 0, 0);
@@ -1379,7 +1379,7 @@ export class Game {
   _resetCameraTop() {
     this.screenShake?.cancel();
     const cam = this.camera;
-    cam.position.set(0, 450, 0);
+    cam.position.set(0, 320, 0);
     cam.lookAt(0, 0, 0);
     if (this.renderer.controls) {
       this.renderer.controls.target.set(0, 0, 0);

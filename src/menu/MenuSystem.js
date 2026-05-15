@@ -466,7 +466,7 @@ export class MenuSystem {
 
     // Position camera for replay view
     const cam = this.renderer.camera;
-    cam.position.set(0, 350, 250);
+    cam.position.set(0, 280, 250);
     cam.lookAt(0, 0, 0);
     if (this.renderer.controls) {
       this.renderer.controls.target.set(0, 0, 0);

@@ -12,6 +12,7 @@ export class Room {
     this._tmpToLamp2 = new THREE.Vector3();
     this.createFloor();
     this.createWalls();
+    this.createCeiling();
     this.createFurniture();
     this.createPaintings();
     this.createPlants();
@@ -141,10 +142,10 @@ export class Room {
   // ── Lounge furniture ──
   createFurniture() {
     // Two sofas along the back wall, facing the table
-    this.createSofa(-145, 295, 0, 170, 82, 78, 42);
-    this.createSofa(145, 295, 0, 170, 82, 78, 42);
-    // Coffee table between them
-    this.createCoffeeTable(0, 295, 95, 65, 42);
+    this.createSofa(-145, 310, 0, 170, 82, 78, 42);
+    this.createSofa(145, 310, 0, 170, 82, 78, 42);
+    // Coffee table in front of the sofas
+    this.createCoffeeTable(0, 245, 95, 65, 42);
   }
 
   createSofa(cx, cz, rotY, length, width, height, seatHeight) {
@@ -315,6 +316,41 @@ export class Room {
     }
 
     this.meshGroup.add(group);
+  }
+
+  // ── Ceiling ──
+  createCeiling() {
+    const ceilMat = new THREE.MeshStandardMaterial({
+      color: 0x1a1a1a,
+      roughness: 0.9,
+      metalness: 0.02,
+      side: THREE.DoubleSide,
+    });
+    const w = ROOM.halfWidth * 2;
+    const d = ROOM.halfDepth * 2;
+    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(w, d), ceilMat);
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.y = ROOM.wallHeight;
+    ceiling.receiveShadow = true;
+    this.meshGroup.add(ceiling);
+
+    // Ceiling grid lines (recessed panels)
+    const gridMat = new THREE.MeshStandardMaterial({
+      color: 0x252525,
+      roughness: 0.85,
+      metalness: 0.05,
+    });
+    const step = 52;
+    for (let x = -w / 2; x <= w / 2; x += step) {
+      const line = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, d), gridMat);
+      line.position.set(x, ROOM.wallHeight - 0.3, 0);
+      this.meshGroup.add(line);
+    }
+    for (let z = -d / 2; z <= d / 2; z += step) {
+      const line = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, 0.6), gridMat);
+      line.position.set(0, ROOM.wallHeight - 0.3, z);
+      this.meshGroup.add(line);
+    }
   }
 
   // ── Table lights ──

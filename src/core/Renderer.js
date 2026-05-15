@@ -320,6 +320,7 @@ export class Renderer {
 
   render() {
     this.controls.update();
+    this._clampCameraToRoom();
     this.renderer.render(this.scene, this.camera);
   }
 
