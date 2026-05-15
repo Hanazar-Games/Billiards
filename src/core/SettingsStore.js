@@ -19,6 +19,7 @@ const DEFAULTS = {
   particlesEnabled: true,
   shotTrailsEnabled: true,
   quality: 'high', // 'low' | 'medium' | 'high'
+  shadowsEnabled: true,
 
   // Game
   defaultCamera: 'free', // 'free' | 'top' | 'follow'

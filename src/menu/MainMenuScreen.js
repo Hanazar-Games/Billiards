@@ -140,7 +140,7 @@ export class MainMenuScreen {
 
     // Version
     const version = document.createElement('div');
-    version.textContent = 'v1.4.1';
+    version.textContent = 'v1.4.2';
     version.style.cssText = `
       position: absolute; bottom: 44px; left: 40px;
       font-size: 12px; color: rgba(244,247,244,0.32);

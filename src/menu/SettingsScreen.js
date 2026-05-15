@@ -7,6 +7,7 @@
 import { settings } from '../core/SettingsStore.js';
 import { keyBindings, ACTIONS, ACTION_CATEGORIES } from '../input/KeyBindings.js';
 import { animMs } from '../core/AnimSpeed.js';
+import { VERSION_TAG } from '../core/Version.js';
 
 
 const CATEGORIES = [
@@ -50,7 +51,20 @@ export class SettingsScreen {
     this._contentArea = null;
     this._toastTimers = [];
     this._hideTimer = null;
+    this._saveToastTimer = null;
     this._buildUI();
+
+    // Debounced save toast for settings changes while modal is open
+    this._onSettingsChangedToast = (e) => {
+      if (!e.detail?.key) return;
+      if (this._saveToastTimer) clearTimeout(this._saveToastTimer);
+      this._saveToastTimer = setTimeout(() => {
+        if (this.container && this.container.style.display !== 'none') {
+          this._toast('设置已保存');
+        }
+      }, 400);
+    };
+    window.addEventListener('settingsChanged', this._onSettingsChangedToast);
   }
 
   setAudioManager(audioManager) {
@@ -265,6 +279,49 @@ export class SettingsScreen {
       settings.set('quality', v);
     });
 
+    this._row('阴影效果',
+      this._createSwitch(settings.get('shadowsEnabled'), (v) => {
+        settings.set('shadowsEnabled', v);
+      })
+    );
+
+    // ── Presets ──
+    this._sectionTitle('预设方案', true);
+    this._sectionSubtitle('一键切换推荐配置');
+    const presetWrap = document.createElement('div');
+    presetWrap.style.cssText = 'display:flex; gap:10px; flex-wrap:wrap;';
+    const perfBtn = this._presetButton('性能模式', () => {
+      settings.set('quality', 'low');
+      settings.set('particlesEnabled', false);
+      settings.set('shotTrailsEnabled', false);
+      settings.set('shadowsEnabled', false);
+      settings.set('particleIntensity', 0.5);
+      this._toast('已切换为性能模式');
+      this._syncAllControls();
+    });
+    const balancedBtn = this._presetButton('均衡模式', () => {
+      settings.set('quality', 'medium');
+      settings.set('particlesEnabled', true);
+      settings.set('shotTrailsEnabled', true);
+      settings.set('shadowsEnabled', true);
+      settings.set('particleIntensity', 1.0);
+      this._toast('已切换为均衡模式');
+      this._syncAllControls();
+    });
+    const qualityBtn = this._presetButton('画质优先', () => {
+      settings.set('quality', 'high');
+      settings.set('particlesEnabled', true);
+      settings.set('shotTrailsEnabled', true);
+      settings.set('shadowsEnabled', true);
+      settings.set('particleIntensity', 1.0);
+      this._toast('已切换为画质优先');
+      this._syncAllControls();
+    });
+    presetWrap.appendChild(perfBtn);
+    presetWrap.appendChild(balancedBtn);
+    presetWrap.appendChild(qualityBtn);
+    this._contentArea.appendChild(presetWrap);
+
     // ── FX Animation ──
     this._sectionTitle('特效动画', true);
     this._rowSlider('FX 动画速度', Math.round((settings.get('fxAnimSpeed') ?? 1.0) * 100), 50, 200, '%', (v) => {
@@ -285,6 +342,31 @@ export class SettingsScreen {
     this._rowSelect('默认视角', CAMERA_OPTIONS, settings.get('defaultCamera'), (v) => {
       settings.set('defaultCamera', v);
     });
+
+    // ── Presets ──
+    this._sectionTitle('预设方案', true);
+    this._sectionSubtitle('一键切换推荐配置');
+    const gpPresetWrap = document.createElement('div');
+    gpPresetWrap.style.cssText = 'display:flex; gap:10px; flex-wrap:wrap;';
+    const beginnerBtn = this._presetButton('新手模式', () => {
+      settings.set('trajectoryEnabled', true);
+      settings.set('minimapEnabled', true);
+      settings.set('autoFollowCueBall', true);
+      settings.set('defaultCamera', 'follow');
+      this._toast('已切换为新手模式');
+      this._syncAllControls();
+    });
+    const proBtn = this._presetButton('高手模式', () => {
+      settings.set('trajectoryEnabled', false);
+      settings.set('minimapEnabled', false);
+      settings.set('autoFollowCueBall', false);
+      settings.set('defaultCamera', 'free');
+      this._toast('已切换为高手模式');
+      this._syncAllControls();
+    });
+    gpPresetWrap.appendChild(beginnerBtn);
+    gpPresetWrap.appendChild(proBtn);
+    this._contentArea.appendChild(gpPresetWrap);
 
     // ── Minimap ──
     this._sectionTitle('小地图', true);
@@ -501,29 +583,127 @@ export class SettingsScreen {
     this._sectionSubtitle('重置设置与数据管理');
 
     this._dangerButton('重置所有设置', () => {
-      if (confirm('确定要重置所有设置吗？此操作不可撤销。')) {
-        settings.reset();
-        this._syncAllControls();
-      }
+      this._showConfirmDialog(
+        '重置所有设置',
+        '确定要恢复为默认设置吗？此操作不可撤销，所有自定义配置将丢失。',
+        () => {
+          settings.reset();
+          this._syncAllControls();
+          this._toast('已恢复为默认设置');
+        }
+      );
     });
 
-    this._button('导出配置', () => {
+    // ── Import / Export ──
+    this._sectionTitle('配置管理', true);
+    this._sectionSubtitle('导出或导入设置 JSON');
+
+    const exportWrap = document.createElement('div');
+    exportWrap.style.cssText = 'display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;';
+    const exportClipboardBtn = this._presetButton('复制到剪贴板', () => {
       const data = JSON.stringify(settings.getAll(), null, 2);
       navigator.clipboard?.writeText(data);
       this._toast('配置已复制到剪贴板');
     });
+    const exportFileBtn = this._presetButton('下载文件', () => {
+      const data = JSON.stringify(settings.getAll(), null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'billiards-settings.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      this._toast('配置已下载');
+    });
+    exportWrap.appendChild(exportClipboardBtn);
+    exportWrap.appendChild(exportFileBtn);
+    this._contentArea.appendChild(exportWrap);
+
+    // Import area
+    const importWrap = document.createElement('div');
+    importWrap.style.cssText = 'display:flex; flex-direction:column; gap:8px;';
+    const importText = document.createElement('textarea');
+    importText.placeholder = '在此粘贴配置 JSON，或点击下方选择文件导入…';
+    importText.style.cssText = `
+      width: 100%; height: 100px; padding: 10px 12px; resize: vertical;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; color: rgba(255,255,255,0.7); font-size: 12px;
+      font-family: 'SFMono-Regular', Consolas, monospace; line-height: 1.5;
+      outline: none;
+    `;
+    importText.onfocus = () => { importText.style.borderColor = 'rgba(255,255,255,0.25)'; };
+    importText.onblur = () => { importText.style.borderColor = 'rgba(255,255,255,0.1)'; };
+    importWrap.appendChild(importText);
+
+    const importBtnRow = document.createElement('div');
+    importBtnRow.style.cssText = 'display:flex; gap:10px; align-items:center;';
+
+    const importApplyBtn = this._presetButton('导入配置', () => {
+      const raw = importText.value.trim();
+      if (!raw) { this._toast('请输入配置 JSON'); return; }
+      try {
+        const data = JSON.parse(raw);
+        if (typeof data !== 'object' || data === null) throw new Error('格式错误');
+        let count = 0;
+        Object.keys(data).forEach((key) => {
+          if (key in settings.getAll()) {
+            settings.set(key, data[key]);
+            count++;
+          }
+        });
+        this._toast(`已导入 ${count} 项配置`);
+        this._syncAllControls();
+        importText.value = '';
+      } catch (e) {
+        this._toast('导入失败：JSON 格式错误或包含无效数据');
+      }
+    });
+    importApplyBtn.style.background = 'rgba(24,119,201,0.12)';
+    importApplyBtn.style.color = '#6bb3ff';
+    importApplyBtn.style.borderColor = 'rgba(24,119,201,0.4)';
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json';
+    fileInput.style.display = 'none';
+    fileInput.onchange = (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        importText.value = ev.target.result;
+        this._toast('文件已读取，点击「导入配置」以应用');
+      };
+      reader.onerror = () => this._toast('文件读取失败');
+      reader.readAsText(file);
+    };
+    importWrap.appendChild(fileInput);
+
+    const importFileBtn = this._presetButton('选择文件…', () => fileInput.click());
+    importFileBtn.style.background = 'rgba(255,255,255,0.06)';
+    importFileBtn.style.color = 'rgba(255,255,255,0.7)';
+    importFileBtn.style.borderColor = 'rgba(255,255,255,0.15)';
+
+    importBtnRow.appendChild(importFileBtn);
+    importBtnRow.appendChild(importApplyBtn);
+    importWrap.appendChild(importBtnRow);
+    this._contentArea.appendChild(importWrap);
 
     this._button('清除本地缓存', () => {
-      if (confirm('确定要清除所有本地存储的数据吗？')) {
-        // Only remove keys belonging to this game
-        const keys = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (k && k.startsWith('billiards_')) keys.push(k);
+      this._showConfirmDialog(
+        '清除本地缓存',
+        '确定要清除所有本地存储的数据吗？包括设置、成就、回放记录等。此操作不可撤销。',
+        () => {
+          const keys = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('billiards_')) keys.push(k);
+          }
+          keys.forEach(k => localStorage.removeItem(k));
+          this._toast('本地缓存已清除，刷新后生效');
         }
-        keys.forEach(k => localStorage.removeItem(k));
-        this._toast('本地缓存已清除，刷新后生效');
-      }
+      );
     });
   }
 
@@ -544,7 +724,7 @@ export class SettingsScreen {
     wrap.appendChild(desc);
 
     const ver = document.createElement('div');
-    ver.textContent = '版本 1.4.1';
+    ver.textContent = '版本 ' + VERSION_TAG.replace('v', '');
     ver.style.cssText = 'font-size: 13px; color: rgba(255,255,255,0.35); margin-top: 8px;';
     wrap.appendChild(ver);
 
@@ -978,6 +1158,31 @@ export class SettingsScreen {
     this._contentArea.appendChild(btn);
   }
 
+  _presetButton(label, onClick) {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.style.cssText = `
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      background: rgba(24,164,106,0.1); color: #5ce6a0;
+      border: 1px solid rgba(24,164,106,0.35); cursor: pointer;
+      transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+    `;
+    btn.onmouseenter = () => {
+      btn.style.background = 'rgba(24,164,106,0.2)';
+      btn.style.borderColor = 'rgba(24,164,106,0.5)';
+      btn.style.color = '#7fffb3';
+    };
+    btn.onmouseleave = () => {
+      btn.style.background = 'rgba(24,164,106,0.1)';
+      btn.style.borderColor = 'rgba(24,164,106,0.35)';
+      btn.style.color = '#5ce6a0';
+    };
+    const fn = onClick;
+    btn.addEventListener('click', fn);
+    this._listeners.push({ el: btn, type: 'click', fn });
+    return btn;
+  }
+
   // ── Components ──
 
   _createSwitch(checked, onChange) {
@@ -1137,6 +1342,92 @@ export class SettingsScreen {
     this._switchCategory(this._currentCategory);
   }
 
+  /**
+   * Shows a styled confirmation dialog inside the settings modal.
+   * Replaces native confirm() for a consistent visual style.
+   */
+  _showConfirmDialog(title, message, onConfirm, onCancel = null) {
+    // Backdrop
+    const backdrop = document.createElement('div');
+    backdrop.style.cssText = `
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(6px);
+      display: flex; align-items: center; justify-content: center;
+      animation: settingsCardIn calc(0.25s / var(--ui-anim-speed)) ease both;
+    `;
+
+    // Card
+    const card = document.createElement('div');
+    card.style.cssText = `
+      width: min(420px, 90vw);
+      background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    `;
+
+    const titleEl = document.createElement('div');
+    titleEl.textContent = title;
+    titleEl.style.cssText = 'font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 8px;';
+    card.appendChild(titleEl);
+
+    const msgEl = document.createElement('div');
+    msgEl.textContent = message;
+    msgEl.style.cssText = 'font-size: 13px; color: rgba(255,255,255,0.6); line-height: 1.5; margin-bottom: 20px;';
+    card.appendChild(msgEl);
+
+    const btnWrap = document.createElement('div');
+    btnWrap.style.cssText = 'display: flex; justify-content: flex-end; gap: 10px;';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = '取消';
+    cancelBtn.style.cssText = `
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.7);
+      border: 1px solid rgba(255,255,255,0.1); cursor: pointer;
+      transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+    `;
+    cancelBtn.onmouseenter = () => {
+      cancelBtn.style.background = 'rgba(255,255,255,0.12)';
+      cancelBtn.style.color = '#fff';
+    };
+    cancelBtn.onmouseleave = () => {
+      cancelBtn.style.background = 'rgba(255,255,255,0.06)';
+      cancelBtn.style.color = 'rgba(255,255,255,0.7)';
+    };
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.textContent = '确定';
+    confirmBtn.style.cssText = `
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      background: rgba(185,18,63,0.15); color: #ff8a9a;
+      border: 1px solid rgba(185,18,63,0.4); cursor: pointer;
+      transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+    `;
+    confirmBtn.onmouseenter = () => {
+      confirmBtn.style.background = 'rgba(185,18,63,0.25)';
+      confirmBtn.style.color = '#ffb3c0';
+    };
+    confirmBtn.onmouseleave = () => {
+      confirmBtn.style.background = 'rgba(185,18,63,0.15)';
+      confirmBtn.style.color = '#ff8a9a';
+    };
+
+    const close = () => { if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); };
+
+    cancelBtn.onclick = () => { close(); if (onCancel) onCancel(); };
+    confirmBtn.onclick = () => { close(); onConfirm(); };
+    backdrop.onclick = (e) => { if (e.target === backdrop) { close(); if (onCancel) onCancel(); } };
+
+    btnWrap.appendChild(cancelBtn);
+    btnWrap.appendChild(confirmBtn);
+    card.appendChild(btnWrap);
+    backdrop.appendChild(card);
+    document.body.appendChild(backdrop);
+  }
+
   show() {
     if (!this.container) return;
     this._syncAllControls();
@@ -1160,6 +1451,11 @@ export class SettingsScreen {
     this._listeners = [];
     if (this._toastTimers) { this._toastTimers.forEach(t => clearTimeout(t)); this._toastTimers = []; }
     if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
+    if (this._saveToastTimer) { clearTimeout(this._saveToastTimer); this._saveToastTimer = null; }
+    if (this._onSettingsChangedToast) {
+      window.removeEventListener('settingsChanged', this._onSettingsChangedToast);
+      this._onSettingsChangedToast = null;
+    }
     this._tabEls.forEach(({ tab }) => {
       if (tab) { tab.onclick = null; }
     });

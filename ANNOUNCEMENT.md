@@ -1,33 +1,38 @@
-# 3D Billiards v1.4.1 — Latest Update
+# 3D Billiards v1.4.2 — Latest Update
 
-## What's New in v1.4.1
+## What's New in v1.4.2
 
-### 🎨 HUD & 菜单体验优化
+### ⚙️ 设置系统增强
 
-| # | 优化项 | 详情 |
-|---|--------|------|
-| 1 | **版本号统一** | 新增 `src/core/Version.js` 作为唯一版本来源，所有菜单、设置、页面角标自动同步，避免多处版本不一致 |
-| 2 | **底部 HUD 布局优化** | 玩家名、球组、剩余球、比分、计时器排版更清晰；添加 `white-space: nowrap` 防止文字换行错位 |
-| 3 | **小屏幕适配** | 新增 `@media (max-width: 760px)` 和 `@media (max-width: 520px)` 响应式规则：击球点、力度条、小地图自动缩小/上移，避免互相遮挡 |
-| 4 | **中文文案统一** | 所有游戏内提示（8球/9球规则消息、加载文本、错误提示）统一为纯中文，消除中英文混杂 |
-| 5 | **错误弹窗优化** | 错误提示更友好，显示「资源加载异常，请尝试刷新页面或检查网络连接」，并提供「重新加载」按钮 |
+| # | 功能 | 详情 |
+|---|------|------|
+| 1 | **恢复默认设置确认弹窗** | 替换浏览器原生 `confirm()` 为自定义样式弹窗，与游戏 UI 风格统一 |
+| 2 | **导入/导出配置 JSON** | 支持「复制到剪贴板」「下载文件」两种导出方式；支持「粘贴 JSON」或「选择文件」导入；自动过滤无效键名 |
+| 3 | **即时生效 + 保存提示** | 设置变更后 400ms 防抖显示「设置已保存」toast，无需手动确认 |
+| 4 | **性能模式** | 图形页新增「性能模式 / 均衡模式 / 画质优先」一键预设；性能模式自动降低画质、关闭粒子/拖尾/阴影；新增「阴影效果」独立开关 |
+| 5 | **新手模式** | 游戏页新增「新手模式 / 高手模式」一键预设；新手模式自动开启轨迹线、小地图、自动追踪白球、跟随视角 |
+
+### 技术改动
+
+- `src/core/SettingsStore.js`：新增 `shadowsEnabled` 默认 `true`
+- `src/core/Renderer.js`：新增 `applyQualitySettings()` 方法，根据 `quality` 和 `shadowsEnabled` 实时调整像素比率和阴影贴图分辨率
+- `src/menu/SettingsScreen.js`：新增自定义确认弹窗 `_showConfirmDialog`、预设按钮 `_presetButton`、配置导入导出 UI、防抖保存 toast
+- `src/game/Game.js`：`shadowsEnabled` 变更监听（实际由 Renderer 全局处理）
 
 ---
 
 ## Previous Versions
 
+### v1.4.1 — HUD & 菜单体验优化
+
+- 版本号统一来源 (`src/core/Version.js`)
+- 底部 HUD 布局优化，小屏幕响应式适配
+- 所有游戏内提示统一中文文案
+- 错误弹窗更友好
+
 ### v1.4.0 — 回合计时器 (Turn Timer)
 
 - 新增 per-turn 倒计时（不限时 / 30秒 / 60秒）
-- 仅标准对战模式生效，freeplay/挑战/回放自动禁用
+- 仅标准对战模式生效
 - 计时器 ≤5s 橙色警告、≤3s 红色脉冲
-- 暂停菜单/设置/回放时自动冻结倒计时
 - 超时 = 犯规 + 对手自由球
-
-### v1.3.9 — 本地比赛模式 (Local Match Mode)
-
-A tournament-style local 2-player mode with customizable names, 8-ball/9-ball selection, best-of-N match formats, live score HUD, and match end flow.
-
-### v1.3.8 — Deep Bug Audit
-
-12 stability fixes including LAN anonymous listener leak elimination, WebSocket disconnect auto-return, host concede block, server payload guards, BGM lifecycle preservation, and various cleanup leak fixes.

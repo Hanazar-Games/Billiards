@@ -1975,6 +1975,9 @@ export class Game {
       case 'cueTheme':
         if (this.cue) this.cue.applyTheme(value);
         break;
+      case 'shadowsEnabled':
+        // Shadows are handled globally by Renderer; no per-game action needed
+        break;
       case 'turnTimer': {
         const isStandardMode = ['local2p', 'vsai', '9ball'].includes(this.mode) || this.matchMode;
         if (isStandardMode && value !== 'off') {

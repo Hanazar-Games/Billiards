@@ -86,6 +86,15 @@ export class Renderer {
     // Resize handler
     this._onResize = this.onResize.bind(this);
     window.addEventListener('resize', this._onResize);
+
+    // Apply quality & shadow settings
+    this.applyQualitySettings();
+    this._onSettingsChanged = (e) => {
+      if (e.detail?.key === 'quality' || e.detail?.key === 'shadowsEnabled') {
+        this.applyQualitySettings();
+      }
+    };
+    window.addEventListener('settingsChanged', this._onSettingsChanged);
   }
 
   setupLights() {
@@ -320,6 +329,41 @@ export class Renderer {
     this.controls.update();
   }
 
+  applyQualitySettings() {
+    const quality = settings.get('quality') || 'high';
+    const shadows = settings.get('shadowsEnabled') !== false;
+
+    // Pixel ratio
+    const dpr = window.devicePixelRatio || 1;
+    const maxDpr = quality === 'low' ? 1 : (quality === 'medium' ? 1.5 : 2);
+    this.renderer.setPixelRatio(Math.min(dpr, maxDpr));
+
+    // Shadow map
+    const wasEnabled = this.renderer.shadowMap.enabled;
+    this.renderer.shadowMap.enabled = shadows;
+    if (shadows) {
+      const size = quality === 'low' ? 1024 : (quality === 'medium' ? 1536 : 2048);
+      this.scene.traverse((obj) => {
+        if (obj.isLight && obj.shadow) {
+          obj.shadow.mapSize.width = size;
+          obj.shadow.mapSize.height = size;
+          obj.shadow.map?.setSize(size, size);
+        }
+      });
+    }
+    if (wasEnabled !== shadows) {
+      this.scene.traverse((obj) => {
+        if (obj.material) {
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((m) => { m.needsUpdate = true; });
+          } else {
+            obj.material.needsUpdate = true;
+          }
+        }
+      });
+    }
+  }
+
   render() {
     this.controls.update();
     this._clampCameraToRoom();
@@ -335,6 +379,7 @@ export class Renderer {
     window.removeEventListener('pointermove', this._onCameraPointerMove);
     window.removeEventListener('pointerup', this._onCameraPointerUp);
     this.renderer.domElement.removeEventListener('wheel', this._onWheel, { passive: false });
+    window.removeEventListener('settingsChanged', this._onSettingsChanged);
     if (this.controls) {
       this.controls.dispose();
     }
