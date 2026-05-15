@@ -1,5 +1,5 @@
 import { ShotPlanner } from './ShotPlanner.js';
-import { SHOT } from '../config.js';
+import { SHOT, TABLE } from '../config.js';
 
 export const AI_DIFFICULTY = {
   EASY: 'easy',
@@ -21,30 +21,39 @@ export class AIPlayer {
     switch (difficulty) {
       case AI_DIFFICULTY.EASY:
         return {
-          angleNoise: 0.12,      // radians
-          powerNoise: 0.25,      // fraction of power
-          thinkTimeMin: 1200,
-          thinkTimeMax: 2500,
-          missChance: 0.25,      // chance to pick suboptimal shot
-          safetyAwareness: 0.1,
+          angleNoise: 0.14,      // radians
+          powerNoise: 0.30,      // fraction of power
+          thinkTimeMin: 1400,
+          thinkTimeMax: 3000,
+          missChance: 0.35,      // chance to pick suboptimal shot
+          safetyAwareness: 0.05,
+          positionPlayWeight: 0, // doesn't think about position
+          spinSkill: 0.2,        // poor spin control
+          topShotPickRate: 0.55, // only picks best shot 55% of the time
         };
       case AI_DIFFICULTY.HARD:
         return {
-          angleNoise: 0.02,
-          powerNoise: 0.06,
-          thinkTimeMin: 800,
-          thinkTimeMax: 1800,
-          missChance: 0.02,
-          safetyAwareness: 0.6,
+          angleNoise: 0.015,
+          powerNoise: 0.04,
+          thinkTimeMin: 600,
+          thinkTimeMax: 1400,
+          missChance: 0.0,       // almost never misses intentionally
+          safetyAwareness: 0.75,
+          positionPlayWeight: 0.6, // strong position play
+          spinSkill: 1.0,        // excellent spin control
+          topShotPickRate: 1.0,  // always picks best shot
         };
       default: // NORMAL
         return {
-          angleNoise: 0.06,
-          powerNoise: 0.14,
+          angleNoise: 0.07,
+          powerNoise: 0.16,
           thinkTimeMin: 1000,
           thinkTimeMax: 2200,
-          missChance: 0.10,
+          missChance: 0.12,
           safetyAwareness: 0.35,
+          positionPlayWeight: 0.25,
+          spinSkill: 0.55,
+          topShotPickRate: 0.82,
         };
     }
   }
@@ -87,19 +96,16 @@ export class AIPlayer {
         // No direct shot: try safety or random hit
         chosenShot = this.planner.findSafetyShot(ballsManager.balls, cueBall, pocketPositions, targetBallId);
         if (!chosenShot) {
-          // Desperate: just hit the closest legal ball
           chosenShot = this.findDesperateShot(ballsManager.balls, cueBall, targetBallId);
         }
       } else {
-        // Pick best shot, sometimes make a mistake (perturb angle/power)
-        chosenShot = allShots[0];
-        if (Math.random() < this.settings.missChance) {
-          // Perturb the best shot instead of picking a random terrible one
-          chosenShot = this._perturbShot(chosenShot);
-        }
-        // Safety play: if best shot is poor and safety awareness is high, play safe
-        if (this.settings.safetyAwareness > 0 && allShots[0].score < 60 &&
-            Math.random() < this.settings.safetyAwareness) {
+        // Difficulty-based shot selection
+        chosenShot = this._selectShot(allShots);
+
+        // If the chosen shot is very poor (e.g. perturbed miss), strong AI may switch to safety
+        const s = this.settings;
+        if (chosenShot.score < 35 && s.safetyAwareness > 0 &&
+            Math.random() < s.safetyAwareness * 0.6) {
           const safety = this.planner.findSafetyShot(ballsManager.balls, cueBall, pocketPositions, targetBallId);
           if (safety) chosenShot = safety;
         }
@@ -117,8 +123,8 @@ export class AIPlayer {
       const finalAim = this.applyNoise(chosenShot.aimDirection);
       const finalPower = this.applyPowerNoise(chosenShot.power);
 
-      // Cue-tip offset (spin) — strategic for HARD, random for easier
-      const cueTipOffset = this._computeSpin(chosenShot, finalPower);
+      // Cue-tip offset (spin) — strategic for HARD, semi-random for easier
+      const cueTipOffset = this._computeSpin(chosenShot, finalPower, ballsManager);
 
       // Charge animation delay
       const chargeTime = (finalPower / SHOT.maxPower) * 1200 + 300;
@@ -133,6 +139,57 @@ export class AIPlayer {
     } finally {
       this.thinking = false;
     }
+  }
+
+  /**
+   * Difficulty-aware shot selection.
+   * EASY: often picks non-best shots, misses easy ones.
+   * NORMAL: usually picks good shots, occasionally makes mistakes.
+   * HARD: always picks the optimal shot, considers position play.
+   */
+  _selectShot(allShots) {
+    const s = this.settings;
+
+    // HARD: evaluate position play for top candidates and re-sort
+    if (this.difficulty === AI_DIFFICULTY.HARD && s.positionPlayWeight > 0) {
+      const scored = allShots.map((shot) => ({
+        ...shot,
+        combinedScore: shot.score + this._evaluatePositionPlay(shot) * s.positionPlayWeight,
+      }));
+      scored.sort((a, b) => b.combinedScore - a.combinedScore);
+      allShots = scored;
+    }
+
+    // Pick based on difficulty
+    let chosen;
+    if (Math.random() < s.topShotPickRate) {
+      chosen = { ...allShots[0] };
+    } else {
+      // Pick from top N depending on difficulty
+      const poolSize = this.difficulty === AI_DIFFICULTY.EASY
+        ? Math.min(5, allShots.length)
+        : Math.min(3, allShots.length);
+      chosen = { ...allShots[Math.floor(Math.random() * poolSize)] };
+    }
+
+    // Miss chance: perturb the chosen shot
+    if (Math.random() < s.missChance) {
+      chosen = this._perturbShot(chosen);
+    }
+
+    return chosen;
+  }
+
+  /** Rough position-play evaluation for HARD AI. Rewards shots that leave cue ball near cushions or far from target balls. */
+  _evaluatePositionPlay(shot) {
+    if (!shot.ghostPos) return 0;
+    let score = 0;
+    // Near a cushion is good (harder for opponent)
+    const cushionX = Math.abs(shot.ghostPos.x) / (TABLE.width / 2);
+    const cushionZ = Math.abs(shot.ghostPos.z) / (TABLE.depth / 2);
+    if (cushionX > 0.75 || cushionZ > 0.75) score += 12;
+    else if (cushionX > 0.55 || cushionZ > 0.55) score += 6;
+    return score;
   }
 
   applyNoise(dir) {
@@ -151,7 +208,6 @@ export class AIPlayer {
   }
 
   _perturbShot(shot) {
-    // Create a slightly-worse version of the best shot rather than abandoning it
     const perturbed = { ...shot };
     const angle = Math.atan2(shot.aimDirection.z, shot.aimDirection.x);
     const noise = this.settings.angleNoise * (0.5 + Math.random());
@@ -165,31 +221,61 @@ export class AIPlayer {
     return perturbed;
   }
 
-  _computeSpin(shot, power) {
-    if (this.difficulty !== AI_DIFFICULTY.HARD) {
-      // Easy/Normal: random spin
-      const spinAmount = this.difficulty === AI_DIFFICULTY.EASY ? 0.70 : 0.45;
-      return {
-        x: (Math.random() * 2 - 1) * spinAmount,
-        y: (Math.random() * 2 - 1) * spinAmount * 0.6,
-      };
-    }
-    // Hard: strategic spin
-    // Draw (bottom spin) for powerful shots to control cue ball
-    // Follow (top spin) for soft shots needing forward roll
-    // Side spin minimal unless needed for position
-    let x = 0, y = 0;
+  /**
+   * Compute spin based on difficulty and shot context.
+   * EASY: mostly random, sometimes way off.
+   * NORMAL: slight random, occasionally intentional.
+   * HARD: always intentional - draw, follow, side spin for position.
+   */
+  _computeSpin(shot, power, ballsManager) {
+    const skill = this.settings.spinSkill;
     const powerRatio = power / SHOT.maxPower;
-    if (powerRatio > 0.55) {
-      // Powerful shot: use draw to stop cue ball or bring it back
-      y = -0.25 - Math.random() * 0.15;
-    } else if (powerRatio < 0.25) {
-      // Soft shot: follow for gentle roll
-      y = 0.15 + Math.random() * 0.1;
+    let x = 0, y = 0;
+
+    if (this.difficulty === AI_DIFFICULTY.EASY) {
+      // Poor spin control: random and often excessive
+      const amount = 0.6 + Math.random() * 0.4;
+      x = (Math.random() * 2 - 1) * amount;
+      y = (Math.random() * 2 - 1) * amount * 0.7;
+      return { x, y };
     }
-    // Tiny side spin to avoid straight-in scratches
-    if (shot.isDesperate || (shot.score && shot.score < 50)) {
-      x = (Math.random() > 0.5 ? 1 : -1) * (0.1 + Math.random() * 0.1);
+
+    if (this.difficulty === AI_DIFFICULTY.HARD) {
+      // Strategic spin
+      if (powerRatio > 0.5) {
+        // Draw to stop cue ball or bring it back
+        y = -0.2 - Math.random() * 0.2;
+      } else if (powerRatio < 0.3) {
+        // Follow for gentle roll forward
+        y = 0.12 + Math.random() * 0.12;
+      }
+
+      // Side spin when approaching a pocket at a shallow angle
+      if (shot.pocketIndex !== undefined && shot.pocketIndex >= 0) {
+        const pocketX = shot.aimDirection.x;
+        const isNearSide = Math.abs(pocketX) > 0.85;
+        if (isNearSide) {
+          // Add opposite-side spin to help the cue ball avoid the pocket
+          x = pocketX > 0 ? -0.08 - Math.random() * 0.08 : 0.08 + Math.random() * 0.08;
+        }
+      }
+
+      // Safety or desperate: use spin to try to control cue ball
+      if (shot.isSafety || shot.isDesperate) {
+        x = (Math.random() > 0.5 ? 1 : -1) * (0.05 + Math.random() * 0.08);
+      }
+      return { x, y };
+    }
+
+    // NORMAL: mix of slight intentional spin and random
+    if (Math.random() < skill) {
+      // Occasionally intentional
+      if (powerRatio > 0.55) y = -0.15 - Math.random() * 0.15;
+      else if (powerRatio < 0.3) y = 0.1 + Math.random() * 0.1;
+    } else {
+      // Otherwise slight random
+      x = (Math.random() * 2 - 1) * 0.2;
+      y = (Math.random() * 2 - 1) * 0.15;
     }
     return { x, y };
   }

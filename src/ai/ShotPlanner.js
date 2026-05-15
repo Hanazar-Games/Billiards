@@ -195,12 +195,16 @@ export class ShotPlanner {
 
   /**
    * Find a safety shot when no direct pocket is available.
-   * Just hits the best positioned opponent ball toward a cushion.
+   * Considers cue ball position after hit: far from pockets,
+   * near cushions, and ideally blocked from hitting target balls.
    */
   findSafetyShot(balls, cueBall, pocketPositions, targetBallId = null) {
     const cuePos = cueBall.mesh.position;
     let best = null;
     let bestScore = -Infinity;
+    const r = BALL.radius;
+    const halfW = TABLE.width / 2;
+    const halfD = TABLE.depth / 2;
 
     for (const target of balls) {
       if (target.pocketed || target.id === 0) continue;
@@ -208,18 +212,15 @@ export class ShotPlanner {
 
       const targetPos = target.mesh.position;
       _v1.subVectors(targetPos, cuePos).normalize();
-      const ghostPos = _v2.copy(targetPos).addScaledVector(_v1, -2 * BALL.radius);
+      const ghostPos = _v2.copy(targetPos).addScaledVector(_v1, -2 * r);
 
       if (this.isPathBlocked(cuePos, ghostPos, balls, [0, target.id])) continue;
 
-      // Score: distance to pocket after hit (don't want to accidentally pocket)
-      let minPocketDist = Infinity;
-      for (const pocket of pocketPositions) {
-        const d = targetPos.distanceTo(pocket);
-        if (d < minPocketDist) minPocketDist = d;
-      }
+      // Estimate where cue ball will end up after the hit (very rough: along reflection)
+      const cueReflection = _v3.copy(_v1).negate();
+      const estimatedCuePos = _v3.copy(ghostPos).addScaledVector(cueReflection, r * 4);
 
-      const score = minPocketDist; // farther from pockets is better for safety
+      const score = this._scoreSafety(estimatedCuePos, pocketPositions, balls, halfW, halfD, r);
       if (score > bestScore) {
         bestScore = score;
         best = {
@@ -227,8 +228,8 @@ export class ShotPlanner {
           pocketIndex: -1,
           ghostPos: ghostPos.clone(),
           aimDirection: _v1.clone(),
-          power: Math.min(SHOT.maxPower * 0.4, 25),
-          score: 50,
+          power: Math.min(SHOT.maxPower * 0.35, 22),
+          score,
           isSafety: true,
         };
       }
@@ -236,4 +237,40 @@ export class ShotPlanner {
 
     return best;
   }
+
+  /**
+   * Score a safety position. Higher = better safety.
+   * Rewards: far from pockets, near cushions, blocked from target balls.
+   */
+  _scoreSafety(cuePos, pocketPositions, balls, halfW, halfD, r) {
+    let score = 50;
+
+    // Far from any pocket (don't scratch)
+    let minPocketDist = Infinity;
+    for (const pocket of pocketPositions) {
+      minPocketDist = Math.min(minPocketDist, cuePos.distanceTo(pocket));
+    }
+    score += Math.min(minPocketDist / 10, 25);
+
+    // Near a cushion (harder for opponent to attack)
+    const cushionDist = Math.min(
+      halfW - Math.abs(cuePos.x),
+      halfD - Math.abs(cuePos.z)
+    );
+    if (cushionDist < r * 3) score += 15;
+    else if (cushionDist < r * 6) score += 8;
+
+    // Blocked from hitting most target balls (good)
+    let blockedCount = 0;
+    for (const ball of balls) {
+      if (ball.pocketed || ball.id === 0) continue;
+      if (this.isPathBlocked(cuePos, ball.mesh.position, balls, [0])) {
+        blockedCount++;
+      }
+    }
+    score += blockedCount * 3;
+
+    return Math.min(score, 100);
+  }
+
 }

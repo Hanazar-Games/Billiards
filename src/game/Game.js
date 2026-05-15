@@ -685,14 +685,34 @@ export class Game {
     }
 
     // Set aim and spin
-    this.aimDirection.set(decision.aimDirection.x, 0, decision.aimDirection.z).normalize();
+    const targetAim = new THREE.Vector3(decision.aimDirection.x, 0, decision.aimDirection.z).normalize();
     this.cueTipOffset = decision.cueTipOffset || { x: 0, y: 0 };
     this._updateCueTipPicker();
     if (!this.ballsManager || !this.cue) return; // disposed during await
-    this.cue.setAim(this.ballsManager.getCueBall().mesh.position, this.aimDirection);
-    this.cue.show();
 
-    await this.aiPlayer.delay(400); // brief aim pause
+    // Animate AI cue rotating toward aim direction
+    const aimStart = performance.now();
+    const aimDuration = 350 + Math.random() * 300;
+    const startAim = this.aimDirection.clone();
+    this.cue.show();
+    await new Promise(resolve => {
+      const tick = () => {
+        const elapsed = performance.now() - aimStart;
+        const t = Math.min(elapsed / aimDuration, 1);
+        // Smooth ease-out
+        const eased = 1 - Math.pow(1 - t, 3);
+        this.aimDirection.lerpVectors(startAim, targetAim, eased).normalize();
+        this.cue.setAim(this.ballsManager.getCueBall().mesh.position, this.aimDirection);
+        if (t < 1 && this.state === 'AI_THINKING') {
+          requestAnimationFrame(tick);
+        } else {
+          this.aimDirection.copy(targetAim);
+          this.cue.setAim(this.ballsManager.getCueBall().mesh.position, this.aimDirection);
+          resolve();
+        }
+      };
+      tick();
+    });
 
     if (this.state !== 'AI_THINKING' || !this.ballsManager) return; // game may have been reset/disposed
 
