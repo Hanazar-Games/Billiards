@@ -17,6 +17,7 @@ export class BallReturnSystem {
     this.scene = scene;
     this.active = []; // { mesh, stage, age, dur, start, drop, slide, target, rotAxis, rotSpeed }
     this.settled = []; // { mesh } — balls resting in the tray
+    this._nextSlot = 0; // monotonic slot allocator so concurrent pockets never overlap
     this.trayGroup = new THREE.Group();
     this.scene.add(this.trayGroup);
     this._buildTray();
@@ -97,8 +98,7 @@ export class BallReturnSystem {
   /*  Spawn a return animation                                           */
   /* ------------------------------------------------------------------ */
   animateBallReturn(ballMesh, pocketPosition) {
-    const settledCount = this.settled.length;
-    const target = this._computeTraySlot(settledCount);
+    const target = this._computeTraySlot(this._nextSlot++);
 
     // Clone the ball mesh so the original can be hidden/disposed independently.
     const clone = ballMesh.clone();
@@ -212,6 +212,7 @@ export class BallReturnSystem {
       if (s.mesh) this.scene.remove(s.mesh);
     }
     this.settled = [];
+    this._nextSlot = 0;
   }
 
   dispose() {
