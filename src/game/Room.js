@@ -88,25 +88,27 @@ export class Room {
 
     const hw = ROOM.halfWidth;
     const hd = ROOM.halfDepth;
-    const h = ROOM.wallHeight;
+    const floorY = -TABLE.height - 70;
+    const wallTotalH = ROOM.wallHeight - floorY;
+    const wallCenterY = floorY + wallTotalH / 2;
     const wainscotH = 55;
     const wallThick = 6;
 
-    // Front wall (z = -hd)
-    this._addWall(0, h / 2, -hd, hw * 2, h, wallThick, wallMat);
-    this._addWall(0, wainscotH / 2, -hd + wallThick / 2 + 1, hw * 2, wainscotH, 3, wainscotMat);
+    // Front wall (z = -hd) — extends all the way down to the floor
+    this._addWall(0, wallCenterY, -hd, hw * 2, wallTotalH, wallThick, wallMat);
+    this._addWall(0, floorY + wainscotH / 2, -hd + wallThick / 2 + 1, hw * 2, wainscotH, 3, wainscotMat);
 
     // Back wall (z = hd)
-    this._addWall(0, h / 2, hd, hw * 2, h, wallThick, wallMat);
-    this._addWall(0, wainscotH / 2, hd - wallThick / 2 - 1, hw * 2, wainscotH, 3, wainscotMat);
+    this._addWall(0, wallCenterY, hd, hw * 2, wallTotalH, wallThick, wallMat);
+    this._addWall(0, floorY + wainscotH / 2, hd - wallThick / 2 - 1, hw * 2, wainscotH, 3, wainscotMat);
 
     // Left wall (x = -hw)
-    this._addWall(-hw, h / 2, 0, wallThick, h, hd * 2, wallMat);
-    this._addWall(-hw + wallThick / 2 + 1, wainscotH / 2, 0, 3, wainscotH, hd * 2, wainscotMat);
+    this._addWall(-hw, wallCenterY, 0, wallThick, wallTotalH, hd * 2, wallMat);
+    this._addWall(-hw + wallThick / 2 + 1, floorY + wainscotH / 2, 0, 3, wainscotH, hd * 2, wainscotMat);
 
     // Right wall (x = hw)
-    this._addWall(hw, h / 2, 0, wallThick, h, hd * 2, wallMat);
-    this._addWall(hw - wallThick / 2 - 1, wainscotH / 2, 0, 3, wainscotH, hd * 2, wainscotMat);
+    this._addWall(hw, wallCenterY, 0, wallThick, wallTotalH, hd * 2, wallMat);
+    this._addWall(hw - wallThick / 2 - 1, floorY + wainscotH / 2, 0, 3, wainscotH, hd * 2, wainscotMat);
 
     // Chair-rail trim at wainscot top
     const railH = 3;
@@ -117,10 +119,10 @@ export class Room {
 
     // Baseboard at floor level
     const baseH = 6;
-    this._addTrim(0, baseH / 2, -hd, hw * 2, baseH, wallThick + 2, baseMat);
-    this._addTrim(0, baseH / 2, hd, hw * 2, baseH, wallThick + 2, baseMat);
-    this._addTrim(-hw, baseH / 2, 0, wallThick + 2, baseH, hd * 2, baseMat);
-    this._addTrim(hw, baseH / 2, 0, wallThick + 2, baseH, hd * 2, baseMat);
+    this._addTrim(0, floorY + baseH / 2, -hd, hw * 2, baseH, wallThick + 2, baseMat);
+    this._addTrim(0, floorY + baseH / 2, hd, hw * 2, baseH, wallThick + 2, baseMat);
+    this._addTrim(-hw, floorY + baseH / 2, 0, wallThick + 2, baseH, hd * 2, baseMat);
+    this._addTrim(hw, floorY + baseH / 2, 0, wallThick + 2, baseH, hd * 2, baseMat);
   }
 
   _addWall(x, y, z, w, h, d, material) {
@@ -336,7 +338,7 @@ export class Room {
 
     // Ceiling grid lines (recessed panels)
     const gridMat = new THREE.MeshStandardMaterial({
-      color: 0x252525,
+      color: 0x3a3530,
       roughness: 0.85,
       metalness: 0.05,
     });
@@ -430,10 +432,10 @@ export class Room {
     }
 
     // Dedicated spotlight aimed at the "厚德载物" plaque on the back wall
-    const plaqueSpot = new THREE.SpotLight(0xffeedd, 1.0, 260, Math.PI / 5.5, 0.45, 1.2);
-    plaqueSpot.position.set(0, 152, 320);
+    const plaqueSpot = new THREE.SpotLight(0xffeedd, 1.2, 260, Math.PI / 1.8, 0.5, 1.2);
+    plaqueSpot.position.set(0, 145, 340);
     plaqueSpot.target.position.set(0, 105, ROOM.halfDepth - 5);
-    plaqueSpot.castShadow = false;
+    plaqueSpot.castShadow = true;
     this.meshGroup.add(plaqueSpot);
     this.meshGroup.add(plaqueSpot.target);
 

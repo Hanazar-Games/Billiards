@@ -106,7 +106,7 @@ export const CAMERA = {
   fov: 45,
   near: 0.1,
   far: 10000,
-  defaultPos: [0, 280, 260],
+  defaultPos: [0, 180, 220],
   lookAt: [0, 0, 0],
 };
 

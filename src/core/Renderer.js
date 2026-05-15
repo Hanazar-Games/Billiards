@@ -28,7 +28,7 @@ export class Renderer {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(this.width, this.height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = false;
+    this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -96,15 +96,15 @@ export class Renderer {
     // Main overhead lamp, aimed at the table.
     const mainLight = new THREE.DirectionalLight(0xfff5e0, 1.45);
     mainLight.position.set(60, 520, 90);
-    mainLight.castShadow = false;
+    mainLight.castShadow = true;
     mainLight.shadow.mapSize.width = 2048;
     mainLight.shadow.mapSize.height = 2048;
     mainLight.shadow.camera.near = 10;
     mainLight.shadow.camera.far = 1200;
-    mainLight.shadow.camera.left = -260;
-    mainLight.shadow.camera.right = 260;
-    mainLight.shadow.camera.top = 180;
-    mainLight.shadow.camera.bottom = -180;
+    mainLight.shadow.camera.left = -300;
+    mainLight.shadow.camera.right = 300;
+    mainLight.shadow.camera.top = 400;
+    mainLight.shadow.camera.bottom = -400;
     mainLight.shadow.bias = -0.0005;
     this.scene.add(mainLight);
 

@@ -852,7 +852,7 @@ export class Table {
       roughness: 0.18,
       metalness: 0.85,
     });
-    const legH = 54;
+    const legH = 65;
     const halfW = TABLE.width / 2 + 7;
     const halfD = TABLE.depth / 2 + 9;
 
