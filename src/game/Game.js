@@ -27,6 +27,8 @@ import { keyBindings } from '../input/KeyBindings.js';
 import { BALL, TABLE, POCKET, SHOT } from '../config.js';
 import { GameStateSerializer } from '../net/GameStateSerializer.js';
 import { animMs } from '../core/AnimSpeed.js';
+import { createShotInput, applyShotInput } from './ShotInput.js';
+import { UIText } from '../core/UIText.js';
 
 
 export class Game {
@@ -94,9 +96,7 @@ export class Game {
     this._netDisconnectTimer = null;
 
     // Local match mode
-    this.matchMode = false;
-    this.matchStatus = null;
-    this.onMatchGameEnd = null;
+    this.matchManager = null;
 
     this._tmpVec2 = new THREE.Vector2();
     this._tmpVec3a = new THREE.Vector3();
@@ -148,7 +148,7 @@ export class Game {
 
     // Initialize turn timer (disabled for freeplay / challenge / replay)
     const timerSetting = settings.get('turnTimer') || 'off';
-    const isStandardMode = ['local2p', 'vsai', '9ball'].includes(this.mode) || this.matchMode;
+    const isStandardMode = ['local2p', 'vsai', '9ball'].includes(this.mode) || this.matchManager;
     if (isStandardMode && timerSetting !== 'off') {
       this._turnTimerMax = parseInt(timerSetting, 10) || 30;
       this._turnTimerEnabled = true;
@@ -197,11 +197,11 @@ export class Game {
 
     this.ui.setPlayerTurn(1);
     if (this.mode === 'freeplay') {
-      this.ui.setMessage('练习模式：无胜负规则；白球进袋会自动复位，犯规自由球时白球可在球桌内任意摆放。');
+      this.ui.setMessage(UIText.freeplayIntro);
     } else if (this.mode === '9ball') {
-      this.ui.setMessage('9 球规则：白球必须先碰当前最小号码球；合法打进 9 号球获胜。');
+      this.ui.setMessage(UIText.nineBallIntro);
     } else {
-      this.ui.setMessage('标准 8 球规则：开球后按进球分配全色/花色；清完本组后打进 8 号球获胜。');
+      this.ui.setMessage(UIText.eightBallIntro);
     }
     // Pause menu controls
     this.ui.setupPauseControls(
@@ -228,7 +228,7 @@ export class Game {
     };
     window.addEventListener('toggleTrajectory', this._onToggleTrajectory);
     window.addEventListener('toggleShotTrail', this._onToggleShotTrail);
-    this.ui.showResetButton(() => this._onResetButtonClicked(), '再来一局');
+    this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
 
     // Back-to-menu button
     this._addBackToMenuButton();
@@ -259,10 +259,7 @@ export class Game {
       this.startAITurn();
     }
     if (!enabled && this.state === 'AI_THINKING') {
-      this.state = 'AIM';
-      this.power = 0;
-      this.ui.setPower(0);
-      this.cue.show();
+      this._enterAimState({ showCue: true, showTrajectory: false, updateAim: false });
     }
   }
 
@@ -391,14 +388,7 @@ export class Game {
   onMouseUp() {
     if (this.state !== 'CHARGING') return;
     if (this.power < 1) {
-      this.state = 'AIM';
-      this.charging = false;
-      this.dragStart = null;
-      this.power = 0;
-      this.ui.setPower(0);
-      this.setAimTrajectoryVisible(true);
-      this.updateAimDirection();
-      this.updateTrajectory();
+      this._enterAimState();
       return;
     }
     this.state = 'SHOOTING';
@@ -521,11 +511,8 @@ export class Game {
     this.ui.setPower(0);
     this.cue.hide();
     this.trajectory.setVisible(false);
-    if (behindHeadString) {
-      this.ui.setMessage(`${message ? `${message} ` : ''}自由球：白球必须摆放在开球线后，移动鼠标预览，左键确认。`);
-    } else {
-      this.ui.setMessage(`${message ? `${message} ` : ''}自由球：白球可以在球桌内任意摆放，移动鼠标预览，左键确认。`);
-    }
+    const bihMsg = behindHeadString ? UIText.ballInHandBehindLine : UIText.ballInHandAnywhere;
+    this.ui.setMessage(`${message ? `${message} ` : ''}${bihMsg}`);
     this.updateBallInHandPreview();
   }
 
@@ -558,7 +545,7 @@ export class Game {
   confirmBallInHandPlacement() {
     this.updateBallInHandPreview();
     if (!this.ballInHandValid) {
-      this.ui.setMessage('自由球：当前位置无效，请放在台面内且不要贴住其他球或袋口。', 2500);
+      this.ui.setMessage(UIText.ballInHandInvalid, 2500);
       return;
     }
 
@@ -574,18 +561,11 @@ export class Game {
         );
       }
       this.cue.show();
-      this.ui.setMessage('等待房主确认自由球位置…', 2000);
+      this.ui.setMessage(UIText.ballInHandWaitHost, 2000);
       return;
     }
 
-    this.ballInHand = false;
-    this.ballInHandValid = false;
-    this.ballInHandBehindLine = false;
-    this.cue.show();
-    this.setAimTrajectoryVisible(true);
-    this.updateAimDirection();
-    this.updateTrajectory();
-    this.ui.setMessage('自由球已放置。继续瞄准，后拉球杆击球。', 1800);
+    this._endBallInHand();
   }
 
   setAimTrajectoryVisible(visible) {
@@ -692,23 +672,15 @@ export class Game {
     } catch (err) {
       console.error('AI turn failed', err);
       if (this.state === 'AI_THINKING') {
-        this.state = 'AIM';
-        this.power = 0;
-        this.ui.setPower(0);
-        this.ui.setMessage('AI 规划失败，已恢复玩家控制。', 4000);
-        this.cue.show();
-        this.setAimTrajectoryVisible(true);
+        this._enterAimState({ showCue: true, showTrajectory: true, updateAim: false });
+        this.ui.setMessage(UIText.aiPlanningFailed, 4000);
       }
       return;
     }
 
     if (this.state !== 'AI_THINKING') return; // player may have cancelled
     if (!decision) {
-      this.state = 'AIM';
-      this.power = 0;
-      this.ui.setPower(0);
-      this.cue.show();
-      this.setAimTrajectoryVisible(true);
+      this._enterAimState({ showCue: true, showTrajectory: true, updateAim: false });
       return;
     }
 
@@ -902,17 +874,8 @@ export class Game {
     }
 
     // Update match score HUD
-    if (this.matchMode && this.matchStatus) {
-      const s = this.matchStatus;
-      this.ui.setMatchScore({
-        p1Name: s.p1Name,
-        p2Name: s.p2Name,
-        p1Score: s.p1Score,
-        p2Score: s.p2Score,
-        currentGame: s.currentGame,
-        gamesNeeded: s.gamesNeeded,
-        visible: true,
-      });
+    if (this.matchManager) {
+      this.matchManager.updateHUD(this.ui, this.networkPlayer1Name, this.networkPlayer2Name);
     }
 
     // Turn timer
@@ -948,7 +911,9 @@ export class Game {
   _onTurnTimerExpired() {
     // Foul: switch to other player with ball-in-hand
     const otherPlayer = this.currentPlayer === 1 ? 2 : 1;
-    this.ui.setMessage(`⏰ 回合超时！${this.currentPlayer === 1 ? this.networkPlayer1Name : this.networkPlayer2Name} 犯规，${otherPlayer === 1 ? this.networkPlayer1Name : this.networkPlayer2Name} 获得自由球`, 3000);
+    const cName = this.currentPlayer === 1 ? this.networkPlayer1Name : this.networkPlayer2Name;
+    const oName = otherPlayer === 1 ? this.networkPlayer1Name : this.networkPlayer2Name;
+    this.ui.setMessage(UIText.turnTimeout(cName, oName), 3000);
     this.audio.playFoul();
     this.ui.flashRed();
     this.currentPlayer = otherPlayer;
@@ -959,6 +924,99 @@ export class Game {
     this._turnTimerRemaining = this._turnTimerMax;
     this._updatePlayerStats();
     this.ui.setPlayerTurn(this.currentPlayer);
+  }
+
+  /* ── Small helpers extracted from duplicated code ── */
+
+  /** Reset to AIM state with optional cue/trajectory visibility. */
+  _enterAimState({ resetPower = true, showCue = true, showTrajectory = true, updateAim = true } = {}) {
+    this.state = 'AIM';
+    this.charging = false;
+    this.dragStart = null;
+    if (resetPower) {
+      this.power = 0;
+      this.ui.setPower(0);
+    }
+    if (showCue) this.cue.show();
+    if (showTrajectory) this.setAimTrajectoryVisible(true);
+    if (updateAim) {
+      this.updateAimDirection();
+      this.updateTrajectory();
+    }
+  }
+
+  /** Common ball-in-hand cleanup after placement is confirmed. */
+  _endBallInHand() {
+    this.ballInHand = false;
+    this.ballInHandValid = false;
+    this.ballInHandBehindLine = false;
+    this.cue.show();
+    this.setAimTrajectoryVisible(true);
+    this.updateAimDirection();
+    this.updateTrajectory();
+    this.ui.setMessage(UIText.ballInHandPlaced, 1800);
+  }
+
+  /** Shared respot logic for 8-ball and 9-ball. */
+  _respotBall(ballId) {
+    const ball = this.ballsManager.getBall(ballId);
+    if (!ball || !ball.pocketed) return;
+    const footZ = TABLE.depth / 2 * 0.55;
+    let finalX = 0;
+    const checkClear = (x, z) => {
+      for (const b of this.ballsManager.balls) {
+        if (b.id === ballId || b.pocketed) continue;
+        const dx = b.body.position.x - x;
+        const dz = b.body.position.z - z;
+        if (dx * dx + dz * dz < (BALL.radius * 2.2) ** 2) return false;
+      }
+      return true;
+    };
+    if (!checkClear(0, footZ)) {
+      for (let offset = 1; offset <= 10; offset++) {
+        if (checkClear(offset * BALL.radius * 2, footZ)) { finalX = offset * BALL.radius * 2; break; }
+        if (checkClear(-offset * BALL.radius * 2, footZ)) { finalX = -offset * BALL.radius * 2; break; }
+      }
+    }
+    ball.pocketed = false;
+    ball.mesh.visible = true;
+    ball.setPosition(finalX, BALL.radius, footZ);
+  }
+
+  /** Remove challenge HUD if present. */
+  _removeChallengeHUD() {
+    const chHud = document.getElementById('challenge-hud');
+    if (chHud && chHud.parentNode) {
+      chHud.parentNode.removeChild(chHud);
+    }
+  }
+
+  /** Apply camera mode from settings string. */
+  _applyCameraMode(mode) {
+    if (!mode || !['free', 'top', 'follow'].includes(mode)) return;
+    this.cameraMode = mode;
+    if (mode === 'top') this._resetCameraTop();
+    else if (mode === 'free') this._resetCameraFree();
+    else if (mode === 'follow') this._resetCameraFollow();
+  }
+
+  /** Host broadcasts current game state to all clients. */
+  _broadcastSnapshot(extraPayload = null) {
+    if (this.networkRole !== 'host' || !this.networkController) return;
+    const snapshot = GameStateSerializer.serializeGameState(this);
+    this.networkController.sendStateSnapshot(snapshot);
+    if (extraPayload) {
+      this.networkController.sendTurnResolved(extraPayload);
+    }
+  }
+
+  /** Thin wrappers so Game.js owns the serialization interface. */
+  serializeGameState() {
+    return GameStateSerializer.serializeGameState(this);
+  }
+
+  applyGameState(snapshot) {
+    GameStateSerializer.applyGameState(this, snapshot);
   }
 
   resolveTurn(pocketedIds) {
@@ -982,68 +1040,15 @@ export class Game {
         this.audio.playFoul();
         this.ui.flashRed();
       }
-      this.state = 'AIM';
-      this.power = 0;
-      this.ui.setPower(0);
-      this.cue.show();
-      this.setAimTrajectoryVisible(true);
+      this._enterAimState({ showCue: true, showTrajectory: true, updateAim: false });
       return;
     }
 
     const result = this.rules.resolveShot(pocketedIds, cuePocketed);
 
     // Respot 8-ball or 9-ball if pocketed on break / foul
-    if (result.respotEightBall) {
-      const eightBall = this.ballsManager.getBall(8);
-      if (eightBall && eightBall.pocketed) {
-        const footZ = TABLE.depth / 2 * 0.55;
-        // Ensure foot spot is clear; if not, offset along X
-        let finalX = 0;
-        const checkClear = (x, z) => {
-          for (const b of this.ballsManager.balls) {
-            if (b.id === 8 || b.pocketed) continue;
-            const dx = b.body.position.x - x;
-            const dz = b.body.position.z - z;
-            if (dx * dx + dz * dz < (BALL.radius * 2.2) ** 2) return false;
-          }
-          return true;
-        };
-        if (!checkClear(0, footZ)) {
-          for (let offset = 1; offset <= 10; offset++) {
-            if (checkClear(offset * BALL.radius * 2, footZ)) { finalX = offset * BALL.radius * 2; break; }
-            if (checkClear(-offset * BALL.radius * 2, footZ)) { finalX = -offset * BALL.radius * 2; break; }
-          }
-        }
-        eightBall.pocketed = false;
-        eightBall.mesh.visible = true;
-        eightBall.setPosition(finalX, BALL.radius, footZ);
-      }
-    }
-    if (result.respotNineBall) {
-      const nineBall = this.ballsManager.getBall(9);
-      if (nineBall && nineBall.pocketed) {
-        const footZ = TABLE.depth / 2 * 0.55;
-        let finalX = 0;
-        const checkClear = (x, z) => {
-          for (const b of this.ballsManager.balls) {
-            if (b.id === 9 || b.pocketed) continue;
-            const dx = b.body.position.x - x;
-            const dz = b.body.position.z - z;
-            if (dx * dx + dz * dz < (BALL.radius * 2.2) ** 2) return false;
-          }
-          return true;
-        };
-        if (!checkClear(0, footZ)) {
-          for (let offset = 1; offset <= 10; offset++) {
-            if (checkClear(offset * BALL.radius * 2, footZ)) { finalX = offset * BALL.radius * 2; break; }
-            if (checkClear(-offset * BALL.radius * 2, footZ)) { finalX = -offset * BALL.radius * 2; break; }
-          }
-        }
-        nineBall.pocketed = false;
-        nineBall.mesh.visible = true;
-        nineBall.setPosition(finalX, BALL.radius, footZ);
-      }
-    }
+    if (result.respotEightBall) this._respotBall(8);
+    if (result.respotNineBall) this._respotBall(9);
 
     // Filter out respotted balls before counting stats/achievements
     const effectivePocketedIds = pocketedIds.filter((id) => {
@@ -1068,10 +1073,10 @@ export class Game {
       this.ui.setMessage(result.message);
 
       // Match mode: delegate to match engine instead of local reset
-      if (this.matchMode && this.onMatchGameEnd) {
-        this.onMatchGameEnd(result.winner);
+      if (this.matchManager) {
+        this.matchManager.onGameEnd(result.winner);
       } else {
-        this.ui.showResetButton(() => this._onResetButtonClicked(), '再来一局');
+        this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
       }
 
       const summary = this.statsTracker.endGame(result.winner);
@@ -1244,11 +1249,7 @@ export class Game {
       this._netDisconnectTimer = null;
     }
 
-    // Remove stale challenge HUD
-    const chHud = document.getElementById('challenge-hud');
-    if (chHud && chHud.parentNode) {
-      chHud.parentNode.removeChild(chHud);
-    }
+    this._removeChallengeHUD();
 
     this.paused = false;
     this.ui.hidePauseMenu?.();
@@ -1256,15 +1257,12 @@ export class Game {
     this._turnTimerRunning = false;
     this._turnTimerRemaining = this._turnTimerMax;
     this.currentPlayer = 1;
-    this.state = 'AIM';
+    this._enterAimState({ resetPower: true, showCue: false, showTrajectory: false, updateAim: false });
     this.ballInHand = false;
     this.ballInHandValid = false;
     this.ballInHandBehindLine = false;
     this.cueTipOffset = { x: 0, y: 0 };
     this._updateCueTipPicker();
-    this.power = 0;
-    this.charging = false;
-    this.dragStart = null;
     this.aimDirection.set(0, 0, 1);
     this.lockedAimDirection.set(0, 0, 1);
     this._wasShiftCameraControl = false;
@@ -1272,23 +1270,17 @@ export class Game {
     this._shotStartTime = null;
     this._isBreakShot = false;
     this.gameStartTime = performance.now();
-    const defaultCam = settings.get('defaultCamera') || 'free';
-    this.cameraMode = defaultCam;
-    if (defaultCam === 'top') this._resetCameraTop();
-    else if (defaultCam === 'free') this._resetCameraFree();
-    else if (defaultCam === 'follow') this._resetCameraFollow();
+    this._applyCameraMode(settings.get('defaultCamera') || 'free');
     this.powerLabel?.dispose();
     this.ui.setPower(0);
     this.ui.setPlayerTurn(1);
     this.ui.setPlayerGroups(null, null);
     if (this.mode === 'freeplay') {
-      this.ui.setMessage('练习模式：无胜负规则；白球进袋会自动复位，自由球可在球桌内任意摆放。');
+      this.ui.setMessage(UIText.freeplayReset);
     } else if (this.mode === '9ball') {
-      this.ui.setMessage('新 9 球局：白球必须先碰当前最小号码球；合法打进 9 号球获胜。');
+      this.ui.setMessage(UIText.nineBallReset);
     } else {
-      this.ui.setMessage(this.aiEnabled
-        ? '新 8 球局：玩家 1 开球，对手为 AI；先清完本组再打 8 号球。'
-        : '新 8 球局：玩家 1 开球；先清完本组再打 8 号球。');
+      this.ui.setMessage(this.aiEnabled ? UIText.eightBallResetVsAI : UIText.eightBallReset);
     }
     this.ui.hideResetButton();
     this.ui.showResetButton(() => this._onResetButtonClicked(), '再来一局');
@@ -1297,11 +1289,7 @@ export class Game {
     this.cue.show();
     this.setAimTrajectoryVisible(true);
 
-    // Host broadcasts initial snapshot after reset
-    if (this.networkRole === 'host' && this.networkController) {
-      const snapshot = GameStateSerializer.serializeGameState(this);
-      this.networkController.sendStateSnapshot(snapshot);
-    }
+    this._broadcastSnapshot();
   }
 
   _addBackToMenuButton() {
@@ -1810,7 +1798,7 @@ export class Game {
       this._onNetDisconnected = () => {
         if (!this.networkMode || this._netDisconnectHandled) return;
         this._netDisconnectHandled = true;
-        this.ui.setMessage('网络连接已断开，即将返回主菜单…', 3000);
+        this.ui.setMessage(UIText.networkDisconnect, 3000);
         this._netDisconnectTimer = setTimeout(() => {
           this._netDisconnectTimer = null;
           if (this.onReturnToMenu) this.onReturnToMenu();
@@ -1823,12 +1811,11 @@ export class Game {
     }
   }
 
-  setMatchMode(status, callback) {
-    this.matchMode = true;
-    this.matchStatus = status;
-    this.onMatchGameEnd = callback;
+  setMatchManager(manager) {
+    this.matchManager = manager;
     // Override player names from match config
-    if (status) {
+    if (manager) {
+      const status = manager.getStatus();
       this.networkPlayer1Name = status.p1Name || '玩家 1';
       this.networkPlayer2Name = status.p2Name || '玩家 2';
     }
@@ -1841,61 +1828,17 @@ export class Game {
 
   applyRemoteShot(shotInput) {
     if (this.networkRole !== 'host') return;
-
-    // Remote reset request from client
-    if (shotInput.requestReset) {
-      this._onResetButtonClicked();
-      return;
-    }
-
-    // Ball placement (free ball) — set cue ball position instead of shooting
-    if (shotInput.ballPlacement) {
-      const cueBall = this.ballsManager?.getCueBall();
-      if (cueBall) {
-        const pos = shotInput.ballPlacement;
-        const isLegal = this.isCueBallPlacementLegal(pos.x, pos.z, this.ballInHandBehindLine);
-        if (isLegal) {
-          cueBall.setPosition(pos.x, pos.y, pos.z);
-          this.ballInHand = false;
-          this.ballInHandValid = false;
-          this.ballInHandBehindLine = false;
-          this.cue.show();
-          this.setAimTrajectoryVisible(true);
-          this.updateAimDirection();
-          this.updateTrajectory();
-          this.ui.setMessage('自由球已放置。继续瞄准，后拉球杆击球。', 1800);
-        } else {
-          // Reject illegal placement and re-broadcast current state
-          this.ui.setMessage('对手自由球位置无效，已拒绝。', 2000);
-        }
-      }
-      // Broadcast updated state
-      const snapshot = GameStateSerializer.serializeGameState(this);
-      this.networkController?.sendStateSnapshot(snapshot);
-      return;
-    }
-
-    this.aimDirection.set(shotInput.aimDirection.x, 0, shotInput.aimDirection.z).normalize();
-    this.cueTipOffset = { x: shotInput.cueTipOffset?.x || 0, y: shotInput.cueTipOffset?.y || 0 };
-    this.power = shotInput.power || 0;
-    this.lockedAimDirection.copy(this.aimDirection);
-    const cueBall = this.ballsManager?.getCueBall();
-    if (cueBall) {
-      this.cue.setAim(cueBall.mesh.position, this.aimDirection);
-    }
-    this.state = 'SHOOTING';
-    this._shotStartTime = performance.now();
-    this.shoot();
+    applyShotInput(this, shotInput);
   }
 
   _concede() {
     if (this.mode === 'freeplay') return;
     if (this.networkMode) {
-      this.ui.setMessage('网络对战中无法主动认输', 2000);
+      this.ui.setMessage(UIText.networkCannotConcede, 2000);
       return;
     }
     const winner = this.currentPlayer === 1 ? 2 : 1;
-    this.ui.setMessage(`玩家 ${winner} 获胜！（对手认输）`, 0);
+    this.ui.setMessage(UIText.concedeWinner(winner), 0);
     this.state = 'GAME_OVER';
     this.cue.hide();
 
@@ -1924,10 +1867,7 @@ export class Game {
     this.ui.showResetButton(() => this._onResetButtonClicked(), '再来一局');
     this.ui.setPlayerTurn(winner);
     // Host broadcasts final state after concession
-    if (this.networkRole === 'host' && this.networkController) {
-      const snapshot = GameStateSerializer.serializeGameState(this);
-      this.networkController.sendStateSnapshot(snapshot);
-    }
+    this._broadcastSnapshot();
   }
 
   _openInGameSettings() {
@@ -1943,13 +1883,7 @@ export class Game {
     if (this.particles) this.particles.setEnabled(settings.get('particlesEnabled'));
     if (this.trails) this.trails.setEnabled(settings.get('shotTrailsEnabled'));
 
-    const defaultCam = settings.get('defaultCamera');
-    if (defaultCam && ['free', 'top', 'follow'].includes(defaultCam)) {
-      this.cameraMode = defaultCam;
-      if (defaultCam === 'top') this._resetCameraTop();
-      else if (defaultCam === 'free') this._resetCameraFree();
-      else if (defaultCam === 'follow') this._resetCameraFollow();
-    }
+    this._applyCameraMode(settings.get('defaultCamera'));
   }
 
   _handleSettingsChange(key, value) {
@@ -1965,12 +1899,7 @@ export class Game {
         if (this.trails) this.trails.setEnabled(value);
         break;
       case 'defaultCamera':
-        if (['free', 'top', 'follow'].includes(value)) {
-          this.cameraMode = value;
-          if (value === 'top') this._resetCameraTop();
-          else if (value === 'free') this._resetCameraFree();
-          else if (value === 'follow') this._resetCameraFollow();
-        }
+        this._applyCameraMode(value);
         break;
       case 'cueTheme':
         if (this.cue) this.cue.applyTheme(value);
@@ -1979,7 +1908,7 @@ export class Game {
         // Shadows are handled globally by Renderer; no per-game action needed
         break;
       case 'turnTimer': {
-        const isStandardMode = ['local2p', 'vsai', '9ball'].includes(this.mode) || this.matchMode;
+        const isStandardMode = ['local2p', 'vsai', '9ball'].includes(this.mode) || this.matchManager;
         if (isStandardMode && value !== 'off') {
           this._turnTimerMax = parseInt(value, 10) || 30;
           this._turnTimerEnabled = true;
@@ -2191,9 +2120,7 @@ export class Game {
     this.physics = null;
     this.scene = null;
     this.camera = null;
-    this.matchMode = false;
-    this.matchStatus = null;
-    this.onMatchGameEnd = null;
+    this.matchManager = null;
     this._settingsOpen = false;
 
     this.state = 'DISPOSED';

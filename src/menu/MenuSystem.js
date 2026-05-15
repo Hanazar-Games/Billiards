@@ -26,7 +26,7 @@ import { ChallengeManager } from '../challenges/ChallengeManager.js';
 import { ChallengeResult } from '../challenges/ChallengeResult.js';
 import { LanRoomPanel } from './LanRoomPanel.js';
 import { MatchSetupPanel } from './MatchSetupPanel.js';
-import { MatchEngine } from '../core/MatchEngine.js';
+import { MatchManager } from '../game/MatchManager.js';
 import { animMs } from '../core/AnimSpeed.js';
 
 
@@ -69,7 +69,7 @@ export class MenuSystem {
 
     // Local match system
     this.matchSetupPanel = null;
-    this.matchEngine = null;
+    this.matchManager = null;
 
     this._initAudio().then(() => {
       this._setupMenu();
@@ -406,7 +406,8 @@ export class MenuSystem {
 
     // Set up match mode if provided
     if (matchStatus) {
-      this.game.setMatchMode(matchStatus, (winner) => this._onMatchGameEnd(winner));
+      this.matchManager.setOnGameEnd((winner) => this._onMatchGameEnd(winner));
+      this.game.setMatchManager(this.matchManager);
     }
 
     // Set up game-over callback
@@ -461,45 +462,44 @@ export class MenuSystem {
       this.matchSetupPanel = null;
     }
     // Create or reset match engine
-    this.matchEngine = new MatchEngine(config);
-    this.matchEngine.startGame();
+    this.matchManager = new MatchManager(config);
+    this.matchManager.startGame();
     await this._startMatchRound();
   }
 
   async _startMatchRound() {
-    if (!this.matchEngine) return;
-    const status = this.matchEngine.getStatus();
+    if (!this.matchManager) return;
+    const status = this.matchManager.getStatus();
     const mode = status.mode === '9ball' ? 'nineball' : 'local2p';
     await this._startGame(mode, null, null, null, status);
   }
 
   _onMatchGameEnd(gameWinner) {
-    if (!this.matchEngine) return;
-    this.matchEngine.recordWinner(gameWinner);
-    const status = this.matchEngine.getStatus();
+    if (!this.matchManager) return;
+    this.matchManager.recordWinner(gameWinner);
+    const status = this.matchManager.getStatus();
 
     if (status.finished) {
       // Match over — show result then return to menu
       const winnerName = status.winner === 1 ? status.p1Name : status.p2Name;
       this.game.ui.setMessage(`🏆 ${winnerName} 赢得比赛！ 比分 ${status.p1Score} : ${status.p2Score}`, 0);
       this.game.ui.showResetButton(() => {
-        this.matchEngine = null;
+        this.matchManager = null;
         this._returnToMenu();
       }, '返回菜单');
       return;
     }
 
     // Next game
-    const nextGameNum = status.currentGame + 1;
     this.game.ui.setMessage(`第 ${status.currentGame} 局结束！比分 ${status.p1Score} : ${status.p2Score} — 点击"下一局"继续`, 0);
     this.game.ui.showResetButton(() => {
-      this.matchEngine.startGame();
+      this.matchManager.startGame();
       this._restartMatchRound();
     }, '下一局');
   }
 
   async _restartMatchRound() {
-    if (!this.matchEngine) return;
+    if (!this.matchManager) return;
     // Stop old loop
     if (this.loop) {
       this.loop.stop();
@@ -545,8 +545,8 @@ export class MenuSystem {
     }
 
     // Clear match engine when leaving match mode
-    if (this.matchEngine) {
-      this.matchEngine = null;
+    if (this.matchManager) {
+      this.matchManager = null;
     }
 
     // Clean up LAN room panel if present
