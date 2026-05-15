@@ -25,6 +25,8 @@ import { ChallengePanel } from '../challenges/ChallengePanel.js';
 import { ChallengeManager } from '../challenges/ChallengeManager.js';
 import { ChallengeResult } from '../challenges/ChallengeResult.js';
 import { LanRoomPanel } from './LanRoomPanel.js';
+import { MatchSetupPanel } from './MatchSetupPanel.js';
+import { MatchEngine } from '../core/MatchEngine.js';
 import { animMs } from '../core/AnimSpeed.js';
 
 
@@ -64,6 +66,10 @@ export class MenuSystem {
     this.challengeResult = null;
     this.activeChallenge = null;
     this._menuLoopId = null;
+
+    // Local match system
+    this.matchSetupPanel = null;
+    this.matchEngine = null;
 
     this._initAudio().then(() => {
       this._setupMenu();
@@ -121,7 +127,8 @@ export class MenuSystem {
       () => this._showReplays(),
       () => this._showChallenges(),
       () => this._quit(),
-      () => this._showLanRoom()
+      () => this._showLanRoom(),
+      () => this._showMatchSetup()
     );
 
     // Create achievement panel (for viewing from menu)
@@ -325,8 +332,8 @@ export class MenuSystem {
     this.challengeManager = null;
   }
 
-  async _startGame(mode, networkClient = null, networkRole = null, localPlayerId = 1) {
-    if (this.state !== 'MENU' && !networkClient) return;
+  async _startGame(mode, networkClient = null, networkRole = null, localPlayerId = 1, matchStatus = null) {
+    if (this.state !== 'MENU' && !networkClient && !matchStatus) return;
     this.state = 'TRANSITION';
 
     // Dispose any existing game instance before creating a new one
@@ -397,6 +404,11 @@ export class MenuSystem {
       return;
     }
 
+    // Set up match mode if provided
+    if (matchStatus) {
+      this.game.setMatchMode(matchStatus, (winner) => this._onMatchGameEnd(winner));
+    }
+
     // Set up game-over callback
     this.game.onReturnToMenu = () => this._returnToMenu();
 
@@ -433,6 +445,74 @@ export class MenuSystem {
     await this._startGame('local2p', client, role, localId);
   }
 
+  // ── Local Match Mode ──
+
+  _showMatchSetup() {
+    this.mainMenu.hide();
+    this.matchSetupPanel = new MatchSetupPanel(
+      (config) => this._startMatchGame(config),
+      () => this._showMainMenu()
+    );
+  }
+
+  async _startMatchGame(config) {
+    if (this.matchSetupPanel) {
+      this.matchSetupPanel.destroy();
+      this.matchSetupPanel = null;
+    }
+    // Create or reset match engine
+    this.matchEngine = new MatchEngine(config);
+    this.matchEngine.startGame();
+    await this._startMatchRound();
+  }
+
+  async _startMatchRound() {
+    if (!this.matchEngine) return;
+    const status = this.matchEngine.getStatus();
+    const mode = status.mode === '9ball' ? 'nineball' : 'local2p';
+    await this._startGame(mode, null, null, null, status);
+  }
+
+  _onMatchGameEnd(gameWinner) {
+    if (!this.matchEngine) return;
+    this.matchEngine.recordWinner(gameWinner);
+    const status = this.matchEngine.getStatus();
+
+    if (status.finished) {
+      // Match over — show result then return to menu
+      const winnerName = status.winner === 1 ? status.p1Name : status.p2Name;
+      this.game.ui.setMessage(`🏆 ${winnerName} 赢得比赛！ 比分 ${status.p1Score} : ${status.p2Score}`, 0);
+      this.game.ui.showResetButton(() => {
+        this.matchEngine = null;
+        this._returnToMenu();
+      }, '返回菜单');
+      return;
+    }
+
+    // Next game
+    const nextGameNum = status.currentGame + 1;
+    this.game.ui.setMessage(`第 ${status.currentGame} 局结束！比分 ${status.p1Score} : ${status.p2Score} — 点击"下一局"继续`, 0);
+    this.game.ui.showResetButton(() => {
+      this.matchEngine.startGame();
+      this._restartMatchRound();
+    }, '下一局');
+  }
+
+  async _restartMatchRound() {
+    if (!this.matchEngine) return;
+    // Stop old loop
+    if (this.loop) {
+      this.loop.stop();
+      this.loop = null;
+    }
+    // Dispose old game but keep match engine
+    if (this.game) {
+      this.game.dispose();
+      this.game = null;
+    }
+    await this._startMatchRound();
+  }
+
   _getModeConfig(mode) {
     switch (mode) {
       case 'freeplay':
@@ -462,6 +542,11 @@ export class MenuSystem {
     if (this.game) {
       this.game.dispose();
       this.game = null;
+    }
+
+    // Clear match engine when leaving match mode
+    if (this.matchEngine) {
+      this.matchEngine = null;
     }
 
     // Clean up LAN room panel if present

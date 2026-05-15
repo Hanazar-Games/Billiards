@@ -40,15 +40,19 @@ export class UI {
     this._hudP1.appendChild(this._hudP1Detail);
     hudMain.appendChild(this._hudP1);
 
-    // Center: timer + objective
+    // Center: score + timer + objective
     this._hudCenter = document.createElement('div');
     this._hudCenter.className = 'hud-center';
+    this._hudScore = document.createElement('div');
+    this._hudScore.className = 'hud-score';
+    this._hudScore.style.cssText = 'font-size:13px;font-weight:700;color:rgba(255,255,255,0.7);text-align:center;letter-spacing:1px;margin-bottom:2px;display:none;';
     this._hudTimer = document.createElement('div');
     this._hudTimer.className = 'hud-timer';
     this._hudTimer.textContent = '00:00';
     this._hudObjective = document.createElement('div');
     this._hudObjective.className = 'hud-objective';
     this._hudObjective.textContent = '';
+    this._hudCenter.appendChild(this._hudScore);
     this._hudCenter.appendChild(this._hudTimer);
     this._hudCenter.appendChild(this._hudObjective);
     hudMain.appendChild(this._hudCenter);
@@ -440,6 +444,18 @@ export class UI {
     if (this._hudObjective) this._hudObjective.textContent = objectiveText || '';
   }
 
+  setMatchScore({ p1Name, p2Name, p1Score, p2Score, currentGame, gamesNeeded, visible }) {
+    if (!this._hudScore) return;
+    if (!visible) {
+      this._hudScore.style.display = 'none';
+      return;
+    }
+    const n1 = p1Name || '玩家 1';
+    const n2 = p2Name || '玩家 2';
+    this._hudScore.textContent = `${n1} ${p1Score} : ${p2Score} ${n2}  ·  第 ${currentGame}/${gamesNeeded} 局`;
+    this._hudScore.style.display = 'block';
+  }
+
   updateTimer(elapsedMs) {
     if (!this._hudTimer) return;
     const totalSec = Math.floor(elapsedMs / 1000);
@@ -493,9 +509,10 @@ export class UI {
     }
   }
 
-  showResetButton(onClick) {
+  showResetButton(onClick, label = null) {
     if (this._hudNewGameBtn) {
       this._hudNewGameBtn.style.display = 'inline-block';
+      if (label) this._hudNewGameBtn.textContent = label;
       this._hudNewGameBtn.onclick = onClick;
     }
   }
@@ -727,6 +744,7 @@ export class UI {
     this._hudCenter = null;
     this._hudTimer = null;
     this._hudObjective = null;
+    this._hudScore = null;
     this._hudNewGameBtn = null;
     this._hudConcedeBtn = null;
     this._hudSettingsBtn = null;

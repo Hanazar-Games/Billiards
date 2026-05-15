@@ -11,7 +11,7 @@ import { animMs } from '../core/AnimSpeed.js';
  *  - Back button when returning from settings
  */
 export class MainMenuScreen {
-  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onShowChallenges, onQuit, onLanMultiplayer) {
+  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onShowChallenges, onQuit, onLanMultiplayer, onMatchSetup) {
     this.onSelectMode = onSelectMode;
     this.onSettings = onSettings;
     this.onAchievements = onAchievements;
@@ -19,6 +19,7 @@ export class MainMenuScreen {
     this.onShowChallenges = onShowChallenges;
     this.onQuit = onQuit;
     this.onLanMultiplayer = onLanMultiplayer;
+    this.onMatchSetup = onMatchSetup;
     this.container = null;
     this._fadeTimer = null;
     this._hideTimer = null;
@@ -71,6 +72,11 @@ export class MainMenuScreen {
     // Local 2P
     this._addButton(btnGroup, '本地双人对战', '标准 8 球 · 分组清台 · 同屏轮流击球', () => {
       this._fadeOut(() => this.onSelectMode('local2p'));
+    });
+
+    // Local Match
+    this._addButton(btnGroup, '本地比赛', '自定义名字与赛制 · 8 球或 9 球 · 单局/三局/五局', () => {
+      if (this.onMatchSetup) this.onMatchSetup();
     });
 
     // vs AI
@@ -134,7 +140,7 @@ export class MainMenuScreen {
 
     // Version
     const version = document.createElement('div');
-    version.textContent = 'v1.3.8';
+    version.textContent = 'v1.3.9';
     version.style.cssText = `
       position: absolute; bottom: 44px; left: 40px;
       font-size: 12px; color: rgba(244,247,244,0.32);

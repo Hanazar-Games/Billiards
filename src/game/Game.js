@@ -93,6 +93,11 @@ export class Game {
     this._netDisconnectHandled = false;
     this._netDisconnectTimer = null;
 
+    // Local match mode
+    this.matchMode = false;
+    this.matchStatus = null;
+    this.onMatchGameEnd = null;
+
     this._tmpVec2 = new THREE.Vector2();
     this._tmpVec3a = new THREE.Vector3();
     this._tmpVec3b = new THREE.Vector3();
@@ -203,7 +208,7 @@ export class Game {
     };
     window.addEventListener('toggleTrajectory', this._onToggleTrajectory);
     window.addEventListener('toggleShotTrail', this._onToggleShotTrail);
-    this.ui.showResetButton(() => this._onResetButtonClicked());
+    this.ui.showResetButton(() => this._onResetButtonClicked(), '再来一局');
 
     // Back-to-menu button
     this._addBackToMenuButton();
@@ -875,6 +880,20 @@ export class Game {
         this.networkController?.sendStateSnapshot(snapshot);
       }
     }
+
+    // Update match score HUD
+    if (this.matchMode && this.matchStatus) {
+      const s = this.matchStatus;
+      this.ui.setMatchScore({
+        p1Name: s.p1Name,
+        p2Name: s.p2Name,
+        p1Score: s.p1Score,
+        p2Score: s.p2Score,
+        currentGame: s.currentGame,
+        gamesNeeded: s.gamesNeeded,
+        visible: true,
+      });
+    }
   }
 
   resolveTurn(pocketedIds) {
@@ -982,7 +1001,13 @@ export class Game {
     if (result.gameOver) {
       this.state = 'GAME_OVER';
       this.ui.setMessage(result.message);
-      this.ui.showResetButton(() => this._onResetButtonClicked());
+
+      // Match mode: delegate to match engine instead of local reset
+      if (this.matchMode && this.onMatchGameEnd) {
+        this.onMatchGameEnd(result.winner);
+      } else {
+        this.ui.showResetButton(() => this._onResetButtonClicked(), '再来一局');
+      }
 
       const summary = this.statsTracker.endGame(result.winner);
       this.statsPanel.showGameOver(summary, this.aiEnabled);
@@ -1198,7 +1223,7 @@ export class Game {
         : '新 8 球局：玩家 1 开球；先清完本组再打 8 号球。');
     }
     this.ui.hideResetButton();
-    this.ui.showResetButton(() => this._onResetButtonClicked());
+    this.ui.showResetButton(() => this._onResetButtonClicked(), '再来一局');
     this.ui.setMatchInfo(this._getObjectiveText());
     this._updatePlayerStats();
     this.cue.show();
@@ -1730,6 +1755,17 @@ export class Game {
     }
   }
 
+  setMatchMode(status, callback) {
+    this.matchMode = true;
+    this.matchStatus = status;
+    this.onMatchGameEnd = callback;
+    // Override player names from match config
+    if (status) {
+      this.networkPlayer1Name = status.p1Name || '玩家 1';
+      this.networkPlayer2Name = status.p2Name || '玩家 2';
+    }
+  }
+
   isLocalPlayerTurn() {
     if (!this.networkMode) return true;
     return this.currentPlayer === this.localPlayerId;
@@ -1817,7 +1853,7 @@ export class Game {
     }
 
     this.audio.playWin();
-    this.ui.showResetButton(() => this._onResetButtonClicked());
+    this.ui.showResetButton(() => this._onResetButtonClicked(), '再来一局');
     this.ui.setPlayerTurn(winner);
     // Host broadcasts final state after concession
     if (this.networkRole === 'host' && this.networkController) {
@@ -2068,6 +2104,9 @@ export class Game {
     this.physics = null;
     this.scene = null;
     this.camera = null;
+    this.matchMode = false;
+    this.matchStatus = null;
+    this.onMatchGameEnd = null;
 
     this.state = 'DISPOSED';
   }

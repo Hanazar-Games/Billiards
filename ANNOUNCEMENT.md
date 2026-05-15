@@ -1,6 +1,41 @@
-# 3D Billiards v1.3.8 — Latest Update
+# 3D Billiards v1.3.9 — Latest Update
 
-## What's New in v1.3.8
+## What's New in v1.3.9
+
+### 🏆 本地比赛模式 — Local Match Mode
+
+A new **tournament-style local 2-player mode** that elevates casual local play into a proper match experience.
+
+| # | Feature | Detail |
+|---|---------|--------|
+| 1 | **Player names** | Both players can enter custom names (max 12 chars) before the match starts |
+| 2 | **Game mode selection** | Choose between **8-ball** (standard group clearing) or **9-ball** (diamond rack, hit lowest first) |
+| 3 | **Match formats** | **单局决胜** (1 game) / **三局两胜** (best of 3) / **五局三胜** (best of 5) |
+| 4 | **Live score HUD** | Bottom center HUD shows real-time score: `PlayerA 2 : 1 PlayerB  ·  第 3/5 局` |
+| 5 | **Match end flow** | When a game ends, the screen shows the current series score with a **"下一局"** button; when the match is decided, a **"返回菜单"** button appears with the final result |
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `src/menu/MatchSetupPanel.js` | Pre-match configuration UI — name inputs, mode pills, format pills, start/cancel buttons |
+| `src/core/MatchEngine.js` | Lightweight tournament tracker — score counting, wins-needed logic, match-over detection |
+
+### Modified Files
+
+| File | Change |
+|------|--------|
+| `MainMenuScreen.js` | Added **"本地比赛"** button between "本地双人对战" and "对战 AI" |
+| `MenuSystem.js` | Integrated match lifecycle: `_showMatchSetup()` → `_startMatchGame()` → `_onMatchGameEnd()` → `_restartMatchRound()` or `_returnToMenu()` |
+| `Game.js` | Added `setMatchMode()`; match-end delegates to `onMatchGameEnd` callback instead of local reset; per-frame HUD score sync |
+| `UI.js` | Added `_hudScore` element in bottom HUD; new `setMatchScore()` API; `showResetButton()` accepts optional label param |
+
+---
+
+## Previous Releases
+
+<details>
+<summary><strong>v1.3.8</strong> — Deep UI/UX/SFX/BGM Bug Audit</summary>
 
 ### Deep UI/UX/SFX/BGM Bug Audit — Network, Audio, Serialization & Memory
 
