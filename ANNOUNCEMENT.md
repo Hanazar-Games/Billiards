@@ -22,6 +22,24 @@ The billiard room is now fully enclosed and camera movement is strictly bounded:
 | 7 | `Game.resetGame()` | Ball material disposal now safely handles `Array.isArray(ball.material)` — future-proofing for multi-material balls |
 | 8 | `Room.js dispose()` | Same array-guard added for wall/ceiling/furniture materials with `child.material.forEach(m => m.dispose())` |
 
+### Ball Return System — Pocketed Balls No Longer Vanish
+
+The biggest visual upgrade in v1.2.6: when an object ball drops into a pocket, it **no longer disappears into thin air**. Instead, a cloned mesh performs a three-phase animation:
+
+1. **Drop** (~220 ms) — the ball falls through the pocket mouth into the chute below the table surface
+2. **Slide** (~520 ms) — it glides horizontally beneath the table toward the head end
+3. **Settle** (~180 ms) — a slight bounce dampens into its final resting position
+
+All returned balls accumulate in a **real 3D collection tray** attached to the underside of the table head-end:
+
+- Dark wood construction with metal trim, matching the table's existing aesthetic
+- Balls arrange in a natural 8-column grid with subtle random jitter — no sterile stacking
+- Tray is fully shadow-casting and visible from low camera angles or the table end
+- **Monotonic slot allocator** guarantees that even when multiple balls are pocketed on the same frame (break shots, combo pockets), they never overlap in the tray
+- Cue ball is intentionally excluded — it gets respotted, so showing it in the tray would look like a duplicate
+
+The tray and every returned ball are properly disposed on `resetGame()` and `dispose()`, leaving no mesh or material leaks.
+
 ### Version Consistency
 
 All hard-coded version strings bumped from **v1.2.5 → v1.2.6**:
