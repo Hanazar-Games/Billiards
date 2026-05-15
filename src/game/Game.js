@@ -20,6 +20,7 @@ import { ShotTrailSystem } from '../fx/ShotTrail.js';
 import { ImpactShockwave } from '../fx/ImpactShockwave.js';
 import { ScreenShake } from '../fx/ScreenShake.js';
 import { PowerLabel } from '../fx/PowerLabel.js';
+import { BallReturnSystem } from '../fx/BallReturnSystem.js';
 import { ShotRecorder } from '../replay/ShotRecorder.js';
 import { settings } from '../core/SettingsStore.js';
 import { keyBindings } from '../input/KeyBindings.js';
@@ -54,6 +55,7 @@ export class Game {
     this.shockwaves = new ImpactShockwave(this.scene);
     this.screenShake = new ScreenShake(this.camera);
     this.powerLabel = new PowerLabel();
+    this.ballReturn = new BallReturnSystem(this.scene);
     this.minimap = new Minimap();
     this.recorder = new ShotRecorder();
     this.replayLibrary = null; // injected by MenuSystem
@@ -717,6 +719,13 @@ export class Game {
             this.achievements.onPocket(entry.id, pocketPositions[entry.pocketIndex], this.mode);
             this.recorder.recordPocket(entry.id);
             if (this.challengeManager) this.challengeManager.onPocket(entry.id);
+            // Ball return visual: cloned mesh drops through pocket into tray
+            // Skip cue ball — it gets respotted, so showing it in the tray
+            // would look like a duplicate.
+            const pBall = this.ballsManager.getBall(entry.id);
+            if (pBall && this.ballReturn && entry.id !== 0) {
+              this.ballReturn.animateBallReturn(pBall.mesh, pocketPositions[entry.pocketIndex]);
+            }
           }
           const pocket = pocketPositions[entry.pocketIndex];
           if (!pocket) continue;
@@ -757,6 +766,7 @@ export class Game {
     this.particles.update(dt);
     this.shockwaves.update(dt);
     this.screenShake.update(dt);
+    if (this.ballReturn) this.ballReturn.update(dt);
 
     // Update match timer
     if (this.gameStartTime) {
@@ -1027,6 +1037,7 @@ export class Game {
   }
 
   resetGame() {
+    if (this.ballReturn) this.ballReturn.reset();
     for (const ball of this.ballsManager.balls) {
       const listener = this._ballCollideListeners.get(ball.id);
       if (listener) ball.body.removeEventListener('collide', listener);
@@ -1699,6 +1710,10 @@ export class Game {
     if (this.trails) {
       this.trails.dispose();
       this.trails = null;
+    }
+    if (this.ballReturn) {
+      this.ballReturn.dispose();
+      this.ballReturn = null;
     }
     if (this.shockwaves) {
       this.shockwaves.dispose();
