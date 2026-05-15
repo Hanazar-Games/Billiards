@@ -25,6 +25,7 @@ export class Minimap {
     this._pockets = null;   // pocket positions array
     this._cueTrail = [];    // recent cue-ball positions for trail drawing
     this._maxTrail = 40;
+    this._dirty = true;     // only redraw when data changes
     this._resize();
     this._applyStyle();
     this._onSettings = (e) => {
@@ -47,30 +48,48 @@ export class Minimap {
   }
 
   updateBallData(balls) {
-    this._balls = balls.map((b) => ({
+    const mapped = balls.map((b) => ({
       id: b.id,
       x: b.mesh?.position?.x ?? b.body?.position?.x ?? 0,
       z: b.mesh?.position?.z ?? b.body?.position?.z ?? 0,
       pocketed: b.pocketed,
     }));
+    // Quick dirty check: compare against previous data
+    let dirty = mapped.length !== this._balls.length;
+    if (!dirty) {
+      for (let i = 0; i < mapped.length; i++) {
+        const a = mapped[i], b = this._balls[i];
+        if (a.id !== b.id || a.pocketed !== b.pocketed || Math.abs(a.x - b.x) > 0.1 || Math.abs(a.z - b.z) > 0.1) {
+          dirty = true;
+          break;
+        }
+      }
+    }
+    this._balls = mapped;
+
     // Record cue-ball trail
     const cue = this._balls.find(b => b.id === 0 && !b.pocketed);
     if (cue) {
       const last = this._cueTrail[this._cueTrail.length - 1];
       const dx = last ? (cue.x - last.x) : Infinity;
       const dz = last ? (cue.z - last.z) : Infinity;
-      // Only append if moved enough (debounce sub-pixel jitter)
       if (!last || dx * dx + dz * dz > 0.5) {
         this._cueTrail.push({ x: cue.x, z: cue.z });
         if (this._cueTrail.length > this._maxTrail) this._cueTrail.shift();
+        dirty = true;
       }
     } else if (this._cueTrail.length > 0) {
-      this._cueTrail = []; // clear when pocketed
+      this._cueTrail = [];
+      dirty = true;
     }
+
+    if (dirty) this._dirty = true;
   }
 
   draw() {
     if (!this._enabled) return;
+    if (!this._dirty) return;
+    this._dirty = false;
     const ctx = this.ctx;
     const w = this.canvas.width;
     const h = this.canvas.height;

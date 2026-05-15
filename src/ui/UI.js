@@ -16,6 +16,9 @@ export class UI {
     this._pauseHideTimer = null;
     this._settingsHideTimer = null;
     this._floatTimers = [];
+    this._lastTimerSec = null;
+    this._lastTurnTimerSec = null;
+    this._lastTurnTimerWarn = 'none';
 
     const uiLayer = document.getElementById('ui-layer');
 
@@ -460,6 +463,8 @@ export class UI {
   updateTimer(elapsedMs) {
     if (!this._hudTimer) return;
     const totalSec = Math.floor(elapsedMs / 1000);
+    if (this._lastTimerSec === totalSec) return;
+    this._lastTimerSec = totalSec;
     const min = String(Math.floor(totalSec / 60)).padStart(2, '0');
     const sec = String(totalSec % 60).padStart(2, '0');
     this._hudTimer.textContent = `${min}:${sec}`;
@@ -470,16 +475,22 @@ export class UI {
     if (maxSeconds <= 0) {
       this.turnTimerEl.style.display = 'none';
       this.turnTimerEl.classList.remove('warning', 'danger');
+      this._lastTurnTimerSec = null;
       return;
     }
     const s = Math.max(0, Math.ceil(seconds));
+    // Only update DOM when the displayed second changes
+    if (this._lastTurnTimerSec === s && this._lastTurnTimerWarn === (s <= 3 ? 'danger' : s <= 5 ? 'warning' : 'none')) {
+      return;
+    }
+    this._lastTurnTimerSec = s;
     this.turnTimerEl.textContent = `${s}s`;
     this.turnTimerEl.style.display = 'block';
+    const warnClass = s <= 3 ? 'danger' : s <= 5 ? 'warning' : 'none';
+    this._lastTurnTimerWarn = warnClass;
     this.turnTimerEl.classList.remove('warning', 'danger');
-    if (s <= 3) {
-      this.turnTimerEl.classList.add('danger');
-    } else if (s <= 5) {
-      this.turnTimerEl.classList.add('warning');
+    if (warnClass !== 'none') {
+      this.turnTimerEl.classList.add(warnClass);
     }
   }
 

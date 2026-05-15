@@ -40,6 +40,9 @@ export class MatchManager {
   updateHUD(ui, networkPlayer1Name, networkPlayer2Name) {
     const status = this.engine.getStatus();
     if (!status || !ui) return;
+    const hash = `${networkPlayer1Name}|${networkPlayer2Name}|${status.p1Score}|${status.p2Score}|${status.currentGame}|${status.gamesNeeded}`;
+    if (this._lastHUDHash === hash) return;
+    this._lastHUDHash = hash;
     ui.setMatchScore({
       p1Name: networkPlayer1Name || status.p1Name || '玩家 1',
       p2Name: networkPlayer2Name || status.p2Name || '玩家 2',

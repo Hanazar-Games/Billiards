@@ -233,7 +233,10 @@ export class Game {
     // Back-to-menu button
     this._addBackToMenuButton();
 
-    // Achievement panel
+    // Achievement panel (guard against duplicate creation on reset)
+    if (this.achievementPanel) {
+      try { this.achievementPanel.destroy(); } catch (e) {}
+    }
     this.achievementPanel = new AchievementPanel(this.achievements);
 
     // Spin indicator UI
@@ -605,7 +608,9 @@ export class Game {
       // Local immediate feedback: audio + FX (host will authoritatively resolve physics)
       this.audio.playCueHit(force);
       this.particles.spawnChalkDust(cueBall.mesh.position, this.aimDirection, force);
-      this.shockwaves?.spawn(cueBall.mesh.position, force);
+      if (settings.get('particlesEnabled') !== false) {
+        this.shockwaves?.spawn(cueBall.mesh.position, force);
+      }
       this.screenShake?.trigger(force, this.aimDirection);
       this.powerLabel?.show(force);
       this.trails.startRecording(cueBall);
@@ -638,7 +643,9 @@ export class Game {
       this.aimDirection,
       force
     );
-    this.shockwaves?.spawn(cueBall.mesh.position, force);
+    if (settings.get('particlesEnabled') !== false) {
+      this.shockwaves?.spawn(cueBall.mesh.position, force);
+    }
     this.screenShake?.trigger(force, this.aimDirection);
     this.powerLabel?.show(force);
     this.trails.startRecording(cueBall);
@@ -849,7 +856,7 @@ export class Game {
     if (this.gameStartTime) {
       this.ui.updateTimer(performance.now() - this.gameStartTime);
     }
-    if (this.minimap && this.ballsManager) {
+    if (this.minimap && this.ballsManager && settings.get('minimapEnabled') !== false) {
       this.minimap.updateBallData(this.ballsManager.balls);
       this.minimap.draw();
     }
@@ -1904,6 +1911,7 @@ export class Game {
     if (this.trails) this.trails.setEnabled(settings.get('shotTrailsEnabled'));
 
     this._applyCameraMode(settings.get('defaultCamera'));
+    if (this.minimap) this.minimap.setEnabled(settings.get('minimapEnabled') !== false);
   }
 
   _handleSettingsChange(key, value) {
@@ -1926,6 +1934,9 @@ export class Game {
         break;
       case 'shadowsEnabled':
         // Shadows are handled globally by Renderer; no per-game action needed
+        break;
+      case 'minimapEnabled':
+        if (this.minimap) this.minimap.setEnabled(value);
         break;
       case 'turnTimer': {
         const isStandardMode = ['local2p', 'vsai', '9ball'].includes(this.mode) || this.matchManager;
@@ -2108,6 +2119,10 @@ export class Game {
     if (this.statsPanel) {
       this.statsPanel.destroy();
       this.statsPanel = null;
+    }
+    if (this.achievementPanel) {
+      try { this.achievementPanel.destroy(); } catch (e) {}
+      this.achievementPanel = null;
     }
 
     // Remove challenge HUD
