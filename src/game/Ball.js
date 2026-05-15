@@ -8,22 +8,21 @@ export class Ball {
     this.type = type;
     this.pocketed = false;
 
-    // Visual
+    // Visual — high precision sphere for crisp number rendering
     this.geometry = new THREE.SphereGeometry(BALL.radius, BALL.segments, BALL.segments);
 
-    if (type === BALL_TYPE.STRIPE) {
-      this.material = this.createStripeMaterial(color);
-    } else if (type === BALL_TYPE.CUE) {
+    if (type === BALL_TYPE.CUE) {
       this.material = new THREE.MeshStandardMaterial({
         color: color,
         roughness: 0.05,
         metalness: 0.1,
       });
     } else {
+      const texture = this.createBallTexture(id, color, type);
       this.material = new THREE.MeshStandardMaterial({
-        color: color,
-        roughness: 0.1,
-        metalness: 0.1,
+        map: texture,
+        roughness: 0.08,
+        metalness: 0.05,
       });
     }
 
@@ -49,27 +48,89 @@ export class Ball {
     this.body.angularFactor = new CANNON.Vec3(1, 1, 1);
   }
 
-  createStripeMaterial(color) {
-    // Create a texture with white background and colored stripe
+  /**
+   * Generate a high-resolution equirectangular texture for a numbered ball.
+   * Standard pool balls have a white circular spot (~45% of ball diameter)
+   * with the number printed inside.
+   */
+  createBallTexture(id, color, type) {
+    const W = 1024;
+    const H = 512;
     const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 128;
+    canvas.width = W;
+    canvas.height = H;
     const ctx = canvas.getContext('2d');
+    const hexColor = '#' + new THREE.Color(color).getHexString();
 
-    // White base
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 128, 128);
+    // ── Base colour ──
+    if (type === BALL_TYPE.STRIPE) {
+      // Stripe: white base with a wide coloured band around the equator
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
 
-    // Color stripe in middle
-    ctx.fillStyle = '#' + new THREE.Color(color).getHexString();
-    ctx.fillRect(0, 44, 128, 40);
+      // Coloured stripe covers the middle ~40% of the ball height
+      const bandTop = Math.round(H * 0.30);
+      const bandH = Math.round(H * 0.40);
+      ctx.fillStyle = hexColor;
+      ctx.fillRect(0, bandTop, W, bandH);
+    } else {
+      // Solid (including 8-ball): uniform colour
+      ctx.fillStyle = hexColor;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // ── White spot + number ──
+    this._drawBallSpot(ctx, id, type, W, H);
 
     const texture = new THREE.CanvasTexture(canvas);
-    return new THREE.MeshStandardMaterial({
-      map: texture,
-      roughness: 0.1,
-      metalness: 0.1,
-    });
+    texture.anisotropy = 16;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }
+
+  _drawBallSpot(ctx, id, type, W, H) {
+    // The spot sits on the "front" face of the ball (u=0.5, v=0.5).
+    // In equirectangular projection a small circle on the equator projects
+    // almost perfectly to a circle in texture space.
+    const cx = W / 2;
+    const cy = H / 2;
+
+    // Spot angular radius ≈ 26° (standard pool-ball spot is ~45% of ball diameter).
+    // 26° / 180° * H ≈ 0.144 * H pixels in the vertical direction.
+    const spotR = Math.round(H * 0.144);
+
+    // Slight shadow under the spot for depth
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.35)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2;
+
+    // White circle
+    ctx.beginPath();
+    ctx.arc(cx, cy, spotR, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.restore();
+
+    // Thin ring outline
+    ctx.beginPath();
+    ctx.arc(cx, cy, spotR, 0, Math.PI * 2);
+    ctx.lineWidth = Math.max(1, Math.round(spotR * 0.04));
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+    ctx.stroke();
+
+    // Number text
+    const isEight = id === 8;
+    const textColor = isEight ? '#000000' : '#000000';
+    const fontSize = Math.round(spotR * 1.05);
+    ctx.fillStyle = textColor;
+    ctx.font = `900 ${fontSize}px "Segoe UI", "Helvetica Neue", Arial, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Slight vertical nudge so the digit sits optically centred
+    ctx.fillText(String(id), cx, cy + fontSize * 0.06);
   }
 
   setPhysicsMaterial(material) {
@@ -81,6 +142,19 @@ export class Ball {
     this.body.position.set(x, y, z);
     this.body.velocity.set(0, 0, 0);
     this.body.angularVelocity.set(0, 0, 0);
+
+    // Random initial orientation so balls don't all look identical at rack time
+    if (this.type !== BALL_TYPE.CUE) {
+      const euler = new THREE.Euler(
+        (Math.random() - 0.5) * Math.PI * 2,
+        (Math.random() - 0.5) * Math.PI * 2,
+        (Math.random() - 0.5) * Math.PI * 2
+      );
+      const q = new THREE.Quaternion().setFromEuler(euler);
+      this.mesh.quaternion.copy(q);
+      this.body.quaternion.set(q.x, q.y, q.z, q.w);
+    }
+
     this.body.wakeUp();
   }
 
@@ -90,12 +164,10 @@ export class Ball {
     const dirX = shotSpeed > 0.001 ? x / shotSpeed : 0;
     const dirZ = shotSpeed > 0.001 ? z / shotSpeed : 1;
 
-    // Apply linear impulse at ball center (relative to body COM)
+    // Apply linear impulse at ball centre (relative to body COM)
     this.body.applyImpulse(new CANNON.Vec3(x, y, z), new CANNON.Vec3(0, 0, 0));
 
-    // Compute spin from off-center cue tip hit using physical torque.
-    // cueTipOffsetX: horizontal offset [-1,1]  (left/right english)
-    // cueTipOffsetY: vertical offset   [-1,1]  (top/bottom = follow/draw)
+    // Compute spin from off-centre cue tip hit using physical torque.
     const e = cueTipOffsetX;
     const h = cueTipOffsetY;
 
@@ -107,13 +179,11 @@ export class Ball {
       const nZ = -dirX;
 
       // Hit point relative to ball centre (world coords)
-      //  - horizontal offset is perpendicular to aim direction
-      //  - vertical offset is world-Y
       const hitX = e * R * nX;
       const hitY = h * R;
       const hitZ = e * R * nZ;
 
-      // Angular impulse = r × J  (J is the linear impulse vector)
+      // Angular impulse = r × J
       const Jx = x;
       const Jz = z;
       const angImpulseX = hitY * Jz - hitZ * 0;
@@ -128,7 +198,6 @@ export class Ball {
       this.body.angularVelocity.z += angImpulseZ * invI;
 
       // Squirt: horizontal offset deflects cue ball slightly sideways.
-      // Right english causes squirt to the LEFT (opposite the offset).
       if (Math.abs(e) > 0.001) {
         const squirt = shotSpeed * BALL.cueSquirt * e;
         this.body.velocity.x -= nX * squirt;
@@ -168,8 +237,7 @@ export class Ball {
       speed = Math.sqrt(v.x * v.x + v.z * v.z);
     }
 
-    // Gentle braking as speed approaches zero (avoids micro-jitter without
-    // making slow rolls feel sticky).
+    // Gentle braking as speed approaches zero
     if (speed > 0 && speed < BALL.slowBrakeSpeed) {
       const t = 1 - speed / BALL.slowBrakeSpeed;
       const brake = BALL.slowBrakeStrength * t * t;
@@ -183,9 +251,7 @@ export class Ball {
       angularSpeed = av.length();
     }
 
-    // Cloth-friction spin decay: when the ball is sliding or nearly stopped,
-    // cloth friction dissipates spin energy much faster than CANNON's default
-    // angular damping.  This prevents balls from spinning in place forever.
+    // Cloth-friction spin decay
     if (angularSpeed > 0) {
       const isNearlyStopped = speed < BALL.stopSpeedLimit * 2.5;
       const spinFriction = isNearlyStopped ? 3.4 : 0.72;
@@ -211,7 +277,6 @@ export class Ball {
     const speed = Math.sqrt(v.x * v.x + v.z * v.z);
 
     // Roll coupling: drive translational velocity toward pure-rolling velocity
-    // For a sphere rolling without slipping: v = (-ω_z·r, 0, ω_x·r)
     const rollVx = -av.z * BALL.radius;
     const rollVz = av.x * BALL.radius;
     const rollSpeed = Math.sqrt(rollVx * rollVx + rollVz * rollVz);
@@ -221,17 +286,12 @@ export class Ball {
       const slipX = rollVx - v.x;
       const slipZ = rollVz - v.z;
 
-      // When the ball is nearly stopped, do NOT let roll coupling re-accelerate
-      // it from a dead stop.  Angular velocity still decays naturally toward zero.
       const isNearlyStopped = speed < BALL.stopSpeedLimit;
       if (!isNearlyStopped) {
         v.x += slipX * coupling;
         v.z += slipZ * coupling;
       }
 
-      // Update angular velocity to conserve angular momentum.
-      // For a solid sphere the correct coupling is Δω = (5/2)·Δv / R,
-      // so we apply the same slip correction scaled by 2.5.
       av.z += (slipX / BALL.radius) * coupling * 2.5;
       av.x -= (slipZ / BALL.radius) * coupling * 2.5;
     }

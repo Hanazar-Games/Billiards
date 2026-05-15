@@ -17,7 +17,7 @@ export const TABLE = {
 export const BALL = {
   radius: 0.028575 * SCALE,  // 2.8575 cm
   mass: 0.17,                // kg
-  segments: 32,              // sphere geometry detail
+  segments: 80,              // sphere geometry detail (high-res for crisp numbers)
   restitution: 0.85,
   collisionRestitution: 0.88,
   collisionTangentialFriction: 0.10,
