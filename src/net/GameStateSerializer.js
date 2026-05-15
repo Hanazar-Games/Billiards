@@ -25,6 +25,9 @@ export class GameStateSerializer {
           vx: b.velocity.x,
           vy: b.velocity.y,
           vz: b.velocity.z,
+          avx: b.angularVelocity.x,
+          avy: b.angularVelocity.y,
+          avz: b.angularVelocity.z,
           qx: b.quaternion.x,
           qy: b.quaternion.y,
           qz: b.quaternion.z,
@@ -79,6 +82,7 @@ export class GameStateSerializer {
       if (!bs.pocketed) {
         ball.body.position.set(bs.x, bs.y, bs.z);
         ball.body.velocity.set(bs.vx, bs.vy, bs.vz);
+        ball.body.angularVelocity.set(bs.avx ?? 0, bs.avy ?? 0, bs.avz ?? 0);
         ball.body.quaternion.set(bs.qx, bs.qy, bs.qz, bs.qw);
         ball.sync();
       } else {

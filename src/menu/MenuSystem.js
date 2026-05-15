@@ -229,7 +229,7 @@ export class MenuSystem {
     if (uiLayer) uiLayer.style.display = 'flex';
 
     // Stop menu BGM before entering challenge
-    if (this.audio) this.audio.stopBGM();
+    if (this.audio) this.audio.stopBGM(false);
 
     // Create challenge manager
     this.activeChallenge = challenge;
@@ -364,7 +364,7 @@ export class MenuSystem {
     if (uiLayer) uiLayer.style.display = 'flex';
 
     // Stop menu BGM before entering game
-    if (this.audio) this.audio.stopBGM();
+    if (this.audio) this.audio.stopBGM(false);
 
     // Create new Game instance
     this.game = new Game(this.renderer, this.physics, this.audio);
@@ -655,6 +655,10 @@ export class MenuSystem {
     if (this._replayCompleteTimeout) {
       clearTimeout(this._replayCompleteTimeout);
       this._replayCompleteTimeout = null;
+    }
+    if (this._delayTimer) {
+      clearTimeout(this._delayTimer);
+      this._delayTimer = null;
     }
 
     // Clean up game and replay

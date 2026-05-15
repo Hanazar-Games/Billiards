@@ -415,6 +415,7 @@ export class UI {
   setMessage(text, duration = 0) {
     if (this.message) {
       this.message.textContent = text;
+      this._lastMessage = text;
       this._messageId++;
       const id = this._messageId;
       if (this._messageTimer) {
@@ -426,6 +427,7 @@ export class UI {
           this._messageTimer = null;
           if (this.message && this._messageId === id) {
             this.message.textContent = '';
+            this._lastMessage = '';
           }
         }, duration);
       }
@@ -772,5 +774,7 @@ export class UI {
     this.settingsOverlay = null;
     this._settingsBackBtn = null;
     this._inGameSettings = null;
+    this._onInGameSettingsClose = null;
+    this._lastMessage = null;
   }
 }

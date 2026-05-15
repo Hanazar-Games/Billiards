@@ -90,6 +90,8 @@ export class Game {
     this._lastSnapshotTime = 0;
     this.networkPlayer1Name = '玩家 1';
     this.networkPlayer2Name = '玩家 2';
+    this._netDisconnectHandled = false;
+    this._netDisconnectTimer = null;
 
     this._tmpVec2 = new THREE.Vector2();
     this._tmpVec3a = new THREE.Vector3();
@@ -1147,6 +1149,10 @@ export class Game {
       this._challengeEndTimeout = null;
     }
     this._challengeEnding = false;
+    if (this._netDisconnectTimer) {
+      clearTimeout(this._netDisconnectTimer);
+      this._netDisconnectTimer = null;
+    }
 
     // Remove stale challenge HUD
     const chHud = document.getElementById('challenge-hud');
@@ -1676,18 +1682,19 @@ export class Game {
     this.networkRole = role;
     this.localPlayerId = localPlayerId || 1;
     this.networkMode = role ? 'lan' : null;
+    this._netDisconnectHandled = false;
     if (controller) {
-      controller.addEventListener('stateSnapshot', (e) => {
+      this._onStateSnapshot = (e) => {
         if (this.networkRole === 'client' && e.detail.snapshot) {
           GameStateSerializer.applyGameState(this, e.detail.snapshot);
         }
-      });
-      controller.addEventListener('shotInput', (e) => {
+      };
+      this._onNetShotInput = (e) => {
         if (this.networkRole === 'host') {
           this.applyRemoteShot(e.detail);
         }
-      });
-      controller.addEventListener('pocketEvent', (e) => {
+      };
+      this._onNetPocketEvent = (e) => {
         if (this.networkRole === 'client') {
           const detail = e.detail;
           const pocket = detail.pocket;
@@ -1706,7 +1713,20 @@ export class Game {
             }
           }
         }
-      });
+      };
+      this._onNetDisconnected = () => {
+        if (!this.networkMode || this._netDisconnectHandled) return;
+        this._netDisconnectHandled = true;
+        this.ui.setMessage('网络连接已断开，即将返回主菜单…', 3000);
+        this._netDisconnectTimer = setTimeout(() => {
+          this._netDisconnectTimer = null;
+          if (this.onReturnToMenu) this.onReturnToMenu();
+        }, 3000);
+      };
+      controller.addEventListener('stateSnapshot', this._onStateSnapshot);
+      controller.addEventListener('shotInput', this._onNetShotInput);
+      controller.addEventListener('pocketEvent', this._onNetPocketEvent);
+      controller.addEventListener('disconnected', this._onNetDisconnected);
     }
   }
 
@@ -1720,7 +1740,7 @@ export class Game {
 
     // Remote reset request from client
     if (shotInput.requestReset) {
-      this.resetGame();
+      this._onResetButtonClicked();
       return;
     }
 
@@ -1766,7 +1786,7 @@ export class Game {
 
   _concede() {
     if (this.mode === 'freeplay') return;
-    if (this.networkMode && this.networkRole === 'client') {
+    if (this.networkMode) {
       this.ui.setMessage('网络对战中无法主动认输', 2000);
       return;
     }
@@ -1988,6 +2008,18 @@ export class Game {
         this.audio.dispose();
       }
       this.audio = null;
+    }
+
+    // Remove network listeners
+    if (this.networkController) {
+      if (this._onStateSnapshot) this.networkController.removeEventListener('stateSnapshot', this._onStateSnapshot);
+      if (this._onNetShotInput) this.networkController.removeEventListener('shotInput', this._onNetShotInput);
+      if (this._onNetPocketEvent) this.networkController.removeEventListener('pocketEvent', this._onNetPocketEvent);
+      if (this._onNetDisconnected) this.networkController.removeEventListener('disconnected', this._onNetDisconnected);
+      this._onStateSnapshot = null;
+      this._onNetShotInput = null;
+      this._onNetPocketEvent = null;
+      this._onNetDisconnected = null;
     }
 
     // Remove event listeners

@@ -1,22 +1,42 @@
-# 3D Billiards v1.3.7 — Latest Update
+# 3D Billiards v1.3.8 — Latest Update
 
-## What's New in v1.3.7
+## What's New in v1.3.8
 
-### UI/UX/SFX/BGM Bug Audit & Hardening
+### Deep UI/UX/SFX/BGM Bug Audit — Network, Audio, Serialization & Memory
 
-A comprehensive sixth-round audit focused on user experience, audio stability, visual effects safety, and memory hygiene.
+A seventh-round deep audit uncovered **12 issues** spanning the new LAN multiplayer module, audio lifecycle, network serialization, and memory hygiene.
+
+### LAN Multiplayer & Network Fixes
 
 | # | File | Issue | Fix |
 |---|------|-------|-----|
-| 1 | `Renderer.js` | **Wheel listener mismatch** — `removeEventListener('wheel')` lacked `{ passive: false }`, causing the browser to fail matching the registered listener | Added matching `{ passive: false }` option to removal |
-| 2 | `SettingsScreen.js` | **Toast timer null-crash** — `_toastTimers.push()` could throw if `_toastTimers` was undefined during rapid open/close | Added `if (!this._toastTimers) this._toastTimers = []` guard |
-| 3 | `UI.js` | **Message timer leak** — `setMessage()` could leave stale timeouts clearing newer messages | Added `_messageId` counter to ignore expired callbacks |
-| 4 | `UI.js` | **Button listener leak in destroy** — `addEventListener('click')` on in-game settings buttons was not removed during `destroy()` | Replaced with `cloneNode` swap to strip all listeners |
-| 5 | `ParticleSystem.js` | **Particle explosion on lag** — unbounded `dt` during frame drops caused particles to rocket off-screen | Added `safeDt` clamp to `[0, 0.05]` seconds |
-| 6 | `Game.js` | **Reset button bypasses cleanup** — `showResetButton` callback called `resetGame()` directly, skipping `_cleanupAfterShot()` and state guards | Unified all reset paths through `_onResetButtonClicked()` |
-| 7 | `Game.js` | **Network listener leak on dispose** — LAN event listeners (`stateSnapshot`, `shotInput`) were not removed when leaving a network game | Added `removeEventListener` calls in `dispose()` before nulling controller |
-| 8 | `Game.js` | **Concede in LAN games** — "认输" button was active during network play, causing desync | Added `networkMode` guard blocking concession with a toast message |
-| 9 | `server/lan-server.js` | **Null data crash** — malformed WS messages could pass `JSON.parse` but yield `null` | Added `if (!data) return` guard after parse |
+| 1 | `Game.js` | **Network listener leak on dispose** — `setNetworkController()` added anonymous arrow functions as `addEventListener` callbacks for `stateSnapshot` / `shotInput` / `pocketEvent`; `dispose()` never removed them, trapping the entire Game instance in closure memory | Refactored to named methods (`_onStateSnapshot`, `_onNetShotInput`, `_onNetPocketEvent`) and explicitly `removeEventListener` in `dispose()` |
+| 2 | `Game.js` | **Network disconnect unhandled** — if the WebSocket dropped during a match, the client/host had no feedback and the game simply froze | Added `_onNetDisconnected` handler that shows a toast and auto-returns to the main menu after 3 seconds; timer is cleared in `dispose()` |
+| 3 | `Game.js` | **Host could concede in LAN** — `_concede()` only blocked the client; the host could still click "认输", leaving guests in a broken state | Changed guard from `networkRole === 'client'` to `networkMode` so **both** host and client are blocked |
+| 4 | `Game.js` | **Remote reset bypassed cleanup** — `applyRemoteShot()` called `this.resetGame()` directly when `requestReset` was true, skipping `_cleanupAfterShot()` and state guards | Routed through `this._onResetButtonClicked()` |
+| 5 | `server/lan-server.js` | **JSON.parse non-object crash** — `JSON.parse("null")` passed silently, then `const { type } = data` destructured `null` and threw | Added `if (!data || typeof data !== 'object')` guard before destructuring |
+| 6 | `server/lan-server.js` | **Dead code** — `closeWithError()` was defined but never called anywhere | Removed unused function |
+
+### Audio & SFX Fixes
+
+| # | File | Issue | Fix |
+|---|------|-------|-----|
+| 7 | `AudioManager.js` | **BGM wrongly restarts after tab switch** — `stopBGM()` preserved `_bgmWasPlaying` for `visibilitychange`, but MenuSystem's game-entry `stopBGM()` was indistinguishable from a temporary pause; switching tabs after entering a game could resurrect BGM | Added `preserveFlag` parameter to `stopBGM()`; MenuSystem now calls `stopBGM(false)` when entering a game/challenge, explicitly clearing the flag |
+| 8 | `AudioManager.js` | **Fallback disconnect after dispose** — `_autoDisconnect()` used a 5-second `setTimeout` fallback for nodes without `onended`; if `dispose()` was called in between, the callback tried to disconnect nodes on a closed AudioContext | Added `if (!this.ctx) return` guard inside the fallback callback |
+
+### Serialization & UI Fixes
+
+| # | File | Issue | Fix |
+|---|------|-------|-----|
+| 9 | `GameStateSerializer.js` | **angularVelocity never synced** — ball rotation state was missing from snapshots; client-side balls visually spun incorrectly because angular velocity was never restored | Added `avx` / `avy` / `avz` to `serializeGameState()` and `applyGameState()` |
+| 10 | `UI.js` | **`_lastMessage` missing** — `GameStateSerializer` referenced `game.ui._lastMessage` to avoid duplicate message updates, but the field did not exist in `UI.js` | Added `_lastMessage` tracking in `setMessage()` and cleanup in `destroy()` |
+| 11 | `UI.js` | **`_onInGameSettingsClose` leak** — the callback reference was not nulled in `destroy()` | Added `this._onInGameSettingsClose = null` in `destroy()` |
+
+### MenuSystem Fixes
+
+| # | File | Issue | Fix |
+|---|------|-------|-----|
+| 12 | `MenuSystem.js` | **`_delayTimer` leak on quit** — `_quit()` cleared `_replayCompleteTimeout` but not `_delayTimer`, so a pending menu-transition timeout could fire after destruction | Added `clearTimeout(this._delayTimer)` in `_quit()` |
 
 ---
 

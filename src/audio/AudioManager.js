@@ -47,6 +47,7 @@ export class AudioManager {
     if (!source) return;
     const all = nodes.filter(Boolean);
     const doDisconnect = () => {
+      if (!this.ctx) return; // AudioManager disposed — skip
       try {
         source.disconnect();
         all.forEach(n => n.disconnect());
@@ -221,14 +222,18 @@ export class AudioManager {
     this.bgmNodes.push(noise, noiseFilter, noiseGain);
   }
 
-  stopBGM() {
+  stopBGM(preserveFlag = true) {
     const t = this.ctx ? this.ctx.currentTime : 0;
     for (const node of this.bgmNodes) {
       try { if (node.stop) node.stop(t); } catch (e) {}
       try { if (node.disconnect) node.disconnect(); } catch (e) {}
     }
     this.bgmNodes = [];
-    // NOTE: do NOT reset _bgmWasPlaying here — visibilitychange handler needs it
+    // When called from game entry (preserveFlag=false), reset the flag so
+    // visibilitychange does not accidentally restart BGM while in-game.
+    if (!preserveFlag) {
+      this._bgmWasPlaying = false;
+    }
   }
 
   resume() {

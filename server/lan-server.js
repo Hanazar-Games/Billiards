@@ -96,11 +96,6 @@ function send(ws, msg) {
   }
 }
 
-function closeWithError(ws, error) {
-  send(ws, { type: 'error', error });
-  ws.close(1008, error);
-}
-
 // HTTP server (for health checks and CORS preflight)
 const httpServer = createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -131,6 +126,10 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
+    if (!data || typeof data !== 'object') {
+      send(ws, { type: 'error', error: 'Invalid message format' });
+      return;
+    }
     const { type } = data;
 
     if (type === 'createRoom') {
