@@ -1160,7 +1160,7 @@ export class Game {
     const container = document.createElement('div');
     container.id = 'cue-tip-picker';
     container.style.cssText = `
-      position: absolute; bottom: 38px; right: 60px;
+      position: absolute; bottom: 38px; left: 60px;
       width: 110px; display: flex; flex-direction: column; align-items: center;
       gap: 6px; z-index: 15; user-select: none;
     `;

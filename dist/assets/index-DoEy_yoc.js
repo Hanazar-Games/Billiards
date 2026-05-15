@@ -319,7 +319,7 @@ var ve=Object.defineProperty;var Ce=(v,t,e)=>t in v?ve(v,t,{enumerable:!0,config
       box-shadow: 0 10px 28px rgba(0,0,0,0.26);
       z-index: 15;
     `,e.onmouseenter=()=>{e.style.background="rgba(255,255,255,0.2)",e.style.borderColor="rgba(255,255,255,0.5)"},e.onmouseleave=()=>{e.style.background="rgba(255,255,255,0.1)",e.style.borderColor="rgba(255,255,255,0.25)"},e.onclick=()=>{this.onReturnToMenu&&this.onReturnToMenu()},t.appendChild(e)}_addCueTipPicker(){const t=document.getElementById("ui-layer");if(!t||t.querySelector("#cue-tip-picker"))return;const e=document.createElement("div");e.id="cue-tip-picker",e.style.cssText=`
-      position: absolute; bottom: 38px; right: 60px;
+      position: absolute; bottom: 38px; left: 60px;
       width: 110px; display: flex; flex-direction: column; align-items: center;
       gap: 6px; z-index: 15; user-select: none;
     `;const s=document.createElement("div");s.textContent="击球点",s.style.cssText=`
