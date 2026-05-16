@@ -13,10 +13,8 @@ export class Room {
     this.createFloor();
     this.createWalls();
     this.createCeiling();
-    this.createFurniture();
     this.createPaintings();
     this.createPlants();
-    this.createPlaque();
     this.createTableLights();
   }
 
@@ -36,7 +34,7 @@ export class Room {
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = -TABLE.height - 70;
+    mesh.position.y = -TABLE.height - 71;
     mesh.receiveShadow = true;
     this.meshGroup.add(mesh);
 
@@ -52,13 +50,13 @@ export class Room {
 
     for (let x = -width / 2; x <= width / 2; x += 48) {
       const line = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.2, depth), lineMat);
-      line.position.set(x, -TABLE.height - 69.85, 0);
+      line.position.set(x, -TABLE.height - 70.85, 0);
       this.meshGroup.add(line);
     }
 
     for (let z = -depth / 2; z <= depth / 2; z += 48) {
       const line = new THREE.Mesh(new THREE.BoxGeometry(width, 0.2, 0.8), lineMat);
-      line.position.set(0, -TABLE.height - 69.85, z);
+      line.position.set(0, -TABLE.height - 70.85, z);
       this.meshGroup.add(line);
     }
   }
@@ -88,7 +86,7 @@ export class Room {
 
     const hw = ROOM.halfWidth;
     const hd = ROOM.halfDepth;
-    const floorY = -TABLE.height - 70;
+    const floorY = -TABLE.height - 71;
     const wallTotalH = ROOM.wallHeight - floorY;
     const wallCenterY = floorY + wallTotalH / 2;
     const wainscotH = 55;
@@ -139,185 +137,6 @@ export class Room {
     trim.castShadow = true;
     trim.receiveShadow = true;
     this.meshGroup.add(trim);
-  }
-
-  // ── Lounge furniture ──
-  createFurniture() {
-    // Two sofas along the back wall, facing the table
-    this.createSofa(-145, 310, 0, 170, 82, 78, 42);
-    this.createSofa(145, 310, 0, 170, 82, 78, 42);
-    // Coffee table in front of the sofas
-    this.createCoffeeTable(0, 245, 95, 65, 42);
-  }
-
-  createSofa(cx, cz, rotY, length, width, height, seatHeight) {
-    const upholstery = new THREE.MeshStandardMaterial({
-      color: 0x5c3a28,
-      roughness: 0.78,
-      metalness: 0.04,
-    });
-    const darker = new THREE.MeshStandardMaterial({
-      color: 0x4a2e1e,
-      roughness: 0.82,
-      metalness: 0.03,
-    });
-    const legMat = new THREE.MeshStandardMaterial({
-      color: 0x1a1008,
-      roughness: 0.4,
-      metalness: 0.45,
-    });
-
-    const group = new THREE.Group();
-    group.position.set(cx, 0, cz);
-    group.rotation.y = rotY;
-
-    // Seat cushion
-    const seat = new THREE.Mesh(
-      new THREE.BoxGeometry(length, seatHeight * 0.35, width * 0.72),
-      upholstery
-    );
-    seat.position.set(0, seatHeight * 0.55, width * 0.06);
-    seat.castShadow = true;
-    seat.receiveShadow = true;
-    group.add(seat);
-
-    // Backrest
-    const backH = height - seatHeight * 0.9;
-    const back = new THREE.Mesh(
-      new THREE.BoxGeometry(length, backH, width * 0.22),
-      darker
-    );
-    back.position.set(0, seatHeight * 0.9 + backH / 2, -width * 0.35);
-    back.castShadow = true;
-    back.receiveShadow = true;
-    group.add(back);
-
-    // Armrests
-    const armW = width * 0.14;
-    const armH = seatHeight * 0.75;
-    for (const ax of [-length / 2 + armW / 2, length / 2 - armW / 2]) {
-      const arm = new THREE.Mesh(
-        new THREE.BoxGeometry(armW, armH, width * 0.78),
-        darker
-      );
-      arm.position.set(ax, seatHeight * 0.55 + armH / 2, width * 0.04);
-      arm.castShadow = true;
-      arm.receiveShadow = true;
-      group.add(arm);
-    }
-
-    // Back cushions (three segments)
-    const segCount = 3;
-    const segW = (length - armW * 2 - 4) / segCount;
-    for (let i = 0; i < segCount; i++) {
-      const seg = new THREE.Mesh(
-        new THREE.BoxGeometry(segW, backH * 0.72, width * 0.16),
-        upholstery
-      );
-      const xOff = -length / 2 + armW + 2 + segW / 2 + i * (segW + 1.5);
-      seg.position.set(xOff, seatHeight * 0.9 + backH * 0.5, -width * 0.33);
-      seg.castShadow = true;
-      seg.receiveShadow = true;
-      group.add(seg);
-    }
-
-    // Legs
-    const legR = 2.8;
-    const legH = seatHeight * 0.55;
-    const legInsetX = length / 2 - 14;
-    const legInsetZ = width / 2 - 14;
-    const legPositions = [
-      [-legInsetX, legH / 2, -legInsetZ],
-      [legInsetX, legH / 2, -legInsetZ],
-      [-legInsetX, legH / 2, legInsetZ],
-      [legInsetX, legH / 2, legInsetZ],
-    ];
-    for (const [lx, ly, lz] of legPositions) {
-      const leg = new THREE.Mesh(
-        new THREE.CylinderGeometry(legR, legR * 0.65, legH, 10),
-        legMat
-      );
-      leg.position.set(lx, ly, lz);
-      leg.castShadow = true;
-      group.add(leg);
-    }
-
-    this.meshGroup.add(group);
-  }
-
-  createCoffeeTable(cx, cz, width, depth, height) {
-    const topMat = new THREE.MeshStandardMaterial({
-      color: 0x362518,
-      roughness: 0.32,
-      metalness: 0.18,
-    });
-    const edgeMat = new THREE.MeshStandardMaterial({
-      color: 0x2a1c12,
-      roughness: 0.35,
-      metalness: 0.22,
-    });
-    const legMat = new THREE.MeshStandardMaterial({
-      color: 0x1a1008,
-      roughness: 0.4,
-      metalness: 0.4,
-    });
-
-    const group = new THREE.Group();
-    group.position.set(cx, 0, cz);
-
-    // Table top
-    const topThick = 4;
-    const top = new THREE.Mesh(
-      new THREE.BoxGeometry(width, topThick, depth),
-      topMat
-    );
-    top.position.set(0, height - topThick / 2, 0);
-    top.castShadow = true;
-    top.receiveShadow = true;
-    group.add(top);
-
-    // Edge trim
-    const edgeH = 1.5;
-    const edge = new THREE.Mesh(
-      new THREE.BoxGeometry(width + 1.5, edgeH, depth + 1.5),
-      edgeMat
-    );
-    edge.position.set(0, height - topThick - edgeH / 2, 0);
-    edge.castShadow = true;
-    group.add(edge);
-
-    // Lower shelf
-    const shelf = new THREE.Mesh(
-      new THREE.BoxGeometry(width * 0.72, 2, depth * 0.72),
-      topMat
-    );
-    shelf.position.set(0, height * 0.35, 0);
-    shelf.castShadow = true;
-    shelf.receiveShadow = true;
-    group.add(shelf);
-
-    // Legs
-    const legW = 5;
-    const legH = height - topThick;
-    const legInsetX = width / 2 - 10;
-    const legInsetZ = depth / 2 - 10;
-    const legPositions = [
-      [-legInsetX, legH / 2, -legInsetZ],
-      [legInsetX, legH / 2, -legInsetZ],
-      [-legInsetX, legH / 2, legInsetZ],
-      [legInsetX, legH / 2, legInsetZ],
-    ];
-    for (const [lx, ly, lz] of legPositions) {
-      const leg = new THREE.Mesh(
-        new THREE.BoxGeometry(legW, legH, legW),
-        legMat
-      );
-      leg.position.set(lx, ly, lz);
-      leg.castShadow = true;
-      group.add(leg);
-    }
-
-    this.meshGroup.add(group);
   }
 
   // ── Ceiling ──
@@ -430,14 +249,6 @@ export class Room {
       this.meshGroup.add(spot.target);
       this._lampLights.push(spot);
     }
-
-    // Dedicated spotlight aimed at the "厚德载物" plaque on the back wall
-    const plaqueSpot = new THREE.SpotLight(0xffeedd, 1.2, 260, Math.PI / 1.8, 0.5, 1.2);
-    plaqueSpot.position.set(0, 145, 340);
-    plaqueSpot.target.position.set(0, 105, ROOM.halfDepth - 5);
-    plaqueSpot.castShadow = true;
-    this.meshGroup.add(plaqueSpot);
-    this.meshGroup.add(plaqueSpot.target);
 
     this._lampCrossbarMat = crossbarMat;
   }
@@ -611,7 +422,7 @@ export class Room {
     ];
 
     const group = new THREE.Group();
-    group.position.set(x, 0, z);
+    group.position.set(x, -TABLE.height - 71, z);
 
     // Pot (truncated cone)
     const pot = new THREE.Mesh(
