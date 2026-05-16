@@ -200,6 +200,7 @@ export class Table {
     const h = BALL.radius * 2;
     const inset = TABLE.cushionWidth / 2;
     const overhang = 3.2;
+    const thick = 0.9;
 
     let width, len;
     if (Math.abs(nx) > 0.5) {
@@ -223,11 +224,38 @@ export class Table {
       v.push(cx + width / 2, h, cz + nz * (inset + overhang));
     }
 
-    const bevelGeo = new THREE.BufferGeometry();
+    const dx = -nx * thick;
+    const dz = -nz * thick;
+    const p = v;
+    const pb = [
+      v[0] + dx, v[1], v[2] + dz,
+      v[3] + dx, v[4], v[5] + dz,
+      v[6] + dx, v[7], v[8] + dz,
+      v[9] + dx, v[10], v[11] + dz,
+    ];
+
     const positions = new Float32Array([
-      v[0], v[1], v[2],  v[3], v[4], v[5],  v[6], v[7], v[8],
-      v[3], v[4], v[5],  v[9], v[10], v[11],  v[6], v[7], v[8],
+      // front face
+      p[0], p[1], p[2],  p[3], p[4], p[5],  p[9], p[10], p[11],
+      p[0], p[1], p[2],  p[9], p[10], p[11],  p[6], p[7], p[8],
+      // back face
+      pb[0], pb[1], pb[2],  pb[9], pb[10], pb[11],  pb[3], pb[4], pb[5],
+      pb[0], pb[1], pb[2],  pb[6], pb[7], pb[8],  pb[9], pb[10], pb[11],
+      // side 0-1
+      p[0], p[1], p[2],  p[3], p[4], p[5],  pb[3], pb[4], pb[5],
+      p[0], p[1], p[2],  pb[3], pb[4], pb[5],  pb[0], pb[1], pb[2],
+      // side 1-3
+      p[3], p[4], p[5],  p[9], p[10], p[11],  pb[9], pb[10], pb[11],
+      p[3], p[4], p[5],  pb[9], pb[10], pb[11],  pb[3], pb[4], pb[5],
+      // side 3-2
+      p[9], p[10], p[11],  p[6], p[7], p[8],  pb[6], pb[7], pb[8],
+      p[9], p[10], p[11],  pb[6], pb[7], pb[8],  pb[9], pb[10], pb[11],
+      // side 2-0
+      p[6], p[7], p[8],  p[0], p[1], p[2],  pb[0], pb[1], pb[2],
+      p[6], p[7], p[8],  pb[0], pb[1], pb[2],  pb[6], pb[7], pb[8],
     ]);
+
+    const bevelGeo = new THREE.BufferGeometry();
     bevelGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     bevelGeo.computeVertexNormals();
 
@@ -235,7 +263,6 @@ export class Table {
       color: 0x0b5c32,
       roughness: 0.85,
       metalness: 0.0,
-      side: THREE.DoubleSide,
     });
     const bevelMesh = new THREE.Mesh(bevelGeo, bevelMat);
     bevelMesh.castShadow = true;
@@ -529,6 +556,15 @@ export class Table {
       facing.rotation.x = Math.PI / 2;
       facing.castShadow = true;
       this.meshGroup.add(facing);
+
+      const skirt = new THREE.Mesh(
+        new THREE.TorusGeometry(POCKET.radius * 1.25, 1.6, 10, 48),
+        leatherMat
+      );
+      skirt.position.set(pocket.x, 0.02, pocket.z);
+      skirt.rotation.x = Math.PI / 2;
+      skirt.castShadow = true;
+      this.meshGroup.add(skirt);
 
       const drop = new THREE.Mesh(
         new THREE.CylinderGeometry(POCKET.radius * 0.96, POCKET.radius * 0.7, 16, 36),
