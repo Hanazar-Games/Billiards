@@ -45,6 +45,7 @@ export class OnboardingStore {
   }
 
   set(key, value) {
+    if (this._data[key] === value) return;
     this._data[key] = value;
     this._save();
   }

@@ -23,7 +23,7 @@ const TIPS = {
   },
   foul: {
     title: '犯规提示',
-    text: (reason) => `犯规原因：${reason}。注意白球必须先碰到自己的球，且不能先碰黑八或进袋。`,
+    text: (msg) => `${msg} 提示：白球必须先碰到自己的球，且不能先碰黑八或进袋。`,
   },
   ballInHand: {
     title: '自由球',
@@ -86,7 +86,7 @@ export class OnboardingTips {
   }
 
   _ensureCard() {
-    if (this._card) return;
+    if (this._card && this._card.parentNode) return;
     const uiLayer = document.getElementById('ui-layer');
     if (!uiLayer) return;
 

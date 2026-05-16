@@ -620,7 +620,7 @@ export class Game {
     if (!cueBall) return;
 
     // Show spin tutorial on first shot
-    if (onboarding.get('gameTutorialStep') === 2) {
+    if (onboarding.get('gameTutorialStep') === 2 && !(this.aiEnabled && this.currentPlayer === 2)) {
       this.onboardingTips.show('spin', null, 8000);
       onboarding.advanceGameTutorial();
     }

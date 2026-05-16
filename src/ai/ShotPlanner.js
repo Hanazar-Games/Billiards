@@ -218,7 +218,7 @@ export class ShotPlanner {
 
       // Estimate where cue ball will end up after the hit (very rough: along reflection)
       const cueReflection = _v3.copy(_v1).negate();
-      const estimatedCuePos = _v3.copy(ghostPos).addScaledVector(cueReflection, r * 4);
+      const estimatedCuePos = _v2.copy(ghostPos).addScaledVector(cueReflection, r * 4);
 
       const score = this._scoreSafety(estimatedCuePos, pocketPositions, balls, halfW, halfD, r);
       if (score > bestScore) {
