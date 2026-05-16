@@ -1827,8 +1827,9 @@ export class Game {
     cam.position.set(...CAMERA.defaultPos);
     cam.lookAt(...CAMERA.lookAt);
     if (this.renderer.controls) {
-      this.renderer.controls.target.set(0, 0, 0);
+      this.renderer.controls.target.set(...CAMERA.lookAt);
       this.renderer.controls.enabled = true;
+      this.renderer.controls.update();
       this.renderer._clampCameraToRoom();
     }
   }
@@ -1842,6 +1843,7 @@ export class Game {
     if (this.renderer.controls) {
       this.renderer.controls.target.set(0, 0, 0);
       this.renderer.controls.enabled = true;
+      this.renderer.controls.update();
       this.renderer._clampCameraToRoom();
     }
   }
@@ -1861,6 +1863,7 @@ export class Game {
         this.renderer.controls.target.copy(cueBall.mesh.position);
       }
       this.renderer.controls.enabled = false;
+      this.renderer.controls.update();
     }
   }
 

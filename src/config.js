@@ -98,7 +98,7 @@ export const ROOM = {
   halfDepth: 380,
   wallHeight: 160,
   minCameraY: 10,
-  maxCameraY: 140,
+  maxCameraY: 180,
 };
 
 // Camera
@@ -106,8 +106,8 @@ export const CAMERA = {
   fov: 45,
   near: 0.1,
   far: 10000,
-  defaultPos: [0, 100, -180],
-  lookAt: [0, 0, 60],
+  defaultPos: [0, 180, -320],
+  lookAt: [0, 0, 0],
 };
 
 // Shooting
