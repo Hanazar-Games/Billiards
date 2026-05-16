@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Billiards v1.3.2</title>
+  <title>3D Billiards v1.4.4</title>
   <style>
     :root {
       --felt: #106442;
@@ -60,6 +60,34 @@
       box-shadow: inset 0 1px 8px rgba(0,0,0,0.75), 0 0 24px rgba(255,255,255,0.08), 0 10px 28px rgba(0,0,0,0.35);
       display: none;
     }
+    #turn-timer {
+      position: absolute;
+      bottom: 134px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 15px;
+      font-weight: 800;
+      color: rgba(255,255,255,0.82);
+      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+      pointer-events: none;
+      z-index: 8;
+      display: none;
+      letter-spacing: 1px;
+      font-variant-numeric: tabular-nums;
+      transition: color 0.2s ease;
+    }
+    #turn-timer.warning {
+      color: #ff9f43;
+      animation: timerPulse 0.6s ease-in-out infinite alternate;
+    }
+    #turn-timer.danger {
+      color: #ff6b6b;
+      animation: timerPulse 0.35s ease-in-out infinite alternate;
+    }
+    @keyframes timerPulse {
+      from { opacity: 1; transform: translateX(-50%) scale(1); }
+      to { opacity: 0.65; transform: translateX(-50%) scale(1.08); }
+    }
     #bottom-hud {
       position: absolute;
       bottom: 0; left: 0; right: 0;
@@ -74,6 +102,7 @@
       padding: 10px 20px 6px;
       background: linear-gradient(to top, rgba(6,8,10,0.88) 0%, rgba(6,8,10,0.55) 70%, transparent 100%);
     }
+    .hud-name, .hud-detail { white-space: nowrap; }
     .hud-side {
       display: flex;
       flex-direction: column;
@@ -193,8 +222,8 @@
       backdrop-filter: blur(8px);
       animation: uiFloatIn calc(420ms / var(--ui-anim-speed)) var(--ease) both;
     }
-    #player1 { background: linear-gradient(135deg, rgba(140, 110, 40, 0.72), rgba(90, 70, 25, 0.68)); border-color: rgba(216,177,95,0.25); }
-    #player2 { background: linear-gradient(135deg, rgba(35, 90, 140, 0.72), rgba(20, 55, 95, 0.68)); border-color: rgba(90,165,230,0.25); }
+    #player1 { background: linear-gradient(135deg, rgba(140, 110, 40, 0.72), rgba(90, 70, 25, 0.68)); border-color: rgba(216,177,95,0.25); justify-self: start; }
+    #player2 { background: linear-gradient(135deg, rgba(35, 90, 140, 0.72), rgba(20, 55, 95, 0.68)); border-color: rgba(90,165,230,0.25); justify-self: end; }
     .player-badge.active {
       border-color: rgba(255,255,255,0.75);
       box-shadow: 0 0 0 1px rgba(255,255,255,0.12), 0 0 18px rgba(255,255,255,0.14), 0 12px 32px rgba(0,0,0,0.32);
@@ -329,6 +358,49 @@
       }
       #power-bar-container {
         width: calc(100vw - 96px);
+        bottom: 118px;
+      }
+      #turn-timer { bottom: 144px; font-size: 13px; }
+      #bottom-hud-main {
+        gap: 8px;
+        padding: 8px 12px 4px;
+      }
+      .hud-name { font-size: 12px; }
+      .hud-detail { font-size: 11px; gap: 6px; }
+      .hud-timer { font-size: 16px; }
+      .hud-objective { font-size: 10px; }
+      #bottom-hud-actions { gap: 6px; padding: 3px 0 10px; }
+      .hud-btn { padding: 5px 10px; font-size: 11px; }
+      #cue-tip-picker {
+        bottom: 140px !important;
+        left: 12px !important;
+        transform: scale(0.85);
+        transform-origin: bottom left;
+      }
+      .table-minimap {
+        bottom: 110px !important;
+        right: 10px !important;
+        opacity: 0.75 !important;
+      }
+    }
+    @media (max-width: 520px) {
+      #bottom-hud-main {
+        grid-template-columns: 1fr auto 1fr;
+        gap: 4px;
+        padding: 6px 8px 3px;
+      }
+      .hud-detail { gap: 4px; }
+      .hud-name { font-size: 11px; letter-spacing: 0; }
+      .hud-detail { font-size: 10px; }
+      .hud-timer { font-size: 14px; }
+      #power-bar-container { width: calc(100vw - 64px); bottom: 108px; }
+      #turn-timer { bottom: 132px; }
+      #cue-tip-picker {
+        bottom: 128px !important;
+        transform: scale(0.72);
+      }
+      .table-minimap {
+        bottom: 100px !important;
       }
     }
 
@@ -554,7 +626,7 @@
       to   { opacity: 1; transform: translateY(0) scale(1); }
     }
   </style>
-  <script type="module" crossorigin src="./assets/index-DZeHsPoE.js"></script>
+  <script type="module" crossorigin src="./assets/index-B0qE0RRL.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/three-BeqIXkaF.js">
   <link rel="modulepreload" crossorigin href="./assets/physics-DAiIzLkS.js">
 </head>
@@ -575,7 +647,7 @@
         </div>
         <div class="intro-percent" id="intro-percent">0%</div>
       </div>
-      <div class="intro-loading-text" id="intro-loading-text">Loading... 加载中...</div>
+      <div class="intro-loading-text" id="intro-loading-text">加载中...</div>
     </div>
   </div>
 
@@ -593,7 +665,8 @@
     <div id="power-bar-container">
       <div id="power-bar-fill"></div>
     </div>
-    <div id="version-tag">v1.3.2</div>
+    <div id="turn-timer">--</div>
+    <div id="version-tag">v1.4.4</div>
   </div>
 
   <!-- Diagnostic overlay for JS errors -->
@@ -603,10 +676,10 @@
         <div class="icon">⚠️</div>
         <div>
           <h2>游戏加载失败</h2>
-          <div class="sub">Initialization Failed — 初始化过程中发生错误</div>
+          <div class="sub">资源加载异常，请尝试刷新页面或检查网络连接</div>
         </div>
       </div>
-      <div id="js-error-phase" style="display:none;">加载阶段: 未知</div>
+      <div id="js-error-phase" style="display:none;">出错阶段：未知</div>
       <div id="js-error-content"></div>
       <div id="js-error-footer">
         <button class="err-btn primary" onclick="location.reload()">🔄 重新加载</button>
@@ -632,8 +705,8 @@
       var overlay = document.getElementById('js-error-overlay');
       var content = document.getElementById('js-error-content');
       if (overlay && content) {
-        var extra = 'Source: ' + (e.filename || 'unknown') + ' — Line ' + (e.lineno || 'N/A') + ':' + (e.colno || 'N/A');
-        content.innerHTML = (content.innerHTML || '') + _formatErrorBlock('Error: ' + e.message, extra);
+        var extra = '来源：' + (e.filename || '未知') + ' — 第 ' + (e.lineno || 'N/A') + ' 行，第 ' + (e.colno || 'N/A') + ' 列';
+        content.innerHTML = (content.innerHTML || '') + _formatErrorBlock('错误：' + e.message, extra);
         overlay.classList.add('visible');
       }
     });
@@ -649,7 +722,7 @@
             reason = '[object with circular reference]';
           }
         }
-        content.innerHTML = (content.innerHTML || '') + _formatErrorBlock('Unhandled Promise Rejection:\n' + reason, '');
+        content.innerHTML = (content.innerHTML || '') + _formatErrorBlock('未处理的异步错误：\n' + reason, '');
         overlay.classList.add('visible');
       }
     });
