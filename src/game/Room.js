@@ -3,6 +3,10 @@
  */
 import * as THREE from 'three';
 import { TABLE, BALL, ROOM } from '../config.js';
+import {
+  ROOM_THEMES, FLOOR_THEMES, WALL_THEMES, LAMP_STYLE_THEMES, AMBIENT_LIGHT_THEMES,
+  applyMaterialTheme,
+} from '../theme/RoomThemes.js';
 
 export class Room {
   constructor() {
@@ -10,6 +14,10 @@ export class Room {
     this._tmpToTable = new THREE.Vector3();
     this._tmpToLamp = new THREE.Vector3();
     this._tmpToLamp2 = new THREE.Vector3();
+    this._materials = {};
+    this._themeGroups = {};
+    this._themeLights = {};
+
     this.createFloor();
     this.createWalls();
     this.createCeiling();
@@ -22,12 +30,18 @@ export class Room {
     scene.add(this.meshGroup);
   }
 
+  _mat(name, props) {
+    const mat = new THREE.MeshStandardMaterial(props);
+    this._materials[name] = mat;
+    return mat;
+  }
+
   // ── Floor ──
   createFloor() {
     const width = TABLE.width * 4.2;
     const depth = TABLE.depth * 4.2;
     const geometry = new THREE.PlaneGeometry(width, depth);
-    const material = new THREE.MeshStandardMaterial({
+    const material = this._mat('floor', {
       color: 0xe0d5c0,
       roughness: 0.92,
       metalness: 0.0,
@@ -38,11 +52,13 @@ export class Room {
     mesh.receiveShadow = true;
     this.meshGroup.add(mesh);
 
+    this._themeGroups.floorLines = new THREE.Group();
+    this.meshGroup.add(this._themeGroups.floorLines);
     this.createFloorLines(width, depth);
   }
 
   createFloorLines(width, depth) {
-    const lineMat = new THREE.MeshStandardMaterial({
+    const lineMat = this._mat('floorLine', {
       color: 0xd4c8b0,
       roughness: 0.9,
       metalness: 0.0,
@@ -51,19 +67,19 @@ export class Room {
     for (let x = -width / 2; x <= width / 2; x += 48) {
       const line = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.2, depth), lineMat);
       line.position.set(x, -TABLE.height - 70.85, 0);
-      this.meshGroup.add(line);
+      this._themeGroups.floorLines.add(line);
     }
 
     for (let z = -depth / 2; z <= depth / 2; z += 48) {
       const line = new THREE.Mesh(new THREE.BoxGeometry(width, 0.2, 0.8), lineMat);
       line.position.set(0, -TABLE.height - 70.85, z);
-      this.meshGroup.add(line);
+      this._themeGroups.floorLines.add(line);
     }
   }
 
   // ── Walls ──
   createWalls() {
-    const wallMat = new THREE.MeshStandardMaterial({
+    const wallMat = this._mat('wall', {
       color: 0xf5e6c8,
       roughness: 0.88,
       metalness: 0.02,
@@ -76,7 +92,6 @@ export class Room {
     const wallCenterY = floorY + wallTotalH / 2;
     const wallThick = 6;
 
-    // Four plain beige walls — no wainscot, trim, or baseboard
     this._addWall(0, wallCenterY, -hd, hw * 2, wallTotalH, wallThick, wallMat);
     this._addWall(0, wallCenterY, hd, hw * 2, wallTotalH, wallThick, wallMat);
     this._addWall(-hw, wallCenterY, 0, wallThick, wallTotalH, hd * 2, wallMat);
@@ -101,7 +116,7 @@ export class Room {
 
   // ── Ceiling ──
   createCeiling() {
-    const ceilMat = new THREE.MeshStandardMaterial({
+    const ceilMat = this._mat('ceiling', {
       color: 0xf5e6c8,
       roughness: 0.9,
       metalness: 0.02,
@@ -115,8 +130,10 @@ export class Room {
     ceiling.receiveShadow = true;
     this.meshGroup.add(ceiling);
 
-    // Ceiling grid lines (recessed panels)
-    const gridMat = new THREE.MeshStandardMaterial({
+    this._themeGroups.ceilingGrid = new THREE.Group();
+    this.meshGroup.add(this._themeGroups.ceilingGrid);
+
+    const gridMat = this._mat('grid', {
       color: 0x3a3530,
       roughness: 0.85,
       metalness: 0.05,
@@ -125,15 +142,16 @@ export class Room {
     for (let x = -w / 2; x <= w / 2; x += step) {
       const line = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, d), gridMat);
       line.position.set(x, ROOM.wallHeight - 0.3, 0);
-      this.meshGroup.add(line);
+      this._themeGroups.ceilingGrid.add(line);
     }
     for (let z = -d / 2; z <= d / 2; z += step) {
       const line = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, 0.6), gridMat);
       line.position.set(0, ROOM.wallHeight - 0.3, z);
-      this.meshGroup.add(line);
+      this._themeGroups.ceilingGrid.add(line);
     }
 
-    // Recessed ceiling downlights — soft fill for walls and room ambience
+    // Recessed ceiling downlights
+    this._themeLights.downlights = [];
     const downLightPositions = [
       [-120, -240], [0, -240], [120, -240],
       [-120, -80],  [0, -80],  [120, -80],
@@ -144,13 +162,14 @@ export class Room {
       const pl = new THREE.PointLight(0xfff5e0, 0.28, 280, 1.6);
       pl.position.set(x, ROOM.wallHeight - 2, z);
       this.meshGroup.add(pl);
+      this._themeLights.downlights.push(pl);
     }
   }
 
   // ── Table lights ──
   createTableLights() {
     const railY = 140;
-    const glowMat = new THREE.MeshStandardMaterial({
+    const glowMat = this._mat('diffuser', {
       color: 0xfff1cc,
       emissive: 0xffd98a,
       emissiveIntensity: 1.2,
@@ -160,7 +179,7 @@ export class Room {
       depthWrite: false,
     });
 
-    const crossbarMat = new THREE.MeshStandardMaterial({
+    const crossbarMat = this._mat('crossbar', {
       color: 0x2b2418,
       emissive: 0x4a3214,
       emissiveIntensity: 0.25,
@@ -174,14 +193,13 @@ export class Room {
     crossbar.position.set(0, railY + 14, 0);
     this.meshGroup.add(crossbar);
 
-    // Suspension rods — connect crossbar to ceiling
-    const rodMat = new THREE.MeshStandardMaterial({
+    const rodMat = this._mat('rod', {
       color: 0x8a7a68,
       roughness: 0.35,
       metalness: 0.65,
     });
     const ceilingY = ROOM.wallHeight;
-    const crossbarTopY = railY + 14 + 1.5; // top face of crossbar
+    const crossbarTopY = railY + 14 + 1.5;
     const rodLen = ceilingY - crossbarTopY;
     for (const z of [-TABLE.depth * 0.3, 0, TABLE.depth * 0.3]) {
       const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, rodLen, 12), rodMat);
@@ -223,11 +241,9 @@ export class Room {
     group.position.set(x, y, z);
     group.rotation.y = rotY;
 
-    // Canvas texture
     const tex = this._createLandscapeTexture(w, h);
     const canvasMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, metalness: 0.0 });
 
-    // Frame border
     const border = 3.5;
     const frame = new THREE.Mesh(
       new THREE.BoxGeometry(w + border * 2, h + border * 2, 3),
@@ -236,14 +252,12 @@ export class Room {
     frame.castShadow = true;
     group.add(frame);
 
-    // Inner gold trim
     const trim = new THREE.Mesh(
       new THREE.BoxGeometry(w + border * 0.6, h + border * 0.6, 3.5),
       innerMat
     );
     group.add(trim);
 
-    // Canvas
     const canvasMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(w, h),
       canvasMat
@@ -252,6 +266,7 @@ export class Room {
     group.add(canvasMesh);
 
     this.meshGroup.add(group);
+    return group;
   }
 
   _createLandscapeTexture(w, h) {
@@ -262,7 +277,6 @@ export class Room {
     canvas.height = H;
     const ctx = canvas.getContext('2d');
 
-    // Sky gradient
     const grad = ctx.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, '#b8c5d6');
     grad.addColorStop(0.4, '#d4ddd8');
@@ -270,7 +284,6 @@ export class Room {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
-    // Distant mountains
     ctx.fillStyle = '#7a8a9a';
     ctx.beginPath();
     ctx.moveTo(0, H * 0.55);
@@ -284,7 +297,6 @@ export class Room {
     ctx.lineTo(0, H);
     ctx.fill();
 
-    // Mid mountains
     ctx.fillStyle = '#5a6a72';
     ctx.beginPath();
     ctx.moveTo(0, H * 0.72);
@@ -297,7 +309,6 @@ export class Room {
     ctx.lineTo(0, H);
     ctx.fill();
 
-    // Foreground hills
     ctx.fillStyle = '#3a4a42';
     ctx.beginPath();
     ctx.moveTo(0, H * 0.88);
@@ -309,7 +320,6 @@ export class Room {
     ctx.lineTo(0, H);
     ctx.fill();
 
-    // Mist / fog layer
     const mist = ctx.createLinearGradient(0, H * 0.45, 0, H * 0.75);
     mist.addColorStop(0, 'rgba(255,255,255,0)');
     mist.addColorStop(0.5, 'rgba(255,255,255,0.25)');
@@ -317,13 +327,11 @@ export class Room {
     ctx.fillStyle = mist;
     ctx.fillRect(0, H * 0.45, W, H * 0.3);
 
-    // Sun / moon
     ctx.beginPath();
     ctx.arc(W * 0.75, H * 0.18, W * 0.06, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(255,240,200,0.55)';
     ctx.fill();
 
-    // Red seal stamp (Chinese painting signature style)
     ctx.fillStyle = '#b03030';
     ctx.fillRect(W * 0.85, H * 0.82, W * 0.08, W * 0.08);
 
@@ -334,6 +342,9 @@ export class Room {
 
   // ── Potted plants ──
   createPlants() {
+    this._themeGroups.plants = new THREE.Group();
+    this.meshGroup.add(this._themeGroups.plants);
+
     const positions = [
       [-ROOM.halfWidth + 25, -ROOM.halfDepth + 25],
       [ROOM.halfWidth - 25, -ROOM.halfDepth + 25],
@@ -346,33 +357,32 @@ export class Room {
   }
 
   createPlant(x, z) {
-    const potMat = new THREE.MeshStandardMaterial({
+    const potMat = this._mat('pot', {
       color: 0x5c3a28,
       roughness: 0.85,
       metalness: 0.05,
     });
-    const soilMat = new THREE.MeshStandardMaterial({
+    const soilMat = this._mat('soil', {
       color: 0x2a1e14,
       roughness: 0.95,
       metalness: 0.0,
     });
-    const stemMat = new THREE.MeshStandardMaterial({
+    const stemMat = this._mat('stem', {
       color: 0x3d2b1f,
       roughness: 0.9,
       metalness: 0.0,
     });
-    const trayMat = new THREE.MeshStandardMaterial({
+    const trayMat = this._mat('tray', {
       color: 0x6b4a35,
       roughness: 0.7,
       metalness: 0.1,
     });
-    const pebbleMat = new THREE.MeshStandardMaterial({
+    const pebbleMat = this._mat('pebble', {
       color: 0x5a5548,
       roughness: 0.92,
       metalness: 0.05,
     });
 
-    // Five green tones for richer foliage layers
     const leafMats = [
       new THREE.MeshStandardMaterial({ color: 0x2d5a28, roughness: 0.72, metalness: 0.02 }),
       new THREE.MeshStandardMaterial({ color: 0x4a8a3a, roughness: 0.68, metalness: 0.02 }),
@@ -384,7 +394,6 @@ export class Room {
     const group = new THREE.Group();
     group.position.set(x, -TABLE.height - 71, z);
 
-    // Pot (truncated cone)
     const pot = new THREE.Mesh(
       new THREE.CylinderGeometry(14, 10, 18, 20),
       potMat
@@ -394,7 +403,6 @@ export class Room {
     pot.receiveShadow = true;
     group.add(pot);
 
-    // Decorative pot rim
     const rim = new THREE.Mesh(
       new THREE.TorusGeometry(13.6, 0.7, 8, 20),
       potMat
@@ -404,7 +412,6 @@ export class Room {
     rim.castShadow = true;
     group.add(rim);
 
-    // Pot saucer underneath
     const saucer = new THREE.Mesh(
       new THREE.CylinderGeometry(11.5, 10.5, 1.0, 20),
       trayMat
@@ -413,7 +420,6 @@ export class Room {
     saucer.receiveShadow = true;
     group.add(saucer);
 
-    // Soil surface
     const soil = new THREE.Mesh(
       new THREE.CylinderGeometry(12.5, 12.5, 1.5, 20),
       soilMat
@@ -421,7 +427,6 @@ export class Room {
     soil.position.y = 17.5;
     group.add(soil);
 
-    // Small pebbles / moss on soil
     for (let i = 0; i < 8; i++) {
       const pebble = new THREE.Mesh(
         new THREE.SphereGeometry(0.5 + Math.random() * 0.7, 6, 5),
@@ -435,7 +440,6 @@ export class Room {
       group.add(pebble);
     }
 
-    // Main stem with slight curve — built from 3 segments
     for (let i = 0; i < 3; i++) {
       const segH = 9;
       const t = i / 2;
@@ -451,7 +455,6 @@ export class Room {
       group.add(seg);
     }
 
-    // Helper: add a branch with leaves at its tip
     const addBranch = (startY, tiltAngle, length, thickness) => {
       const branchGrp = new THREE.Group();
       branchGrp.position.y = startY;
@@ -465,7 +468,6 @@ export class Room {
       branch.castShadow = true;
       branchGrp.add(branch);
 
-      // Node ring where leaves cluster
       const nodeRing = new THREE.Mesh(
         new THREE.TorusGeometry(thickness * 0.65, 0.25, 5, 8),
         stemMat
@@ -474,7 +476,6 @@ export class Room {
       nodeRing.rotation.x = Math.PI / 2;
       branchGrp.add(nodeRing);
 
-      // Primary leaves at branch tip — arranged in a loose cluster
       const leafCount = 4 + Math.floor(Math.random() * 4);
       for (let i = 0; i < leafCount; i++) {
         const mat = leafMats[Math.floor(Math.random() * leafMats.length)];
@@ -503,7 +504,6 @@ export class Room {
         branchGrp.add(leaf);
       }
 
-      // Secondary smaller leaves along the branch body
       const secCount = 2 + Math.floor(Math.random() * 3);
       for (let i = 0; i < secCount; i++) {
         const mat = leafMats[Math.floor(Math.random() * leafMats.length)];
@@ -526,7 +526,6 @@ export class Room {
       return branchGrp;
     };
 
-    // Branch configurations: startY, tilt, length, thickness
     const branchCfgs = [
       { y: 20, a: 0.5, len: 12, thick: 1.05 },
       { y: 24, a: -0.6, len: 14, thick: 0.95 },
@@ -543,7 +542,6 @@ export class Room {
       group.add(b);
     }
 
-    // Draping vines — soft hanging tendrils from lower branches
     const addDrape = (startY, sideAngle) => {
       const drapeGrp = new THREE.Group();
       drapeGrp.position.y = startY;
@@ -557,7 +555,6 @@ export class Room {
       drape.position.set(0, -drapeLen / 2, 4 + Math.random() * 3);
       drapeGrp.add(drape);
 
-      // Drape leaves
       const drapeLeafCount = 3 + Math.floor(Math.random() * 3);
       for (let i = 0; i < drapeLeafCount; i++) {
         const mat = leafMats[Math.floor(Math.random() * leafMats.length)];
@@ -583,7 +580,6 @@ export class Room {
       group.add(drape);
     }
 
-    // Top canopy clusters for volume
     for (let i = 0; i < 12; i++) {
       const mat = leafMats[Math.floor(Math.random() * leafMats.length)];
       const cluster = new THREE.Mesh(
@@ -604,7 +600,7 @@ export class Room {
       group.add(cluster);
     }
 
-    this.meshGroup.add(group);
+    this._themeGroups.plants.add(group);
   }
 
   // ── "厚德载物" plaque ──
@@ -630,11 +626,9 @@ export class Room {
     });
 
     const group = new THREE.Group();
-    // Centre of back wall, above the sofas
     group.position.set(0, 105, ROOM.halfDepth - 5);
     group.rotation.y = Math.PI;
 
-    // Main board
     const board = new THREE.Mesh(
       new THREE.BoxGeometry(boardW, boardH, boardD),
       woodMat
@@ -642,7 +636,6 @@ export class Room {
     board.castShadow = true;
     group.add(board);
 
-    // Outer gold border frame
     const frameT = 3;
     const frameD = boardD + 1.5;
     const frame = new THREE.Mesh(
@@ -653,7 +646,6 @@ export class Room {
     frame.castShadow = true;
     group.add(frame);
 
-    // Inner board (slightly recessed)
     const inner = new THREE.Mesh(
       new THREE.BoxGeometry(boardW - 6, boardH - 6, boardD + 0.5),
       woodMat
@@ -661,7 +653,6 @@ export class Room {
     inner.position.z = 0.5;
     group.add(inner);
 
-    // Text texture
     const textTex = this._createPlaqueTexture();
     const textMat = new THREE.MeshStandardMaterial({
       map: textTex,
@@ -676,7 +667,6 @@ export class Room {
     textMesh.position.z = boardD / 2 + 1;
     group.add(textMesh);
 
-    // Decorative corner pieces
     const cornerSize = 10;
     const corners = [
       [-boardW / 2 + 12, -boardH / 2 + 12],
@@ -694,6 +684,7 @@ export class Room {
     }
 
     this.meshGroup.add(group);
+    this._themeGroups.plaque = group;
   }
 
   _createPlaqueTexture() {
@@ -704,29 +695,24 @@ export class Room {
     canvas.height = H;
     const ctx = canvas.getContext('2d');
 
-    // Warm rice-paper background tone (subtle, so the wood behind shows through)
     ctx.fillStyle = 'rgba(245, 235, 210, 0.12)';
     ctx.fillRect(0, 0, W, H);
 
     const text = '厚德载物';
     const baseY = H / 2 + 8;
 
-    // ── Layer 1: thick ink wash shadow (gives depth) ──
     ctx.fillStyle = 'rgba(160, 120, 40, 0.25)';
     ctx.font = 'bold 148px "KaiTi", "STKaiti", "SimKaiti", "楷体", "华文楷体", serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, W / 2 + 3, baseY + 3);
 
-    // ── Layer 2: main gold-brush body ──
     ctx.fillStyle = '#d4a72c';
     ctx.fillText(text, W / 2, baseY);
 
-    // ── Layer 3: darker core for 3D brush stroke feel ──
     ctx.fillStyle = '#b8860b';
     ctx.fillText(text, W / 2 - 1, baseY - 1);
 
-    // ── Layer 4: dry-brush flywhite (飞白) streaks ──
     ctx.globalCompositeOperation = 'destination-out';
     ctx.strokeStyle = 'rgba(0,0,0,0.55)';
     ctx.lineCap = 'round';
@@ -743,7 +729,6 @@ export class Room {
     }
     ctx.globalCompositeOperation = 'source-over';
 
-    // ── Layer 5: ink splatter / bleed dots ──
     ctx.fillStyle = 'rgba(180, 140, 50, 0.35)';
     for (let i = 0; i < 40; i++) {
       const sx = Math.random() * W;
@@ -754,13 +739,11 @@ export class Room {
       ctx.fill();
     }
 
-    // ── Layer 6: red seal stamp (方印) ──
     const sealSize = 42;
     const sealX = W * 0.82;
     const sealY = H * 0.68;
     ctx.fillStyle = 'rgba(180, 48, 48, 0.88)';
     ctx.fillRect(sealX - sealSize / 2, sealY - sealSize / 2, sealSize, sealSize);
-    // Seal inner texture
     ctx.fillStyle = 'rgba(160, 38, 38, 0.6)';
     for (let i = 0; i < 15; i++) {
       const sx = sealX + (Math.random() - 0.5) * sealSize * 0.8;
@@ -770,7 +753,6 @@ export class Room {
       ctx.arc(sx, sy, sr, 0, Math.PI * 2);
       ctx.fill();
     }
-    // Tiny seal text
     ctx.fillStyle = 'rgba(220, 180, 140, 0.7)';
     ctx.font = 'bold 10px serif';
     ctx.fillText('印', sealX, sealY + 3);
@@ -778,6 +760,84 @@ export class Room {
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     return texture;
+  }
+
+  // ── Theme application ──
+
+  applyVisualSettings(settings) {
+    const roomThemeId = settings.get('roomTheme') || 'club';
+    const floorThemeId = settings.get('floorTheme') || 'tile';
+    const wallThemeId = settings.get('wallTheme') || 'warm';
+    const lampStyleId = settings.get('lampStyle') || 'classic';
+    const ambientThemeId = settings.get('ambientLightTheme') || 'warm';
+
+    const roomPreset = ROOM_THEMES[roomThemeId] || ROOM_THEMES.club;
+    const floorKey = roomPreset.floor || floorThemeId;
+    const wallKey = roomPreset.wall || wallThemeId;
+    const lampKey = roomPreset.lamp || lampStyleId;
+    const ambientKey = roomPreset.ambient || ambientThemeId;
+
+    const floor = FLOOR_THEMES[floorKey] || FLOOR_THEMES.tile;
+    const wall = WALL_THEMES[wallKey] || WALL_THEMES.warm;
+    const lamp = LAMP_STYLE_THEMES[lampKey] || LAMP_STYLE_THEMES.classic;
+    const ambient = AMBIENT_LIGHT_THEMES[ambientKey] || AMBIENT_LIGHT_THEMES.warm;
+
+    // Apply floor
+    applyMaterialTheme(this._materials.floor, floor.floor);
+    applyMaterialTheme(this._materials.floorLine, floor.floorLine);
+
+    // Apply walls / ceiling
+    applyMaterialTheme(this._materials.wall, wall.wall);
+    applyMaterialTheme(this._materials.ceiling, wall.ceiling);
+    applyMaterialTheme(this._materials.grid, wall.grid);
+
+    // Apply lamp materials
+    applyMaterialTheme(this._materials.diffuser, lamp.diffuser);
+    applyMaterialTheme(this._materials.crossbar, lamp.crossbar);
+    applyMaterialTheme(this._materials.rod, lamp.rod);
+
+    // Update spot light colors & intensities
+    for (const spot of this._lampLights) {
+      if (spot) {
+        spot.color.setHex(lamp.spotColor);
+        spot.intensity = lamp.spotIntensity * (settings.get('tableLightIntensity') ?? 1.0);
+      }
+    }
+
+    // Update downlight colors & intensities
+    if (this._themeLights.downlights) {
+      for (const pl of this._themeLights.downlights) {
+        if (pl) {
+          pl.color.setHex(lamp.pointColor);
+          pl.intensity = lamp.pointIntensity;
+        }
+      }
+    }
+
+    // Ambient light updates would need a reference to the scene ambient light
+    // which is stored in Renderer; we dispatch a custom event for it
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('roomThemeChanged', {
+        detail: {
+          ambientColor: ambient.ambientColor,
+          ambientIntensity: ambient.ambientIntensity,
+        },
+      }));
+    }
+
+    // Toggle decorative groups
+    if (this._themeGroups.plants) {
+      this._themeGroups.plants.visible = settings.get('plantsEnabled') !== false;
+    }
+    if (this._themeGroups.ceilingGrid) {
+      this._themeGroups.ceilingGrid.visible = settings.get('ceilingGridEnabled') !== false;
+    }
+    if (this._themeGroups.plaque) {
+      this._themeGroups.plaque.visible = settings.get('wallDecorEnabled') !== false;
+    }
+    if (this._themeGroups.floorLines) {
+      this._themeGroups.floorLines.visible = settings.get('decorativePropsEnabled') !== false;
+    }
   }
 
   updateLampOpacity(camera) {

@@ -113,6 +113,86 @@ const UNIT_OPTIONS = [
   { value: 'metric', label: '公制 (cm/m)' },
   { value: 'imperial', label: '英制 (in/ft)' },
 ];
+const TABLE_THEME_OPTIONS_V2 = [
+  { value: 'classic', label: '经典俱乐部' },
+  { value: 'blackGold', label: '黑金奢华' },
+  { value: 'blueTournament', label: '蓝色赛事' },
+  { value: 'redClub', label: '红色会所' },
+  { value: 'minimal', label: '极简现代' },
+];
+const FELT_THEME_OPTIONS = [
+  { value: 'classicGreen', label: '经典绿' },
+  { value: 'blue', label: '皇家蓝' },
+  { value: 'red', label: '中国红' },
+  { value: 'black', label: '暗夜黑' },
+  { value: 'purple', label: '紫罗兰' },
+];
+const WOOD_THEME_OPTIONS = [
+  { value: 'classic', label: '经典木' },
+  { value: 'darkWalnut', label: '深胡桃' },
+  { value: 'lightOak', label: '浅色橡木' },
+  { value: 'blackLacquer', label: '黑漆' },
+];
+const METAL_TRIM_OPTIONS = [
+  { value: 'nickel', label: '镍银' },
+  { value: 'gold', label: '镀金' },
+  { value: 'blackChrome', label: '黑铬' },
+];
+const POCKET_LEATHER_OPTIONS = [
+  { value: 'brown', label: '棕色' },
+  { value: 'black', label: '黑色' },
+  { value: 'darkRed', label: '暗红' },
+];
+const BALL_TEXTURE_QUALITY_OPTIONS = [
+  { value: 'medium', label: '中' },
+  { value: 'high', label: '高' },
+];
+const BALL_NUMBER_SIZE_OPTIONS = [
+  { value: 'small', label: '小' },
+  { value: 'normal', label: '正常' },
+  { value: 'large', label: '大' },
+];
+const BALL_NUMBER_CONTRAST_OPTIONS = [
+  { value: 'normal', label: '正常' },
+  { value: 'high', label: '高对比' },
+];
+const CUE_BALL_MARK_OPTIONS = [
+  { value: 'redDot', label: '红点' },
+  { value: 'blueDot', label: '蓝点' },
+  { value: 'plain', label: '无标记' },
+];
+const POCKET_NET_DETAIL_OPTIONS = [
+  { value: 'off', label: '关闭' },
+  { value: 'low', label: '低' },
+  { value: 'high', label: '高' },
+];
+const ROOM_THEME_OPTIONS_V2 = [
+  { value: 'club', label: '经典俱乐部' },
+  { value: 'modern', label: '现代简约' },
+  { value: 'tournament', label: '赛事大厅' },
+  { value: 'minimal', label: '极简' },
+];
+const FLOOR_THEME_OPTIONS = [
+  { value: 'tile', label: '瓷砖' },
+  { value: 'wood', label: '木地板' },
+  { value: 'dark', label: '深色' },
+];
+const WALL_THEME_OPTIONS = [
+  { value: 'warm', label: '暖色' },
+  { value: 'neutral', label: '中性' },
+  { value: 'dark', label: '暗色' },
+];
+const LAMP_STYLE_OPTIONS = [
+  { value: 'classic', label: '经典' },
+  { value: 'modern', label: '现代' },
+  { value: 'tournament', label: '赛事' },
+];
+const AMBIENT_LIGHT_OPTIONS = [
+  { value: 'warm', label: '暖光' },
+  { value: 'neutral', label: '自然' },
+  { value: 'cool', label: '冷光' },
+];
+
 const SPEED_UNIT_OPTIONS = [
   { value: 'kph', label: '公里/小时' },
   { value: 'mph', label: '英里/小时' },
@@ -652,18 +732,48 @@ export class SettingsScreen {
 
   _buildAppearanceContent() {
     this._sectionTitle('外观');
-    this._sectionSubtitle('球桌、球体与视觉风格');
+    this._sectionSubtitle('球桌、球体与房间视觉风格');
 
-    this._rowSelect('球桌主题', TABLE_THEME_OPTIONS, settings.get('feltColorTheme'), (v) => settings.set('feltColorTheme', v));
-    this._rowSelect('球体风格', BALL_STYLE_OPTIONS, settings.get('ballStyle'), (v) => settings.set('ballStyle', v));
-    this._row('编号文字', this._createSwitch(settings.get('ballNumbers'), (v) => settings.set('ballNumbers', v)));
-    this._rowSelect('灯光风格', LIGHTING_STYLE_OPTIONS, settings.get('lightingStyle'), (v) => settings.set('lightingStyle', v));
-    this._rowSlider('灯光亮度', Math.round(settings.get('lightingIntensity') * 100), 30, 150, '%', (v) => settings.set('lightingIntensity', v / 100));
-    this._rowSlider('环境光', Math.round(settings.get('ambientIntensity') * 100), 0, 100, '%', (v) => settings.set('ambientIntensity', v / 100));
-    this._rowSelect('房间风格', ROOM_STYLE_OPTIONS, settings.get('roomStyle'), (v) => settings.set('roomStyle', v));
-    this._row('桌面反射', this._createSwitch(settings.get('tableReflection'), (v) => settings.set('tableReflection', v)));
-    this._row('球体反射', this._createSwitch(settings.get('ballReflection'), (v) => settings.set('ballReflection', v)));
-    this._row('景深效果', this._createSwitch(settings.get('depthOfField'), (v) => settings.set('depthOfField', v)));
+    // ── Table ──
+    const tableWrap = this._createCollapsible('球桌', true);
+    this._rowSelectIn(tableWrap, '整体主题', TABLE_THEME_OPTIONS_V2, settings.get('tableTheme'), (v) => settings.set('tableTheme', v));
+    this._rowSelectIn(tableWrap, '台呢颜色', FELT_THEME_OPTIONS, settings.get('feltTheme'), (v) => settings.set('feltTheme', v));
+    this._rowSelectIn(tableWrap, '木材风格', WOOD_THEME_OPTIONS, settings.get('woodTheme'), (v) => settings.set('woodTheme', v));
+    this._rowSelectIn(tableWrap, '金属包边', METAL_TRIM_OPTIONS, settings.get('metalTrimTheme'), (v) => settings.set('metalTrimTheme', v));
+    this._rowToggleIn(tableWrap, '台呢绒感', settings.get('clothNapEnabled'), (v) => settings.set('clothNapEnabled', v));
+    this._rowSliderIn(tableWrap, '台呢纹理强度', Math.round((settings.get('clothPatternStrength') ?? 0.35) * 100), 0, 100, '%', (v) => settings.set('clothPatternStrength', v / 100));
+    this._rowToggleIn(tableWrap, '磨损效果', settings.get('clothWearEnabled'), (v) => settings.set('clothWearEnabled', v));
+
+    // ── Balls ──
+    const ballWrap = this._createCollapsible('球', true);
+    this._rowSelectIn(ballWrap, '贴图质量', BALL_TEXTURE_QUALITY_OPTIONS, settings.get('ballTextureQuality'), (v) => settings.set('ballTextureQuality', v));
+    this._rowSelectIn(ballWrap, '号码大小', BALL_NUMBER_SIZE_OPTIONS, settings.get('ballNumberSize'), (v) => settings.set('ballNumberSize', v));
+    this._rowSelectIn(ballWrap, '号码对比度', BALL_NUMBER_CONTRAST_OPTIONS, settings.get('ballNumberContrast'), (v) => settings.set('ballNumberContrast', v));
+    this._rowSelectIn(ballWrap, '白球标记', CUE_BALL_MARK_OPTIONS, settings.get('cueBallMarkStyle'), (v) => settings.set('cueBallMarkStyle', v));
+
+    // ── Pockets ──
+    const pocketWrap = this._createCollapsible('袋口', true);
+    this._rowSelectIn(pocketWrap, '网袋细节', POCKET_NET_DETAIL_OPTIONS, settings.get('pocketNetDetail'), (v) => settings.set('pocketNetDetail', v));
+    this._rowSelectIn(pocketWrap, '皮革颜色', POCKET_LEATHER_OPTIONS, settings.get('pocketLeatherTheme'), (v) => settings.set('pocketLeatherTheme', v));
+
+    // ── Room ──
+    const roomWrap = this._createCollapsible('房间', true);
+    this._rowSelectIn(roomWrap, '房间主题', ROOM_THEME_OPTIONS_V2, settings.get('roomTheme'), (v) => settings.set('roomTheme', v));
+    this._rowSelectIn(roomWrap, '地板材质', FLOOR_THEME_OPTIONS, settings.get('floorTheme'), (v) => settings.set('floorTheme', v));
+    this._rowSelectIn(roomWrap, '墙壁色调', WALL_THEME_OPTIONS, settings.get('wallTheme'), (v) => settings.set('wallTheme', v));
+    this._rowToggleIn(roomWrap, '装饰道具', settings.get('decorativePropsEnabled'), (v) => settings.set('decorativePropsEnabled', v));
+    this._rowToggleIn(roomWrap, '墙面装饰', settings.get('wallDecorEnabled'), (v) => settings.set('wallDecorEnabled', v));
+    this._rowToggleIn(roomWrap, '植物', settings.get('plantsEnabled'), (v) => settings.set('plantsEnabled', v));
+    this._rowToggleIn(roomWrap, '天花板网格', settings.get('ceilingGridEnabled'), (v) => settings.set('ceilingGridEnabled', v));
+
+    // ── Lighting ──
+    const lightWrap = this._createCollapsible('灯光', true);
+    this._rowSelectIn(lightWrap, '灯具风格', LAMP_STYLE_OPTIONS, settings.get('lampStyle'), (v) => settings.set('lampStyle', v));
+    this._rowSelectIn(lightWrap, '环境光色调', AMBIENT_LIGHT_OPTIONS, settings.get('ambientLightTheme'), (v) => settings.set('ambientLightTheme', v));
+    this._rowSliderIn(lightWrap, '桌面灯光强度', Math.round((settings.get('tableLightIntensity') ?? 1.0) * 100), 20, 200, '%', (v) => settings.set('tableLightIntensity', v / 100));
+
+    // ── Cue (non-collapsible, quick access) ──
+    this._sectionTitle('球杆', true);
     this._rowSelect('球杆皮肤', CUE_THEME_OPTIONS, settings.get('cueTheme'), (v) => settings.set('cueTheme', v));
   }
 
@@ -1123,6 +1233,62 @@ export class SettingsScreen {
     left.style.cssText = 'font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.8);';
     row.appendChild(left);
     row.appendChild(this._createSwitch(checked, onChange));
+    container.appendChild(row);
+  }
+
+  _rowSelectIn(container, label, options, value, onChange) {
+    const row = document.createElement('div');
+    row.style.cssText = `
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+      gap: 12px;
+    `;
+    const left = document.createElement('span');
+    left.textContent = label;
+    left.style.cssText = 'font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.8); flex-shrink: 0;';
+    row.appendChild(left);
+
+    const pills = document.createElement('div');
+    pills.style.cssText = 'display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;';
+    const btns = [];
+    options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.textContent = opt.label;
+      const active = opt.value === value;
+      btn.dataset.active = active ? 'true' : '';
+      btn.style.cssText = `
+        padding: 5px 12px; border-radius: 999px;
+        background: ${active ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.05)'};
+        border: 1px solid ${active ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'};
+        color: ${active ? '#fff' : 'rgba(255,255,255,0.55)'};
+        font-size: 12px; font-weight: 600; cursor: pointer;
+        transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+      `;
+      btn.onmouseenter = () => {
+        if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.1)';
+      };
+      btn.onmouseleave = () => {
+        if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.05)';
+      };
+      const clickFn = () => {
+        btns.forEach(b => {
+          b.dataset.active = '';
+          b.style.background = 'rgba(255,255,255,0.05)';
+          b.style.borderColor = 'rgba(255,255,255,0.1)';
+          b.style.color = 'rgba(255,255,255,0.55)';
+        });
+        btn.dataset.active = 'true';
+        btn.style.background = 'rgba(255,255,255,0.14)';
+        btn.style.borderColor = 'rgba(255,255,255,0.2)';
+        btn.style.color = '#fff';
+        onChange(opt.value);
+      };
+      btn.addEventListener('click', clickFn);
+      this._listeners.push({ el: btn, type: 'click', fn: clickFn });
+      btns.push(btn);
+      pills.appendChild(btn);
+    });
+    row.appendChild(pills);
     container.appendChild(row);
   }
 

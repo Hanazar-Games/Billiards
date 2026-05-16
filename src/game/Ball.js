@@ -12,7 +12,7 @@ export class Ball {
     this.geometry = new THREE.SphereGeometry(BALL.radius, BALL.segments, BALL.segments);
 
     if (type === BALL_TYPE.CUE) {
-      const texture = this._createCueBallTexture();
+      const texture = this._createCueBallTexture('redDot');
       this.material = new THREE.MeshStandardMaterial({
         map: texture,
         roughness: 0.05,
@@ -47,16 +47,40 @@ export class Ball {
     // Lock Y position (balls shouldn't fly or sink into table)
     this.body.linearFactor = new CANNON.Vec3(1, 0, 1);
     this.body.angularFactor = new CANNON.Vec3(1, 1, 1);
+
+    this._cachedColor = color;
+  }
+
+  /**
+   * Regenerate textures based on visual settings.
+   * Old textures are disposed to avoid memory leaks.
+   */
+  updateVisualSettings(settings) {
+    const quality = settings.get('ballTextureQuality') || 'high';
+    const size = settings.get('ballNumberSize') || 'normal';
+    const contrast = settings.get('ballNumberContrast') || 'normal';
+    const markStyle = settings.get('cueBallMarkStyle') || 'redDot';
+
+    // Dispose old texture
+    if (this.material.map) {
+      this.material.map.dispose();
+      this.material.map = null;
+    }
+
+    if (this.type === BALL_TYPE.CUE) {
+      this.material.map = this._createCueBallTexture(markStyle, quality);
+    } else {
+      this.material.map = this.createBallTexture(this.id, this._cachedColor, this.type, quality, size, contrast);
+    }
+    this.material.needsUpdate = true;
   }
 
   /**
    * Generate a high-resolution equirectangular texture for a numbered ball.
-   * Standard pool balls have a white circular spot (~45% of ball diameter)
-   * with the number printed inside.
    */
-  createBallTexture(id, color, type) {
-    const W = 1024;
-    const H = 512;
+  createBallTexture(id, color, type, quality = 'high', numberSize = 'normal', contrast = 'normal') {
+    const W = quality === 'high' ? 1024 : 512;
+    const H = quality === 'high' ? 512 : 256;
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
@@ -65,33 +89,30 @@ export class Ball {
 
     // ── Base colour ──
     if (type === BALL_TYPE.STRIPE) {
-      // Stripe: white base with a wide coloured band around the equator
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, W, H);
 
-      // Coloured stripe covers the middle ~40% of the ball height
       const bandTop = Math.round(H * 0.30);
       const bandH = Math.round(H * 0.40);
       ctx.fillStyle = hexColor;
       ctx.fillRect(0, bandTop, W, bandH);
     } else {
-      // Solid (including 8-ball): uniform colour
       ctx.fillStyle = hexColor;
       ctx.fillRect(0, 0, W, H);
     }
 
     // ── White spot + number ──
-    this._drawBallSpot(ctx, id, type, W, H);
+    this._drawBallSpot(ctx, id, type, W, H, numberSize, contrast);
 
     const texture = new THREE.CanvasTexture(canvas);
-    texture.anisotropy = 16;
+    texture.anisotropy = quality === 'high' ? 16 : 8;
     texture.colorSpace = THREE.SRGBColorSpace;
     return texture;
   }
 
-  _createCueBallTexture() {
-    const W = 1024;
-    const H = 512;
+  _createCueBallTexture(markStyle = 'redDot', quality = 'high') {
+    const W = quality === 'high' ? 1024 : 512;
+    const H = quality === 'high' ? 512 : 256;
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
@@ -101,13 +122,20 @@ export class Ball {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, W, H);
 
+    if (markStyle === 'plain') {
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.anisotropy = quality === 'high' ? 16 : 8;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      return texture;
+    }
+
     const cx = W / 2;
     const cy = H / 2;
-
-    // Red dot in the centre — standard cue-ball target spot
     const dotR = Math.round(H * 0.065);
+    const dotColor = markStyle === 'blueDot' ? '#2563eb' : '#d62828';
+    const ringColor = markStyle === 'blueDot' ? 'rgba(30,80,180,0.45)' : 'rgba(180,30,30,0.45)';
+    const highlightColor = markStyle === 'blueDot' ? 'rgba(200,220,255,0.35)' : 'rgba(255,255,255,0.35)';
 
-    // Soft shadow under the dot
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.25)';
     ctx.shadowBlur = 6;
@@ -116,62 +144,55 @@ export class Ball {
 
     ctx.beginPath();
     ctx.arc(cx, cy, dotR, 0, Math.PI * 2);
-    ctx.fillStyle = '#d62828';
+    ctx.fillStyle = dotColor;
     ctx.fill();
     ctx.restore();
 
-    // Highlight for 3D feel
     ctx.beginPath();
     ctx.arc(cx - dotR * 0.25, cy - dotR * 0.25, dotR * 0.35, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillStyle = highlightColor;
     ctx.fill();
 
-    // Thin ring around the dot
     ctx.beginPath();
     ctx.arc(cx, cy, dotR, 0, Math.PI * 2);
     ctx.lineWidth = Math.max(1, Math.round(dotR * 0.08));
-    ctx.strokeStyle = 'rgba(180,30,30,0.45)';
+    ctx.strokeStyle = ringColor;
     ctx.stroke();
 
     const texture = new THREE.CanvasTexture(canvas);
-    texture.anisotropy = 16;
+    texture.anisotropy = quality === 'high' ? 16 : 8;
     texture.colorSpace = THREE.SRGBColorSpace;
     return texture;
   }
 
-  _drawBallSpot(ctx, id, type, W, H) {
-    // The spot sits on the "front" face of the ball (u=0.5, v=0.5).
-    // In equirectangular projection a small circle on the equator projects
-    // almost perfectly to a circle in texture space.
+  _drawBallSpot(ctx, id, type, W, H, numberSize = 'normal', contrast = 'normal') {
     const cx = W / 2;
     const cy = H / 2;
 
-    // Spot angular radius ≈ 26° (standard pool-ball spot is ~45% of ball diameter).
-    // 26° / 180° * H ≈ 0.144 * H pixels in the vertical direction.
-    const spotR = Math.round(H * 0.144);
+    const sizeMultipliers = { small: 0.11, normal: 0.144, large: 0.18 };
+    const spotR = Math.round(H * (sizeMultipliers[numberSize] || 0.144));
 
-    // Slight shadow under the spot for depth
+    const shadowAlpha = contrast === 'high' ? 0.50 : 0.35;
+    const ringAlpha = contrast === 'high' ? 0.22 : 0.12;
+
     ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.35)';
+    ctx.shadowColor = `rgba(0,0,0,${shadowAlpha})`;
     ctx.shadowBlur = 8;
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 2;
 
-    // White circle
     ctx.beginPath();
     ctx.arc(cx, cy, spotR, 0, Math.PI * 2);
     ctx.fillStyle = '#ffffff';
     ctx.fill();
     ctx.restore();
 
-    // Thin ring outline
     ctx.beginPath();
     ctx.arc(cx, cy, spotR, 0, Math.PI * 2);
     ctx.lineWidth = Math.max(1, Math.round(spotR * 0.04));
-    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+    ctx.strokeStyle = `rgba(0,0,0,${ringAlpha})`;
     ctx.stroke();
 
-    // Number text
     const isEight = id === 8;
     const textColor = isEight ? '#000000' : '#000000';
     const fontSize = Math.round(spotR * 1.05);
@@ -180,7 +201,6 @@ export class Ball {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Slight vertical nudge so the digit sits optically centred
     ctx.fillText(String(id), cx, cy + fontSize * 0.06);
   }
 

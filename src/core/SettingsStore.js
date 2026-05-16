@@ -53,20 +53,43 @@ const DEFAULTS = {
 
   // ── Visual Appearance ──
   cueTheme: 'default',
-  feltColorTheme: 'classic', // 'classic' | 'blue' | 'red' | 'black' | 'purple' | 'wood'
-  woodColorTheme: 'classic', // 'classic' | 'dark' | 'light' | 'walnut'
-  ballStyle: 'standard', // 'standard' | 'glossy' | 'matte' | 'neon' | 'retro'
+  // New modelling / appearance system (Phase 1)
+  tableTheme: 'classic', // 'classic' | 'blackGold' | 'blueTournament' | 'redClub' | 'minimal'
+  feltTheme: 'classicGreen', // 'classicGreen' | 'blue' | 'red' | 'black' | 'purple'
+  woodTheme: 'darkWalnut', // 'classic' | 'darkWalnut' | 'lightOak' | 'blackLacquer'
+  metalTrimTheme: 'nickel', // 'nickel' | 'gold' | 'blackChrome'
+  clothNapEnabled: true,
+  clothPatternStrength: 0.35,
+  clothWearEnabled: true,
+  ballTextureQuality: 'high', // 'medium' | 'high'
+  ballNumberSize: 'normal', // 'small' | 'normal' | 'large'
+  ballNumberContrast: 'normal', // 'normal' | 'high'
+  cueBallMarkStyle: 'redDot', // 'redDot' | 'blueDot' | 'plain'
+  pocketNetDetail: 'high', // 'off' | 'low' | 'high'
+  pocketLeatherTheme: 'brown', // 'black' | 'brown' | 'darkRed'
+  roomTheme: 'club', // 'club' | 'modern' | 'tournament' | 'minimal'
+  floorTheme: 'tile', // 'tile' | 'wood' | 'dark'
+  wallTheme: 'warm', // 'warm' | 'neutral' | 'dark'
+  decorativePropsEnabled: true,
+  wallDecorEnabled: true,
+  plantsEnabled: true,
+  ceilingGridEnabled: true,
+  lampStyle: 'classic', // 'classic' | 'modern' | 'tournament'
+  ambientLightTheme: 'warm', // 'warm' | 'neutral' | 'cool'
+  tableLightIntensity: 1.0,
+  // Legacy appearance keys (kept for backward compatibility, migrated where applicable)
+  feltColorTheme: 'classic',
+  woodColorTheme: 'classic',
+  ballStyle: 'standard',
   ballNumbers: true,
-  lightingStyle: 'warm', // 'warm' | 'cool' | 'neutral' | 'dramatic' | 'studio'
+  lightingStyle: 'warm',
   lightingIntensity: 1.0,
   ambientIntensity: 0.5,
-  roomStyle: 'classic', // 'classic' | 'modern' | 'pub' | 'neon' | 'outdoor'
+  roomStyle: 'classic',
   tableReflection: true,
   ballReflection: true,
   depthOfField: false,
-  ballNumberSize: 'normal', // 'small' | 'normal' | 'large'
-  ballNumberContrast: 'normal', // 'normal' | 'high'
-  colorBlindMode: 'off', // 'off' | 'protanopia' | 'deuteranopia' | 'tritanopia'
+  colorBlindMode: 'off',
   pocketHighlightEnabled: true,
   cushionHighlightEnabled: false,
   cueOpacity: 1.0,

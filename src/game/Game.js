@@ -166,9 +166,11 @@ export class Game {
 
     this.table = new Table(this.physics);
     this.table.addToScene(this.scene);
+    this.table.applyVisualSettings(settings);
 
     this.room = new Room();
     this.room.addToScene(this.scene);
+    this.room.applyVisualSettings(settings);
 
     this.ballsManager = new BallsManager(this.physics);
     this.ballsManager.createBalls();
@@ -176,6 +178,10 @@ export class Game {
     this.ballsManager.rackBalls(rackMode);
     this._wireBallsManagerEvents();
     this.ballsManager.addToScene(this.scene);
+    // Apply ball visual settings after creation
+    for (const ball of this.ballsManager.balls) {
+      ball.updateVisualSettings(settings);
+    }
 
     this.input = new InputHandler(this.renderer.renderer.domElement);
     this.input.onMouseMove = () => this.onMouseMove();
@@ -1354,6 +1360,9 @@ export class Game {
     this._wireBallsManagerEvents();
     this.ballsManager.addToScene(this.scene);
     this.setupCollisionEvents();
+    for (const ball of this.ballsManager.balls) {
+      ball.updateVisualSettings(settings);
+    }
 
     this.rules.reset();
     this.statsTracker.reset();
@@ -2172,6 +2181,39 @@ export class Game {
       case 'lowLatencyMode':
         // Requires AudioManager re-init; shown as tooltip in UI
         break;
+      case 'tableTheme':
+      case 'feltTheme':
+      case 'woodTheme':
+      case 'metalTrimTheme':
+      case 'clothNapEnabled':
+      case 'clothPatternStrength':
+      case 'clothWearEnabled':
+      case 'pocketNetDetail':
+      case 'pocketLeatherTheme':
+        if (this.table) this.table.applyVisualSettings(settings);
+        break;
+      case 'ballTextureQuality':
+      case 'ballNumberSize':
+      case 'ballNumberContrast':
+      case 'cueBallMarkStyle':
+        if (this.ballsManager) {
+          for (const ball of this.ballsManager.balls) {
+            ball.updateVisualSettings(settings);
+          }
+        }
+        break;
+      case 'roomTheme':
+      case 'floorTheme':
+      case 'wallTheme':
+      case 'decorativePropsEnabled':
+      case 'wallDecorEnabled':
+      case 'plantsEnabled':
+      case 'ceilingGridEnabled':
+      case 'lampStyle':
+      case 'ambientLightTheme':
+      case 'tableLightIntensity':
+        if (this.room) this.room.applyVisualSettings(settings);
+        break;
       case 'feltColorTheme':
       case 'ballStyle':
       case 'ballNumbers':
@@ -2181,7 +2223,7 @@ export class Game {
       case 'depthOfField':
       case 'lightingStyle':
       case 'woodColorTheme':
-        // Appearance params are read live by Table / Room / BallsManager where implemented
+        // Legacy appearance params are read live by Table / Room / BallsManager where implemented
         break;
       case 'postProcess':
       case 'bloom':

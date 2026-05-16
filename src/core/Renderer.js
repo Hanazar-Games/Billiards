@@ -124,6 +124,18 @@ export class Renderer {
       }
     };
     window.addEventListener('settingsChanged', this._onSettingsChanged);
+
+    this._onRoomThemeChanged = (e) => {
+      const detail = e.detail || {};
+      if (this._ambientLight && detail.ambientColor != null) {
+        this._ambientLight.color.setHex(detail.ambientColor);
+      }
+      if (this._ambientLight && detail.ambientIntensity != null) {
+        const baseIntensity = settings.get('ambientIntensity') ?? 0.5;
+        this._ambientLight.intensity = detail.ambientIntensity * baseIntensity;
+      }
+    };
+    window.addEventListener('roomThemeChanged', this._onRoomThemeChanged);
   }
 
   setupLights() {
@@ -411,6 +423,7 @@ export class Renderer {
     window.removeEventListener('pointerup', this._onCameraPointerUp);
     this.renderer.domElement.removeEventListener('wheel', this._onWheel, { passive: false });
     window.removeEventListener('settingsChanged', this._onSettingsChanged);
+    window.removeEventListener('roomThemeChanged', this._onRoomThemeChanged);
     if (this.controls) {
       this.controls.dispose();
     }
