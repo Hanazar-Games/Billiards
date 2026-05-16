@@ -889,9 +889,13 @@ export class Table {
   // ── Theme application ──
 
   applyVisualSettings(settings) {
+    // Legacy-to-V2 mapping fallbacks
+    const legacyFeltMap = { classic: 'classicGreen', blue: 'blue', red: 'red', black: 'black', purple: 'purple' };
+    const legacyWoodMap = { classic: 'classic', dark: 'darkWalnut', light: 'lightOak', black: 'blackLacquer' };
+
     const tableThemeId = settings.get('tableTheme') || 'classic';
-    const feltThemeId = settings.get('feltTheme') || 'classicGreen';
-    const woodThemeId = settings.get('woodTheme') || 'darkWalnut';
+    const feltThemeId = settings.get('feltTheme') || legacyFeltMap[settings.get('feltColorTheme')] || 'classicGreen';
+    const woodThemeId = settings.get('woodTheme') || legacyWoodMap[settings.get('woodColorTheme')] || 'classic';
     const metalThemeId = settings.get('metalTrimTheme') || 'nickel';
     const leatherThemeId = settings.get('pocketLeatherTheme') || 'brown';
 
@@ -905,6 +909,8 @@ export class Table {
     const wood = WOOD_THEMES[woodKey] || WOOD_THEMES.classic;
     const metal = METAL_TRIM_THEMES[metalKey] || METAL_TRIM_THEMES.nickel;
     const leather = POCKET_LEATHER_THEMES[leatherThemeId] || POCKET_LEATHER_THEMES.brown;
+
+    const tableReflection = settings.get('tableReflection') !== false;
 
     // Apply felt colors
     applyMaterialTheme(this._materials.felt, felt.felt);
@@ -940,6 +946,30 @@ export class Table {
     applyMaterialTheme(this._materials.leather, leather.leather);
     applyMaterialTheme(this._materials.net, leather.net);
     applyMaterialTheme(this._materials.chain, leather.chain);
+
+    // Reflection toggle: dull reflective surfaces when disabled
+    if (!tableReflection) {
+      const dullReflective = (mat) => {
+        if (!mat) return;
+        mat.metalness = Math.max(0, mat.metalness - 0.25);
+        mat.roughness = Math.min(1, mat.roughness + 0.18);
+      };
+      dullReflective(this._materials.rail);
+      dullReflective(this._materials.round);
+      dullReflective(this._materials.railBevel);
+      dullReflective(this._materials.topInsert);
+      dullReflective(this._materials.trim);
+      dullReflective(this._materials.bracket);
+      dullReflective(this._materials.nickel);
+      dullReflective(this._materials.seam);
+      dullReflective(this._materials.capNickel);
+      dullReflective(this._materials.leveler);
+      dullReflective(this._materials.apronNickel);
+      dullReflective(this._materials.stretcherNickel);
+      dullReflective(this._materials.badge);
+      dullReflective(this._materials.casting);
+      dullReflective(this._materials.sight);
+    }
 
     // Show/hide cloth nap
     if (this._themeMeshes.nap) {

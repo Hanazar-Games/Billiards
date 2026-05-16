@@ -452,7 +452,8 @@ export class SettingsScreen {
       this._createSwitch(settings.get('trajectoryEnabled'), (v) => {
         settings.set('trajectoryEnabled', v);
         window.dispatchEvent(new CustomEvent('toggleTrajectory', { detail: v }));
-      })
+      }),
+      '联机/竞技模式可能由房主统一锁定'
     );
 
     this._row('粒子效果',
@@ -562,7 +563,7 @@ export class SettingsScreen {
 
     // ── Shot & aim sensitivity (expandable) ──
     const shotWrap = this._createCollapsible('击球与瞄准灵敏度', true);
-    this._rowSliderIn(shotWrap, '击球力度灵敏度', Math.round(settings.get('shotPowerSens') * 100), 50, 200, '%', (v) => settings.set('shotPowerSens', v / 100));
+    this._rowSliderIn(shotWrap, '击球力度灵敏度', Math.round(settings.get('shotPowerSens') * 100), 50, 200, '%', (v) => settings.set('shotPowerSens', v / 100), '联机/竞技模式可能由房主统一锁定');
     this._rowSliderIn(shotWrap, '瞄准响应速度', Math.round(settings.get('aimSens') * 100), 50, 200, '%', (v) => settings.set('aimSens', v / 100));
     this._rowSliderIn(shotWrap, '球杆旋转步长', Math.round(settings.get('spinStepSens') * 100), 30, 200, '%', (v) => settings.set('spinStepSens', v / 100));
     this._rowSliderIn(shotWrap, '触控板灵敏度', Math.round(settings.get('trackpadSens') * 100), 30, 200, '%', (v) => settings.set('trackpadSens', v / 100));
@@ -746,7 +747,9 @@ export class SettingsScreen {
 
     // ── Balls ──
     const ballWrap = this._createCollapsible('球', true);
+    this._rowSelectIn(ballWrap, '球体风格', BALL_STYLE_OPTIONS, settings.get('ballStyle'), (v) => settings.set('ballStyle', v));
     this._rowSelectIn(ballWrap, '贴图质量', BALL_TEXTURE_QUALITY_OPTIONS, settings.get('ballTextureQuality'), (v) => settings.set('ballTextureQuality', v));
+    this._rowToggleIn(ballWrap, '显示号码', settings.get('ballNumbers'), (v) => settings.set('ballNumbers', v));
     this._rowSelectIn(ballWrap, '号码大小', BALL_NUMBER_SIZE_OPTIONS, settings.get('ballNumberSize'), (v) => settings.set('ballNumberSize', v));
     this._rowSelectIn(ballWrap, '号码对比度', BALL_NUMBER_CONTRAST_OPTIONS, settings.get('ballNumberContrast'), (v) => settings.set('ballNumberContrast', v));
     this._rowSelectIn(ballWrap, '白球标记', CUE_BALL_MARK_OPTIONS, settings.get('cueBallMarkStyle'), (v) => settings.set('cueBallMarkStyle', v));
@@ -799,7 +802,7 @@ export class SettingsScreen {
     this._sectionTitle('界面');
     this._sectionSubtitle('HUD、小地图与信息显示');
 
-    this._row('显示小地图', this._createSwitch(settings.get('minimapEnabled'), (v) => settings.set('minimapEnabled', v)));
+    this._row('显示小地图', this._createSwitch(settings.get('minimapEnabled'), (v) => settings.set('minimapEnabled', v)), '联机/竞技模式可能由房主统一锁定');
     this._rowSlider('小地图尺寸', settings.get('minimapSize'), 80, 260, 'px', (v) => settings.set('minimapSize', v));
     this._rowSlider('小地图透明度', Math.round(settings.get('minimapOpacity') * 100), 20, 100, '%', (v) => settings.set('minimapOpacity', v / 100));
     this._rowSelect('小地图位置', MINIMAP_POS_OPTIONS, settings.get('minimapPosition'), (v) => settings.set('minimapPosition', v));
@@ -808,12 +811,12 @@ export class SettingsScreen {
     this._row('显示旋转指示', this._createSwitch(settings.get('showSpinIndicator'), (v) => settings.set('showSpinIndicator', v)));
     this._row('显示剩余球数', this._createSwitch(settings.get('showRemainingBalls'), (v) => settings.set('showRemainingBalls', v)));
     this._row('显示连击计数', this._createSwitch(settings.get('showComboCounter'), (v) => settings.set('showComboCounter', v)));
-    this._row('显示准星', this._createSwitch(settings.get('showCrosshair'), (v) => settings.set('showCrosshair', v)));
+    this._row('显示准星', this._createSwitch(settings.get('showCrosshair'), (v) => settings.set('showCrosshair', v)), '联机/竞技模式可能由房主统一锁定');
     this._row('显示击球统计', this._createSwitch(settings.get('statsPanelEnabled'), (v) => settings.set('statsPanelEnabled', v)));
     this._rowSlider('UI 缩放', Math.round(settings.get('hudScale') * 100), 50, 200, '%', (v) => settings.set('hudScale', v / 100));
     this._rowSelect('计时器位置', TIMER_POS_OPTIONS, settings.get('timerPosition'), (v) => settings.set('timerPosition', v));
     this._row('显示 FPS', this._createSwitch(settings.get('showFPS'), (v) => settings.set('showFPS', v)));
-    this._rowSelect('回合计时器', TURN_TIMER_OPTIONS, settings.get('turnTimer'), (v) => settings.set('turnTimer', v));
+    this._rowSelect('回合计时器', TURN_TIMER_OPTIONS, settings.get('turnTimer'), (v) => settings.set('turnTimer', v), '联机/竞技模式可能由房主统一锁定');
   }
 
   _buildReplayContent() {
@@ -824,7 +827,7 @@ export class SettingsScreen {
     this._rowSlider('最大回放数', settings.get('replayMaxSaved'), 5, 50, '', (v) => settings.set('replayMaxSaved', v));
     this._row('显示击球数据', this._createSwitch(settings.get('showShotData'), (v) => settings.set('showShotData', v)));
     this._row('显示热力图', this._createSwitch(settings.get('showHeatmap'), (v) => settings.set('showHeatmap', v)));
-    this._row('显示胜率预测', this._createSwitch(settings.get('showWinProbability'), (v) => settings.set('showWinProbability', v)));
+    this._row('显示胜率预测', this._createSwitch(settings.get('showWinProbability'), (v) => settings.set('showWinProbability', v)), '联机/竞技模式可能由房主统一锁定');
     this._row('显示详细统计', this._createSwitch(settings.get('showDetailedStats'), (v) => settings.set('showDetailedStats', v)));
     this._row('击球历史追踪', this._createSwitch(settings.get('shotHistoryTracking'), (v) => settings.set('shotHistoryTracking', v)));
     this._rowSlider('回放速度', Math.round(settings.get('replaySpeed') * 100), 25, 200, '%', (v) => settings.set('replaySpeed', v / 100));
@@ -841,8 +844,8 @@ export class SettingsScreen {
     this._row('减弱动态效果', this._createSwitch(settings.get('reducedMotion'), (v) => settings.set('reducedMotion', v)));
     this._row('单手柄模式', this._createSwitch(settings.get('singleHandMode'), (v) => settings.set('singleHandMode', v)));
     this._row('左撇子模式', this._createSwitch(settings.get('leftHandMode'), (v) => settings.set('leftHandMode', v)));
-    this._row('自动提示', this._createSwitch(settings.get('autoHints'), (v) => settings.set('autoHints', v)));
-    this._rowSlider('提示频率', settings.get('hintFrequency'), 1, 5, '级', (v) => settings.set('hintFrequency', v));
+    this._row('自动提示', this._createSwitch(settings.get('autoHints'), (v) => settings.set('autoHints', v)), '联机/竞技模式可能由房主统一锁定');
+    this._rowSlider('提示频率', settings.get('hintFrequency'), 1, 5, '级', (v) => settings.set('hintFrequency', v), '联机/竞技模式可能由房主统一锁定');
     this._row('击球确认', this._createSwitch(settings.get('confirmShotOnRelease'), (v) => settings.set('confirmShotOnRelease', v)));
     this._row('语音播报', this._createSwitch(settings.get('voiceAnnounce'), (v) => settings.set('voiceAnnounce', v)));
     this._row('音效可视化', this._createSwitch(settings.get('soundCueVisualHints'), (v) => settings.set('soundCueVisualHints', v)));
@@ -871,13 +874,18 @@ export class SettingsScreen {
     this._sectionSubtitle('个人化的游戏行为设置');
     this._row('快速发球', this._createSwitch(settings.get('quickBreak'), (v) => settings.set('quickBreak', v)));
     this._row('自动跳过动画', this._createSwitch(settings.get('autoSkipAnimation'), (v) => settings.set('autoSkipAnimation', v)));
-    this._row('跳过对手回合', this._createSwitch(settings.get('skipOpponentTurn'), (v) => settings.set('skipOpponentTurn', v)));
-    this._row('显示对手轨迹', this._createSwitch(settings.get('showOpponentTrajectory'), (v) => settings.set('showOpponentTrajectory', v)));
+    this._row('跳过对手回合', this._createSwitch(settings.get('skipOpponentTurn'), (v) => settings.set('skipOpponentTurn', v)), '联机/竞技模式可能由房主统一锁定');
+    this._row('显示对手轨迹', this._createSwitch(settings.get('showOpponentTrajectory'), (v) => settings.set('showOpponentTrajectory', v)), '联机/竞技模式可能由房主统一锁定');
     this._rowSelect('语言', LANGUAGE_OPTIONS, settings.get('language'), (v) => settings.set('language', v));
     this._rowSelect('距离单位', UNIT_OPTIONS, settings.get('unitSystem'), (v) => settings.set('unitSystem', v));
     this._rowSelect('速度单位', SPEED_UNIT_OPTIONS, settings.get('speedUnit'), (v) => settings.set('speedUnit', v));
-    this._row('显示物理调试', this._createSwitch(settings.get('showPhysicsDebug'), (v) => settings.set('showPhysicsDebug', v)));
-    this._row('开发者模式', this._createSwitch(settings.get('devMode'), (v) => settings.set('devMode', v)));
+    if (settings.get('devMode')) {
+      this._row('显示物理调试', this._createSwitch(settings.get('showPhysicsDebug'), (v) => settings.set('showPhysicsDebug', v)));
+    }
+    this._row('开发者模式', this._createSwitch(settings.get('devMode'), (v) => {
+      settings.set('devMode', v);
+      this._syncAllControls();
+    }));
 
     // ── Import / Export ──
     this._sectionTitle('配置管理', true);
@@ -1204,16 +1212,25 @@ export class SettingsScreen {
     this._contentArea.appendChild(row);
   }
 
-  _rowSliderIn(container, label, value, min, max, unit, onChange) {
+  _rowSliderIn(container, label, value, min, max, unit, onChange, tooltip = '') {
     const row = document.createElement('div');
     row.style.cssText = `
       display: flex; justify-content: space-between; align-items: center;
       padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
       gap: 16px;
     `;
-    const left = document.createElement('span');
-    left.textContent = label;
-    left.style.cssText = 'font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.8); flex-shrink: 0;';
+    const left = document.createElement('div');
+    left.style.cssText = 'display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;';
+    const lbl = document.createElement('span');
+    lbl.textContent = label;
+    lbl.style.cssText = 'font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.8);';
+    left.appendChild(lbl);
+    if (tooltip) {
+      const tip = document.createElement('span');
+      tip.textContent = tooltip;
+      tip.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.35);';
+      left.appendChild(tip);
+    }
     row.appendChild(left);
     const slider = this._createSlider(value, min, max, unit, onChange);
     slider.style.flex = '1';
@@ -1222,15 +1239,24 @@ export class SettingsScreen {
     container.appendChild(row);
   }
 
-  _rowToggleIn(container, label, checked, onChange) {
+  _rowToggleIn(container, label, checked, onChange, tooltip = '') {
     const row = document.createElement('div');
     row.style.cssText = `
       display: flex; justify-content: space-between; align-items: center;
       padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
     `;
-    const left = document.createElement('span');
-    left.textContent = label;
-    left.style.cssText = 'font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.8);';
+    const left = document.createElement('div');
+    left.style.cssText = 'display: flex; flex-direction: column; gap: 2px;';
+    const lbl = document.createElement('span');
+    lbl.textContent = label;
+    lbl.style.cssText = 'font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.8);';
+    left.appendChild(lbl);
+    if (tooltip) {
+      const tip = document.createElement('span');
+      tip.textContent = tooltip;
+      tip.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.35);';
+      left.appendChild(tip);
+    }
     row.appendChild(left);
     row.appendChild(this._createSwitch(checked, onChange));
     container.appendChild(row);
@@ -1351,16 +1377,25 @@ export class SettingsScreen {
     container.appendChild(row);
   }
 
-  _rowSelect(label, options, value, onChange) {
+  _rowSelect(label, options, value, onChange, tooltip = '') {
     const row = document.createElement('div');
     row.style.cssText = `
       display: flex; justify-content: space-between; align-items: center;
       padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
     `;
+    const left = document.createElement('div');
+    left.style.cssText = 'display: flex; flex-direction: column; gap: 2px;';
     const lbl = document.createElement('span');
     lbl.textContent = label;
     lbl.style.cssText = 'font-size: 15px; font-weight: 500; color: rgba(255,255,255,0.85);';
-    row.appendChild(lbl);
+    left.appendChild(lbl);
+    if (tooltip) {
+      const tip = document.createElement('span');
+      tip.textContent = tooltip;
+      tip.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.35);';
+      left.appendChild(tip);
+    }
+    row.appendChild(left);
 
     const pills = document.createElement('div');
     pills.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap;';

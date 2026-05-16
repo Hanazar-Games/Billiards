@@ -73,7 +73,6 @@ export class ShotTrailSystem {
     if (!this.enabled || !this.currentTrail || !ball) return;
     if (ball.pocketed || !ball.mesh || !ball.mesh.visible) return;
 
-    if (!ball.mesh) return;
     const pos = ball.mesh.position;
     // Sanity guard: removed balls are teleported to y = -1000
     if (pos.y < -50) return;

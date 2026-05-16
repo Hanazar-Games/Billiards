@@ -80,6 +80,10 @@ export class PowerLabel {
   }
 
   _tick = () => {
+    if (!this.el) {
+      this._animId = null;
+      return;
+    }
     const elapsed = performance.now() - this._startTime;
     const p = Math.min(elapsed / this._duration, 1.0);
 

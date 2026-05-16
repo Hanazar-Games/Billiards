@@ -1,5 +1,6 @@
 import { settings } from '../core/SettingsStore.js';
 import { animMs } from '../core/AnimSpeed.js';
+import { UIText } from '../core/UIText.js';
 
 
 export class UI {
@@ -14,7 +15,6 @@ export class UI {
     this._aiListeners = [];
     this._flashTimer = null;
     this._pauseHideTimer = null;
-    this._settingsHideTimer = null;
     this._floatTimers = [];
     this._lastTimerSec = null;
     this._lastTurnTimerSec = null;
@@ -189,219 +189,6 @@ export class UI {
     this.pauseOverlay.appendChild(pausePanel);
     document.body.appendChild(this.pauseOverlay);
 
-    // ── In-Game Settings Overlay ──
-    this.settingsOverlay = document.createElement('div');
-    this.settingsOverlay.style.cssText = `
-      position: fixed; inset: 0; z-index: 60;
-      background: rgba(0,0,0,0.65);
-      backdrop-filter: blur(8px);
-      display: none; align-items: center; justify-content: center;
-      opacity: 0; transition: opacity calc(0.3s / var(--ui-anim-speed)) ease;
-    `;
-
-    const settingsPanel = document.createElement('div');
-    settingsPanel.style.cssText = `
-      width: min(520px, 92vw); max-height: min(580px, 80vh);
-      background: #161616;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 20px;
-      display: flex; flex-direction: column;
-      overflow: hidden;
-      box-shadow: 0 40px 100px rgba(0,0,0,0.6);
-    `;
-
-    const settingsHeader = document.createElement('div');
-    settingsHeader.style.cssText = `
-      display: flex; align-items: center; gap: 14px;
-      padding: 18px 20px 14px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      flex-shrink: 0;
-    `;
-    const settingsBack = document.createElement('button');
-    settingsBack.textContent = '←';
-    settingsBack.style.cssText = `
-      width: 38px; height: 38px; border-radius: 8px;
-      background: rgba(255,255,255,0.06); border: 1px solid var(--line);
-      color: var(--text); font-size: 16px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all calc(0.2s / var(--ui-anim-speed)) ease; flex-shrink: 0;
-    `;
-    settingsBack.onmouseenter = () => {
-      settingsBack.style.background = 'rgba(255,255,255,0.12)';
-      settingsBack.style.borderColor = 'var(--line-strong)';
-    };
-    settingsBack.onmouseleave = () => {
-      settingsBack.style.background = 'rgba(255,255,255,0.06)';
-      settingsBack.style.borderColor = 'var(--line)';
-    };
-    this._settingsBackBtn = settingsBack;
-    settingsHeader.appendChild(settingsBack);
-
-    const settingsTitle = document.createElement('div');
-    settingsTitle.textContent = '设置';
-    settingsTitle.style.cssText = `
-      font-size: 18px; font-weight: 700; color: #fff;
-      letter-spacing: 0.5px;
-    `;
-    settingsHeader.appendChild(settingsTitle);
-    settingsPanel.appendChild(settingsHeader);
-
-    this._inGameSettingCards = [];
-
-    const settingsContent = document.createElement('div');
-    settingsContent.style.cssText = `
-      flex: 1; overflow-y: auto;
-      padding: 8px 20px 20px;
-    `;
-
-    const createCard = (title, subtitle, control) => {
-      const card = document.createElement('div');
-      card.style.cssText = `
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 13px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
-        gap: 16px;
-      `;
-      const text = document.createElement('div');
-      text.style.cssText = 'display:flex;flex-direction:column;gap:1px;min-width:0;';
-      const t = document.createElement('div');
-      t.textContent = title;
-      t.style.cssText = 'font-size:14px;font-weight:600;color:rgba(255,255,255,0.85);white-space:nowrap;';
-      text.appendChild(t);
-      if (subtitle) {
-        const s = document.createElement('div');
-        s.textContent = subtitle;
-        s.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);';
-        text.appendChild(s);
-      }
-      card.appendChild(text);
-      card.appendChild(control);
-      settingsContent.appendChild(card);
-      this._inGameSettingCards.push(card);
-      return card;
-    };
-
-    const createToggle = (checked, onChange) => {
-      const wrap = document.createElement('label');
-      wrap.style.cssText = 'position:relative;display:inline-block;width:48px;height:28px;flex-shrink:0;cursor:pointer;';
-      const input = document.createElement('input');
-      input.type = 'checkbox';
-      input.checked = checked;
-      input.style.cssText = 'opacity:0;width:0;height:0;position:absolute;';
-      const track = document.createElement('span');
-      const knob = document.createElement('span');
-      const update = () => {
-        const on = input.checked;
-        track.style.cssText = `
-          position:absolute;inset:0;border-radius:999px;
-          background:${on ? '#34c759' : 'rgba(255,255,255,0.14)'};
-          transition:background calc(0.25s / var(--ui-anim-speed)) ease;
-        `;
-        knob.style.cssText = `
-          position:absolute;top:2px;left:2px;
-          width:24px;height:24px;border-radius:50%;
-          background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.3);
-          transition:transform calc(0.25s / var(--ui-anim-speed)) cubic-bezier(0.2,0.8,0.2,1);
-          transform:translateX(${on ? '20px' : '0'});
-        `;
-      };
-      update();
-      input.addEventListener('change', () => { update(); onChange(input.checked); });
-      wrap.appendChild(input);
-      wrap.appendChild(track);
-      wrap.appendChild(knob);
-      return { wrap, input };
-    };
-
-    const createSlider = (value, min, max, onChange) => {
-      const wrap = document.createElement('div');
-      wrap.style.cssText = 'display:flex;align-items:center;gap:14px;min-width:160px;flex-shrink:0;';
-      const trackWrap = document.createElement('div');
-      trackWrap.style.cssText = 'position:relative;flex:1;height:20px;display:flex;align-items:center;';
-      const track = document.createElement('div');
-      track.style.cssText = 'width:100%;height:4px;background:rgba(255,255,255,0.1);border-radius:999px;position:relative;';
-      const fill = document.createElement('div');
-      fill.style.cssText = 'height:100%;width:0%;background:rgba(255,255,255,0.5);border-radius:999px;transition:width calc(0.08s / var(--ui-anim-speed)) ease;';
-      track.appendChild(fill);
-      trackWrap.appendChild(track);
-
-      const thumb = document.createElement('div');
-      thumb.style.cssText = `
-        position:absolute;top:50%;left:0%;
-        width:16px;height:16px;border-radius:50%;background:#fff;
-        box-shadow:0 2px 6px rgba(0,0,0,0.35);
-        transform:translate(-50%,-50%);pointer-events:none;
-        transition:left calc(0.08s / var(--ui-anim-speed)) ease;
-      `;
-      trackWrap.appendChild(thumb);
-
-      const input = document.createElement('input');
-      input.type = 'range';
-      input.min = min; input.max = max; input.step = 1;
-      input.value = value;
-      input.style.cssText = 'position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;';
-      const update = () => {
-        const pct = ((input.value - min) / (max - min)) * 100;
-        fill.style.width = `${pct}%`;
-        thumb.style.left = `${pct}%`;
-      };
-      update();
-      input.addEventListener('input', () => { update(); onChange(parseFloat(input.value)); });
-      trackWrap.appendChild(input);
-
-      const label = document.createElement('div');
-      label.textContent = Math.round(input.value) + '%';
-      label.style.cssText = 'font-size:13px;font-weight:600;color:rgba(255,255,255,0.5);min-width:40px;text-align:right;font-variant-numeric:tabular-nums;';
-      input.addEventListener('input', () => { label.textContent = Math.round(input.value) + '%'; });
-
-      wrap.appendChild(trackWrap);
-      wrap.appendChild(label);
-      return { wrap, input };
-    };
-
-    const createSelect = (value, options, onChange) => {
-      const wrap = document.createElement('div');
-      wrap.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0;';
-      const btns = [];
-      options.forEach(o => {
-        const btn = document.createElement('button');
-        btn.textContent = o.label;
-        const active = o.value === value;
-        btn.style.cssText = `
-          padding:6px 14px;border-radius:999px;
-          background:${active ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.05)'};
-          border:1px solid ${active ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'};
-          color:${active ? '#fff' : 'rgba(255,255,255,0.55)'};
-          font-size:12px;font-weight:600;cursor:pointer;
-          transition:all calc(0.2s / var(--ui-anim-speed)) ease;
-        `;
-        btn.onmouseenter = () => { if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.1)'; };
-        btn.onmouseleave = () => { if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.05)'; };
-        btn.addEventListener('click', () => {
-          btns.forEach(b => {
-            b.dataset.active = '';
-            b.style.background = 'rgba(255,255,255,0.05)';
-            b.style.borderColor = 'rgba(255,255,255,0.1)';
-            b.style.color = 'rgba(255,255,255,0.55)';
-          });
-          btn.dataset.active = 'true';
-          btn.style.background = 'rgba(255,255,255,0.14)';
-          btn.style.borderColor = 'rgba(255,255,255,0.2)';
-          btn.style.color = '#fff';
-          onChange(o.value);
-        });
-        btns.push(btn);
-        wrap.appendChild(btn);
-      });
-      return { wrap };
-    };
-
-    this._inGameSettings = {
-      createToggle, createSlider, createSelect, createCard,
-    };
-
-    settingsPanel.appendChild(settingsContent);
-    this.settingsOverlay.appendChild(settingsPanel);
-    document.body.appendChild(this.settingsOverlay);
   }
 
   _addTrackedListener(el, type, fn) {
@@ -603,16 +390,6 @@ export class UI {
     }, animMs(300));
   }
 
-  showInGameSettings(audioManager, onClose = null) {
-    // DEPRECATED: in-game settings now reuse SettingsScreen.
-    // This method is kept for backward-compat but does nothing.
-    // Settings are handled by Game.js via SettingsScreen instance.
-  }
-
-  hideInGameSettings() {
-    // DEPRECATED: no-op. SettingsScreen manages its own visibility.
-  }
-
   flashRed() {
     const uiLayer = document.getElementById('ui-layer');
     if (!uiLayer) return;
@@ -751,13 +528,140 @@ export class UI {
     }
   }
 
+  // ── Push-out UI ──
+
+  showPushOutButton(onClick) {
+    if (!this._pushOutBtn) {
+      this._pushOutBtn = document.createElement('button');
+      this._pushOutBtn.className = 'hud-btn hud-btn-accent';
+      this._pushOutBtn.textContent = UIText.pushOutButton;
+      this._pushOutBtn.style.cssText = `
+        position: absolute; bottom: 96px; left: 50%; transform: translateX(-50%);
+        padding: 10px 22px; font-size: 15px; font-weight: 800;
+        background: rgba(212,167,44,0.18); border: 1px solid rgba(212,167,44,0.55);
+        color: #f0d78c; border-radius: 10px; cursor: pointer; pointer-events: auto;
+        backdrop-filter: blur(8px); z-index: 15;
+        transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+      `;
+      this._pushOutBtn.onmouseenter = () => {
+        this._pushOutBtn.style.background = 'rgba(212,167,44,0.32)';
+        this._pushOutBtn.style.transform = 'translateX(-50%) translateY(-1px)';
+      };
+      this._pushOutBtn.onmouseleave = () => {
+        this._pushOutBtn.style.background = 'rgba(212,167,44,0.18)';
+        this._pushOutBtn.style.transform = 'translateX(-50%) translateY(0)';
+      };
+      const uiLayer = document.getElementById('ui-layer');
+      if (uiLayer) uiLayer.appendChild(this._pushOutBtn);
+    }
+    this._pushOutBtn.style.display = 'block';
+    this._pushOutBtn.onclick = onClick;
+  }
+
+  hidePushOutButton() {
+    if (this._pushOutBtn) {
+      this._pushOutBtn.style.display = 'none';
+      this._pushOutBtn.onclick = null;
+    }
+  }
+
+  showPushOutChoice(onAccept, onPass) {
+    if (!this._pushOutChoiceWrap) {
+      this._pushOutChoiceWrap = document.createElement('div');
+      this._pushOutChoiceWrap.style.cssText = `
+        position: absolute; bottom: 96px; left: 50%; transform: translateX(-50%);
+        display: flex; gap: 10px; align-items: center; z-index: 15;
+        background: rgba(8,10,12,0.78); border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 12px; padding: 10px 16px; backdrop-filter: blur(10px);
+        pointer-events: auto;
+      `;
+      const prompt = document.createElement('span');
+      prompt.textContent = UIText.pushOutPrompt;
+      prompt.style.cssText = 'font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.7); margin-right: 6px; white-space: nowrap;';
+      this._pushOutChoiceWrap.appendChild(prompt);
+
+      this._pushOutAcceptBtn = document.createElement('button');
+      this._pushOutAcceptBtn.className = 'hud-btn';
+      this._pushOutAcceptBtn.textContent = UIText.pushOutAccept;
+      this._pushOutAcceptBtn.style.cssText = `
+        padding: 8px 18px; font-size: 14px; font-weight: 750;
+        background: rgba(44,167,112,0.18); border: 1px solid rgba(44,167,112,0.55);
+        color: #8ce0b0; border-radius: 8px; cursor: pointer;
+        transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+      `;
+      this._pushOutAcceptBtn.onmouseenter = () => {
+        this._pushOutAcceptBtn.style.background = 'rgba(44,167,112,0.32)';
+      };
+      this._pushOutAcceptBtn.onmouseleave = () => {
+        this._pushOutAcceptBtn.style.background = 'rgba(44,167,112,0.18)';
+      };
+      this._pushOutChoiceWrap.appendChild(this._pushOutAcceptBtn);
+
+      this._pushOutPassBtn = document.createElement('button');
+      this._pushOutPassBtn.className = 'hud-btn';
+      this._pushOutPassBtn.textContent = UIText.pushOutPass;
+      this._pushOutPassBtn.style.cssText = `
+        padding: 8px 18px; font-size: 14px; font-weight: 750;
+        background: rgba(185,96,44,0.18); border: 1px solid rgba(185,96,44,0.55);
+        color: #f0b88c; border-radius: 8px; cursor: pointer;
+        transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+      `;
+      this._pushOutPassBtn.onmouseenter = () => {
+        this._pushOutPassBtn.style.background = 'rgba(185,96,44,0.32)';
+      };
+      this._pushOutPassBtn.onmouseleave = () => {
+        this._pushOutPassBtn.style.background = 'rgba(185,96,44,0.18)';
+      };
+      this._pushOutChoiceWrap.appendChild(this._pushOutPassBtn);
+
+      const uiLayer = document.getElementById('ui-layer');
+      if (uiLayer) uiLayer.appendChild(this._pushOutChoiceWrap);
+    }
+    this._pushOutChoiceWrap.style.display = 'flex';
+    this._pushOutAcceptBtn.onclick = onAccept;
+    this._pushOutPassBtn.onclick = onPass;
+  }
+
+  hidePushOutChoice() {
+    if (this._pushOutChoiceWrap) {
+      this._pushOutChoiceWrap.style.display = 'none';
+      this._pushOutAcceptBtn.onclick = null;
+      this._pushOutPassBtn.onclick = null;
+    }
+  }
+
+  // ── Three-foul warning ──
+
+  showThreeFoulWarning() {
+    if (!this._threeFoulBadge) {
+      this._threeFoulBadge = document.createElement('div');
+      this._threeFoulBadge.style.cssText = `
+        position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
+        padding: 8px 18px; font-size: 14px; font-weight: 800;
+        background: rgba(185,18,63,0.22); border: 1px solid rgba(185,18,63,0.55);
+        color: #ff8a9a; border-radius: 10px; pointer-events: none;
+        backdrop-filter: blur(8px); z-index: 12; white-space: nowrap;
+        animation: badgePulse 2s ease-in-out infinite;
+      `;
+      const uiLayer = document.getElementById('ui-layer');
+      if (uiLayer) uiLayer.appendChild(this._threeFoulBadge);
+    }
+    this._threeFoulBadge.style.display = 'block';
+    this._threeFoulBadge.textContent = UIText.threeFoulWarning;
+  }
+
+  hideThreeFoulWarning() {
+    if (this._threeFoulBadge) {
+      this._threeFoulBadge.style.display = 'none';
+    }
+  }
+
   destroy() {
     if (this._messageTimer) {
       clearTimeout(this._messageTimer);
       this._messageTimer = null;
     }
     if (this._pauseHideTimer) { clearTimeout(this._pauseHideTimer); this._pauseHideTimer = null; }
-    if (this._settingsHideTimer) { clearTimeout(this._settingsHideTimer); this._settingsHideTimer = null; }
     if (this._fpsEl && this._fpsEl.parentNode) {
       this._fpsEl.parentNode.removeChild(this._fpsEl);
     }
@@ -776,6 +680,21 @@ export class UI {
       el.removeEventListener(type, fn);
     }
     this._aiListeners = [];
+
+    if (this._pushOutBtn && this._pushOutBtn.parentNode) {
+      this._pushOutBtn.parentNode.removeChild(this._pushOutBtn);
+    }
+    this._pushOutBtn = null;
+    if (this._pushOutChoiceWrap && this._pushOutChoiceWrap.parentNode) {
+      this._pushOutChoiceWrap.parentNode.removeChild(this._pushOutChoiceWrap);
+    }
+    this._pushOutChoiceWrap = null;
+    this._pushOutAcceptBtn = null;
+    this._pushOutPassBtn = null;
+    if (this._threeFoulBadge && this._threeFoulBadge.parentNode) {
+      this._threeFoulBadge.parentNode.removeChild(this._threeFoulBadge);
+    }
+    this._threeFoulBadge = null;
 
     this.player1Badge = null;
     this.player2Badge = null;
@@ -822,31 +741,6 @@ export class UI {
     this.pauseOverlay = null;
     this._addPauseAction = null;
 
-    if (this.settingsOverlay) {
-      if (this._settingsBackBtn) {
-        this._settingsBackBtn.onmouseenter = null;
-        this._settingsBackBtn.onmouseleave = null;
-        this._settingsBackBtn.onclick = null;
-      }
-      this._inGameSettingCards.forEach(c => {
-        const inputs = c.querySelectorAll('input, select');
-        inputs.forEach(i => {
-          const clone = i.cloneNode(true);
-          i.parentNode.replaceChild(clone, i);
-        });
-        const btns = c.querySelectorAll('button');
-        btns.forEach(b => {
-          const clone = b.cloneNode(true);
-          b.parentNode.replaceChild(clone, b);
-        });
-      });
-      this._inGameSettingCards = [];
-      if (this.settingsOverlay.parentNode) this.settingsOverlay.parentNode.removeChild(this.settingsOverlay);
-    }
-    this.settingsOverlay = null;
-    this._settingsBackBtn = null;
-    this._inGameSettings = null;
-    this._onInGameSettingsClose = null;
     this._lastMessage = null;
   }
 }

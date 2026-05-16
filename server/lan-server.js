@@ -272,6 +272,16 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
+    if (type === 'pushOutDeclare' || type === 'pushOutChoice') {
+      // Guest sends push-out intent → relay to host
+      if (ws._isHost) {
+        room.broadcast({ ...data, fromHost: true }, ws);
+      } else {
+        room.sendToHost({ ...data, fromPlayer: ws._playerId });
+      }
+      return;
+    }
+
     if (type === 'chat' || type === 'ping') {
       // Simple relay
       room.broadcast({ ...data, fromPlayer: ws._playerId }, ws);

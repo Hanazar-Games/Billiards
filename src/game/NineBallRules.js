@@ -13,6 +13,8 @@
  *  - Three consecutive fouls by same player = loss (optional)
  *  - Push-out: player can call "push" to pass the shot
  */
+import { UIText } from '../core/UIText.js';
+
 export class NineBallRules {
   constructor(options = {}) {
     this.options = {
@@ -121,7 +123,7 @@ export class NineBallRules {
           gameOver: true,
           winner: opponent,
           foul: true,
-          message: '连续三次犯规！判负。',
+          message: UIText.threeFoulLoss(this.currentPlayer === 1 ? '玩家 1' : '玩家 2'),
           reasonCode: 'THREE_FOUL_LOSS',
         };
       }
@@ -129,8 +131,8 @@ export class NineBallRules {
       if (count === 2) {
         const baseMsg = result.message || '';
         result.message = baseMsg
-          ? `已连续两次犯规，再犯一次将判负！${baseMsg}`
-          : '已连续两次犯规，再犯一次将判负！';
+          ? `${UIText.threeFoulWarning} ${baseMsg}`
+          : UIText.threeFoulWarning;
       }
     } else {
       if (this.currentPlayer === 1) this.player1ConsecutiveFouls = 0;
@@ -342,8 +344,8 @@ export class NineBallRules {
     // Track pocketed balls (already tracked above if foul; track here for legal shots)
     this.trackPocketedBalls(pocketedIds);
 
-    // Check for 9-ball win (9 pocketed on legal shot)
-    if (ninePocketed) {
+    // Check for 9-ball win (9 pocketed on legal shot; push-out excluded)
+    if (ninePocketed && !isPushOut) {
       this.gameOver = true;
       this.winner = this.currentPlayer;
       const result = {
@@ -359,12 +361,18 @@ export class NineBallRules {
     if (isPushOut) {
       this.pushOutPending = true;
       this.pushOutPlayer = this.currentPlayer;
+      // 9-ball pocketed on push-out is spotted (WPA rule)
+      if (ninePocketed) {
+        const idx = this.pocketedBalls.indexOf(9);
+        if (idx !== -1) this.pocketedBalls.splice(idx, 1);
+      }
       const result = {
         nextPlayer: opponent,
         foul: false,
         pushOutPending: true,
         message: 'Push-out。对手可选择接受或让回。',
         gameOver: false,
+        respotNineBall: ninePocketed,
       };
       return this._applyConsecutiveFouls(result, opponent);
     }

@@ -72,7 +72,7 @@ export class ImpactShockwave {
    * @param {number} dt — delta time in seconds
    */
   update(dt) {
-    const safeDt = Math.max(0, dt);
+    const safeDt = Math.max(0, Math.min(Number.isFinite(dt) ? dt : 0, 0.05));
     for (let i = this.active.length - 1; i >= 0; i--) {
       const wave = this.active[i];
       wave.age += safeDt;

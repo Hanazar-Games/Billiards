@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { BALL, BALL_TYPE } from '../config.js';
+import { applyBallStyle } from '../theme/BallThemes.js';
 
 export class Ball {
   constructor(id, color, type = BALL_TYPE.SOLID) {
@@ -60,6 +61,8 @@ export class Ball {
     const size = settings.get('ballNumberSize') || 'normal';
     const contrast = settings.get('ballNumberContrast') || 'normal';
     const markStyle = settings.get('cueBallMarkStyle') || 'redDot';
+    const ballStyle = settings.get('ballStyle') || 'standard';
+    const showNumbers = settings.get('ballNumbers') !== false;
 
     // Dispose old texture
     if (this.material.map) {
@@ -70,15 +73,17 @@ export class Ball {
     if (this.type === BALL_TYPE.CUE) {
       this.material.map = this._createCueBallTexture(markStyle, quality);
     } else {
-      this.material.map = this.createBallTexture(this.id, this._cachedColor, this.type, quality, size, contrast);
+      this.material.map = this.createBallTexture(this.id, this._cachedColor, this.type, quality, size, contrast, showNumbers);
     }
-    this.material.needsUpdate = true;
+
+    // Apply surface finish style
+    applyBallStyle(this.material, ballStyle, this._cachedColor);
   }
 
   /**
    * Generate a high-resolution equirectangular texture for a numbered ball.
    */
-  createBallTexture(id, color, type, quality = 'high', numberSize = 'normal', contrast = 'normal') {
+  createBallTexture(id, color, type, quality = 'high', numberSize = 'normal', contrast = 'normal', showNumbers = true) {
     const W = quality === 'high' ? 1024 : 512;
     const H = quality === 'high' ? 512 : 256;
     const canvas = document.createElement('canvas');
@@ -102,7 +107,9 @@ export class Ball {
     }
 
     // ── White spot + number ──
-    this._drawBallSpot(ctx, id, type, W, H, numberSize, contrast);
+    if (showNumbers) {
+      this._drawBallSpot(ctx, id, type, W, H, numberSize, contrast);
+    }
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.anisotropy = quality === 'high' ? 16 : 8;
@@ -165,7 +172,8 @@ export class Ball {
     return texture;
   }
 
-  _drawBallSpot(ctx, id, type, W, H, numberSize = 'normal', contrast = 'normal') {
+  _drawBallSpot(ctx, id, type, W, H, numberSize = 'normal', contrast = 'normal', showNumbers = true) {
+    if (!showNumbers) return;
     const cx = W / 2;
     const cy = H / 2;
 

@@ -283,6 +283,19 @@ test('push-out enters pending state after shot', () => {
   assert.strictEqual(rules.pushOutPlayer, 1);
 });
 
+test('9-ball pocketed on push-out is spotted, not a win', () => {
+  const rules = new NineBallRules();
+  rules.breakShot = false;
+  rules.pushOutDeclared = true;
+  rules.startShot(1);
+  rules.recordFirstHit(1);
+  const result = rules.resolveShot([9], false);
+  assert.strictEqual(result.gameOver, false);
+  assert.strictEqual(result.pushOutPending, true);
+  assert.strictEqual(result.respotNineBall, true);
+  assert.strictEqual(rules.pocketedBalls.includes(9), false);
+});
+
 test('acceptPushOut gives turn to opponent', () => {
   const rules = new NineBallRules();
   rules.currentPlayer = 2;

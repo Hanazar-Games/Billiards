@@ -765,11 +765,16 @@ export class Room {
   // ── Theme application ──
 
   applyVisualSettings(settings) {
-    const roomThemeId = settings.get('roomTheme') || 'club';
+    // Legacy-to-V2 mapping
+    const legacyRoomMap = { classic: 'club', modern: 'modern', tournament: 'tournament', minimal: 'minimal' };
+    const legacyLightingMap = { warm: 'classic', neutral: 'modern', cool: 'tournament', bright: 'tournament' };
+    const legacyAmbientMap = { warm: 'warm', neutral: 'neutral', cool: 'cool', bright: 'neutral' };
+
+    const roomThemeId = settings.get('roomTheme') || legacyRoomMap[settings.get('roomStyle')] || 'club';
     const floorThemeId = settings.get('floorTheme') || 'tile';
     const wallThemeId = settings.get('wallTheme') || 'warm';
-    const lampStyleId = settings.get('lampStyle') || 'classic';
-    const ambientThemeId = settings.get('ambientLightTheme') || 'warm';
+    const lampStyleId = settings.get('lampStyle') || legacyLightingMap[settings.get('lightingStyle')] || 'classic';
+    const ambientThemeId = settings.get('ambientLightTheme') || legacyAmbientMap[settings.get('lightingStyle')] || 'warm';
 
     const roomPreset = ROOM_THEMES[roomThemeId] || ROOM_THEMES.club;
     const floorKey = roomPreset.floor || floorThemeId;
@@ -781,6 +786,10 @@ export class Room {
     const wall = WALL_THEMES[wallKey] || WALL_THEMES.warm;
     const lamp = LAMP_STYLE_THEMES[lampKey] || LAMP_STYLE_THEMES.classic;
     const ambient = AMBIENT_LIGHT_THEMES[ambientKey] || AMBIENT_LIGHT_THEMES.warm;
+
+    // Legacy intensity multipliers (default 1.0 / 0.5 to keep backward compat)
+    const lightIntensityMult = settings.get('lightingIntensity') ?? 1.0;
+    const ambientIntensityMult = settings.get('ambientIntensity') ?? 0.5;
 
     // Apply floor
     applyMaterialTheme(this._materials.floor, floor.floor);
@@ -800,7 +809,7 @@ export class Room {
     for (const spot of this._lampLights) {
       if (spot) {
         spot.color.setHex(lamp.spotColor);
-        spot.intensity = lamp.spotIntensity * (settings.get('tableLightIntensity') ?? 1.0);
+        spot.intensity = lamp.spotIntensity * (settings.get('tableLightIntensity') ?? 1.0) * lightIntensityMult;
       }
     }
 
@@ -809,13 +818,12 @@ export class Room {
       for (const pl of this._themeLights.downlights) {
         if (pl) {
           pl.color.setHex(lamp.pointColor);
-          pl.intensity = lamp.pointIntensity;
+          pl.intensity = lamp.pointIntensity * lightIntensityMult;
         }
       }
     }
 
-    // Ambient light updates would need a reference to the scene ambient light
-    // which is stored in Renderer; we dispatch a custom event for it
+    // Ambient light updates dispatched to Renderer
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('roomThemeChanged', {
         detail: {

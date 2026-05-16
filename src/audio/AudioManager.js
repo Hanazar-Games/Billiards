@@ -42,6 +42,7 @@ export class AudioManager {
     this._stateHandler = null;
     this._bgmWasPlaying = false;
     this._masterVolume = 1.0;
+    this._ambientVolume = 1.0;
   }
 
   /** Disconnect a chain of audio nodes after the source finishes playing. */

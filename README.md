@@ -1,8 +1,19 @@
 # 🎱 3D Billiards
 
-A browser-based 3D 8-ball pool game built with **Three.js** and **cannon-es** physics engine.
+A browser-based 3D pool game built with **Three.js** and **cannon-es** physics engine.
 
-**Current Version: v1.4.4**
+**Current Version: v1.5.9**
+
+## 🎮 Game Modes
+
+| Mode | Description |
+|------|-------------|
+| **8-Ball** | Standard 8-ball rules. Break to assign groups (Solids / Stripes), clear your group, then legally pocket the 8-ball. |
+| **9-Ball** | WPA 9-ball rules. Must hit the lowest-numbered ball first. Legal push-out after a legal break. Three consecutive fouls = loss. |
+| **Free Play** | Practice mode with no rules. Cue ball auto-resets when pocketed. |
+| **Local 2P** | Two players take turns on the same device. |
+| **VS AI** | Play against the computer with adjustable difficulty. |
+| **LAN Multiplayer** | Host a room on your local network and play with a friend. |
 
 ## 🌐 LAN Multiplayer (局域网联机)
 
@@ -22,41 +33,44 @@ A browser-based 3D 8-ball pool game built with **Three.js** and **cannon-es** ph
    - 其他玩家输入房间号，点击 **加入房间**
 4. 当所有玩家就绪后，Host 点击 **开始游戏**
 
-### 注意事项
-- 需要 Node.js 运行 `npm run host` 启动 WebSocket 房间服务器（默认端口 3001）
-- 如果前端不在默认端口 5173 运行，可通过 URL 参数指定服务器地址：
-  `http://localhost:5173/?ws=ws://192.168.1.10:3001`
-- 当前仅支持 2 人联机 8 球对战
+### 高级用法
 
-## 🎮 How to Play
+- 如果前端不在默认端口 5173 运行，可通过 URL 参数指定服务器地址：
+  ```
+  http://localhost:5173/?ws=ws://192.168.1.10:3001
+  ```
+- 支持 8 球和 9 球两种联机模式
+
+### 当前限制
+
+- Host-authority 架构：Host 运行物理并广播状态，Client 只接收状态快照
+- 仅支持 2 人对战（1 Host + 1 Guest）
+- 网络断开时会自动返回主菜单
+
+## 🎯 Features
+
+- **物理引擎**：cannon-es 刚体碰撞 + 自定义台球物理（滚动摩擦、旋转衰减、侧旋）
+- **回放系统**：自动记录每局精彩击球，支持回放库浏览
+- **成就系统**：内置成就追踪与解锁提示
+- **挑战模式**：完成特定击球挑战
+- **大型设置系统**：10+ 分类、80+ 参数，覆盖音频、图形、外观、相机、HUD、控制、辅助功能等
+- **程序化建模主题**：球桌（台呢、木材、金属包边）、房间（地板、墙壁、灯光）、球体表面风格均可实时切换
+- **规则自动化测试**：27 项测试覆盖 8 球、9 球、三次犯规、Push-out、状态序列化
+
+## 🕹️ Controls
 
 | Control | Action |
 |---------|--------|
 | **Mouse Move** | Aim cue stick |
 | **Left Click & Hold** | Charge shot power |
-| **Left Click Release** | Shoot |
+| **Left Click Release** | Shoot (or stop charging if `confirmShotOnRelease` is off) |
+| **Enter** | Confirm shot when `confirmShotOnRelease` is disabled |
 | **Shift + Left Click Drag** | Pan camera |
 | **Shift + Right Click Drag** | Orbit camera |
 | **Mouse Wheel** | Zoom in/out |
-
-### Rules
-- Standard 8-ball rules apply
-- Break shot determines player groups (Solids / Stripes)
-- Pocket all your group balls, then legally pocket the 8-ball to win
-- Scratching or fouling gives opponent ball-in-hand
-
-### Single Player vs AI
-- Choose **对战 AI** mode to play against the computer
-- AI has different accuracy levels and can make mistakes on lower difficulties
-
-### Aim Assist
-- Trajectory prediction line and ghost ball are shown by default
-- Green line = target ball path to pocket (if available)
-- White line = cue ball path
-
-### Sound
-- Toggle sound in Settings to enable ambient background atmosphere + SFX
-- All audio is procedurally generated via Web Audio API (no external files)
+| **1 / 2 / 3** | Switch camera: Free / Top / Follow |
+| **W / A / S / D** | Adjust cue tip offset (English / Spin) |
+| **R** | Reset spin to center |
 
 ## 🚀 Quick Start
 
@@ -67,6 +81,14 @@ npm run dev
 
 Then open `http://localhost:5173`
 
+### Development Commands
+
+```bash
+npm run build          # Production build
+npm run test:rules     # Run 27 rule engine tests
+npm run host           # Start LAN room server (port 3001)
+```
+
 ## 🛠️ Tech Stack
 
 | Layer | Technology |
@@ -75,6 +97,7 @@ Then open `http://localhost:5173`
 | Physics | cannon-es |
 | Build Tool | Vite |
 | Language | JavaScript (ES2022) |
+| Testing | Node.js assert (custom test runner) |
 
 ## 📝 License
 

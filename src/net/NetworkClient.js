@@ -191,6 +191,14 @@ export class NetworkClient extends EventTarget {
     return this._send({ type: 'pocketEvent', ballId, pocketIndex, pocket });
   }
 
+  sendPushOutDeclare() {
+    return this._send({ type: 'pushOutDeclare' });
+  }
+
+  sendPushOutChoice(choice) {
+    return this._send({ type: 'pushOutChoice', choice });
+  }
+
   // ── Ping keepalive ──
 
   _startPing() {

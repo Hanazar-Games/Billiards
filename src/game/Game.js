@@ -406,6 +406,11 @@ export class Game {
       this.confirmBallInHandPlacement();
       return;
     }
+    // Block shot while push-out choice is pending
+    if (this.rules?.pushOutPending && this.isLocalPlayerTurn()) {
+      this.ui.setMessage(UIText.pushOutMustChoose, 2000);
+      return;
+    }
     this.audio.resume();
     this.updateAimDirection();
     this.lockedAimDirection.copy(this.aimDirection);
@@ -435,7 +440,7 @@ export class Game {
     if (settings.get('confirmShotOnRelease') === false) {
       // Release only stops charging; user must press Enter to shoot
       this._enterAimState({ resetPower: false, showCue: true, showTrajectory: true, updateAim: false });
-      this.ui.setMessage('按 Enter 键确认击球', 2000);
+      this.ui.setMessage(UIText.pressEnterToShoot, 2000);
       return;
     }
     this.state = 'SHOOTING';
@@ -652,6 +657,12 @@ export class Game {
     const cueBall = this.ballsManager.getCueBall();
     if (!cueBall) return;
 
+    // Block shot while push-out choice is pending
+    if (this.rules?.pushOutPending && this.isLocalPlayerTurn()) {
+      this.ui.setMessage(UIText.pushOutMustChoose, 2000);
+      return;
+    }
+
     // Client sends shot intent to host; host executes physically
     if (this.networkMode && this.networkRole === 'client' && this.isLocalPlayerTurn()) {
       const force = Math.max(this.power, SHOT.minPower);
@@ -737,7 +748,7 @@ export class Game {
   async startAITurn() {
     if (this.state === 'AI_THINKING') return;
     this.state = 'AI_THINKING';
-    this.ui.setMessage('AI 思考中…');
+    this.ui.setMessage(UIText.aiThinking);
     this.trajectory.setVisible(false);
     this.cue.hide();
 
@@ -981,6 +992,24 @@ export class Game {
       this.matchManager.updateHUD(this.ui, this.networkPlayer1Name, this.networkPlayer2Name);
     }
 
+    // Sync 9-ball push-out UI
+    if (this.mode === '9ball' && this.rules && this.state === 'AIM' && !this.ballInHand && !this.rules.gameOver) {
+      const status = this.rules.getStatus();
+      if (status.pushOutAvailable && this.isLocalPlayerTurn()) {
+        this.ui.showPushOutButton(() => this._onPushOutClicked());
+      } else {
+        this.ui.hidePushOutButton();
+      }
+      if (status.pushOutPending && this.isLocalPlayerTurn()) {
+        this.ui.showPushOutChoice(
+          () => this._onPushOutAccept(),
+          () => this._onPushOutPass()
+        );
+      } else {
+        this.ui.hidePushOutChoice();
+      }
+    }
+
     // Turn timer
     this._updateTurnTimer(dt);
 
@@ -1068,6 +1097,73 @@ export class Game {
     this.updateAimDirection();
     this.updateTrajectory();
     this.ui.setMessage(UIText.ballInHandPlaced, 1800);
+  }
+
+  /** Player clicked the Push-out button. */
+  _onPushOutClicked() {
+    if (!this.rules || this.mode !== '9ball') return;
+    const declared = this.rules.declarePushOut();
+    if (!declared) return;
+    this.ui.hidePushOutButton();
+    this.ui.setMessage(UIText.pushOutTooltip, 3000);
+    if (this.networkMode && this.networkRole === 'client') {
+      this.networkController?.sendPushOutDeclare();
+    } else if (this.networkRole === 'host') {
+      this._broadcastSnapshot();
+    }
+  }
+
+  /** Player chose to accept the push-out. */
+  _onPushOutAccept() {
+    this._applyPushOutChoice('accept');
+    if (this.networkMode && this.networkRole === 'client') {
+      this.networkController?.sendPushOutChoice('accept');
+    }
+  }
+
+  /** Player chose to pass the push-out back. */
+  _onPushOutPass() {
+    this._applyPushOutChoice('pass');
+    if (this.networkMode && this.networkRole === 'client') {
+      this.networkController?.sendPushOutChoice('pass');
+    }
+  }
+
+  /** Apply push-out choice (accept/pass) and update game state. */
+  _applyPushOutChoice(choice) {
+    if (!this.rules || !this.rules.pushOutPending) return;
+    let result;
+    if (choice === 'accept') {
+      result = this.rules.acceptPushOut();
+    } else {
+      result = this.rules.passPushOut();
+    }
+    if (!result) return;
+
+    this.currentPlayer = result.nextPlayer;
+    this.ui.setPlayerTurn(this.currentPlayer);
+    this.ui.hidePushOutChoice();
+
+    const playerName = this.currentPlayer === 1 ? this.networkPlayer1Name : this.networkPlayer2Name;
+    const msg = choice === 'accept'
+      ? UIText.pushOutAcceptedMsg(playerName)
+      : UIText.pushOutPassedMsg(playerName);
+    this.ui.setMessage(msg, 3000);
+
+    this.state = 'AIM';
+    this.power = 0;
+    this.ui.setPower(0);
+    this.cue.show();
+    this.setAimTrajectoryVisible(true);
+    this._updatePlayerStats();
+
+    if (this.aiEnabled && this.currentPlayer === 2) {
+      this.startAITurn();
+    }
+
+    if (this.networkRole === 'host') {
+      this._broadcastSnapshot();
+    }
   }
 
   /** Shared respot logic for 8-ball and 9-ball. */
@@ -1184,6 +1280,9 @@ export class Game {
     if (result.gameOver) {
       this.state = 'GAME_OVER';
       this.ui.setMessage(result.message);
+      this.ui.hidePushOutButton();
+      this.ui.hidePushOutChoice();
+      this.ui.hideThreeFoulWarning();
 
       // Match mode: delegate to match engine instead of local reset
       if (this.matchManager) {
@@ -1249,6 +1348,21 @@ export class Game {
       this.ballsManager.resetCueBallIfPocketed();
     }
 
+    // Three-foul warning badge
+    const p1Fouls = this.rules.player1ConsecutiveFouls;
+    const p2Fouls = this.rules.player2ConsecutiveFouls;
+    if (p1Fouls >= 2 || p2Fouls >= 2) {
+      this.ui.showThreeFoulWarning();
+    } else {
+      this.ui.hideThreeFoulWarning();
+    }
+
+    // Push-out pending: AI auto-accepts; human sees choice UI in update loop
+    if (result.pushOutPending && this.aiEnabled && this.currentPlayer === 2) {
+      this._applyPushOutChoice('accept');
+      return;
+    }
+
     this.state = 'AIM';
     this.power = 0;
     this.ui.setPower(0);
@@ -1259,7 +1373,6 @@ export class Game {
     if (this.networkRole === 'host' && this.networkController) {
       const snapshot = GameStateSerializer.serializeGameState(this);
       this.networkController.sendStateSnapshot(snapshot);
-      this.networkController.sendTurnResolved({ nextPlayer: result.nextPlayer, foul: result.foul, scratch: result.scratch, message: result.message, reasonCode: result.reasonCode });
     }
 
     // Auto-switch camera back from follow mode after shot resolves
@@ -1379,6 +1492,10 @@ export class Game {
       clearTimeout(this._challengeEndTimeout);
       this._challengeEndTimeout = null;
     }
+    if (this._netDisconnectTimer) {
+      clearTimeout(this._netDisconnectTimer);
+      this._netDisconnectTimer = null;
+    }
     this._challengeEnding = false;
     if (this._netDisconnectTimer) {
       clearTimeout(this._netDisconnectTimer);
@@ -1390,6 +1507,9 @@ export class Game {
     this.paused = false;
     this.ui.hidePauseMenu?.();
     this.ui.hideTurnTimer?.();
+    this.ui.hidePushOutButton?.();
+    this.ui.hidePushOutChoice?.();
+    this.ui.hideThreeFoulWarning?.();
     this._turnTimerRunning = false;
     this._turnTimerRemaining = this._turnTimerMax;
     this.currentPlayer = 1;
@@ -1419,7 +1539,7 @@ export class Game {
       this.ui.setMessage(this.aiEnabled ? UIText.eightBallResetVsAI : UIText.eightBallReset);
     }
     this.ui.hideResetButton();
-    this.ui.showResetButton(() => this._onResetButtonClicked(), '再来一局');
+    this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
     this.ui.setMatchInfo(this._getObjectiveText());
     this._updatePlayerStats();
     this.cue.show();
@@ -1434,7 +1554,7 @@ export class Game {
 
     const btn = document.createElement('button');
     btn.id = 'back-to-menu';
-    btn.textContent = '返回菜单';
+    btn.textContent = UIText.backToMenu;
     btn.style.cssText = `
       position: absolute; top: 18px; left: 24px;
       padding: 10px 17px; font-size: 13px; font-weight: 750;
@@ -1473,7 +1593,7 @@ export class Game {
 
     // Label
     const label = document.createElement('div');
-    label.textContent = '击球点';
+    label.textContent = UIText.cueTipLabel;
     label.style.cssText = `
       font-size: 11px; color: rgba(255,255,255,0.6);
       font-weight: 600; letter-spacing: 0.5px;
@@ -1530,7 +1650,7 @@ export class Game {
     // Text hint
     const hint = document.createElement('div');
     hint.id = 'cue-tip-hint';
-    hint.textContent = '中心击球';
+    hint.textContent = UIText.cueTipCenter;
     hint.style.cssText = `
       font-size: 10px; color: rgba(255,255,255,0.45);
       text-align: center; min-height: 14px;
@@ -1604,9 +1724,9 @@ export class Game {
 
     // Build descriptive label
     const parts = [];
-    if (Math.abs(ox) > 0.08) parts.push(ox > 0 ? '右塞' : '左塞');
-    if (Math.abs(oy) > 0.08) parts.push(oy > 0 ? '高杆' : '低杆');
-    hint.textContent = parts.length ? parts.join(' + ') : '中心击球';
+    if (Math.abs(ox) > 0.08) parts.push(ox > 0 ? UIText.cueTipRightEnglish : UIText.cueTipLeftEnglish);
+    if (Math.abs(oy) > 0.08) parts.push(oy > 0 ? UIText.cueTipHigh : UIText.cueTipLow);
+    hint.textContent = parts.length ? parts.join(' + ') : UIText.cueTipCenter;
   }
 
   _setupSpinControls() {
@@ -1634,7 +1754,7 @@ export class Game {
           this.ballInHandValid = false;
           this.state = 'AIM';
           this.cue.show();
-          this.ui.setMessage('自由球已取消。');
+          this.ui.setMessage(UIText.ballInHandCanceled);
           return;
         }
       }
@@ -1878,10 +1998,10 @@ export class Game {
 
   _getObjectiveText() {
     if (this.challengeManager) return '挑战模式';
-    if (this.mode === 'freeplay') return '练习模式 · 自由击球';
-    if (this.mode === '9ball') return '9球模式 · 先进9号球获胜';
-    if (this.aiEnabled) return '标准8球 · 对战AI · 清台获胜';
-    return '标准8球 · 清台获胜';
+    if (this.mode === 'freeplay') return UIText.objectiveFreeplay;
+    if (this.mode === '9ball') return UIText.objective9Ball;
+    if (this.aiEnabled) return UIText.objective8BallVsAI;
+    return UIText.objective8Ball;
   }
 
   _updatePlayerStats() {
@@ -1902,7 +2022,7 @@ export class Game {
     if (this.networkMode && this.networkRole === 'client') {
       // Client asks host to reset; host will broadcast the new state
       this.networkController?.sendShotInput({ x: 0, y: 0, z: 0 }, 0, { x: 0, y: 0 }, null, true);
-      this.ui.setMessage('已请求重新开始…', 2000);
+      this.ui.setMessage(UIText.resetRequested, 2000);
       return;
     }
     this.resetGame();
@@ -1947,6 +2067,20 @@ export class Game {
           }
         }
       };
+      this._onNetPushOutDeclare = (e) => {
+        if (this.networkRole === 'host' && this.rules) {
+          this.rules.declarePushOut();
+          this._broadcastSnapshot();
+        }
+      };
+      this._onNetPushOutChoice = (e) => {
+        if (this.networkRole === 'host' && this.rules) {
+          const choice = e.detail?.choice;
+          if (choice === 'accept' || choice === 'pass') {
+            this._applyPushOutChoice(choice);
+          }
+        }
+      };
       this._onNetDisconnected = () => {
         if (!this.networkMode || this._netDisconnectHandled) return;
         this._netDisconnectHandled = true;
@@ -1959,6 +2093,8 @@ export class Game {
       controller.addEventListener('stateSnapshot', this._onStateSnapshot);
       controller.addEventListener('shotInput', this._onNetShotInput);
       controller.addEventListener('pocketEvent', this._onNetPocketEvent);
+      controller.addEventListener('pushOutDeclare', this._onNetPushOutDeclare);
+      controller.addEventListener('pushOutChoice', this._onNetPushOutChoice);
       controller.addEventListener('disconnected', this._onNetDisconnected);
     }
   }
@@ -2016,8 +2152,11 @@ export class Game {
     }
 
     this.audio.playWin();
-    this.ui.showResetButton(() => this._onResetButtonClicked(), '再来一局');
+    this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
     this.ui.setPlayerTurn(winner);
+    this.ui.hideThreeFoulWarning();
+    this.ui.hidePushOutButton();
+    this.ui.hidePushOutChoice();
     // Host broadcasts final state after concession
     this._broadcastSnapshot();
   }
@@ -2051,6 +2190,19 @@ export class Game {
 
     // Apply HUD visibility settings
     this._applyHudVisibility();
+
+    // Apply turn timer setting
+    const turnTimer = settings.get('turnTimer');
+    const isStandardMode = ['local2p', 'vsai', '9ball'].includes(this.mode) || this.matchManager;
+    if (isStandardMode && turnTimer !== 'off') {
+      this._turnTimerMax = parseInt(turnTimer, 10) || 30;
+      this._turnTimerEnabled = true;
+    } else {
+      this._turnTimerEnabled = false;
+      this._turnTimerMax = 0;
+    }
+    this._turnTimerRemaining = this._turnTimerMax;
+    this._turnTimerRunning = false;
   }
 
   _applyHudVisibility() {
@@ -2190,12 +2342,17 @@ export class Game {
       case 'clothWearEnabled':
       case 'pocketNetDetail':
       case 'pocketLeatherTheme':
+      case 'tableReflection':
+      case 'feltColorTheme':
+      case 'woodColorTheme':
         if (this.table) this.table.applyVisualSettings(settings);
         break;
       case 'ballTextureQuality':
       case 'ballNumberSize':
       case 'ballNumberContrast':
       case 'cueBallMarkStyle':
+      case 'ballStyle':
+      case 'ballNumbers':
         if (this.ballsManager) {
           for (const ball of this.ballsManager.balls) {
             ball.updateVisualSettings(settings);
@@ -2212,18 +2369,15 @@ export class Game {
       case 'lampStyle':
       case 'ambientLightTheme':
       case 'tableLightIntensity':
+      case 'roomStyle':
+      case 'lightingStyle':
+      case 'lightingIntensity':
+      case 'ambientIntensity':
         if (this.room) this.room.applyVisualSettings(settings);
         break;
-      case 'feltColorTheme':
-      case 'ballStyle':
-      case 'ballNumbers':
-      case 'roomStyle':
-      case 'tableReflection':
       case 'ballReflection':
       case 'depthOfField':
-      case 'lightingStyle':
-      case 'woodColorTheme':
-        // Legacy appearance params are read live by Table / Room / BallsManager where implemented
+        // Legacy appearance params not yet implemented
         break;
       case 'postProcess':
       case 'bloom':
@@ -2417,10 +2571,14 @@ export class Game {
       if (this._onStateSnapshot) this.networkController.removeEventListener('stateSnapshot', this._onStateSnapshot);
       if (this._onNetShotInput) this.networkController.removeEventListener('shotInput', this._onNetShotInput);
       if (this._onNetPocketEvent) this.networkController.removeEventListener('pocketEvent', this._onNetPocketEvent);
+      if (this._onNetPushOutDeclare) this.networkController.removeEventListener('pushOutDeclare', this._onNetPushOutDeclare);
+      if (this._onNetPushOutChoice) this.networkController.removeEventListener('pushOutChoice', this._onNetPushOutChoice);
       if (this._onNetDisconnected) this.networkController.removeEventListener('disconnected', this._onNetDisconnected);
       this._onStateSnapshot = null;
       this._onNetShotInput = null;
       this._onNetPocketEvent = null;
+      this._onNetPushOutDeclare = null;
+      this._onNetPushOutChoice = null;
       this._onNetDisconnected = null;
     }
 

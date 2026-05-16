@@ -152,16 +152,17 @@ export class BallReturnSystem {
   /*  Per-frame update                                                   */
   /* ------------------------------------------------------------------ */
   update(dt) {
+    const safeDt = Math.max(0, Math.min(Number.isFinite(dt) ? dt : 0, 0.05));
     for (let i = this.active.length - 1; i >= 0; i--) {
       const a = this.active[i];
-      a.age += dt;
+      a.age += safeDt;
 
       if (a.stage === 0) {
         // Drop: accelerate downward (ease-in quad)
         const p = Math.min(a.age / a.dropDur, 1);
         const t = p * p;
         a.mesh.position.lerpVectors(a.start, a.drop, t);
-        this._rotate(a, dt);
+        this._rotate(a, safeDt);
         if (p >= 1) {
           a.stage = 1;
           a.age = 0;
@@ -171,7 +172,7 @@ export class BallReturnSystem {
         const p = Math.min(a.age / a.slideDur, 1);
         const t = 1 - Math.pow(1 - p, 3);
         a.mesh.position.lerpVectors(a.drop, a.slide, t);
-        this._rotate(a, dt);
+        this._rotate(a, safeDt);
         if (p >= 1) {
           a.stage = 2;
           a.age = 0;
@@ -183,7 +184,7 @@ export class BallReturnSystem {
         a.mesh.position.lerpVectors(a.slide, a.target, t);
         // Dampen rotation
         a.rotSpeed *= 0.92;
-        this._rotate(a, dt);
+        this._rotate(a, safeDt);
         if (p >= 1) {
           a.mesh.position.copy(a.target);
           this.settled.push({ mesh: a.mesh });

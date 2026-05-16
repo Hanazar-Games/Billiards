@@ -221,7 +221,7 @@ const DEFAULTS = {
   quickBreak: false,
   autoSkipAnimation: false,
   skipOpponentTurn: false,
-  showOpponentTrajectory: true,
+  showOpponentTrajectory: false,
   speedUnit: 'kph', // 'kph' | 'mph' | 'mps'
   showPhysicsDebug: false,
   devMode: false,
@@ -319,11 +319,23 @@ export const MATCH_FAIRNESS_KEYS = new Set([
   'minimapEnabled',
   'turnTimer',
   'shotPowerSens',
+  'showWinProbability',
+  'showOpponentTrajectory',
+  'skipOpponentTurn',
+  'showCrosshair',
+  'autoHints',
+  'hintFrequency',
+]);
+
+/** Settings that are debug/dev-only and should be hidden/protected in normal use. */
+export const DEV_KEYS = new Set([
+  'showPhysicsDebug',
+  'devMode',
 ]);
 
 /** Settings that are purely personal/local and safe to customize independently. */
 export const PERSONAL_SETTINGS_KEYS = new Set(
-  Object.keys(DEFAULTS).filter(k => !MATCH_FAIRNESS_KEYS.has(k))
+  Object.keys(DEFAULTS).filter(k => !MATCH_FAIRNESS_KEYS.has(k) && !DEV_KEYS.has(k))
 );
 
 export function isPersonalSetting(key) {
@@ -332,4 +344,8 @@ export function isPersonalSetting(key) {
 
 export function isMatchFairnessSetting(key) {
   return MATCH_FAIRNESS_KEYS.has(key);
+}
+
+export function isDevSetting(key) {
+  return DEV_KEYS.has(key);
 }

@@ -38,6 +38,40 @@ export const UIText = {
   resetRequested: '已请求重新开始…',
   opponentInvalidPlacement: '对手自由球位置无效，已拒绝。',
 
+  // Push-out
+  pushOutButton: 'Push-out',
+  pushOutTooltip: 'Push-out：将击球权交给对手，对手可选择接受或让回',
+  pushOutPrompt: '对手打出了 Push-out，请选择：',
+  pushOutAccept: '接受',
+  pushOutPass: '让回',
+  pushOutAcceptedMsg: (player) => `${player} 接受了 Push-out`,
+  pushOutPassedMsg: (player) => `${player} 让回了 Push-out`,
+  pushOutMustChoose: '请先选择接受或让回 Push-out',
+
+  // Three-foul
+  threeFoulWarning: '⚠️ 已连续两次犯规，再犯一次将判负！',
+  threeFoulLoss: (player) => `${player} 连续三次犯规，判负！`,
+
   // Game over
   gameOverResetLabel: '再来一局',
+
+  // Input hints
+  pressEnterToShoot: '按 Enter 键确认击球',
+
+  // Menu actions
+  backToMenu: '返回菜单',
+
+  // Cue-tip English labels
+  cueTipLabel: '击球点',
+  cueTipCenter: '中心击球',
+  cueTipRightEnglish: '右塞',
+  cueTipLeftEnglish: '左塞',
+  cueTipHigh: '高杆',
+  cueTipLow: '低杆',
+
+  // Objective lines
+  objectiveFreeplay: '练习模式 · 自由击球',
+  objective9Ball: '9球模式 · 先进9号球获胜',
+  objective8BallVsAI: '标准8球 · 对战AI · 清台获胜',
+  objective8Ball: '标准8球 · 清台获胜',
 };
