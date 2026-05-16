@@ -68,59 +68,19 @@ export class Room {
       roughness: 0.88,
       metalness: 0.02,
     });
-    const wainscotMat = new THREE.MeshStandardMaterial({
-      color: 0xd9c9a8,
-      roughness: 0.55,
-      metalness: 0.08,
-    });
-    const trimMat = new THREE.MeshStandardMaterial({
-      color: 0xc4b496,
-      roughness: 0.45,
-      metalness: 0.15,
-    });
-    const baseMat = new THREE.MeshStandardMaterial({
-      color: 0xb8a88a,
-      roughness: 0.4,
-      metalness: 0.25,
-    });
 
     const hw = ROOM.halfWidth;
     const hd = ROOM.halfDepth;
     const floorY = -TABLE.height - 71;
     const wallTotalH = ROOM.wallHeight - floorY;
     const wallCenterY = floorY + wallTotalH / 2;
-    const wainscotH = 55;
     const wallThick = 6;
 
-    // Front wall (z = -hd) — extends all the way down to the floor
+    // Four plain beige walls — no wainscot, trim, or baseboard
     this._addWall(0, wallCenterY, -hd, hw * 2, wallTotalH, wallThick, wallMat);
-    this._addWall(0, floorY + wainscotH / 2, -hd + wallThick / 2 + 1, hw * 2, wainscotH, 3, wainscotMat);
-
-    // Back wall (z = hd)
     this._addWall(0, wallCenterY, hd, hw * 2, wallTotalH, wallThick, wallMat);
-    this._addWall(0, floorY + wainscotH / 2, hd - wallThick / 2 - 1, hw * 2, wainscotH, 3, wainscotMat);
-
-    // Left wall (x = -hw)
     this._addWall(-hw, wallCenterY, 0, wallThick, wallTotalH, hd * 2, wallMat);
-    this._addWall(-hw + wallThick / 2 + 1, floorY + wainscotH / 2, 0, 3, wainscotH, hd * 2, wainscotMat);
-
-    // Right wall (x = hw)
     this._addWall(hw, wallCenterY, 0, wallThick, wallTotalH, hd * 2, wallMat);
-    this._addWall(hw - wallThick / 2 - 1, floorY + wainscotH / 2, 0, 3, wainscotH, hd * 2, wainscotMat);
-
-    // Chair-rail trim at wainscot top
-    const railH = 3;
-    this._addTrim(0, wainscotH, -hd, hw * 2, railH, wallThick + 2, trimMat);
-    this._addTrim(0, wainscotH, hd, hw * 2, railH, wallThick + 2, trimMat);
-    this._addTrim(-hw, wainscotH, 0, wallThick + 2, railH, hd * 2, trimMat);
-    this._addTrim(hw, wainscotH, 0, wallThick + 2, railH, hd * 2, trimMat);
-
-    // Baseboard at floor level
-    const baseH = 6;
-    this._addTrim(0, floorY + baseH / 2, -hd, hw * 2, baseH, wallThick + 2, baseMat);
-    this._addTrim(0, floorY + baseH / 2, hd, hw * 2, baseH, wallThick + 2, baseMat);
-    this._addTrim(-hw, floorY + baseH / 2, 0, wallThick + 2, baseH, hd * 2, baseMat);
-    this._addTrim(hw, floorY + baseH / 2, 0, wallThick + 2, baseH, hd * 2, baseMat);
   }
 
   _addWall(x, y, z, w, h, d, material) {
