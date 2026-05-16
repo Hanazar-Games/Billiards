@@ -667,6 +667,24 @@ export class UI {
     }
   }
 
+  setHudOpacity(v) {
+    if (this.bottomHud) {
+      this.bottomHud.style.opacity = String(Math.max(0.3, Math.min(1.0, v)));
+    }
+  }
+
+  setHighContrastUI(v) {
+    document.documentElement.classList.toggle('high-contrast', Boolean(v));
+  }
+
+  setLargeTextMode(v) {
+    document.documentElement.classList.toggle('large-text', Boolean(v));
+  }
+
+  setReducedMotion(v) {
+    document.documentElement.classList.toggle('reduce-motion', Boolean(v));
+  }
+
   setShowFPS(v) {
     if (!this._fpsEl && v) {
       this._fpsEl = document.createElement('div');

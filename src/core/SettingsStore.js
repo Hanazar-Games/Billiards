@@ -296,7 +296,6 @@ export const MATCH_FAIRNESS_KEYS = new Set([
   'minimapEnabled',
   'turnTimer',
   'shotPowerSens',
-  'aimSens',
 ]);
 
 /** Settings that are purely personal/local and safe to customize independently. */

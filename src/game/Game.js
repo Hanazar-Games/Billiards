@@ -426,6 +426,12 @@ export class Game {
       this._enterAimState();
       return;
     }
+    if (settings.get('confirmShotOnRelease') === false) {
+      // Release only stops charging; user must press Enter to shoot
+      this._enterAimState({ resetPower: false, showCue: true, showTrajectory: true, updateAim: false });
+      this.ui.setMessage('按 Enter 键确认击球', 2000);
+      return;
+    }
     this.state = 'SHOOTING';
     this._shotStartTime = performance.now();
     this.charging = false;
@@ -648,7 +654,7 @@ export class Game {
       this._shotStartTime = performance.now();
       this.charging = false;
       this.dragStart = null;
-      this.cue.hide();
+      if (settings.get('hideCueOnShot') !== false) this.cue.hide();
       this.trajectory.setVisible(false);
       // Local immediate feedback: audio + FX (host will authoritatively resolve physics)
       this.audio.playCueHit(force);
@@ -658,6 +664,9 @@ export class Game {
       }
       if (settings.get('cameraShake') !== false) {
         this.screenShake?.trigger(force, this.aimDirection);
+      }
+      if (settings.get('vibrationEnabled')) {
+        try { navigator.vibrate?.(30 + force); } catch (e) {}
       }
       this.powerLabel?.show(force);
       this.trails.startRecording(cueBall);
@@ -696,6 +705,9 @@ export class Game {
     if (settings.get('cameraShake') !== false) {
       this.screenShake?.trigger(force, this.aimDirection);
     }
+    if (settings.get('vibrationEnabled')) {
+      try { navigator.vibrate?.(30 + force); } catch (e) {}
+    }
     this.powerLabel?.show(force);
     this.trails.startRecording(cueBall);
     this.recorder.start(this.ballsManager, this.mode, force, this.cueTipOffset);
@@ -703,8 +715,9 @@ export class Game {
     // Strike snap: cue visually touches the ball for one frame before hiding
     this.cue.strikeSnap(cueBall.mesh.position, this.aimDirection);
     if (this._strikeHideTimer) clearTimeout(this._strikeHideTimer);
+    const hideCue = settings.get('hideCueOnShot') !== false;
     this._strikeHideTimer = setTimeout(() => {
-      if (this.cue) this.cue.hide();
+      if (this.cue && hideCue) this.cue.hide();
       if (this.trajectory) this.trajectory.setVisible(false);
       this._strikeHideTimer = null;
     }, animMs(70));
@@ -1253,6 +1266,22 @@ export class Game {
       }
     }
 
+    // Auto-reset camera after shot (independent of follow mode)
+    if (settings.get('cameraAutoResetAfterShot') && !result.gameOver) {
+      const delayMs = (settings.get('cameraResetDelay') ?? 3.0) * 1000;
+      const defaultCam = settings.get('defaultCamera') || 'free';
+      if (this._cameraResetTimer) clearTimeout(this._cameraResetTimer);
+      this._cameraResetTimer = setTimeout(() => {
+        if (this.cameraMode !== defaultCam) {
+          this.cameraMode = defaultCam;
+          if (defaultCam === 'top') this._resetCameraTop();
+          else if (defaultCam === 'free') this._resetCameraFree();
+          else if (defaultCam === 'follow') this._resetCameraFollow();
+        }
+        this._cameraResetTimer = null;
+      }, delayMs);
+    }
+
     if (result.ballInHand) {
       this.startBallInHand(result.message, result.ballInHandBehindLine);
     }
@@ -1621,6 +1650,14 @@ export class Game {
         return;
       }
 
+      // Enter to confirm shot when confirmShotOnRelease is disabled
+      if (key === 'enter' && settings.get('confirmShotOnRelease') === false) {
+        if (this.state === 'AIM' && this.power >= 1) {
+          this.shoot();
+          return;
+        }
+      }
+
       // Cue tip offset controls only in AIM/CHARGING
       if (this.state !== 'AIM' && this.state !== 'CHARGING') return;
       const step = 0.15 * (settings.get('spinStepSens') || 1.0);
@@ -1670,7 +1707,8 @@ export class Game {
   _resetCameraTop() {
     this.screenShake?.cancel();
     const cam = this.camera;
-    cam.position.set(0, 200, 0.1);
+    const topDown = settings.get('topDownAngle');
+    cam.position.set(0, 200, topDown ? 0.01 : 0.1);
     cam.lookAt(0, 0, 0);
     if (this.renderer.controls) {
       this.renderer.controls.target.set(0, 0, 0);
@@ -1775,9 +1813,12 @@ export class Game {
         const targetZ = pos.z + offsetZ;
 
         // Smooth follow
-        cam.position.x += (targetX - cam.position.x) * 0.05;
-        cam.position.y += (targetY - cam.position.y) * 0.05;
-        cam.position.z += (targetZ - cam.position.z) * 0.05;
+        const smoothing = settings.get('cameraSmoothing') !== false;
+        const factor = smoothing ? (settings.get('cameraSmoothFactor') ?? 0.5) : 1.0;
+        const lerp = 0.05 + factor * 0.15; // 0.05 ~ 0.20
+        cam.position.x += (targetX - cam.position.x) * lerp;
+        cam.position.y += (targetY - cam.position.y) * lerp;
+        cam.position.z += (targetZ - cam.position.z) * lerp;
         cam.lookAt(pos.x, pos.y, pos.z);
       } else if (cueBall && cueBall.pocketed) {
         // Cue ball pocketed: keep camera looking at table center
@@ -2006,6 +2047,7 @@ export class Game {
   _applyHudVisibility() {
     const hudScale = settings.get('hudScale') ?? 1.0;
     this.ui.setHudScale?.(hudScale);
+    this.ui.setHudOpacity?.(settings.get('hudOpacity'));
     this.ui.setShowFPS?.(settings.get('showFPS'));
     this.ui.setShowPowerBar?.(settings.get('showShotPowerPercent'));
     this.ui.setShowSpinIndicator?.(settings.get('showSpinIndicator'));
@@ -2014,6 +2056,9 @@ export class Game {
     this.ui.setShowRemainingBalls?.(settings.get('showRemainingBalls'));
     this.ui.setShowComboCounter?.(settings.get('showComboCounter'));
     this.ui.setStatsPanelEnabled?.(settings.get('statsPanelEnabled'));
+    this.ui.setHighContrastUI?.(settings.get('highContrastUI'));
+    this.ui.setLargeTextMode?.(settings.get('largeTextMode'));
+    this.ui.setReducedMotion?.(settings.get('reducedMotion'));
   }
 
   _handleSettingsChange(key, value) {
@@ -2067,6 +2112,7 @@ export class Game {
         // Toggles whether shake is applied at all (ScreenShake reads this live)
         break;
       case 'hudScale':
+      case 'hudOpacity':
       case 'showFPS':
       case 'showShotPowerPercent':
       case 'showSpinIndicator':
@@ -2075,6 +2121,9 @@ export class Game {
       case 'showRemainingBalls':
       case 'showComboCounter':
       case 'statsPanelEnabled':
+      case 'highContrastUI':
+      case 'largeTextMode':
+      case 'reducedMotion':
         this._applyHudVisibility();
         break;
       case 'minimapPosition':
@@ -2083,6 +2132,99 @@ export class Game {
       case 'timerPosition':
         this.ui.setTimerPosition?.(value);
         break;
+      case 'hideCueOnShot':
+        // Applied live when shooting; no cache needed
+        break;
+      case 'cameraAutoResetAfterShot':
+      case 'cameraResetDelay':
+      case 'cameraSmoothing':
+      case 'cameraSmoothFactor':
+      case 'topDownAngle':
+        // Camera behaviour params are read live in _updateCamera / _resetCameraTop
+        break;
+      case 'showPhysicsDebug':
+        this._togglePhysicsDebug?.(value);
+        break;
+      case 'devMode':
+        this._toggleDevMode?.(value);
+        break;
+      case 'quickBreak':
+        // Applied when starting a new game
+        break;
+      case 'language':
+        // Language switch requires page reload or full text refresh
+        break;
+      case 'lightingIntensity':
+      case 'ambientIntensity':
+      case 'fogEnabled':
+      case 'toneMappingExposure':
+      case 'cameraDamping':
+      case 'renderScale':
+        // Handled by Renderer._onSettingsChanged
+        break;
+      case 'fpsLimit':
+      case 'vSync':
+        // Handled by GameLoop or requestAnimationFrame
+        break;
+      case 'vibrationEnabled':
+        // Read live before navigator.vibrate() calls
+        break;
+      case 'lowLatencyMode':
+        // Requires AudioManager re-init; shown as tooltip in UI
+        break;
+      case 'feltColorTheme':
+      case 'ballStyle':
+      case 'ballNumbers':
+      case 'roomStyle':
+      case 'tableReflection':
+      case 'ballReflection':
+      case 'depthOfField':
+      case 'lightingStyle':
+      case 'woodColorTheme':
+        // Appearance params are read live by Table / Room / BallsManager where implemented
+        break;
+      case 'postProcess':
+      case 'bloom':
+      case 'chromaticAberration':
+      case 'filmGrain':
+      case 'vignette':
+        // Post-processing requires EffectComposer setup (not yet implemented)
+        break;
+      case 'autoSaveReplays':
+      case 'replayMaxSaved':
+      case 'replaySpeed':
+      case 'showShotData':
+      case 'showHeatmap':
+      case 'showWinProbability':
+      case 'showDetailedStats':
+      case 'shotHistoryTracking':
+        // Replay / stats params are read live by ReplayLibrary / StatsTracker
+        break;
+      case 'singleHandMode':
+      case 'leftHandMode':
+      case 'autoHints':
+      case 'hintFrequency':
+      case 'voiceAnnounce':
+      case 'soundCueVisualHints':
+      case 'focusMode':
+      case 'focusOpacity':
+      case 'colorBlindMode':
+      case 'highContrastUI':
+      case 'largeTextMode':
+      case 'reducedMotion':
+      case 'hudOpacity':
+        // Accessibility / HUD params are read live by UI layer
+        break;
+      case 'autoSkipAnimation':
+      case 'skipOpponentTurn':
+      case 'showOpponentTrajectory':
+      case 'speedUnit':
+      case 'unitSystem':
+        // Read live at point of use
+        break;
+      case 'confirmShotOnRelease':
+        // Read live by InputHandler
+        break;
     }
   }
 
@@ -2090,6 +2232,10 @@ export class Game {
     if (this._strikeHideTimer) {
       clearTimeout(this._strikeHideTimer);
       this._strikeHideTimer = null;
+    }
+    if (this._cameraResetTimer) {
+      clearTimeout(this._cameraResetTimer);
+      this._cameraResetTimer = null;
     }
     // Remove canvas rect resize listener
     if (this._updateCanvasRect) {

@@ -1,3 +1,5 @@
+import { settings } from './SettingsStore.js';
+
 export class GameLoop {
   constructor({ update, render }) {
     this.update = update;
@@ -8,11 +10,22 @@ export class GameLoop {
     this.id = null;
     this._errorCount = 0;
     this._maxErrors = 3;
+    this._fpsLimitMs = 0;
+    this._lastFrameTime = 0;
+  }
+
+  _getFrameIntervalMs() {
+    const limit = settings.get('fpsLimit');
+    if (limit === 'unlimited' || !limit) return 0;
+    const fps = parseInt(limit, 10);
+    return fps > 0 ? 1000 / fps : 0;
   }
 
   start() {
     this.running = true;
     this.lastTime = performance.now();
+    this._lastFrameTime = this.lastTime;
+    this._fpsLimitMs = this._getFrameIntervalMs();
     this.tick();
   }
 
@@ -20,6 +33,7 @@ export class GameLoop {
     this.running = false;
     if (this.id !== null) {
       cancelAnimationFrame(this.id);
+      clearTimeout(this.id);
       this.id = null;
     }
   }
@@ -30,6 +44,20 @@ export class GameLoop {
     const now = performance.now();
     const dt = Math.min((now - this.lastTime) / 1000, 0.1); // cap at 100ms
     this.lastTime = now;
+
+    // FPS limiter
+    this._fpsLimitMs = this._getFrameIntervalMs();
+    if (this._fpsLimitMs > 0) {
+      const elapsed = now - this._lastFrameTime;
+      if (elapsed < this._fpsLimitMs) {
+        const delay = this._fpsLimitMs - elapsed;
+        this.id = setTimeout(() => {
+          this.id = requestAnimationFrame(this.tick);
+        }, delay);
+        return;
+      }
+      this._lastFrameTime = now;
+    }
 
     try {
       this.update(dt);

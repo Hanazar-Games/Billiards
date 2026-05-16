@@ -20,6 +20,8 @@
  *   - Per-effect cooldowns prevent machine-gun distortion.
  */
 
+import { settings } from '../core/SettingsStore.js';
+
 const SFX_COOLDOWN_MS = 20; // min gap between identical SFX
 
 export class AudioManager {
@@ -64,7 +66,8 @@ export class AudioManager {
   init() {
     if (this.initialized) return;
     try {
-      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const latencyHint = settings.get('lowLatencyMode') ? 'playback' : 'interactive';
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint });
       this._masterGain = this.ctx.createGain();
       this._masterGain.gain.value = 1.0;
       this._masterGain.connect(this.ctx.destination);

@@ -91,16 +91,36 @@ export class Renderer {
     this.applyQualitySettings();
     this._onSettingsChanged = (e) => {
       const key = e.detail?.key;
+      const value = e.detail?.value;
       if (key === 'quality' || key === 'shadowsEnabled') {
         this.applyQualitySettings();
       }
       if (key === 'cameraFov') {
-        const fov = Number(e.detail?.value) || CAMERA.fov;
+        const fov = Number(value) || CAMERA.fov;
         this.camera.fov = fov;
         this.camera.updateProjectionMatrix();
       }
       if (key === 'cameraZoomSens') {
-        this.controls.zoomSpeed = 0.85 * (Number(e.detail?.value) || 1.0);
+        this.controls.zoomSpeed = 0.85 * (Number(value) || 1.0);
+      }
+      if (key === 'cameraDamping') {
+        this.controls.dampingFactor = 0.05 * (Number(value) || 1.0);
+      }
+      if (key === 'lightingIntensity' && this._mainLight) {
+        this._mainLight.intensity = 1.45 * (Number(value) || 1.0);
+      }
+      if (key === 'ambientIntensity' && this._ambientLight) {
+        this._ambientLight.intensity = 0.40 * (Number(value) || 1.0);
+      }
+      if (key === 'toneMappingExposure') {
+        this.renderer.toneMappingExposure = Number(value) || 1.08;
+      }
+      if (key === 'fogEnabled') {
+        this.scene.fog = value ? new THREE.Fog(0xe8dcc8, 800, 2800) : null;
+      }
+      if (key === 'renderScale') {
+        const scale = Math.max(0.5, Math.min(2.0, Number(value) || 1.0));
+        this.renderer.setSize(this.width * scale, this.height * scale, false);
       }
     };
     window.addEventListener('settingsChanged', this._onSettingsChanged);
@@ -108,33 +128,33 @@ export class Renderer {
 
   setupLights() {
     // Ambient
-    const ambient = new THREE.AmbientLight(0xfff8f0, 0.40);
-    this.scene.add(ambient);
+    this._ambientLight = new THREE.AmbientLight(0xfff8f0, 0.40);
+    this.scene.add(this._ambientLight);
 
     // Main overhead lamp, aimed at the table.
-    const mainLight = new THREE.DirectionalLight(0xfff5e0, 1.45);
-    mainLight.position.set(60, 520, 90);
-    mainLight.castShadow = true;
-    mainLight.shadow.mapSize.width = 2048;
-    mainLight.shadow.mapSize.height = 2048;
-    mainLight.shadow.camera.near = 10;
-    mainLight.shadow.camera.far = 1200;
-    mainLight.shadow.camera.left = -300;
-    mainLight.shadow.camera.right = 300;
-    mainLight.shadow.camera.top = 400;
-    mainLight.shadow.camera.bottom = -400;
-    mainLight.shadow.bias = -0.0005;
-    this.scene.add(mainLight);
+    this._mainLight = new THREE.DirectionalLight(0xfff5e0, 1.45);
+    this._mainLight.position.set(60, 520, 90);
+    this._mainLight.castShadow = true;
+    this._mainLight.shadow.mapSize.width = 2048;
+    this._mainLight.shadow.mapSize.height = 2048;
+    this._mainLight.shadow.camera.near = 10;
+    this._mainLight.shadow.camera.far = 1200;
+    this._mainLight.shadow.camera.left = -300;
+    this._mainLight.shadow.camera.right = 300;
+    this._mainLight.shadow.camera.top = 400;
+    this._mainLight.shadow.camera.bottom = -400;
+    this._mainLight.shadow.bias = -0.0005;
+    this.scene.add(this._mainLight);
 
     // Fill light (cool blue from opposite side)
-    const fillLight = new THREE.DirectionalLight(0xc8d8f0, 0.22);
-    fillLight.position.set(-250, 200, -200);
-    this.scene.add(fillLight);
+    this._fillLight = new THREE.DirectionalLight(0xc8d8f0, 0.22);
+    this._fillLight.position.set(-250, 200, -200);
+    this.scene.add(this._fillLight);
 
     // Rim light (warm, from behind table)
-    const rimLight = new THREE.DirectionalLight(0xffe8c8, 0.32);
-    rimLight.position.set(0, 150, -400);
-    this.scene.add(rimLight);
+    this._rimLight = new THREE.DirectionalLight(0xffe8c8, 0.32);
+    this._rimLight.position.set(0, 150, -400);
+    this.scene.add(this._rimLight);
   }
 
   onResize() {
@@ -250,6 +270,7 @@ export class Renderer {
   }
 
   _clampCameraToRoom() {
+    if (settings.get('cameraCollisionAvoidance') === false) return;
     const cam = this.camera.position;
     const tgt = this.controls.target;
     const wallMargin = 70; // increased to prevent camera clipping through walls
