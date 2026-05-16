@@ -20,10 +20,14 @@ export class Room {
 
     this.createFloor();
     this.createWalls();
+    this.createWallDetails();
+    this.createWindows();
     this.createCeiling();
     this.createPaintings();
     this.createPlants();
     this.createTableLights();
+    this.createLoungeArea();
+    this.createRug();
   }
 
   addToScene(scene) {
@@ -208,17 +212,63 @@ export class Room {
       this.meshGroup.add(rod);
     }
 
+    // Chain links from crossbar to ceiling
+    const chainMat = this._mat('chain', {
+      color: 0x6a6058, roughness: 0.30, metalness: 0.85,
+    });
+    const linkRadius = 1.0;
+    const linkTube = 0.28;
+    const linkGeo = new THREE.TorusGeometry(linkRadius, linkTube, 8, 16);
+    const chainTopY = ceilingY - 2;
+    const chainBotY = crossbarTopY;
+    const chainLen = chainTopY - chainBotY;
+    const linksCount = Math.max(4, Math.round(chainLen / 5));
+    for (const z of [-TABLE.depth * 0.3, 0, TABLE.depth * 0.3]) {
+      for (let i = 0; i < linksCount; i++) {
+        const link = new THREE.Mesh(linkGeo, chainMat);
+        const t = i / (linksCount - 1);
+        link.position.set(0, chainBotY + t * chainLen, z);
+        link.rotation.y = (i % 2) * Math.PI / 2;
+        this.meshGroup.add(link);
+      }
+    }
+
     this._lampDiffusers = [];
     this._lampLights = [];
     const lampZs = [-TABLE.depth * 0.3, 0, TABLE.depth * 0.3];
-    for (const z of lampZs) {
-      const diffuser = new THREE.Mesh(new THREE.CylinderGeometry(13, 13, 1.5, 32), glowMat.clone());
-      diffuser.position.set(0, railY - 8.5, z);
-      this.meshGroup.add(diffuser);
-      this._lampDiffusers.push(diffuser);
 
+    // Refined lamp shade using LatheGeometry (bell shape)
+    const shadeProfile = [];
+    const shadeSegs = 16;
+    for (let i = 0; i <= shadeSegs; i++) {
+      const t = i / shadeSegs;
+      const r = 7.0 + Math.sin(t * Math.PI) * 6.5 + t * 2.5;
+      const y = t * 9.0;
+      shadeProfile.push(new THREE.Vector2(r, y));
+    }
+    const shadeGeo = new THREE.LatheGeometry(shadeProfile, 32);
+
+    for (const z of lampZs) {
+      // Shade
+      const shadeMat = glowMat.clone();
+      const shade = new THREE.Mesh(shadeGeo, shadeMat);
+      shade.position.set(0, railY - 14, z);
+      this.meshGroup.add(shade);
+      this._lampDiffusers.push(shade);
+
+      // Inner bulb glow
+      const bulbMat = this._mat('bulb', {
+        color: 0xffffee, emissive: 0xffe8aa, emissiveIntensity: 2.0,
+        roughness: 0.1, metalness: 0.0,
+        transparent: true, opacity: 0.9,
+      });
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(3.5, 16, 16), bulbMat);
+      bulb.position.set(0, railY - 10, z);
+      this.meshGroup.add(bulb);
+
+      // Spot light
       const spot = new THREE.SpotLight(0xffe4b0, 1.25, 420, Math.PI / 4.8, 0.55, 1.4);
-      spot.position.set(0, railY - 8, z);
+      spot.position.set(0, railY - 10, z);
       spot.target.position.set(0, 0, z * 0.18);
       spot.castShadow = false;
       spot.shadow.mapSize.width = 1024;
@@ -763,6 +813,153 @@ export class Room {
   }
 
   // ── Theme application ──
+
+  // Lounge area: armchairs and side tables
+  createLoungeArea() {
+    const hw = ROOM.halfWidth;
+    const hd = ROOM.halfDepth;
+    const floorY = -TABLE.height - 71;
+
+    const chairMat = this._mat('chairFabric', {
+      color: 0x4a3028, roughness: 0.82, metalness: 0.0,
+    });
+    const woodMat = this._mat('chairWood', {
+      color: 0x5c4030, roughness: 0.50, metalness: 0.10,
+    });
+    const tableMat = this._mat('sideTable', {
+      color: 0x3a2820, roughness: 0.45, metalness: 0.15,
+    });
+
+    // Two armchairs on each side wall
+    this._createArmchair(-hw + 18, floorY + 18, -140, Math.PI / 2, chairMat, woodMat);
+    this._createArmchair(-hw + 18, floorY + 18,  140, Math.PI / 2, chairMat, woodMat);
+    this._createArmchair( hw - 18, floorY + 18, -140, -Math.PI / 2, chairMat, woodMat);
+    this._createArmchair( hw - 18, floorY + 18,  140, -Math.PI / 2, chairMat, woodMat);
+
+    // Side tables between chairs
+    this._createSideTable(-hw + 18, floorY + 12, -60, tableMat);
+    this._createSideTable(-hw + 18, floorY + 12,  60, tableMat);
+    this._createSideTable( hw - 18, floorY + 12, -60, tableMat);
+    this._createSideTable( hw - 18, floorY + 12,  60, tableMat);
+
+    // Small lamp on each side table
+    const lampMat = this._mat('tableLamp', {
+      color: 0xfff5e0, emissive: 0xffe4b0, emissiveIntensity: 0.6,
+      roughness: 0.25, metalness: 0.1, transparent: true, opacity: 0.95,
+    });
+    const lampPositions = [
+      [-hw + 18, floorY + 28, -60],
+      [-hw + 18, floorY + 28,  60],
+      [ hw - 18, floorY + 28, -60],
+      [ hw - 18, floorY + 28,  60],
+    ];
+    for (const [lx, ly, lz] of lampPositions) {
+      const shade = new THREE.Mesh(
+        new THREE.CylinderGeometry(4, 5, 5, 16), lampMat);
+      shade.position.set(lx, ly, lz);
+      this.meshGroup.add(shade);
+
+      const bulb = new THREE.PointLight(0xffe8c0, 0.35, 60, 1.8);
+      bulb.position.set(lx, ly - 1, lz);
+      this.meshGroup.add(bulb);
+    }
+  }
+
+  _createArmchair(x, y, z, rotY, fabricMat, woodMat) {
+    const group = new THREE.Group();
+    group.position.set(x, y, z);
+    group.rotation.y = rotY;
+
+    // Seat
+    const seat = new THREE.Mesh(
+      new THREE.BoxGeometry(22, 5, 22), fabricMat);
+    seat.position.y = 0;
+    seat.castShadow = true;
+    group.add(seat);
+
+    // Backrest
+    const back = new THREE.Mesh(
+      new THREE.BoxGeometry(22, 22, 4), fabricMat);
+    back.position.set(0, 11, -10);
+    back.castShadow = true;
+    group.add(back);
+
+    // Armrests
+    const armL = new THREE.Mesh(
+      new THREE.BoxGeometry(4, 10, 18), woodMat);
+    armL.position.set(-11, 5, 0);
+    armL.castShadow = true;
+    group.add(armL);
+
+    const armR = new THREE.Mesh(
+      new THREE.BoxGeometry(4, 10, 18), woodMat);
+    armR.position.set(11, 5, 0);
+    armR.castShadow = true;
+    group.add(armR);
+
+    // Legs
+    const legGeo = new THREE.CylinderGeometry(1.2, 0.8, 8, 8);
+    for (const [lx, lz] of [[-9, -9], [9, -9], [-9, 9], [9, 9]]) {
+      const leg = new THREE.Mesh(legGeo, woodMat);
+      leg.position.set(lx, -6.5, lz);
+      leg.castShadow = true;
+      group.add(leg);
+    }
+
+    this.meshGroup.add(group);
+  }
+
+  _createSideTable(x, y, z, tableMat) {
+    const group = new THREE.Group();
+    group.position.set(x, y, z);
+
+    // Table top
+    const top = new THREE.Mesh(
+      new THREE.CylinderGeometry(10, 10, 1.5, 24), tableMat);
+    top.position.y = 6;
+    top.castShadow = true;
+    group.add(top);
+
+    // Stem
+    const stem = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.5, 2.0, 10, 12), tableMat);
+    stem.position.y = 0.5;
+    stem.castShadow = true;
+    group.add(stem);
+
+    // Base
+    const base = new THREE.Mesh(
+      new THREE.CylinderGeometry(6, 7, 1.2, 24), tableMat);
+    base.position.y = -4.5;
+    base.castShadow = true;
+    group.add(base);
+
+    this.meshGroup.add(group);
+  }
+
+  // Large area rug under the table
+  createRug() {
+    const rugMat = this._mat('rug', {
+      color: 0x2a1810, roughness: 0.95, metalness: 0.0,
+    });
+    const rug = new THREE.Mesh(
+      new THREE.BoxGeometry(TABLE.width + 120, 1.2, TABLE.depth + 160), rugMat);
+    rug.position.set(0, -TABLE.height - 70.4, 0);
+    rug.receiveShadow = true;
+    this.meshGroup.add(rug);
+
+    // Rug border (slightly larger, thinner)
+    const borderMat = this._mat('rugBorder', {
+      color: 0x4a3020, roughness: 0.90, metalness: 0.0,
+    });
+    const borderW = TABLE.width + 132;
+    const borderD = TABLE.depth + 172;
+    const border = new THREE.Mesh(
+      new THREE.BoxGeometry(borderW, 0.8, borderD), borderMat);
+    border.position.set(0, -TABLE.height - 70.6, 0);
+    border.receiveShadow = true;
+    this.meshGroup.add(border);
+  }
 
   applyVisualSettings(settings) {
     // Legacy-to-V2 mapping
