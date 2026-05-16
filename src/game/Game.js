@@ -502,8 +502,9 @@ export class Game {
   }
 
   isCueBallPlacementLegal(x, z, behindHeadString = false) {
-    const halfW = TABLE.width / 2 - BALL.radius * 1.1;
-    const halfD = TABLE.depth / 2 - BALL.radius * 1.1;
+    // Cue ball must stay inside the playing surface, clear of cushion faces
+    const halfW = TABLE.width / 2 - TABLE.cushionWidth - BALL.radius;
+    const halfD = TABLE.depth / 2 - TABLE.cushionWidth - BALL.radius;
     if (x < -halfW || x > halfW || z < -halfD || z > halfD) return false;
 
     // Behind the head string restriction (break foul ball-in-hand)
@@ -561,8 +562,9 @@ export class Game {
       return;
     }
 
-    const halfW = TABLE.width / 2 - BALL.radius * 1.1;
-    const halfD = TABLE.depth / 2 - BALL.radius * 1.1;
+    // Keep cue ball fully inside the playing surface, away from cushion faces
+    const halfW = TABLE.width / 2 - TABLE.cushionWidth - BALL.radius;
+    const halfD = TABLE.depth / 2 - TABLE.cushionWidth - BALL.radius;
     const headStringZ = -TABLE.depth / 2 * 0.55;
     const x = Math.max(-halfW, Math.min(halfW, point.x));
     let z;

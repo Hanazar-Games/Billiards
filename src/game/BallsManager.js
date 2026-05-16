@@ -484,8 +484,12 @@ export class BallsManager {
     const r = BALL.radius;
     const z = preferredZ ?? -TABLE.depth / 2 * 0.55;
 
-    // Check if position is clear of other balls
+    // Stay inside the playing surface, away from cushion faces
+    const halfW = TABLE.width / 2 - TABLE.cushionWidth - BALL.radius;
+    const halfD = TABLE.depth / 2 - TABLE.cushionWidth - BALL.radius;
+
     const checkClear = (x, z) => {
+      if (x < -halfW || x > halfW || z < -halfD || z > halfD) return false;
       for (const ball of this.balls) {
         if (ball.id === 0 || ball.pocketed) continue;
         const dx = ball.mesh.position.x - x;
