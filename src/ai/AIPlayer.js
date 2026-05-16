@@ -21,39 +21,42 @@ export class AIPlayer {
     switch (difficulty) {
       case AI_DIFFICULTY.EASY:
         return {
-          angleNoise: 0.14,      // radians
-          powerNoise: 0.30,      // fraction of power
+          angleNoise: 0.055,     // ~3.2° — poor aim
+          powerNoise: 0.20,      // 20% power variance
           thinkTimeMin: 1400,
-          thinkTimeMax: 3000,
-          missChance: 0.35,      // chance to pick suboptimal shot
+          thinkTimeMax: 3500,
+          missChance: 0.25,      // often perturbs chosen shot
           safetyAwareness: 0.05,
-          positionPlayWeight: 0, // doesn't think about position
-          spinSkill: 0.2,        // poor spin control
-          topShotPickRate: 0.55, // only picks best shot 55% of the time
+          positionPlayWeight: 0,
+          spinSkill: 0.15,
+          topShotPickRate: 0.65,
+          bankShotEnable: false,
         };
       case AI_DIFFICULTY.HARD:
         return {
-          angleNoise: 0.015,
-          powerNoise: 0.04,
-          thinkTimeMin: 600,
-          thinkTimeMax: 1400,
-          missChance: 0.0,       // almost never misses intentionally
-          safetyAwareness: 0.75,
-          positionPlayWeight: 0.6, // strong position play
-          spinSkill: 1.0,        // excellent spin control
-          topShotPickRate: 1.0,  // always picks best shot
+          angleNoise: 0.003,     // ~0.17° — near-perfect aim
+          powerNoise: 0.012,     // 1.2% power variance
+          thinkTimeMin: 400,
+          thinkTimeMax: 1000,
+          missChance: 0.0,
+          safetyAwareness: 0.80,
+          positionPlayWeight: 0.7,
+          spinSkill: 1.0,
+          topShotPickRate: 1.0,
+          bankShotEnable: true,
         };
       default: // NORMAL
         return {
-          angleNoise: 0.07,
-          powerNoise: 0.16,
-          thinkTimeMin: 1000,
+          angleNoise: 0.025,     // ~1.4°
+          powerNoise: 0.10,
+          thinkTimeMin: 900,
           thinkTimeMax: 2200,
-          missChance: 0.12,
+          missChance: 0.10,
           safetyAwareness: 0.35,
           positionPlayWeight: 0.25,
           spinSkill: 0.55,
-          topShotPickRate: 0.82,
+          topShotPickRate: 0.88,
+          bankShotEnable: true,
         };
     }
   }
@@ -92,7 +95,8 @@ export class AIPlayer {
         pocketPositions,
         playerGroup,
         isBreak,
-        targetBallId
+        targetBallId,
+        this.settings.bankShotEnable
       );
 
       let chosenShot = null;
