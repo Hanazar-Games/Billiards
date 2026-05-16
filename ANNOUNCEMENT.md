@@ -1,24 +1,79 @@
-# 3D Billiards v1.5.9 — Latest Update
+# 3D Billiards v1.6.1 — Latest Update
 
-## What's New in v1.5.9
+## What's New in v1.6.1
 
-### 🐛 深度 Bug 修复与规则校正
+### 🔧 Table Profile System 后续修复
 
 | # | 改动 | 详情 |
 |---|------|------|
-| 1 | **9球 Push-out 9号球规则校正** | Push-out 杆打进 9 号球不再直接获胜，9 号球被复位，对手正常选择接受/让回（符合 WPA 规则） |
-| 2 | **回合计时器初始化修复** | `turnTimer` 设置在开始新游戏时未生效，现在 `_applySettings()` 中正确初始化 |
-| 3 | **三次犯规 UI 清理** | 游戏结束/认输/重新开始时自动隐藏三次犯规警告条与 Push-out UI，防止残留 |
-| 4 | **字符串全面集中化** | Game.js、NineBallRules.js、UI.js 中所有玩家可见中文文本统一收归 `UIText.js`，消除硬编码散落 |
-| 5 | **FX 系统健壮性** | PowerLabel 动画帧回调增加 null 防护；ImpactShockwave / BallReturnSystem 增加 dt 上限钳制，防止切标签后帧爆 |
-| 6 | **AudioManager 初始化补全** | `_ambientVolume` 在构造函数中补初始值，避免首次调用时出现 undefined |
-| 7 | **网络死代码清理** | 移除 `sendTurnResolved` 无监听调用，减少冗余网络流量 |
-| 8 | **网络断开定时器泄漏修复** | `Game.dispose()` 中补充 `clearTimeout(this._netDisconnectTimer)` |
-| 9 | **测试扩展** | 新增 `9-ball pocketed on push-out is spotted, not a win` 测试用例，总测试数 28 项 |
+| 1 | **AI 桌型参数传递** | `ShotPlanner.evaluateShot` 新增 `tableProfile` 参数，修复 AI 计算 ghost ball 边界时 `ReferenceError`；所有调用点（含 8-ball 清台路径）已更新 |
+| 2 | **AI 选杆权重计算** | `AIPlayer._selectShot` 接收 `tableProfile` 并传入 `_evaluatePositionPlay`，修复 Hard 难度下 position play 评分使用的未定义变量 |
+| 3 | **设置导入二次校验** | `resolveTableProfileId` 在读取 settings 默认值后增加 `validateModeTableProfile` 校验，防止通过配置导入非法组合（如 9-ball + chinese8） |
+| 4 | **库边材质共享** | `Table.js` 的 `addCushion` 改为 6 条库边共享同一材质；修复切换台呢主题时只有第一条库边变色的 bug |
+| 5 | **灯具漫射材质共享** | `Room.js` 的吊灯 shade 不再 `clone()` glowMat；修复切换灯具风格时 3 个 shade 颜色不更新的 bug |
+| 6 | **UI 死代码清理** | 移除 `MatchSetupPanel` 中无意义的 `originalModeClick` 变量；移除 `Game.js` constructor 中重复的 `this.powerLabel = null` |
+
+### 🧪 测试扩展
+
+- `test/table-profiles.test.js` 从 25 项扩展至 **34 项**，新增：
+  - pool8ft / bar7ft / chinese8 尺寸验证
+  - 全部桌型 `pocketDetectMargin` 一致性检查
+  - 设置值非法时的 fallback 路径
+  - 扩展模式过滤（vsai / challenge / lan 9-ball）
+- `npm test` 现在同时运行 rules（28 项）+ table-profiles（34 项），共 **62 项**
+
+---
+
+# 3D Billiards v1.6.0
+
+## What's New in v1.6.0
+
+### 🎱 Table Profile System (球桌类型系统)
+
+| # | 功能 | 详情 |
+|---|------|------|
+| 1 | **6 种桌型定义** | pool9ft（默认）、pool8ft、bar7ft、chinese8、snooker12ft（预留）、carom10ft（预留） |
+| 2 | **尺寸参数化** | 全部球桌几何（台面、库边、袋口、球房地板/灯具/地毯）使用 profile 尺寸，不再硬编码全局 TABLE |
+| 3 | **模式-桌型兼容性** | 8-Ball 支持 pool9ft/8ft/bar7ft/chinese8；9-Ball 支持 pool9ft/8ft/bar7ft（不含 chinese8）；LAN 由房主锁定桌型 |
+| 4 | **UI 桌型选择** | MatchSetupPanel 与 LanRoomPanel 增加桌型下拉选择；切换 8/9 球时自动过滤不兼容桌型 |
+| 5 | **设置默认桌型** | SettingsScreen 增加"默认球桌 (8球 / 9球 / 练习)"三项独立设置 |
+| 6 | **回放携带桌型** | ShotRecorder 元数据记录 `tableProfileId`，回放时重建与录制时一致的球桌尺寸 |
+| 7 | **LAN 同步** | startGame 消息携带 `tableProfileId`，server 广播保留并转发；client 以 host 为准初始化 |
+| 8 | **校验层** | 新增 `validateModeTableProfile(mode, tableProfileId)`，非法组合（如 9ball + chinese8）自动 fallback 到 pool9ft |
+
+### 🔧 深度 Bug 修复
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **袋口视觉与判定一致** | 将所有桌型的 `pocketDetectMargin` 统一为 `BALL.radius`，消除"球看起来没进却被判进"或相反的情况 |
+| 2 | **Room.js 遗漏硬编码** | 修复地板、灯具、植物、地毯的 Y 坐标和尺寸仍使用全局 TABLE 的问题 |
+| 3 | **Cue.js 未注入桌型** | Game.js 创建 Cue 后补充 `setTableProfile`，球杆防穿帮边界随桌型变化 |
+| 4 | **BallReturnSystem 硬编码位置** | tray 回收槽 Z 坐标从固定 `-155` 改为 `-(profile.depth / 2 + 28)`，适配不同桌长 |
+| 5 | **LAN callback 签名缺失** | MenuSystem `_showLanRoom` 的 callback 未接收 `tableProfileId`，导致 host 选择的桌型在联机中不生效 |
+| 6 | **Table.js 未导入 TABLE** | `TABLE.feltColor` / `TABLE.cushionColor` 使用但无 import，补充 `import { TABLE, BALL }` |
+| 7 | **bar7ft/pool8ft enabledFor 补全** | 补充 'match' / 'lan' / '9ball'，使比赛模式与联机模式能正确选择这些桌型 |
+| 8 | **freeplay 设置回退顺序** | `resolveTableProfileId` 中 freeplay 默认设置被 8ball 默认设置遮挡，调整判断顺序 |
+
+### 🧪 测试扩展
+
+- 新增 `test/table-profiles.test.js`（25 项），覆盖 profile 存在性、尺寸、validateModeTableProfile、getEnabledProfilesForMode、resolveTableProfileId
+- `npm test` 现在同时运行 rules（28 项）+ table-profiles（25 项），共 53 项
 
 ---
 
 ## Previous Versions
+
+### v1.5.9 — 深度 Bug 修复与规则校正
+
+- **9球 Push-out 9号球规则校正**：Push-out 杆打进 9 号球不再直接获胜，9 号球被复位，对手正常选择接受/让回（符合 WPA 规则）
+- **回合计时器初始化修复**：`turnTimer` 设置在开始新游戏时未生效，现在 `_applySettings()` 中正确初始化
+- **三次犯规 UI 清理**：游戏结束/认输/重新开始时自动隐藏三次犯规警告条与 Push-out UI，防止残留
+- **字符串全面集中化**：Game.js、NineBallRules.js、UI.js 中所有玩家可见中文文本统一收归 `UIText.js`，消除硬编码散落
+- **FX 系统健壮性**：PowerLabel 动画帧回调增加 null 防护；ImpactShockwave / BallReturnSystem 增加 dt 上限钳制，防止切标签后帧爆
+- **AudioManager 初始化补全**：`_ambientVolume` 在构造函数中补初始值，避免首次调用时出现 undefined
+- **网络死代码清理**：移除 `sendTurnResolved` 无监听调用，减少冗余网络流量
+- **网络断开定时器泄漏修复**：`Game.dispose()` 中补充 `clearTimeout(this._netDisconnectTimer)`
+- **测试扩展**：新增 `9-ball pocketed on push-out is spotted, not a win` 测试用例，总测试数 28 项
 
 ### v1.5.8 — 程序化建模主题系统 + Push-out / 三次犯规 UI 完整落地
 

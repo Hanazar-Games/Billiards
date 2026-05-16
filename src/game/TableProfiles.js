@@ -10,6 +10,19 @@ function cm(v) {
   return (v / 100) * SCALE;
 }
 
+/**
+ * NOTE: The following fields affect competitive fairness and must be
+ * identical across all clients in a networked game.  They are chosen
+ * by the host and must not be overridden by local player settings:
+ *   - width, depth, height, cushionHeight, cushionWidth
+ *   - pocketRadius, pocketDetectMargin
+ *   - ballSet (future)
+ *
+ * Visual-only fields (feltColor, woodColor, etc.) may be personalised.
+ *
+ * TODO: cornerPocketRadius / sidePocketRadius are not yet supported;
+ * all 6 pockets currently share the same radius.
+ */
 export const TABLE_PROFILES = {
   pool9ft: {
     id: 'pool9ft',
@@ -21,7 +34,7 @@ export const TABLE_PROFILES = {
     cushionHeight: 5,
     cushionWidth: 4,
     pocketRadius: BALL.radius * 2.25,
-    pocketDetectMargin: BALL.radius * 1.1,
+    pocketDetectMargin: BALL.radius,
     pocketStyle: 'american',
     ballSet: 'pool57',
     enabledFor: new Set(['freeplay', 'local2p', 'vsai', '9ball', 'match', 'lan']),
@@ -39,10 +52,10 @@ export const TABLE_PROFILES = {
     cushionHeight: 5,
     cushionWidth: 4,
     pocketRadius: BALL.radius * 2.25,
-    pocketDetectMargin: BALL.radius * 1.1,
+    pocketDetectMargin: BALL.radius,
     pocketStyle: 'american',
     ballSet: 'pool57',
-    enabledFor: new Set(['freeplay', 'local2p', 'vsai', 'match']),
+    enabledFor: new Set(['freeplay', 'local2p', 'vsai', 'match', 'lan', '9ball']),
     default: false,
     enabled: true,
   },
@@ -57,10 +70,10 @@ export const TABLE_PROFILES = {
     cushionHeight: 5,
     cushionWidth: 4,
     pocketRadius: BALL.radius * 2.35,
-    pocketDetectMargin: BALL.radius * 1.15,
+    pocketDetectMargin: BALL.radius,
     pocketStyle: 'american_bar',
     ballSet: 'pool57',
-    enabledFor: new Set(['freeplay', 'local2p', 'vsai', 'challenge']),
+    enabledFor: new Set(['freeplay', 'local2p', 'vsai', 'challenge', 'match', 'lan', '9ball']),
     default: false,
     enabled: true,
   },
@@ -75,10 +88,10 @@ export const TABLE_PROFILES = {
     cushionHeight: 5,
     cushionWidth: 4,
     pocketRadius: BALL.radius * 1.95,
-    pocketDetectMargin: BALL.radius * 0.95,
+    pocketDetectMargin: BALL.radius,
     pocketStyle: 'chinese',
     ballSet: 'pool57',
-    enabledFor: new Set(['freeplay', 'local2p', 'vsai', 'match']),
+    enabledFor: new Set(['freeplay', 'local2p', 'vsai', 'match', 'lan', '9ball']),
     default: false,
     enabled: true,
   },
@@ -93,7 +106,7 @@ export const TABLE_PROFILES = {
     cushionHeight: 5,
     cushionWidth: 4,
     pocketRadius: BALL.radius * 1.7,
-    pocketDetectMargin: BALL.radius * 0.85,
+    pocketDetectMargin: BALL.radius,
     pocketStyle: 'snooker',
     ballSet: 'snooker52',
     enabledFor: new Set([]),
@@ -141,10 +154,54 @@ export function getEnabledProfilesForMode(mode, rulesMode) {
   return list;
 }
 
-export function resolveTableProfileId(modeConfig, settingsStore) {
-  if (modeConfig.tableProfileId && TABLE_PROFILES[modeConfig.tableProfileId]?.enabled) {
-    return modeConfig.tableProfileId;
+/**
+ * Validate that a table profile is compatible with the given game mode.
+ * Returns { valid, mode, tableProfileId, reason }.
+ * If invalid, tableProfileId is replaced with the safe fallback 'pool9ft'.
+ */
+export function validateModeTableProfile(mode, tableProfileId) {
+  const profile = TABLE_PROFILES[tableProfileId];
+  if (!profile || !profile.enabled) {
+    return { valid: false, mode, tableProfileId: 'pool9ft', reason: 'unknown or disabled profile' };
   }
+
+  const rulesMode = (mode === '9ball' || mode === 'nineball') ? '9ball' : '8ball';
+
+  // 9ball cannot use chinese8 (tight snooker-cut pockets incompatible with 9-ball racking)
+  if (rulesMode === '9ball' && profile.id === 'chinese8') {
+    return { valid: false, mode, tableProfileId: 'pool9ft', reason: 'chinese8 not allowed in 9ball' };
+  }
+
+  // Snooker and carom require their own dedicated rules, not 8-ball / 9-ball
+  if (profile.id === 'snooker12ft' || profile.id === 'carom10ft') {
+    return { valid: false, mode, tableProfileId: 'pool9ft', reason: 'profile requires dedicated rules' };
+  }
+
+  return { valid: true, mode, tableProfileId: profile.id, reason: null };
+}
+
+export function resolveTableProfileId(modeConfig, settingsStore) {
+  if (modeConfig.tableProfileId) {
+    const explicit = validateModeTableProfile(modeConfig.mode, modeConfig.tableProfileId);
+    if (explicit.valid) {
+      return explicit.tableProfileId;
+    }
+    // Invalid explicit ID falls through to settings / default
+  }
+  // Freeplay has its own dedicated default setting
+  if (modeConfig.mode === 'freeplay' && settingsStore) {
+    const freeplayDefault = settingsStore.get('defaultTableProfileFreeplay');
+    if (freeplayDefault && TABLE_PROFILES[freeplayDefault]?.enabled) {
+      const profile = TABLE_PROFILES[freeplayDefault];
+      if (profile.enabledFor.has('freeplay')) {
+        const validated = validateModeTableProfile(modeConfig.mode, freeplayDefault);
+        if (validated.valid) {
+          return freeplayDefault;
+        }
+      }
+    }
+  }
+
   const rulesMode = modeConfig.mode === '9ball' ? '9ball' : '8ball';
   if (settingsStore) {
     const settingKey = rulesMode === '9ball'
@@ -154,18 +211,11 @@ export function resolveTableProfileId(modeConfig, settingsStore) {
     if (fromSettings && TABLE_PROFILES[fromSettings]?.enabled) {
       const profile = TABLE_PROFILES[fromSettings];
       if (profile.enabledFor.has(modeConfig.mode)) {
-        if (profile.id === 'chinese8' && rulesMode === '9ball') {
-          // fall through
-        } else {
+        const validated = validateModeTableProfile(modeConfig.mode, fromSettings);
+        if (validated.valid) {
           return fromSettings;
         }
       }
-    }
-  }
-  if (modeConfig.mode === 'freeplay' && settingsStore) {
-    const freeplayDefault = settingsStore.get('defaultTableProfileFreeplay');
-    if (freeplayDefault && TABLE_PROFILES[freeplayDefault]?.enabled) {
-      return freeplayDefault;
     }
   }
   return 'pool9ft';

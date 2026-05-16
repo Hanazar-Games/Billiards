@@ -1,5 +1,5 @@
 import * as CANNON from 'cannon-es';
-import { PHYSICS, TABLE, BALL } from '../config.js';
+import { PHYSICS, BALL } from '../config.js';
 
 export class PhysicsWorld {
   constructor() {

@@ -25,7 +25,7 @@ import { ShotRecorder } from '../replay/ShotRecorder.js';
 import { settings } from '../core/SettingsStore.js';
 import { keyBindings } from '../input/KeyBindings.js';
 import { BALL, SHOT, CAMERA } from '../config.js';
-import { getTableProfile, resolveTableProfileId } from './TableProfiles.js';
+import { getTableProfile, resolveTableProfileId, validateModeTableProfile } from './TableProfiles.js';
 import { GameStateSerializer } from '../net/GameStateSerializer.js';
 import { SettingsScreen } from '../menu/SettingsScreen.js';
 import { animMs } from '../core/AnimSpeed.js';
@@ -53,7 +53,6 @@ export class Game {
     this._ownsAudio = !audioManager;
     this.aiPlayer = null;
     this.trajectory = null;
-    this.powerLabel = null;
     this.achievements = null;
     this.statsTracker = new StatsTracker();
     this.statsPanel = new StatsPanel();
@@ -62,7 +61,6 @@ export class Game {
     this.shockwaves = new ImpactShockwave(this.scene);
     this.screenShake = new ScreenShake(this.camera);
     this.powerLabel = new PowerLabel();
-    this.ballReturn = new BallReturnSystem(this.scene);
     this.minimap = new Minimap();
     this.recorder = new ShotRecorder();
     this.replayLibrary = null; // injected by MenuSystem
@@ -143,8 +141,14 @@ export class Game {
     this.aiEnabled = modeConfig.aiEnabled || false;
 
     // Resolve table profile (match setting, locked for the whole game)
+    const validated = validateModeTableProfile(this.mode, modeConfig.tableProfileId);
+    if (!validated.valid) {
+      console.warn('[Game] Invalid mode/profile combo (%s / %s): %s. Falling back to pool9ft.',
+        this.mode, modeConfig.tableProfileId, validated.reason);
+    }
     this.tableProfileId = resolveTableProfileId(modeConfig, settings);
     this.tableProfile = getTableProfile(this.tableProfileId);
+    this.ballReturn = new BallReturnSystem(this.scene, this.tableProfile);
     if (modeConfig.aiDifficulty) {
       this.aiPlayer = new AIPlayer(modeConfig.aiDifficulty);
     }
@@ -175,7 +179,7 @@ export class Game {
     this.table.addToScene(this.scene);
     this.table.applyVisualSettings(settings);
 
-    this.room = new Room();
+    this.room = new Room(this.tableProfile);
     this.room.addToScene(this.scene);
     this.room.applyVisualSettings(settings);
 
@@ -196,6 +200,7 @@ export class Game {
     this.input.onMouseUp = (e) => this.onMouseUp(e);
 
     this.cue = new Cue();
+    this.cue.setTableProfile(this.tableProfile);
     this.cue.applyTheme(settings.get('cueTheme'));
     this.scene.add(this.cue.mesh);
 
@@ -735,7 +740,7 @@ export class Game {
     }
     this.powerLabel?.show(force);
     this.trails.startRecording(cueBall);
-    this.recorder.start(this.ballsManager, this.mode, force, this.cueTipOffset);
+    this.recorder.start(this.ballsManager, this.mode, force, this.cueTipOffset, this.tableProfileId);
 
     // Strike snap: cue visually touches the ball for one frame before hiding
     this.cue.strikeSnap(cueBall.mesh.position, this.aimDirection);
@@ -1505,10 +1510,6 @@ export class Game {
       this._netDisconnectTimer = null;
     }
     this._challengeEnding = false;
-    if (this._netDisconnectTimer) {
-      clearTimeout(this._netDisconnectTimer);
-      this._netDisconnectTimer = null;
-    }
 
     this._removeChallengeHUD();
 

@@ -112,7 +112,7 @@ export class AIPlayer {
         }
       } else {
         // Difficulty-based shot selection
-        chosenShot = this._selectShot(allShots);
+        chosenShot = this._selectShot(allShots, tableProfile);
 
         // If the chosen shot is very poor (e.g. perturbed miss), strong AI may switch to safety
         const s = this.settings;
@@ -159,7 +159,7 @@ export class AIPlayer {
    * NORMAL: usually picks good shots, occasionally makes mistakes.
    * HARD: always picks the optimal shot, considers position play.
    */
-  _selectShot(allShots) {
+  _selectShot(allShots, tableProfile = null) {
     if (!allShots || allShots.length === 0) return null;
     const s = this.settings;
 

@@ -263,6 +263,7 @@ export class LanRoomPanel {
     this._joinBtn.style.display = 'none';
     this._joinRow.style.display = 'none';
     this._startBtn.style.display = 'none';
+    if (this._tableSelectWrap) this._tableSelectWrap.style.display = 'none';
     this._updatePlayerList(detail.playerList);
     this._state = 'joined';
   }

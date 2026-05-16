@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { BALL } from '../config.js';
+import { getDefaultTableProfile } from '../game/TableProfiles.js';
 import { fxAnimMs } from '../core/AnimSpeed.js';
 
 /**
@@ -13,8 +14,9 @@ import { fxAnimMs } from '../core/AnimSpeed.js';
  * This is purely cosmetic — physics removal and game logic are untouched.
  */
 export class BallReturnSystem {
-  constructor(scene) {
+  constructor(scene, tableProfile = null) {
     this.scene = scene;
+    this.profile = tableProfile || getDefaultTableProfile();
     this.active = []; // { mesh, stage, age, dur, start, drop, slide, target, rotAxis, rotSpeed }
     this.settled = []; // { mesh } — balls resting in the tray
     this._nextSlot = 0; // monotonic slot allocator so concurrent pockets never overlap
@@ -48,7 +50,10 @@ export class BallReturnSystem {
     const d = 26;
     const x = 0;
     const y = -20;
-    const z = -155; // pushed back to avoid z-fighting with back apron
+    // Position tray relative to table head rail (negative Z), keeping
+    // the same ~28-unit gap from the rail for all table profiles.
+    this._trayCenterZ = -(this.profile.depth / 2 + 28);
+    const z = this._trayCenterZ;
 
     // Bottom slab
     const bottom = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), woodMat);
@@ -141,10 +146,12 @@ export class BallReturnSystem {
     const col = index % cols;
     const row = Math.floor(index / cols);
     const jitter = 0.4;
+    // Base Z is 7 units forward from tray center (matches original pool9ft layout)
+    const baseZ = (this._trayCenterZ || -155) + 7;
     return new THREE.Vector3(
       -22.75 + col * spacing + (Math.random() - 0.5) * jitter,
       -14.84, // cushion top (-17.7) + ball radius (2.8575) ≈ -14.84
-      -148 + row * spacing * 0.85 + (Math.random() - 0.5) * jitter
+      baseZ + row * spacing * 0.85 + (Math.random() - 0.5) * jitter
     );
   }
 

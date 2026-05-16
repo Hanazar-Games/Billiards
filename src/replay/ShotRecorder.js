@@ -8,7 +8,7 @@
  *   frames: Float32Array[frameCount * 16 * 2]
  *     index = frameIdx * 32 + ballId * 2     → x
  *     index = frameIdx * 32 + ballId * 2 + 1 → z
- *   metadata: { startTime, endTime, mode, pocketedIds[], collisionCount,
+ *   metadata: { startTime, endTime, mode, tableProfileId, pocketedIds[], collisionCount,
  *               cushionCount, spinUsed, maxPower, duration }
  */
 const MAX_FRAMES = 1080; // 18 seconds @ 60fps
@@ -27,7 +27,7 @@ export class ShotRecorder {
   }
 
   /** Start recording a new shot. Call when the cue ball is struck. */
-  start(ballsManager, mode, power, spin) {
+  start(ballsManager, mode, power, spin, tableProfileId = null) {
     this.recording = true;
     this.frames = new Float32Array(MAX_FRAMES * FLOATS_PER_FRAME);
     this.frameIndex = 0;
@@ -36,6 +36,7 @@ export class ShotRecorder {
       startTime: performance.now(),
       endTime: null,
       mode: mode || 'unknown',
+      tableProfileId: tableProfileId || null,
       pocketedIds: [],
       collisionCount: 0,
       cushionCount: 0,

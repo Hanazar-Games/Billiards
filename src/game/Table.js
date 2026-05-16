@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { BALL } from '../config.js';
+import { TABLE, BALL } from '../config.js';
 import { getDefaultTableProfile } from './TableProfiles.js';
 import {
   TABLE_THEMES, FELT_THEMES, WOOD_THEMES, METAL_TRIM_THEMES, POCKET_LEATHER_THEMES,
@@ -167,13 +167,14 @@ export class Table {
   }
 
   addCushion(geo, shape, x, y, z, bevelNx, bevelNz) {
-    const mat = this._mat(`cushion_${x}_${z}`, {
-      color: TABLE.cushionColor,
-      roughness: 0.78,
-      metalness: 0.0,
-    });
-    // Store a reference under the canonical name as well for theming
-    if (!this._materials.cushion) this._materials.cushion = mat;
+    if (!this._materials.cushion) {
+      this._materials.cushion = this._mat('cushion', {
+        color: TABLE.cushionColor,
+        roughness: 0.78,
+        metalness: 0.0,
+      });
+    }
+    const mat = this._materials.cushion;
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(x, y, z);
     mesh.castShadow = true;

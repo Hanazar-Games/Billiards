@@ -14,6 +14,7 @@ import { GameLoop } from '../core/GameLoop.js';
 import { Game } from '../game/Game.js';
 import { Table } from '../game/Table.js';
 import { BallsManager } from '../game/BallsManager.js';
+import { getTableProfile, validateModeTableProfile } from '../game/TableProfiles.js';
 import { MainMenuScreen } from './MainMenuScreen.js';
 import { SettingsScreen } from './SettingsScreen.js';
 import { AchievementSystem } from '../achievements/AchievementSystem.js';
@@ -243,8 +244,19 @@ export class MenuSystem {
     this.challengeManager = new ChallengeManager(challenge.id);
     this.challengeManager.start();
 
+    // Validate challenge mode/profile combo
+    const challengeProfileId = challenge.tableProfileId || null;
+    const challengeValidated = validateModeTableProfile(challenge.gameMode, challengeProfileId);
+    if (!challengeValidated.valid && challengeProfileId) {
+      console.warn('[MenuSystem] Invalid challenge mode/profile combo (%s / %s): %s. Using fallback.',
+        challenge.gameMode, challengeProfileId, challengeValidated.reason);
+    }
+
     // Create game with challenge mode
     const modeConfig = { mode: challenge.gameMode, aiEnabled: false };
+    if (challengeValidated.tableProfileId) {
+      modeConfig.tableProfileId = challengeValidated.tableProfileId;
+    }
     this.game = new Game(this.renderer, this.physics, this.audio);
     this.game.achievements = this.achievements;
     this.game.replayLibrary = this.replayLibrary;
@@ -390,6 +402,14 @@ export class MenuSystem {
       }
     }
 
+    // Validate mode/profile combo before proceeding
+    const validated = validateModeTableProfile(mode, tableProfileId);
+    if (!validated.valid) {
+      console.warn('[MenuSystem] Invalid mode/profile combo (%s / %s): %s. Using fallback.',
+        mode, tableProfileId, validated.reason);
+      tableProfileId = validated.tableProfileId;
+    }
+
     // Configure mode
     const modeConfig = this._getModeConfig(mode, tableProfileId);
 
@@ -434,7 +454,7 @@ export class MenuSystem {
   _showLanRoom() {
     this.mainMenu.hide();
     this.lanRoomPanel = new LanRoomPanel(
-      (client, mode) => this._startNetworkGame(client, mode),
+      (client, mode, tableProfileId) => this._startNetworkGame(client, mode, tableProfileId),
       () => this._showMainMenu()
     );
     this.lanRoomPanel.show();
@@ -605,7 +625,9 @@ export class MenuSystem {
     if (uiLayer) uiLayer.style.display = 'none';
 
     // Create table and balls for replay (visual only, no physics step)
-    this._replayTable = new Table(this.physics);
+    const replayProfileId = replayData.metadata?.tableProfileId || null;
+    const replayProfile = replayProfileId ? getTableProfile(replayProfileId) : null;
+    this._replayTable = new Table(this.physics, replayProfile);
     this._replayTable.addToScene(this.renderer.scene);
 
     this._replayBalls = new BallsManager(this.physics);

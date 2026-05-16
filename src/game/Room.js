@@ -2,14 +2,16 @@
  * Room — Pool hall environment with walls, floor, lights and lounge furniture.
  */
 import * as THREE from 'three';
-import { TABLE, BALL, ROOM } from '../config.js';
+import { BALL, ROOM } from '../config.js';
+import { getDefaultTableProfile } from './TableProfiles.js';
 import {
   ROOM_THEMES, FLOOR_THEMES, WALL_THEMES, LAMP_STYLE_THEMES, AMBIENT_LIGHT_THEMES,
   applyMaterialTheme,
 } from '../theme/RoomThemes.js';
 
 export class Room {
-  constructor() {
+  constructor(tableProfile = null) {
+    this.profile = tableProfile || getDefaultTableProfile();
     this.meshGroup = new THREE.Group();
     this._tmpToTable = new THREE.Vector3();
     this._tmpToLamp = new THREE.Vector3();
@@ -42,8 +44,8 @@ export class Room {
 
   // ── Floor ──
   createFloor() {
-    const width = TABLE.width * 4.2;
-    const depth = TABLE.depth * 4.2;
+    const width = this.profile.width * 4.2;
+    const depth = this.profile.depth * 4.2;
     const geometry = new THREE.PlaneGeometry(width, depth);
     const material = this._mat('floor', {
       color: 0xe0d5c0,
@@ -52,7 +54,7 @@ export class Room {
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = -TABLE.height - 71;
+    mesh.position.y = -this.profile.height - 71;
     mesh.receiveShadow = true;
     this.meshGroup.add(mesh);
 
@@ -70,13 +72,13 @@ export class Room {
 
     for (let x = -width / 2; x <= width / 2; x += 48) {
       const line = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.2, depth), lineMat);
-      line.position.set(x, -TABLE.height - 70.85, 0);
+      line.position.set(x, -this.profile.height - 70.85, 0);
       this._themeGroups.floorLines.add(line);
     }
 
     for (let z = -depth / 2; z <= depth / 2; z += 48) {
       const line = new THREE.Mesh(new THREE.BoxGeometry(width, 0.2, 0.8), lineMat);
-      line.position.set(0, -TABLE.height - 70.85, z);
+      line.position.set(0, -this.profile.height - 70.85, z);
       this._themeGroups.floorLines.add(line);
     }
   }
@@ -91,7 +93,7 @@ export class Room {
 
     const hw = ROOM.halfWidth;
     const hd = ROOM.halfDepth;
-    const floorY = -TABLE.height - 71;
+    const floorY = -this.profile.height - 71;
     const wallTotalH = ROOM.wallHeight - floorY;
     const wallCenterY = floorY + wallTotalH / 2;
     const wallThick = 6;
@@ -193,7 +195,7 @@ export class Room {
       opacity: 1.0,
       depthWrite: false,
     });
-    const crossbar = new THREE.Mesh(new THREE.BoxGeometry(4, 3, TABLE.depth * 0.68), crossbarMat);
+    const crossbar = new THREE.Mesh(new THREE.BoxGeometry(4, 3, this.profile.depth * 0.68), crossbarMat);
     crossbar.position.set(0, railY + 14, 0);
     this.meshGroup.add(crossbar);
 
@@ -205,7 +207,7 @@ export class Room {
     const ceilingY = ROOM.wallHeight;
     const crossbarTopY = railY + 14 + 1.5;
     const rodLen = ceilingY - crossbarTopY;
-    for (const z of [-TABLE.depth * 0.3, 0, TABLE.depth * 0.3]) {
+    for (const z of [-this.profile.depth * 0.3, 0, this.profile.depth * 0.3]) {
       const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, rodLen, 12), rodMat);
       rod.position.set(0, crossbarTopY + rodLen / 2, z);
       rod.castShadow = true;
@@ -223,7 +225,7 @@ export class Room {
     const chainBotY = crossbarTopY;
     const chainLen = chainTopY - chainBotY;
     const linksCount = Math.max(4, Math.round(chainLen / 5));
-    for (const z of [-TABLE.depth * 0.3, 0, TABLE.depth * 0.3]) {
+    for (const z of [-this.profile.depth * 0.3, 0, this.profile.depth * 0.3]) {
       for (let i = 0; i < linksCount; i++) {
         const link = new THREE.Mesh(linkGeo, chainMat);
         const t = i / (linksCount - 1);
@@ -235,7 +237,7 @@ export class Room {
 
     this._lampDiffusers = [];
     this._lampLights = [];
-    const lampZs = [-TABLE.depth * 0.3, 0, TABLE.depth * 0.3];
+    const lampZs = [-this.profile.depth * 0.3, 0, this.profile.depth * 0.3];
 
     // Refined lamp shade using LatheGeometry (bell shape)
     const shadeProfile = [];
@@ -249,9 +251,8 @@ export class Room {
     const shadeGeo = new THREE.LatheGeometry(shadeProfile, 32);
 
     for (const z of lampZs) {
-      // Shade
-      const shadeMat = glowMat.clone();
-      const shade = new THREE.Mesh(shadeGeo, shadeMat);
+      // Shade — share the glowMat so applyVisualSettings updates all diffusers
+      const shade = new THREE.Mesh(shadeGeo, glowMat);
       shade.position.set(0, railY - 14, z);
       this.meshGroup.add(shade);
       this._lampDiffusers.push(shade);
@@ -442,7 +443,7 @@ export class Room {
     ];
 
     const group = new THREE.Group();
-    group.position.set(x, -TABLE.height - 71, z);
+    group.position.set(x, -this.profile.height - 71, z);
 
     const pot = new THREE.Mesh(
       new THREE.CylinderGeometry(14, 10, 18, 20),
@@ -818,7 +819,7 @@ export class Room {
   createLoungeArea() {
     const hw = ROOM.halfWidth;
     const hd = ROOM.halfDepth;
-    const floorY = -TABLE.height - 71;
+    const floorY = -this.profile.height - 71;
 
     const chairMat = this._mat('chairFabric', {
       color: 0x4a3028, roughness: 0.82, metalness: 0.0,
@@ -943,8 +944,8 @@ export class Room {
       color: 0x2a1810, roughness: 0.95, metalness: 0.0,
     });
     const rug = new THREE.Mesh(
-      new THREE.BoxGeometry(TABLE.width + 120, 1.2, TABLE.depth + 160), rugMat);
-    rug.position.set(0, -TABLE.height - 70.4, 0);
+      new THREE.BoxGeometry(this.profile.width + 120, 1.2, this.profile.depth + 160), rugMat);
+    rug.position.set(0, -this.profile.height - 70.4, 0);
     rug.receiveShadow = true;
     this.meshGroup.add(rug);
 
@@ -952,11 +953,11 @@ export class Room {
     const borderMat = this._mat('rugBorder', {
       color: 0x4a3020, roughness: 0.90, metalness: 0.0,
     });
-    const borderW = TABLE.width + 132;
-    const borderD = TABLE.depth + 172;
+    const borderW = this.profile.width + 132;
+    const borderD = this.profile.depth + 172;
     const border = new THREE.Mesh(
       new THREE.BoxGeometry(borderW, 0.8, borderD), borderMat);
-    border.position.set(0, -TABLE.height - 70.6, 0);
+    border.position.set(0, -this.profile.height - 70.6, 0);
     border.receiveShadow = true;
     this.meshGroup.add(border);
   }

@@ -54,7 +54,7 @@ export class ShotPlanner {
         if (eightBall) {
           for (let pi = 0; pi < pocketPositions.length; pi++) {
             const pocket = pocketPositions[pi];
-            const shot = this.evaluateShot(cuePos, eightBall, pocket, balls, pi);
+            const shot = this.evaluateShot(cuePos, eightBall, pocket, balls, pi, tableProfile);
             if (shot) {
               // Boost 8-ball shot score slightly so AI prioritizes it
               shot.score += 15;
@@ -253,7 +253,7 @@ export class ShotPlanner {
   /**
    * Evaluate a single shot: cue -> target -> pocket
    */
-  evaluateShot(cuePos, targetBall, pocketPos, allBalls, pocketIndex) {
+  evaluateShot(cuePos, targetBall, pocketPos, allBalls, pocketIndex, tableProfile = null) {
     const r = BALL.radius;
     const targetPos = targetBall.mesh.position;
 

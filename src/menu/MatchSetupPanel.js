@@ -81,7 +81,6 @@ export class MatchSetupPanel {
     card.appendChild(this._tableSelect);
 
     // Update table options when mode changes
-    const originalModeClick = this._modeSelect.onclick;
     this._modeSelect.addEventListener('click', (e) => {
       if (e.target && e.target.dataset && e.target.dataset.value) {
         this._rebuildTableSelect(e.target.dataset.value);

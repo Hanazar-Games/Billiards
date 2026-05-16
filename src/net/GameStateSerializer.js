@@ -80,6 +80,17 @@ export class GameStateSerializer {
   static applyGameState(game, snapshot) {
     if (!game.ballsManager) return;
 
+    // Guard against table profile mismatches in networked games.
+    // The host's choice is authoritative; if we somehow initialised
+    // with a different profile, warn so the dev can investigate.
+    if (snapshot.tableProfileId && game.tableProfileId &&
+        snapshot.tableProfileId !== game.tableProfileId) {
+      console.warn(
+        '[GameStateSerializer] Table profile mismatch: host=%s client=%s',
+        snapshot.tableProfileId, game.tableProfileId
+      );
+    }
+
     // Update ball positions / velocities / rotations
     for (const bs of snapshot.balls) {
       const ball = game.ballsManager.getBall(bs.id);
