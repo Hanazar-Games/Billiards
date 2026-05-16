@@ -53,6 +53,7 @@ export class SettingsScreen {
     this._toastTimers = [];
     this._hideTimer = null;
     this._saveToastTimer = null;
+    this._settingsTipTimer = null;
     this._buildUI();
 
     // Debounced save toast for settings changes while modal is open
@@ -1340,7 +1341,12 @@ export class SettingsScreen {
     const fadeTimer = setTimeout(() => {
       el.style.opacity = '0';
       el.style.transition = 'opacity calc(0.3s / var(--ui-anim-speed)) ease';
-      const removeTimer = setTimeout(() => { if (el.parentNode) el.remove(); }, animMs(300));
+      const removeTimer = setTimeout(() => {
+        if (el.parentNode) el.remove();
+        if (this._toastTimers) {
+          this._toastTimers = this._toastTimers.filter(t => t !== removeTimer);
+        }
+      }, animMs(300));
       if (!this._toastTimers) this._toastTimers = [];
       this._toastTimers.push(removeTimer);
       // Remove the now-fired fade timer from tracking
@@ -1451,10 +1457,11 @@ export class SettingsScreen {
     if (!onboarding.get('settingsExplained')) {
       onboarding.set('settingsExplained', true);
       // Show after a short delay so the modal is fully visible
-      setTimeout(() => {
+      this._settingsTipTimer = setTimeout(() => {
         if (this.container && this.container.style.display !== 'none') {
           this._toast('提示：辅助线、小地图和音效开关可在「图形」和「音频」分类中找到');
         }
+        this._settingsTipTimer = null;
       }, 600);
     }
   }
@@ -1474,6 +1481,7 @@ export class SettingsScreen {
     if (this._toastTimers) { this._toastTimers.forEach(t => clearTimeout(t)); this._toastTimers = []; }
     if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
     if (this._saveToastTimer) { clearTimeout(this._saveToastTimer); this._saveToastTimer = null; }
+    if (this._settingsTipTimer) { clearTimeout(this._settingsTipTimer); this._settingsTipTimer = null; }
     if (this._onSettingsChangedToast) {
       window.removeEventListener('settingsChanged', this._onSettingsChangedToast);
       this._onSettingsChangedToast = null;

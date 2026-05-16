@@ -166,7 +166,7 @@ export class AudioManager {
   }
 
   startBGM() {
-    if (!this.enabled || !this.ctx || this.bgmNodes.length > 0 || !this.soundEnabled) return;
+    if (!this.enabled || !this.ctx || this.ctx.state === 'closed' || this.bgmNodes.length > 0 || !this.soundEnabled) return;
     this.resume();
 
     const t = this.ctx.currentTime;

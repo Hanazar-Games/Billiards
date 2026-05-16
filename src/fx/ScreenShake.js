@@ -60,7 +60,7 @@ export class ScreenShake {
    * @param {number} dt — delta time in seconds
    */
   update(dt) {
-    if (!this.active) return;
+    if (!this.active || !this.camera) return;
 
     this.age += dt;
     if (this.duration <= 0 || !isFinite(this.duration)) {

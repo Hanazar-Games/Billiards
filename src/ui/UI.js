@@ -511,10 +511,12 @@ export class UI {
     };
 
     if (this._hudP1Detail) {
-      this._hudP1Detail.innerHTML = `<span class="hud-group">${groupLabel(p1Group)}</span><span class="hud-remain">剩 ${p1Remaining ?? 7}</span>`;
+      const r1 = Number.isFinite(p1Remaining) ? p1Remaining : 7;
+      this._hudP1Detail.innerHTML = `<span class="hud-group">${groupLabel(p1Group)}</span><span class="hud-remain">剩 ${r1}</span>`;
     }
     if (this._hudP2Detail) {
-      this._hudP2Detail.innerHTML = `<span class="hud-group">${groupLabel(p2Group)}</span><span class="hud-remain">剩 ${p2Remaining ?? 7}</span>`;
+      const r2 = Number.isFinite(p2Remaining) ? p2Remaining : 7;
+      this._hudP2Detail.innerHTML = `<span class="hud-group">${groupLabel(p2Group)}</span><span class="hud-remain">剩 ${r2}</span>`;
     }
   }
 
@@ -790,6 +792,8 @@ export class UI {
     this._hudTimer = null;
     this._hudObjective = null;
     this._hudScore = null;
+    if (this._hudSettingsBtn) { this._hudSettingsBtn.onclick = null; }
+    if (this._hudConcedeBtn) { this._hudConcedeBtn.onclick = null; }
     this._hudNewGameBtn = null;
     this._hudConcedeBtn = null;
     this._hudSettingsBtn = null;

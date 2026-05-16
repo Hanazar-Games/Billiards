@@ -41,6 +41,7 @@ export class Minimap {
   setEnabled(v) {
     this._enabled = v;
     this.canvas.style.display = v ? 'block' : 'none';
+    if (v) this._dirty = true;
   }
 
   setPocketPositions(positions) {
@@ -48,6 +49,7 @@ export class Minimap {
   }
 
   updateBallData(balls) {
+    if (!balls || !balls.map) return;
     const mapped = balls.map((b) => ({
       id: b.id,
       x: b.mesh?.position?.x ?? b.body?.position?.x ?? 0,
@@ -89,7 +91,6 @@ export class Minimap {
   draw() {
     if (!this._enabled) return;
     if (!this._dirty) return;
-    this._dirty = false;
     const ctx = this.ctx;
     const w = this.canvas.width;
     const h = this.canvas.height;
@@ -163,6 +164,7 @@ export class Minimap {
 
     // Cue aim indicator (optional — subtle direction hint)
     // Not implemented to keep minimap clean; can be added later.
+    this._dirty = false;
   }
 
   _drawBall(ctx, id, cx, cy, r) {
@@ -237,6 +239,7 @@ export class Minimap {
     this._scale = Math.min((cw - p * 2) / TABLE.width, (ch - p * 2) / TABLE.depth);
     this._ox = cw / 2; // world (0,0) is table center
     this._oz = ch / 2;
+    this._dirty = true;
   }
 
   _applyStyle() {
@@ -268,5 +271,10 @@ export class Minimap {
     window.removeEventListener('settingsChanged', this._onSettings);
     if (this._onResize) window.removeEventListener('resize', this._onResize);
     this.unmount();
+    this.canvas = null;
+    this.ctx = null;
+    this._balls = [];
+    this._cueTrail = [];
+    this._pockets = null;
   }
 }

@@ -25,6 +25,7 @@ export class ImpactShockwave {
    * @param {number} power — shot power (0 … SHOT.maxPower)
    */
   spawn(position, power) {
+    if (!position || !position.isVector3) return;
     const maxPower = 82; // SHOT.maxPower
     const t = Math.min(power / maxPower, 1.0);
 
@@ -71,9 +72,10 @@ export class ImpactShockwave {
    * @param {number} dt — delta time in seconds
    */
   update(dt) {
+    const safeDt = Math.max(0, dt);
     for (let i = this.active.length - 1; i >= 0; i--) {
       const wave = this.active[i];
-      wave.age += dt;
+      wave.age += safeDt;
       const p = Math.min(wave.age / wave.duration, 1.0);
 
       // Ease-out expansion

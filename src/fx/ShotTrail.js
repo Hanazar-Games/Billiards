@@ -71,13 +71,14 @@ export class ShotTrailSystem {
    */
   recordPoint(ball) {
     if (!this.enabled || !this.currentTrail || !ball) return;
-    if (ball.pocketed || !ball.mesh.visible) return;
+    if (ball.pocketed || !ball.mesh || !ball.mesh.visible) return;
 
+    if (!ball.mesh) return;
     const pos = ball.mesh.position;
     // Sanity guard: removed balls are teleported to y = -1000
     if (pos.y < -50) return;
 
-    const speed = ball.getSpeed();
+    const speed = typeof ball.getSpeed === 'function' ? ball.getSpeed() : 0;
     if (speed < MIN_SPEED) return;
 
     const trail = this.currentTrail;

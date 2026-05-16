@@ -262,6 +262,8 @@ export class Game {
   _showGameTutorial() {
     const step = onboarding.get('gameTutorialStep');
     if (step === 0) {
+      // Network mode: only show on the device where local player is player 1
+      if (this.networkMode && this.localPlayerId !== 1) return;
       this.onboardingTips.show('aim', null, 8000);
       onboarding.advanceGameTutorial();
     }
@@ -418,6 +420,13 @@ export class Game {
     this._shotStartTime = performance.now();
     this.charging = false;
     this.dragStart = null;
+
+    // Show spin tutorial on first real player shot (local human only)
+    if (onboarding.get('gameTutorialStep') === 2 && !(this.aiEnabled && this.currentPlayer === 2)) {
+      this.onboardingTips.show('spin', null, 8000);
+      onboarding.advanceGameTutorial();
+    }
+
     this.shoot();
   }
 
@@ -619,12 +628,6 @@ export class Game {
     const cueBall = this.ballsManager.getCueBall();
     if (!cueBall) return;
 
-    // Show spin tutorial on first shot
-    if (onboarding.get('gameTutorialStep') === 2 && !(this.aiEnabled && this.currentPlayer === 2)) {
-      this.onboardingTips.show('spin', null, 8000);
-      onboarding.advanceGameTutorial();
-    }
-
     // Client sends shot intent to host; host executes physically
     if (this.networkMode && this.networkRole === 'client' && this.isLocalPlayerTurn()) {
       const force = Math.max(this.power, SHOT.minPower);
@@ -734,6 +737,14 @@ export class Game {
     this.cue.show();
     await new Promise(resolve => {
       const tick = () => {
+        if (this.paused) {
+          requestAnimationFrame(tick);
+          return;
+        }
+        if (!this.cue || !this.ballsManager) {
+          resolve();
+          return;
+        }
         const elapsed = performance.now() - aimStart;
         const t = Math.min(elapsed / aimDuration, 1);
         // Smooth ease-out

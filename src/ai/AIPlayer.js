@@ -80,6 +80,11 @@ export class AIPlayer {
       const thinkTime = this.settings.thinkTimeMin + Math.random() * (this.settings.thinkTimeMax - this.settings.thinkTimeMin);
       await this.delay(thinkTime);
 
+      // Game may have been disposed during thinking delay
+      if (!game.ballsManager || game.state === 'DISPOSED' || !this.thinking) {
+        return null;
+      }
+
       // Find shots
       const allShots = this.planner.findAllShots(
         ballsManager.balls,
@@ -148,6 +153,7 @@ export class AIPlayer {
    * HARD: always picks the optimal shot, considers position play.
    */
   _selectShot(allShots) {
+    if (!allShots || allShots.length === 0) return null;
     const s = this.settings;
 
     // HARD: evaluate position play for top candidates and re-sort
@@ -300,10 +306,13 @@ export class AIPlayer {
     const dx = closest.mesh.position.x - cuePos.x;
     const dz = closest.mesh.position.z - cuePos.z;
     const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist < 0.001) return null;
 
     return {
       aimDirection: { x: dx / dist, z: dz / dist },
       power: Math.min(SHOT.maxPower * 0.5, 30),
+      targetBallId: closest.id,
+      pocketIndex: -1,
       score: 5,
       isDesperate: true,
     };

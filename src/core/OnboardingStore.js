@@ -25,7 +25,9 @@ export class OnboardingStore {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        this._data = { ...DEFAULTS, ...parsed };
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          this._data = { ...DEFAULTS, ...parsed };
+        }
       }
     } catch (e) {
       console.warn('Onboarding load failed');

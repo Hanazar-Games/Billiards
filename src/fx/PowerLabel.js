@@ -26,6 +26,7 @@ export class PowerLabel {
 
   _ensureElement() {
     if (this.el) return;
+    if (!document.body) return;
     this.el = document.createElement('div');
     this.el.style.cssText = `
       position: fixed;

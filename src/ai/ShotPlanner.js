@@ -94,6 +94,7 @@ export class ShotPlanner {
 
     // Ghost ball position: where cue ball needs to be to pocket target
     const ghostPos = _v2.copy(targetPos).addScaledVector(_v1, -2 * r);
+      const ghostPosClone = ghostPos.clone();
 
     // Check ghost ball is on the table (with cushion margin)
     const margin = r * 2;
@@ -144,7 +145,7 @@ export class ShotPlanner {
     return {
       targetBallId: targetBall.id,
       pocketIndex,
-      ghostPos: ghostPos.clone(),
+      ghostPos: ghostPosClone,
       aimDirection: _v3.clone(),
       power,
       score: Math.max(score, 10),
@@ -203,8 +204,8 @@ export class ShotPlanner {
     let best = null;
     let bestScore = -Infinity;
     const r = BALL.radius;
-    const halfW = TABLE.width / 2;
-    const halfD = TABLE.depth / 2;
+    const halfW = TABLE.width / 2 - TABLE.cushionWidth;
+    const halfD = TABLE.depth / 2 - TABLE.cushionWidth;
 
     for (const target of balls) {
       if (target.pocketed || target.id === 0) continue;
@@ -213,6 +214,7 @@ export class ShotPlanner {
       const targetPos = target.mesh.position;
       _v1.subVectors(targetPos, cuePos).normalize();
       const ghostPos = _v2.copy(targetPos).addScaledVector(_v1, -2 * r);
+      const ghostPosClone = ghostPos.clone();
 
       if (this.isPathBlocked(cuePos, ghostPos, balls, [0, target.id])) continue;
 
@@ -226,7 +228,7 @@ export class ShotPlanner {
         best = {
           targetBallId: target.id,
           pocketIndex: -1,
-          ghostPos: ghostPos.clone(),
+          ghostPos: ghostPosClone,
           aimDirection: _v1.clone(),
           power: Math.min(SHOT.maxPower * 0.35, 22),
           score,
@@ -264,7 +266,7 @@ export class ShotPlanner {
     let blockedCount = 0;
     for (const ball of balls) {
       if (ball.pocketed || ball.id === 0) continue;
-      if (this.isPathBlocked(cuePos, ball.mesh.position, balls, [0])) {
+      if (this.isPathBlocked(cuePos, ball.mesh.position, balls, [0, ball.id])) {
         blockedCount++;
       }
     }
