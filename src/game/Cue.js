@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { BALL, TABLE } from '../config.js';
+import { BALL } from '../config.js';
+import { getDefaultTableProfile } from './TableProfiles.js';
 import { CUE_THEMES, applyCueTheme } from './CueThemes.js';
 
 const CUE_LENGTH = 160; // tip-to-butt in local Y units
@@ -73,8 +74,9 @@ export class Cue {
 
     // Clamp base offset so the cue butt does not clip through rails.
     // Butt world position = ballPosition - aim * (offset + CUE_LENGTH).
-    const halfW = TABLE.width / 2;
-    const halfD = TABLE.depth / 2;
+    const profile = this._tableProfile || getDefaultTableProfile();
+    const halfW = profile.width / 2;
+    const halfD = profile.depth / 2;
     const margin = CUE_RADIUS + 4;
     const minX = -halfW - 18 + margin;
     const maxX = halfW + 18 - margin;
@@ -163,5 +165,9 @@ export class Cue {
       if (child.geometry) child.geometry.dispose();
       if (child.material) child.material.dispose();
     });
+  }
+
+  setTableProfile(profile) {
+    this._tableProfile = profile;
   }
 }

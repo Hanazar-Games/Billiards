@@ -1,4 +1,5 @@
-import { TABLE, BALL, BALL_COLORS, getBallType, BALL_TYPE } from '../config.js';
+import { BALL, BALL_COLORS, getBallType, BALL_TYPE } from '../config.js';
+import { getDefaultTableProfile } from '../game/TableProfiles.js';
 import { settings } from '../core/SettingsStore.js';
 
 /**
@@ -37,6 +38,12 @@ export class Minimap {
     window.addEventListener('settingsChanged', this._onSettings);
     this._onResize = () => this._resize();
     window.addEventListener('resize', this._onResize);
+    this._profile = getDefaultTableProfile();
+  }
+
+  setTableProfile(profile) {
+    this._profile = profile || this._profile;
+    this._resize();
   }
 
   setEnabled(v) {
@@ -226,18 +233,18 @@ export class Minimap {
     const dpr = Math.min(window.devicePixelRatio, 2);
     const cssSize = Math.max(80, Math.min(260, this._size));
     this.canvas.width = cssSize * dpr;
-    this.canvas.height = (cssSize * (TABLE.depth / TABLE.width)) * dpr;
+    this.canvas.height = (cssSize * (this._profile.depth / this._profile.width)) * dpr;
     this.canvas.style.width = cssSize + 'px';
-    this.canvas.style.height = (cssSize * (TABLE.depth / TABLE.width)) + 'px';
+    this.canvas.style.height = (cssSize * (this._profile.depth / this._profile.width)) + 'px';
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     const p = this._padding;
     const cw = cssSize;
-    const ch = cssSize * (TABLE.depth / TABLE.width);
+    const ch = cssSize * (this._profile.depth / this._profile.width);
     // Map table world bounds → canvas internal coords
-    const halfW = TABLE.width / 2;
-    const halfD = TABLE.depth / 2;
-    this._scale = Math.min((cw - p * 2) / TABLE.width, (ch - p * 2) / TABLE.depth);
+    const halfW = this._profile.width / 2;
+    const halfD = this._profile.depth / 2;
+    this._scale = Math.min((cw - p * 2) / this._profile.width, (ch - p * 2) / this._profile.depth);
     this._ox = cw / 2; // world (0,0) is table center
     this._oz = ch / 2;
     this._dirty = true;

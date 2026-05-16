@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { BALL, TABLE, getBallType, BALL_TYPE, SHOT } from '../config.js';
+import { BALL, getBallType, BALL_TYPE, SHOT } from '../config.js';
+import { getDefaultTableProfile } from '../game/TableProfiles.js';
 
 const _v1 = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
@@ -12,7 +13,7 @@ export class ShotPlanner {
    * Find all possible shots for the current player.
    * Returns array of candidate shots sorted by score (best first).
    */
-  findAllShots(balls, cueBall, pocketPositions, playerGroup, isBreak = false, targetBallId = null, enableBank = false) {
+  findAllShots(balls, cueBall, pocketPositions, playerGroup, isBreak = false, targetBallId = null, enableBank = false, tableProfile = null) {
     const candidates = [];
     const r = BALL.radius;
     const cuePos = cueBall.mesh.position;
@@ -38,7 +39,7 @@ export class ShotPlanner {
 
       for (let pi = 0; pi < pocketPositions.length; pi++) {
         const pocket = pocketPositions[pi];
-        const shot = this.evaluateShot(cuePos, target, pocket, balls, pi);
+        const shot = this.evaluateShot(cuePos, target, pocket, balls, pi, tableProfile);
         if (shot) {
           candidates.push(shot);
         }
@@ -127,11 +128,12 @@ export class ShotPlanner {
     return candidates;
   }
 
-  evaluateBankShot(cuePos, targetBall, pocketPos, allBalls, pocketIndex, cushionSide) {
+  evaluateBankShot(cuePos, targetBall, pocketPos, allBalls, pocketIndex, cushionSide, tableProfile = null) {
+    const profile = tableProfile || getDefaultTableProfile();
     const r = BALL.radius;
     const targetPos = targetBall.mesh.position;
-    const halfW = TABLE.width / 2;
-    const halfD = TABLE.depth / 2;
+    const halfW = profile.width / 2;
+    const halfD = profile.depth / 2;
 
     // Virtual pocket via mirror across cushion
     let virtualPocket;
@@ -155,7 +157,7 @@ export class ShotPlanner {
     if (Math.abs(ghostPos.x) > halfW - margin || Math.abs(ghostPos.z) > halfD - margin) return null;
 
     // Cue to ghost path
-    if (this.isPathBlocked(cuePos, ghostPos, allBalls, [0, targetBall.id])) return null;
+    if (this.isPathBlocked(cuePos, ghostPos, allBalls, new Set([0, targetBall.id]), 2.05, tableProfile)) return null;
 
     // Bounce point on cushion
     let bouncePoint;
@@ -182,7 +184,7 @@ export class ShotPlanner {
     bouncePoint = targetPos.clone().addScaledVector(_v1, t);
 
     // Bounce point must be on cushion face, away from pocket mouths
-    const cushionMargin = POCKET.radius * 1.6;
+    const cushionMargin = profile.pocketRadius * 1.6;
     if (cushionSide === 'top' || cushionSide === 'bottom') {
       if (Math.abs(bouncePoint.x) > halfW - cushionMargin) return null;
     } else {
@@ -190,9 +192,9 @@ export class ShotPlanner {
     }
 
     // Target to bounce path
-    if (this.isPathBlocked(targetPos, bouncePoint, allBalls, [targetBall.id])) return null;
+    if (this.isPathBlocked(targetPos, bouncePoint, allBalls, new Set([targetBall.id]), 2.05, tableProfile)) return null;
     // Bounce to pocket path
-    if (this.isPathBlocked(bouncePoint, pocketPos, allBalls, [targetBall.id])) return null;
+    if (this.isPathBlocked(bouncePoint, pocketPos, allBalls, new Set([targetBall.id]), 2.05, tableProfile)) return null;
 
     const distCueToGhost = cuePos.distanceTo(ghostPos);
     const distTargetToPocket = targetPos.distanceTo(pocketPos);
@@ -267,9 +269,10 @@ export class ShotPlanner {
       const ghostPosClone = ghostPos.clone();
 
     // Check ghost ball is on the table (with cushion margin)
+    const profile = tableProfile || getDefaultTableProfile();
     const margin = r * 2;
-    const halfW = TABLE.width / 2 - margin;
-    const halfD = TABLE.depth / 2 - margin;
+    const halfW = profile.width / 2 - margin;
+    const halfD = profile.depth / 2 - margin;
     if (Math.abs(ghostPos.x) > halfW || Math.abs(ghostPos.z) > halfD) {
       return null;
     }
@@ -369,13 +372,14 @@ export class ShotPlanner {
    * Considers cue ball position after hit: far from pockets,
    * near cushions, and ideally blocked from hitting target balls.
    */
-  findSafetyShot(balls, cueBall, pocketPositions, targetBallId = null) {
+  findSafetyShot(balls, cueBall, pocketPositions, targetBallId = null, tableProfile = null) {
     const cuePos = cueBall.mesh.position;
     let best = null;
     let bestScore = -Infinity;
+    const profile = tableProfile || getDefaultTableProfile();
     const r = BALL.radius;
-    const halfW = TABLE.width / 2 - TABLE.cushionWidth;
-    const halfD = TABLE.depth / 2 - TABLE.cushionWidth;
+    const halfW = profile.width / 2 - profile.cushionWidth;
+    const halfD = profile.depth / 2 - profile.cushionWidth;
 
     for (const target of balls) {
       if (target.pocketed || target.id === 0) continue;

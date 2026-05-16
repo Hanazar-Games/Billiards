@@ -199,7 +199,7 @@ wss.on('connection', (ws, req) => {
         return;
       }
       room.started = true;
-      room.broadcast({ type: 'startGame', mode: data.mode || '8ball', startedBy: ws._playerId });
+      room.broadcast({ type: 'startGame', mode: data.mode || '8ball', tableProfileId: data.tableProfileId || 'pool9ft', startedBy: ws._playerId });
       return;
     }
 

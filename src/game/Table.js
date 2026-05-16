@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { TABLE, BALL, POCKET } from '../config.js';
+import { BALL } from '../config.js';
+import { getDefaultTableProfile } from './TableProfiles.js';
 import {
   TABLE_THEMES, FELT_THEMES, WOOD_THEMES, METAL_TRIM_THEMES, POCKET_LEATHER_THEMES,
   applyMaterialTheme,
@@ -8,8 +9,9 @@ import {
 import { createClothNapTexture, createClothPatternTexture, createClothWearTexture } from '../theme/ProceduralTextures.js';
 
 export class Table {
-  constructor(physics) {
+  constructor(physics, tableProfile = null) {
     this.physics = physics;
+    this.profile = tableProfile || getDefaultTableProfile();
     this.meshGroup = new THREE.Group();
     this.bodies = [];
     this._materials = {};
@@ -48,19 +50,19 @@ export class Table {
   }
 
   createPlayingSurface() {
-    const geo = new THREE.BoxGeometry(TABLE.width, TABLE.height, TABLE.depth);
+    const geo = new THREE.BoxGeometry(this.profile.width, this.profile.height, this.profile.depth);
     const mat = this._mat('felt', {
       color: TABLE.feltColor,
       roughness: 0.88,
       metalness: 0.0,
     });
     const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.y = -TABLE.height / 2;
+    mesh.position.y = -this.profile.height / 2;
     mesh.receiveShadow = true;
     this.meshGroup.add(mesh);
 
     // Cloth nap overlay
-    const napGeo = new THREE.PlaneGeometry(TABLE.width - 20, TABLE.depth - 20, 1, 1);
+    const napGeo = new THREE.PlaneGeometry(this.profile.width - 20, this.profile.depth - 20, 1, 1);
     const napMat = this._mat('nap', {
       color: 0x116b45,
       roughness: 1.0,
@@ -83,10 +85,10 @@ export class Table {
     });
     const edgeInset = 7;
     const edgeParts = [
-      [0, 0.09, -TABLE.depth / 2 + edgeInset, TABLE.width - 18, 0.12, 1.2],
-      [0, 0.09, TABLE.depth / 2 - edgeInset, TABLE.width - 18, 0.12, 1.2],
-      [-TABLE.width / 2 + edgeInset, 0.09, 0, 1.2, 0.12, TABLE.depth - 18],
-      [TABLE.width / 2 - edgeInset, 0.09, 0, 1.2, 0.12, TABLE.depth - 18],
+      [0, 0.09, -this.profile.depth / 2 + edgeInset, this.profile.width - 18, 0.12, 1.2],
+      [0, 0.09, this.profile.depth / 2 - edgeInset, this.profile.width - 18, 0.12, 1.2],
+      [-this.profile.width / 2 + edgeInset, 0.09, 0, 1.2, 0.12, this.profile.depth - 18],
+      [this.profile.width / 2 - edgeInset, 0.09, 0, 1.2, 0.12, this.profile.depth - 18],
     ];
     for (const [x, y, z, w, h, d] of edgeParts) {
       const edge = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), edgeMat);
@@ -104,10 +106,10 @@ export class Table {
     const slateOverhang = 1.5;
     const slateY = -slateH / 2 - 0.5;
     const slateParts = [
-      [0, slateY, -TABLE.depth / 2 - slateOverhang / 2, TABLE.width + 4, slateH, slateOverhang],
-      [0, slateY, TABLE.depth / 2 + slateOverhang / 2, TABLE.width + 4, slateH, slateOverhang],
-      [-TABLE.width / 2 - slateOverhang / 2, slateY, 0, slateOverhang, slateH, TABLE.depth + 4],
-      [TABLE.width / 2 + slateOverhang / 2, slateY, 0, slateOverhang, slateH, TABLE.depth + 4],
+      [0, slateY, -this.profile.depth / 2 - slateOverhang / 2, this.profile.width + 4, slateH, slateOverhang],
+      [0, slateY, this.profile.depth / 2 + slateOverhang / 2, this.profile.width + 4, slateH, slateOverhang],
+      [-this.profile.width / 2 - slateOverhang / 2, slateY, 0, slateOverhang, slateH, this.profile.depth + 4],
+      [this.profile.width / 2 + slateOverhang / 2, slateY, 0, slateOverhang, slateH, this.profile.depth + 4],
     ];
     for (const [x, y, z, w, h, d] of slateParts) {
       const slate = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), slateMat);
@@ -118,16 +120,16 @@ export class Table {
   }
 
   createCushions() {
-    const halfW = TABLE.width / 2;
-    const halfD = TABLE.depth / 2;
-    const cw = TABLE.cushionWidth;
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
+    const cw = this.profile.cushionWidth;
     const cy = BALL.radius;
     const ch = BALL.radius;
 
-    const cornerGap = POCKET.radius * 2.25;
-    const sideGap = POCKET.radius * 2.65;
+    const cornerGap = this.profile.pocketRadius * 2.25;
+    const sideGap = this.profile.pocketRadius * 2.65;
 
-    const shortRailLen = TABLE.width - cornerGap * 2;
+    const shortRailLen = this.profile.width - cornerGap * 2;
     this.addCushion(
       new THREE.BoxGeometry(shortRailLen, ch * 2, cw),
       new CANNON.Box(new CANNON.Vec3(shortRailLen / 2, ch, cw / 2)),
@@ -139,7 +141,7 @@ export class Table {
       0, cy, halfD - cw / 2, 0, -1
     );
 
-    const longRailSegLen = (TABLE.depth - sideGap - cornerGap * 2) / 2;
+    const longRailSegLen = (this.profile.depth - sideGap - cornerGap * 2) / 2;
     const zOffset = sideGap / 2 + longRailSegLen / 2;
 
     this.addCushion(
@@ -198,7 +200,7 @@ export class Table {
 
   _addCushionBevel(cx, cy, cz, geo, nx, nz) {
     const h = BALL.radius * 2;
-    const inset = TABLE.cushionWidth / 2;
+    const inset = this.profile.cushionWidth / 2;
     const overhang = 3.2;
     const thick = 0.9;
 
@@ -272,7 +274,7 @@ export class Table {
 
   _addCushionBevelPhysics(body, cx, cy, cz, geo, nx, nz) {
     const h = BALL.radius * 2;
-    const inset = TABLE.cushionWidth / 2;
+    const inset = this.profile.cushionWidth / 2;
     const overhang = 3.2;
     const thickness = 3.0;
 
@@ -306,8 +308,8 @@ export class Table {
   createPockets() {
     const pocketMat = this._mat('pocketHole', { color: 0x050505, roughness: 1.0 });
 
-    const halfW = TABLE.width / 2;
-    const halfD = TABLE.depth / 2;
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
     const positions = [
       [-halfW, 0, -halfD],
       [halfW, 0, -halfD],
@@ -320,7 +322,7 @@ export class Table {
     this.pocketPositions = [];
 
     for (const [x, y, z] of positions) {
-      const pocketGeo = new THREE.CylinderGeometry(POCKET.radius, POCKET.radius, TABLE.height + 4, 24);
+      const pocketGeo = new THREE.CylinderGeometry(this.profile.pocketRadius, this.profile.pocketRadius, this.profile.height + 4, 24);
       const mesh = new THREE.Mesh(pocketGeo, pocketMat);
       mesh.position.set(x, y - 2, z);
       mesh.receiveShadow = true;
@@ -342,11 +344,11 @@ export class Table {
     });
     const railH = 8;
     const railW = 12;
-    const halfW = TABLE.width / 2;
-    const halfD = TABLE.depth / 2;
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
 
-    const cornerGap = POCKET.radius * 2.9;
-    const shortRailLen = TABLE.width - cornerGap * 2;
+    const cornerGap = this.profile.pocketRadius * 2.9;
+    const shortRailLen = this.profile.width - cornerGap * 2;
 
     const rail1 = new THREE.Mesh(new THREE.BoxGeometry(shortRailLen, railH, railW), railMat);
     rail1.position.set(0, railH / 2, -halfD - railW / 2);
@@ -379,8 +381,8 @@ export class Table {
     roundShort2.position.set(0, railH + roundTubeR + 0.1, halfD + railW / 2 - roundTubeR);
     this.meshGroup.add(roundShort2);
 
-    const sideGap = POCKET.radius * 3.05;
-    const sideRailLen = (TABLE.depth - sideGap) / 2;
+    const sideGap = this.profile.pocketRadius * 3.05;
+    const sideRailLen = (this.profile.depth - sideGap) / 2;
     const sideZ = sideGap / 2 + sideRailLen / 2;
     const sideX = [-halfW - railW / 2, halfW + railW / 2];
     for (const x of sideX) {
@@ -422,12 +424,12 @@ export class Table {
       roughness: 0.34,
       metalness: 0.16,
     });
-    const halfW = TABLE.width / 2;
-    const halfD = TABLE.depth / 2;
-    const cornerGap = POCKET.radius * 3.0;
-    const shortLen = TABLE.width - cornerGap * 2;
-    const sideGap = POCKET.radius * 3.1;
-    const sideLen = (TABLE.depth - sideGap) / 2;
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
+    const cornerGap = this.profile.pocketRadius * 3.0;
+    const shortLen = this.profile.width - cornerGap * 2;
+    const sideGap = this.profile.pocketRadius * 3.1;
+    const sideLen = (this.profile.depth - sideGap) / 2;
     const sideZ = sideGap / 2 + sideLen / 2;
 
     const bevels = [
@@ -458,14 +460,14 @@ export class Table {
       roughness: 0.22,
       metalness: 0.62,
     });
-    const halfW = TABLE.width / 2;
-    const halfD = TABLE.depth / 2;
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
 
     const parts = [
-      [0, -13, -halfD - 10, TABLE.width + 26, 16, 8],
-      [0, -13, halfD + 10, TABLE.width + 26, 16, 8],
-      [-halfW - 10, -13, 0, 8, 16, TABLE.depth + 18],
-      [halfW + 10, -13, 0, 8, 16, TABLE.depth + 18],
+      [0, -13, -halfD - 10, this.profile.width + 26, 16, 8],
+      [0, -13, halfD + 10, this.profile.width + 26, 16, 8],
+      [-halfW - 10, -13, 0, 8, 16, this.profile.depth + 18],
+      [halfW + 10, -13, 0, 8, 16, this.profile.depth + 18],
     ];
 
     for (const [x, y, z, w, h, d] of parts) {
@@ -477,10 +479,10 @@ export class Table {
     }
 
     const trims = [
-      [0, 8.3, -halfD - 7, TABLE.width + 18, 0.5, 2.4],
-      [0, 8.3, halfD + 7, TABLE.width + 18, 0.5, 2.4],
-      [-halfW - 7, 8.3, 0, 2.4, 0.5, TABLE.depth + 14],
-      [halfW + 7, 8.3, 0, 2.4, 0.5, TABLE.depth + 14],
+      [0, 8.3, -halfD - 7, this.profile.width + 18, 0.5, 2.4],
+      [0, 8.3, halfD + 7, this.profile.width + 18, 0.5, 2.4],
+      [-halfW - 7, 8.3, 0, 2.4, 0.5, this.profile.depth + 14],
+      [halfW + 7, 8.3, 0, 2.4, 0.5, this.profile.depth + 14],
     ];
 
     for (const [x, y, z, w, h, d] of trims) {
@@ -540,7 +542,7 @@ export class Table {
 
     for (const pocket of this.pocketPositions) {
       const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(POCKET.radius * 1.12, 1.65, 12, 48),
+        new THREE.TorusGeometry(this.profile.pocketRadius * 1.12, 1.65, 12, 48),
         ringMat
       );
       ring.position.set(pocket.x, 1.1, pocket.z);
@@ -549,7 +551,7 @@ export class Table {
       this.meshGroup.add(ring);
 
       const facing = new THREE.Mesh(
-        new THREE.TorusGeometry(POCKET.radius * 1.32, 2.4, 10, 48),
+        new THREE.TorusGeometry(this.profile.pocketRadius * 1.32, 2.4, 10, 48),
         leatherMat
       );
       facing.position.set(pocket.x, 0.35, pocket.z);
@@ -558,7 +560,7 @@ export class Table {
       this.meshGroup.add(facing);
 
       const skirt = new THREE.Mesh(
-        new THREE.TorusGeometry(POCKET.radius * 1.25, 1.6, 10, 48),
+        new THREE.TorusGeometry(this.profile.pocketRadius * 1.25, 1.6, 10, 48),
         leatherMat
       );
       skirt.position.set(pocket.x, 0.02, pocket.z);
@@ -567,7 +569,7 @@ export class Table {
       this.meshGroup.add(skirt);
 
       const drop = new THREE.Mesh(
-        new THREE.CylinderGeometry(POCKET.radius * 0.96, POCKET.radius * 0.7, 16, 36),
+        new THREE.CylinderGeometry(this.profile.pocketRadius * 0.96, this.profile.pocketRadius * 0.7, 16, 36),
         linerMat
       );
       drop.position.set(pocket.x, -8, pocket.z);
@@ -575,7 +577,7 @@ export class Table {
       this.meshGroup.add(drop);
 
       const cup = new THREE.Mesh(
-        new THREE.CylinderGeometry(POCKET.radius * 0.7, POCKET.radius * 0.52, 8, 32),
+        new THREE.CylinderGeometry(this.profile.pocketRadius * 0.7, this.profile.pocketRadius * 0.52, 8, 32),
         cupMat
       );
       cup.position.set(pocket.x, -19, pocket.z);
@@ -602,7 +604,7 @@ export class Table {
       const count = 5;
       for (let i = 0; i < count; i++) {
         const t = (i + 1) / (count + 1);
-        const radius = POCKET.radius * (0.85 - t * 0.45);
+        const radius = this.profile.pocketRadius * (0.85 - t * 0.45);
         const y = -2 - t * 14;
         const tube = 0.7 - t * 0.35;
 
@@ -624,8 +626,8 @@ export class Table {
       roughness: 0.62,
       metalness: 0.18,
     });
-    const halfW = TABLE.width / 2;
-    const halfD = TABLE.depth / 2;
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
 
     const addJaw = (x, z, angle, length = 12) => {
       const jaw = new THREE.Mesh(new THREE.BoxGeometry(length, 1.5, 3.2), jawMat);
@@ -635,7 +637,7 @@ export class Table {
       this.meshGroup.add(jaw);
     };
 
-    const inset = POCKET.radius * 0.95;
+    const inset = this.profile.pocketRadius * 0.95;
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
         addJaw(sx * (halfW - inset * 0.52), sz * (halfD + 2.8), 0, 13);
@@ -644,8 +646,8 @@ export class Table {
     }
 
     for (const sx of [-1, 1]) {
-      addJaw(sx * (halfW + 2.8), -POCKET.radius * 1.35, Math.PI / 2, 15);
-      addJaw(sx * (halfW + 2.8), POCKET.radius * 1.35, Math.PI / 2, 15);
+      addJaw(sx * (halfW + 2.8), -this.profile.pocketRadius * 1.35, Math.PI / 2, 15);
+      addJaw(sx * (halfW + 2.8), this.profile.pocketRadius * 1.35, Math.PI / 2, 15);
     }
   }
 
@@ -660,8 +662,8 @@ export class Table {
       roughness: 0.32,
       metalness: 0.28,
     });
-    const halfW = TABLE.width / 2;
-    const halfD = TABLE.depth / 2;
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
     const railTopY = 9.45;
 
     const cornerPositions = [
@@ -732,14 +734,14 @@ export class Table {
       roughness: 0.16,
       metalness: 0.82,
     });
-    const halfW = TABLE.width / 2;
-    const halfD = TABLE.depth / 2;
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
 
     const panels = [
-      [0, -11.8, -halfD - 14.4, TABLE.width * 0.72, 7.2, 0.9],
-      [0, -11.8, halfD + 14.4, TABLE.width * 0.72, 7.2, 0.9],
-      [-halfW - 14.4, -11.8, 0, 0.9, 7.2, TABLE.depth * 0.66],
-      [halfW + 14.4, -11.8, 0, 0.9, 7.2, TABLE.depth * 0.66],
+      [0, -11.8, -halfD - 14.4, this.profile.width * 0.72, 7.2, 0.9],
+      [0, -11.8, halfD + 14.4, this.profile.width * 0.72, 7.2, 0.9],
+      [-halfW - 14.4, -11.8, 0, 0.9, 7.2, this.profile.depth * 0.66],
+      [halfW + 14.4, -11.8, 0, 0.9, 7.2, this.profile.depth * 0.66],
     ];
 
     for (const [x, y, z, w, h, d] of panels) {
@@ -750,8 +752,8 @@ export class Table {
     }
 
     const shortBadges = [
-      [0, -7.0, -halfD - 15.05, TABLE.width * 0.28, 2.2, 0.6],
-      [0, -7.0, halfD + 15.05, TABLE.width * 0.28, 2.2, 0.6],
+      [0, -7.0, -halfD - 15.05, this.profile.width * 0.28, 2.2, 0.6],
+      [0, -7.0, halfD + 15.05, this.profile.width * 0.28, 2.2, 0.6],
     ];
     for (const [x, y, z, w, h, d] of shortBadges) {
       const badge = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), badgeMat);
@@ -761,10 +763,10 @@ export class Table {
     }
 
     const sideStrips = [
-      [-halfW - 15.05, -7.4, -TABLE.depth * 0.26, 0.6, 2.0, 26],
-      [-halfW - 15.05, -7.4, TABLE.depth * 0.26, 0.6, 2.0, 26],
-      [halfW + 15.05, -7.4, -TABLE.depth * 0.26, 0.6, 2.0, 26],
-      [halfW + 15.05, -7.4, TABLE.depth * 0.26, 0.6, 2.0, 26],
+      [-halfW - 15.05, -7.4, -this.profile.depth * 0.26, 0.6, 2.0, 26],
+      [-halfW - 15.05, -7.4, this.profile.depth * 0.26, 0.6, 2.0, 26],
+      [halfW + 15.05, -7.4, -this.profile.depth * 0.26, 0.6, 2.0, 26],
+      [halfW + 15.05, -7.4, this.profile.depth * 0.26, 0.6, 2.0, 26],
     ];
     for (const [x, y, z, w, h, d] of sideStrips) {
       const strip = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), nickelMat);
@@ -786,13 +788,13 @@ export class Table {
       metalness: 0.7,
     });
 
-    const spine = new THREE.Mesh(new THREE.BoxGeometry(14, 7, TABLE.depth * 0.54), stretcherMat);
+    const spine = new THREE.Mesh(new THREE.BoxGeometry(14, 7, this.profile.depth * 0.54), stretcherMat);
     spine.position.set(0, -49, 0);
     spine.castShadow = true;
     spine.receiveShadow = true;
     this.meshGroup.add(spine);
 
-    for (const z of [-TABLE.depth * 0.2, TABLE.depth * 0.2]) {
+    for (const z of [-this.profile.depth * 0.2, this.profile.depth * 0.2]) {
       const collar = new THREE.Mesh(new THREE.BoxGeometry(16, 1.6, 5.5), nickelMat);
       collar.position.set(0, -44.4, z);
       collar.castShadow = true;
@@ -808,8 +810,8 @@ export class Table {
       emissive: 0x1c1408,
       emissiveIntensity: 0.15,
     });
-    const halfW = TABLE.width / 2;
-    const halfD = TABLE.depth / 2;
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
     const positions = [];
 
     for (const x of [-halfW * 0.66, -halfW * 0.33, 0, halfW * 0.33, halfW * 0.66]) {
@@ -840,8 +842,8 @@ export class Table {
       roughness: 0.2,
       metalness: 0.75,
     });
-    const halfW = TABLE.width / 2;
-    const halfD = TABLE.depth / 2;
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
     const capPositions = [
       [-halfW - 7, 9.0, -halfD - 7],
       [halfW + 7, 9.0, -halfD - 7],
@@ -886,14 +888,14 @@ export class Table {
       metalness: 0.85,
     });
     const legH = 65;
-    const halfW = TABLE.width / 2 + 7;
-    const halfD = TABLE.depth / 2 + 9;
+    const halfW = this.profile.width / 2 + 7;
+    const halfD = this.profile.depth / 2 + 9;
 
     const positions = [
-      [-halfW, -legH / 2 - TABLE.height, -halfD, 1],
-      [halfW, -legH / 2 - TABLE.height, -halfD, -1],
-      [-halfW, -legH / 2 - TABLE.height, halfD, -1],
-      [halfW, -legH / 2 - TABLE.height, halfD, 1],
+      [-halfW, -legH / 2 - this.profile.height, -halfD, 1],
+      [halfW, -legH / 2 - this.profile.height, -halfD, -1],
+      [-halfW, -legH / 2 - this.profile.height, halfD, -1],
+      [halfW, -legH / 2 - this.profile.height, halfD, 1],
     ];
 
     for (const [x, y, z, tilt] of positions) {
@@ -909,13 +911,13 @@ export class Table {
       this.meshGroup.add(face);
 
       const base = new THREE.Mesh(new THREE.BoxGeometry(22, 5.4, 25), footMat);
-      base.position.set(x, -legH - TABLE.height - 2.7, z);
+      base.position.set(x, -legH - this.profile.height - 2.7, z);
       base.castShadow = true;
       base.receiveShadow = true;
       this.meshGroup.add(base);
 
       const leveler = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.8, 1.5, 28), levelerMat);
-      leveler.position.set(x, -legH - TABLE.height - 6.2, z);
+      leveler.position.set(x, -legH - this.profile.height - 6.2, z);
       leveler.castShadow = true;
       leveler.receiveShadow = true;
       this.meshGroup.add(leveler);

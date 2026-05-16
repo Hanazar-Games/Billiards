@@ -218,6 +218,9 @@ const DEFAULTS = {
   unitSystem: 'metric', // 'metric' | 'imperial'
   numberFormat: 'auto', // 'auto' | 'plain'
   clockFormat: 'mmss', // 'mmss' | 'seconds'
+  defaultTableProfile8Ball: 'pool9ft',
+  defaultTableProfile9Ball: 'pool9ft',
+  defaultTableProfileFreeplay: 'pool9ft',
   quickBreak: false,
   autoSkipAnimation: false,
   skipOpponentTurn: false,

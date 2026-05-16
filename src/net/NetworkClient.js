@@ -162,8 +162,8 @@ export class NetworkClient extends EventTarget {
     return ok;
   }
 
-  startGame(mode = '8ball') {
-    return this._send({ type: 'startGame', mode });
+  startGame(mode = '8ball', tableProfileId = 'pool9ft') {
+    return this._send({ type: 'startGame', mode, tableProfileId });
   }
 
   // ── Game messages ──

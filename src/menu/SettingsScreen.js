@@ -199,6 +199,13 @@ const SPEED_UNIT_OPTIONS = [
   { value: 'mps', label: '米/秒' },
 ];
 
+const TABLE_PROFILE_OPTIONS = [
+  { value: 'pool9ft', label: 'WPA 9尺 锦标赛' },
+  { value: 'pool8ft', label: 'WPA 8尺 / Pro 8' },
+  { value: 'bar7ft', label: '7尺 酒吧台' },
+  { value: 'chinese8', label: '中式八球' },
+];
+
 export class SettingsScreen {
   constructor(onBack, mountContainer = null) {
     this.onBack = onBack;
@@ -876,6 +883,9 @@ export class SettingsScreen {
     this._row('自动跳过动画', this._createSwitch(settings.get('autoSkipAnimation'), (v) => settings.set('autoSkipAnimation', v)));
     this._row('跳过对手回合', this._createSwitch(settings.get('skipOpponentTurn'), (v) => settings.set('skipOpponentTurn', v)), '联机/竞技模式可能由房主统一锁定');
     this._row('显示对手轨迹', this._createSwitch(settings.get('showOpponentTrajectory'), (v) => settings.set('showOpponentTrajectory', v)), '联机/竞技模式可能由房主统一锁定');
+    this._rowSelect('默认球桌 (8球)', TABLE_PROFILE_OPTIONS, settings.get('defaultTableProfile8Ball'), (v) => settings.set('defaultTableProfile8Ball', v), '仅影响新对局的默认选择，比赛/联机中由房主锁定');
+    this._rowSelect('默认球桌 (9球)', TABLE_PROFILE_OPTIONS.filter(o => o.value !== 'chinese8'), settings.get('defaultTableProfile9Ball'), (v) => settings.set('defaultTableProfile9Ball', v), '仅影响新对局的默认选择，比赛/联机中由房主锁定');
+    this._rowSelect('默认球桌 (练习)', TABLE_PROFILE_OPTIONS, settings.get('defaultTableProfileFreeplay'), (v) => settings.set('defaultTableProfileFreeplay', v), '仅影响新对局的默认选择');
     this._rowSelect('语言', LANGUAGE_OPTIONS, settings.get('language'), (v) => settings.set('language', v));
     this._rowSelect('距离单位', UNIT_OPTIONS, settings.get('unitSystem'), (v) => settings.set('unitSystem', v));
     this._rowSelect('速度单位', SPEED_UNIT_OPTIONS, settings.get('speedUnit'), (v) => settings.set('speedUnit', v));

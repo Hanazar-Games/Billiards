@@ -1,4 +1,5 @@
 import { animMs } from '../core/AnimSpeed.js';
+import { getEnabledProfilesForMode } from '../game/TableProfiles.js';
 
 /**
  * MatchSetupPanel — Pre-game configuration for local match mode.
@@ -73,6 +74,19 @@ export class MatchSetupPanel {
       { value: '9ball', label: '9 球' },
     ], '8ball');
     card.appendChild(this._modeSelect);
+
+    // Table profile
+    card.appendChild(this._createSectionTitle('球桌'));
+    this._tableSelect = this._createTableSelect('8ball');
+    card.appendChild(this._tableSelect);
+
+    // Update table options when mode changes
+    const originalModeClick = this._modeSelect.onclick;
+    this._modeSelect.addEventListener('click', (e) => {
+      if (e.target && e.target.dataset && e.target.dataset.value) {
+        this._rebuildTableSelect(e.target.dataset.value);
+      }
+    });
 
     // Match format
     card.appendChild(this._createSectionTitle('赛制'));
@@ -191,9 +205,26 @@ export class MatchSetupPanel {
     const p2Name = (this._p2Input.value || '玩家 2').trim();
     const mode = this._modeSelect.dataset.selected || '8ball';
     const gamesNeeded = parseInt(this._formatSelect.dataset.selected || '1', 10);
+    const tableProfileId = this._tableSelect?.dataset?.selected || 'pool9ft';
     if (this.onStart) {
-      this.onStart({ p1Name, p2Name, mode, gamesNeeded });
+      this.onStart({ p1Name, p2Name, mode, gamesNeeded, tableProfileId });
     }
+  }
+
+  _createTableSelect(rulesMode) {
+    const profiles = getEnabledProfilesForMode('match', rulesMode);
+    const options = profiles.map(p => ({ value: p.id, label: p.labelZh || p.label }));
+    const wrap = this._createPillSelect(options, 'pool9ft');
+    wrap.id = 'match-table-select';
+    return wrap;
+  }
+
+  _rebuildTableSelect(rulesMode) {
+    const oldWrap = this._tableSelect;
+    if (!oldWrap) return;
+    const newWrap = this._createTableSelect(rulesMode);
+    oldWrap.parentNode.replaceChild(newWrap, oldWrap);
+    this._tableSelect = newWrap;
   }
 
   hide() {

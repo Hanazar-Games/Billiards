@@ -332,7 +332,7 @@ export class MenuSystem {
     this.challengeManager = null;
   }
 
-  async _startGame(mode, networkClient = null, networkRole = null, localPlayerId = 1, matchStatus = null) {
+  async _startGame(mode, networkClient = null, networkRole = null, localPlayerId = 1, matchStatus = null, tableProfileId = null) {
     if (this.state !== 'MENU' && !networkClient && !matchStatus) return;
     this.state = 'TRANSITION';
 
@@ -391,7 +391,7 @@ export class MenuSystem {
     }
 
     // Configure mode
-    const modeConfig = this._getModeConfig(mode);
+    const modeConfig = this._getModeConfig(mode, tableProfileId);
 
     // Initialize game with mode
     try {
@@ -440,10 +440,10 @@ export class MenuSystem {
     this.lanRoomPanel.show();
   }
 
-  async _startNetworkGame(client, mode) {
+  async _startNetworkGame(client, mode, tableProfileId = null) {
     const role = client.isHost ? 'host' : 'client';
     const localId = client.playerId || 1;
-    await this._startGame('local2p', client, role, localId);
+    await this._startGame('local2p', client, role, localId, null, tableProfileId);
   }
 
   // ── Local Match Mode ──
@@ -471,7 +471,8 @@ export class MenuSystem {
     if (!this.matchManager) return;
     const status = this.matchManager.getStatus();
     const mode = status.mode === '9ball' ? 'nineball' : 'local2p';
-    await this._startGame(mode, null, null, null, status);
+    const tableProfileId = status.tableProfileId || null;
+    await this._startGame(mode, null, null, null, status, tableProfileId);
   }
 
   _onMatchGameEnd(gameWinner) {
@@ -513,19 +514,25 @@ export class MenuSystem {
     await this._startMatchRound();
   }
 
-  _getModeConfig(mode) {
-    switch (mode) {
-      case 'freeplay':
-        return { mode: 'freeplay', aiEnabled: false };
-      case 'local2p':
-        return { mode: 'local2p', aiEnabled: false };
-      case 'vsai':
-        return { mode: 'vsai', aiEnabled: true, aiDifficulty: 'normal' };
-      case 'nineball':
-        return { mode: '9ball', aiEnabled: false };
-      default:
-        return { mode: 'local2p', aiEnabled: false };
+  _getModeConfig(mode, tableProfileId = null) {
+    const config = (() => {
+      switch (mode) {
+        case 'freeplay':
+          return { mode: 'freeplay', aiEnabled: false };
+        case 'local2p':
+          return { mode: 'local2p', aiEnabled: false };
+        case 'vsai':
+          return { mode: 'vsai', aiEnabled: true, aiDifficulty: 'normal' };
+        case 'nineball':
+          return { mode: '9ball', aiEnabled: false };
+        default:
+          return { mode: 'local2p', aiEnabled: false };
+      }
+    })();
+    if (tableProfileId) {
+      config.tableProfileId = tableProfileId;
     }
+    return config;
   }
 
   async _returnToMenu() {

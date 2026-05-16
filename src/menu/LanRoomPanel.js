@@ -1,5 +1,6 @@
 import { NetworkClient } from '../net/NetworkClient.js';
 import { animMs } from '../core/AnimSpeed.js';
+import { getEnabledProfilesForMode } from '../game/TableProfiles.js';
 
 /**
  * LanRoomPanel — UI for creating/joining LAN multiplayer rooms.
@@ -119,8 +120,22 @@ export class LanRoomPanel {
     this._startBtn.style.display = 'none';
     this._cancelBtn = this._makeBtn('返回', () => this.hide());
 
+    // Table profile selector (host only, hidden until room created)
+    this._tableSelectWrap = document.createElement('div');
+    this._tableSelectWrap.id = 'lan-table-select-wrap';
+    this._tableSelectWrap.style.cssText = 'display:none;gap:8px;align-items:center;margin-right:12px;';
+    const tableLabel = document.createElement('span');
+    tableLabel.textContent = '球桌:';
+    tableLabel.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.55);';
+    this._tableSelectWrap.appendChild(tableLabel);
+    this._tableSelect = document.createElement('select');
+    this._tableSelect.style.cssText = 'padding:6px 10px;border-radius:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:13px;cursor:pointer;';
+    this._populateTableSelect();
+    this._tableSelectWrap.appendChild(this._tableSelect);
+
     btnRow.appendChild(this._createBtn);
     btnRow.appendChild(this._joinBtn);
+    btnRow.appendChild(this._tableSelectWrap);
     btnRow.appendChild(this._startBtn);
     btnRow.appendChild(this._cancelBtn);
     card.appendChild(btnRow);
@@ -219,6 +234,7 @@ export class LanRoomPanel {
     this._joinBtn.style.display = 'none';
     this._joinRow.style.display = 'none';
     this._startBtn.style.display = 'inline-block';
+    if (this._tableSelectWrap) this._tableSelectWrap.style.display = 'flex';
     this._updatePlayerList(detail.playerList);
     this._state = 'ready';
   }
@@ -253,14 +269,27 @@ export class LanRoomPanel {
 
   _onStartGame() {
     if (!this.client || !this.client.isHost) return;
-    this.client.startGame('8ball');
+    const tableProfileId = this._tableSelect?.value || 'pool9ft';
+    this.client.startGame('8ball', tableProfileId);
     // Local callback is triggered by startGame event as well
   }
 
   _onRemoteStartGame(detail) {
     this._setStatus('游戏开始！');
     if (this.onStartGame) {
-      this.onStartGame(this.client, detail.mode);
+      this.onStartGame(this.client, detail.mode, detail.tableProfileId);
+    }
+  }
+
+  _populateTableSelect() {
+    if (!this._tableSelect) return;
+    this._tableSelect.innerHTML = '';
+    const profiles = getEnabledProfilesForMode('lan', '8ball');
+    for (const p of profiles) {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.labelZh || p.label;
+      this._tableSelect.appendChild(opt);
     }
   }
 

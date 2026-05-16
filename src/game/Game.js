@@ -24,7 +24,8 @@ import { BallReturnSystem } from '../fx/BallReturnSystem.js';
 import { ShotRecorder } from '../replay/ShotRecorder.js';
 import { settings } from '../core/SettingsStore.js';
 import { keyBindings } from '../input/KeyBindings.js';
-import { BALL, TABLE, POCKET, SHOT, CAMERA } from '../config.js';
+import { BALL, SHOT, CAMERA } from '../config.js';
+import { getTableProfile, resolveTableProfileId } from './TableProfiles.js';
 import { GameStateSerializer } from '../net/GameStateSerializer.js';
 import { SettingsScreen } from '../menu/SettingsScreen.js';
 import { animMs } from '../core/AnimSpeed.js';
@@ -120,6 +121,8 @@ export class Game {
     this._turnTimerRunning = false;
     this._settingsOpen = false;
     this.inGameSettings = null;
+    this.tableProfile = null;
+    this.tableProfileId = null;
 
     // Listener refs for clean disposal
     this._ballCollideListeners = new Map(); // ballId -> listener fn
@@ -138,6 +141,10 @@ export class Game {
   async init(modeConfig = {}) {
     this.mode = modeConfig.mode || 'local2p';
     this.aiEnabled = modeConfig.aiEnabled || false;
+
+    // Resolve table profile (match setting, locked for the whole game)
+    this.tableProfileId = resolveTableProfileId(modeConfig, settings);
+    this.tableProfile = getTableProfile(this.tableProfileId);
     if (modeConfig.aiDifficulty) {
       this.aiPlayer = new AIPlayer(modeConfig.aiDifficulty);
     }
@@ -164,7 +171,7 @@ export class Game {
     this._turnTimerRemaining = this._turnTimerMax;
     this._turnTimerRunning = false;
 
-    this.table = new Table(this.physics);
+    this.table = new Table(this.physics, this.tableProfile);
     this.table.addToScene(this.scene);
     this.table.applyVisualSettings(settings);
 
@@ -172,7 +179,7 @@ export class Game {
     this.room.addToScene(this.scene);
     this.room.applyVisualSettings(settings);
 
-    this.ballsManager = new BallsManager(this.physics);
+    this.ballsManager = new BallsManager(this.physics, this.tableProfile);
     this.ballsManager.createBalls();
     const rackMode = this.mode === '9ball' ? '9ball' : '8ball';
     this.ballsManager.rackBalls(rackMode);
@@ -192,7 +199,7 @@ export class Game {
     this.cue.applyTheme(settings.get('cueTheme'));
     this.scene.add(this.cue.mesh);
 
-    this.trajectory = new TrajectoryPredictor(this.scene);
+    this.trajectory = new TrajectoryPredictor(this.scene, this.tableProfile);
 
     if (!this.achievements) {
       this.achievements = new AchievementSystem();
@@ -205,6 +212,7 @@ export class Game {
     const uiLayer = document.getElementById('ui-layer');
     if (uiLayer) this.minimap.mount(uiLayer);
     if (this.table) this.minimap.setPocketPositions(this.table.getPocketPositions());
+    this.minimap.setTableProfile(this.tableProfile);
 
     this.ui.setPlayerTurn(1);
     if (this.mode === 'freeplay') {
@@ -530,20 +538,20 @@ export class Game {
 
   isCueBallPlacementLegal(x, z, behindHeadString = false) {
     // Cue ball must stay inside the playing surface, clear of cushion faces
-    const halfW = TABLE.width / 2 - TABLE.cushionWidth - BALL.radius;
-    const halfD = TABLE.depth / 2 - TABLE.cushionWidth - BALL.radius;
+    const halfW = this.tableProfile.width / 2 - this.tableProfile.cushionWidth - BALL.radius;
+    const halfD = this.tableProfile.depth / 2 - this.tableProfile.cushionWidth - BALL.radius;
     if (x < -halfW || x > halfW || z < -halfD || z > halfD) return false;
 
     // Behind the head string restriction (break foul ball-in-hand)
     if (behindHeadString) {
-      const headStringZ = -TABLE.depth / 2 * 0.55;
+      const headStringZ = -this.tableProfile.depth / 2 * 0.55;
       if (z > headStringZ) return false;
     }
 
     for (const pocket of this.table.getPocketPositions()) {
       const dx = x - pocket.x;
       const dz = z - pocket.z;
-      if (dx * dx + dz * dz < (POCKET.radius + BALL.radius * 0.45) ** 2) {
+      if (dx * dx + dz * dz < (this.tableProfile.pocketRadius + BALL.radius * 0.45) ** 2) {
         return false;
       }
     }
@@ -590,9 +598,9 @@ export class Game {
     }
 
     // Keep cue ball fully inside the playing surface, away from cushion faces
-    const halfW = TABLE.width / 2 - TABLE.cushionWidth - BALL.radius;
-    const halfD = TABLE.depth / 2 - TABLE.cushionWidth - BALL.radius;
-    const headStringZ = -TABLE.depth / 2 * 0.55;
+    const halfW = this.tableProfile.width / 2 - this.tableProfile.cushionWidth - BALL.radius;
+    const halfD = this.tableProfile.depth / 2 - this.tableProfile.cushionWidth - BALL.radius;
+    const headStringZ = -this.tableProfile.depth / 2 * 0.55;
     const x = Math.max(-halfW, Math.min(halfW, point.x));
     let z;
     if (this.ballInHandBehindLine) {
@@ -1170,7 +1178,7 @@ export class Game {
   _respotBall(ballId) {
     const ball = this.ballsManager.getBall(ballId);
     if (!ball || !ball.pocketed) return;
-    const footZ = TABLE.depth / 2 * 0.55;
+    const footZ = this.tableProfile.depth / 2 * 0.55;
     let finalX = 0;
     const checkClear = (x, z) => {
       for (const b of this.ballsManager.balls) {
@@ -1417,7 +1425,7 @@ export class Game {
         this.ballInHandBehindLine = false;
         // Find a legal cue-ball placement for AI
         let placed = false;
-        const headStringZ = -TABLE.depth / 2 * 0.55;
+        const headStringZ = -this.tableProfile.depth / 2 * 0.55;
         const candidates = [];
         if (behindLine) {
           // Behind head string: scan along a line slightly behind the string
@@ -1466,7 +1474,7 @@ export class Game {
     }
 
     this._ballCollideListeners.clear();
-    this.ballsManager = new BallsManager(this.physics);
+    this.ballsManager = new BallsManager(this.physics, this.tableProfile);
     this.ballsManager.createBalls();
     const rackMode = this.mode === '9ball' ? '9ball' : '8ball';
     this.ballsManager.rackBalls(rackMode);

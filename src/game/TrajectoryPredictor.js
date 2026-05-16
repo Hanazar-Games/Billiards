@@ -1,13 +1,15 @@
 import * as THREE from 'three';
-import { BALL, TABLE } from '../config.js';
+import { BALL } from '../config.js';
+import { getDefaultTableProfile } from './TableProfiles.js';
 
 const LINE_COLOR = 0xffffff;
 const LINE_HIT_COLOR = 0x00ff88;
 const GHOST_COLOR = 0x00ff88;
 
 export class TrajectoryPredictor {
-  constructor(scene) {
+  constructor(scene, tableProfile = null) {
     this.scene = scene;
+    this.profile = tableProfile || getDefaultTableProfile();
     this.group = new THREE.Group();
     this.scene.add(this.group);
     this.visible = false;
@@ -40,6 +42,10 @@ export class TrajectoryPredictor {
 
     this.lines = [];
     this.activeLineCount = 0;
+  }
+
+  setTableProfile(profile) {
+    this.profile = profile || this.profile;
   }
 
   update(cueBall, aimDirection, balls, pocketPositions) {
@@ -133,8 +139,8 @@ export class TrajectoryPredictor {
   }
 
   rayToEdge(origin, dir) {
-    const halfW = TABLE.width / 2 - BALL.radius;
-    const halfD = TABLE.depth / 2 - BALL.radius;
+    const halfW = this.profile.width / 2 - BALL.radius;
+    const halfD = this.profile.depth / 2 - BALL.radius;
 
     let tMin = Infinity;
 

@@ -1,5 +1,6 @@
 import { ShotPlanner } from './ShotPlanner.js';
-import { SHOT, TABLE } from '../config.js';
+import { SHOT } from '../config.js';
+import { getDefaultTableProfile } from '../game/TableProfiles.js';
 
 export const AI_DIFFICULTY = {
   EASY: 'easy',
@@ -89,6 +90,7 @@ export class AIPlayer {
       }
 
       // Find shots
+      const tableProfile = game.tableProfile || getDefaultTableProfile();
       const allShots = this.planner.findAllShots(
         ballsManager.balls,
         cueBall,
@@ -96,14 +98,15 @@ export class AIPlayer {
         playerGroup,
         isBreak,
         targetBallId,
-        this.settings.bankShotEnable
+        this.settings.bankShotEnable,
+        tableProfile
       );
 
       let chosenShot = null;
 
       if (allShots.length === 0) {
         // No direct shot: try safety or random hit
-        chosenShot = this.planner.findSafetyShot(ballsManager.balls, cueBall, pocketPositions, targetBallId);
+        chosenShot = this.planner.findSafetyShot(ballsManager.balls, cueBall, pocketPositions, targetBallId, tableProfile);
         if (!chosenShot) {
           chosenShot = this.findDesperateShot(ballsManager.balls, cueBall, targetBallId);
         }
@@ -115,7 +118,7 @@ export class AIPlayer {
         const s = this.settings;
         if (chosenShot.score < 35 && s.safetyAwareness > 0 &&
             Math.random() < s.safetyAwareness * 0.6) {
-          const safety = this.planner.findSafetyShot(ballsManager.balls, cueBall, pocketPositions, targetBallId);
+          const safety = this.planner.findSafetyShot(ballsManager.balls, cueBall, pocketPositions, targetBallId, tableProfile);
           if (safety) chosenShot = safety;
         }
       }
@@ -164,7 +167,7 @@ export class AIPlayer {
     if (this.difficulty === AI_DIFFICULTY.HARD && s.positionPlayWeight > 0) {
       const scored = allShots.map((shot) => ({
         ...shot,
-        combinedScore: shot.score + this._evaluatePositionPlay(shot) * s.positionPlayWeight,
+        combinedScore: shot.score + this._evaluatePositionPlay(shot, tableProfile) * s.positionPlayWeight,
       }));
       scored.sort((a, b) => b.combinedScore - a.combinedScore);
       allShots = scored;
@@ -191,12 +194,13 @@ export class AIPlayer {
   }
 
   /** Rough position-play evaluation for HARD AI. Rewards shots that leave cue ball near cushions or far from target balls. */
-  _evaluatePositionPlay(shot) {
+  _evaluatePositionPlay(shot, tableProfile = null) {
     if (!shot.ghostPos) return 0;
     let score = 0;
+    const profile = tableProfile || getDefaultTableProfile();
     // Near a cushion is good (harder for opponent)
-    const cushionX = Math.abs(shot.ghostPos.x) / (TABLE.width / 2);
-    const cushionZ = Math.abs(shot.ghostPos.z) / (TABLE.depth / 2);
+    const cushionX = Math.abs(shot.ghostPos.x) / (profile.width / 2);
+    const cushionZ = Math.abs(shot.ghostPos.z) / (profile.depth / 2);
     if (cushionX > 0.75 || cushionZ > 0.75) score += 12;
     else if (cushionX > 0.55 || cushionZ > 0.55) score += 6;
     return score;

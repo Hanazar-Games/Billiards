@@ -57,6 +57,7 @@ export class GameStateSerializer {
 
     return {
       mode: game.mode,
+      tableProfileId: game.tableProfileId || 'pool9ft',
       state: game.state,
       currentPlayer: game.currentPlayer,
       ballInHand: game.ballInHand,

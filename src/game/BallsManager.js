@@ -1,9 +1,11 @@
 import { Ball } from './Ball.js';
-import { BALL, BALL_COLORS, TABLE, POCKET, getBallType, BALL_TYPE } from '../config.js';
+import { BALL, BALL_COLORS, getBallType, BALL_TYPE } from '../config.js';
+import { getDefaultTableProfile } from './TableProfiles.js';
 
 export class BallsManager {
-  constructor(physics) {
+  constructor(physics, tableProfile = null) {
     this.physics = physics;
+    this.profile = tableProfile || getDefaultTableProfile();
     this.balls = [];
     this.previousPositions = new Map();
     this.onManualBallContact = null;
@@ -42,7 +44,7 @@ export class BallsManager {
   _rackEightBall() {
     const r = BALL.radius;
     const d = r * 2.02;
-    const halfD = TABLE.depth / 2;
+    const halfD = this.profile.depth / 2;
 
     // Cue ball: head spot
     this._placeBall(0, 0, r, -halfD * 0.55);
@@ -72,7 +74,7 @@ export class BallsManager {
   _rackNineBall() {
     const r = BALL.radius;
     const d = r * 2.02;
-    const halfD = TABLE.depth / 2;
+    const halfD = this.profile.depth / 2;
 
     // Cue ball: head spot (behind head string)
     this._placeBall(0, 0, r, -halfD * 0.55);
@@ -366,11 +368,11 @@ export class BallsManager {
   _enforceTableBounds(ball, pocketPositions) {
     if (this._isNearPocketMouth(ball, pocketPositions)) return;
 
-    const halfW = TABLE.width / 2;
-    const halfD = TABLE.depth / 2;
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
     // Escape limit: ball must have clearly left the table surface to trigger rescue.
     // Rail limit: place the ball just inside the cushion face.
-    const cushionHalf = TABLE.cushionWidth;
+    const cushionHalf = this.profile.cushionWidth;
     const railLimitX = halfW - cushionHalf - BALL.radius * 0.05;
     const railLimitZ = halfD - cushionHalf - BALL.radius * 0.05;
     const escapeLimitX = halfW + BALL.radius * 0.25;
@@ -424,7 +426,7 @@ export class BallsManager {
 
   _isNearPocketMouth(ball, pocketPositions) {
     const pos = ball.body.position;
-    const pocketPassRadius = POCKET.radius + POCKET.detectMargin * 0.95;
+    const pocketPassRadius = this.profile.pocketRadius + this.profile.pocketDetectMargin * 0.95;
     const passSq = pocketPassRadius * pocketPassRadius;
 
     for (const pocket of pocketPositions) {
@@ -456,7 +458,7 @@ export class BallsManager {
    */
   checkPockets(pocketPositions) {
     const pocketed = [];
-    const detectDist = POCKET.radius + POCKET.detectMargin;
+    const detectDist = this.profile.pocketRadius + this.profile.pocketDetectMargin;
 
     for (const ball of this.balls) {
       if (ball.pocketed) continue;
@@ -482,11 +484,11 @@ export class BallsManager {
     if (!cue.pocketed) return { x: cue.mesh.position.x, z: cue.mesh.position.z };
 
     const r = BALL.radius;
-    const z = preferredZ ?? -TABLE.depth / 2 * 0.55;
+    const z = preferredZ ?? -this.profile.depth / 2 * 0.55;
 
     // Stay inside the playing surface, away from cushion faces
-    const halfW = TABLE.width / 2 - TABLE.cushionWidth - BALL.radius;
-    const halfD = TABLE.depth / 2 - TABLE.cushionWidth - BALL.radius;
+    const halfW = this.profile.width / 2 - this.profile.cushionWidth - BALL.radius;
+    const halfD = this.profile.depth / 2 - this.profile.cushionWidth - BALL.radius;
 
     const checkClear = (x, z) => {
       if (x < -halfW || x > halfW || z < -halfD || z > halfD) return false;

@@ -9,11 +9,12 @@
  *   5. getStatus()       — get current score, game number, leader, etc.
  */
 export class MatchEngine {
-  constructor({ p1Name, p2Name, mode, gamesNeeded }) {
+  constructor({ p1Name, p2Name, mode, gamesNeeded, tableProfileId }) {
     this.p1Name = p1Name || '玩家 1';
     this.p2Name = p2Name || '玩家 2';
     this.mode = mode || '8ball'; // '8ball' | '9ball'
     this.gamesNeeded = gamesNeeded || 1; // 1 | 3 | 5
+    this.tableProfileId = tableProfileId || 'pool9ft';
     this.p1Score = 0;
     this.p2Score = 0;
     this.currentGame = 0;
@@ -55,6 +56,7 @@ export class MatchEngine {
       gamesNeeded: this.gamesNeeded,
       winsNeeded: half,
       mode: this.mode,
+      tableProfileId: this.tableProfileId,
       finished: this.finished,
       winner: this.winner,
       leader: this.p1Score > this.p2Score ? 1 : (this.p2Score > this.p1Score ? 2 : null),
