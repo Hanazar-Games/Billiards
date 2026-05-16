@@ -866,14 +866,14 @@ export class Table {
     for (const [x, y, z, tilt] of positions) {
       const leg = new THREE.Mesh(new THREE.BoxGeometry(14, legH, 18), legMat);
       leg.position.set(x, y, z);
-      leg.rotation.z = tilt * 0.08;
+      // leg is vertical — no tilt
       leg.castShadow = true;
       leg.receiveShadow = true;
       this.meshGroup.add(leg);
 
       const face = new THREE.Mesh(new THREE.BoxGeometry(11.5, legH * 0.72, 1.1), faceMat);
       face.position.set(x, y + 2, z + Math.sign(z) * 9.6);
-      face.rotation.z = tilt * 0.08;
+      // face is vertical — no tilt
       face.castShadow = true;
       this.meshGroup.add(face);
 
