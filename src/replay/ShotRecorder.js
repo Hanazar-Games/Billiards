@@ -11,8 +11,8 @@
  *   metadata: { startTime, endTime, mode, pocketedIds[], collisionCount,
  *               cushionCount, spinUsed, maxPower, duration }
  */
-const MAX_FRAMES = 300; // 15 seconds @ 20fps
-const FRAME_INTERVAL = 0.05; // 50ms
+const MAX_FRAMES = 1080; // 18 seconds @ 60fps
+const FRAME_INTERVAL = 1 / 60; // ~16.67ms
 const BALL_COUNT = 16;
 const FLOATS_PER_FRAME = BALL_COUNT * 2; // x, z for each ball
 export const POCKETED_SENTINEL = 999999;
@@ -159,6 +159,7 @@ export class ShotRecorder {
       metadata: { ...this.metadata },
       frames: Array.from(trimmedFrames),
       frameCount: this.frameIndex,
+      frameRate: 60,
       score: this.calculateScore(),
     };
   }

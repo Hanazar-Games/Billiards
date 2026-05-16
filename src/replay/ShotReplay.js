@@ -7,9 +7,10 @@
  * Playback speeds: 0.1x, 0.25x, 0.5x, 1.0x
  */
 import { POCKETED_SENTINEL } from './ShotRecorder.js';
+import { BALL } from '../config.js';
 
 const SPEEDS = [0.1, 0.25, 0.5, 1.0];
-const FRAME_INTERVAL = 0.05; // original recording interval = 50ms
+// frameInterval is now per-replay (set in load)
 
 export class ShotReplay {
   constructor(scene, ballsManager) {
@@ -32,6 +33,8 @@ export class ShotReplay {
 
     this.frames = new Float32Array(data.frames);
     this.frameCount = data.frameCount;
+    this.frameRate = data.frameRate || 20;
+    this.frameInterval = 1 / this.frameRate;
     this.currentFrame = 0;
     this.accumulator = 0;
     this.speedIndex = 3;
@@ -118,23 +121,24 @@ export class ShotReplay {
     const speed = SPEEDS[this.speedIndex];
     this.accumulator += dt * speed;
 
-    while (this.accumulator >= FRAME_INTERVAL) {
-      this.accumulator -= FRAME_INTERVAL;
-      this.currentFrame++;
+    const interval = this.frameInterval || (1 / 60);
+    const totalFrames = this.accumulator / interval;
+    const frameIdx = Math.floor(totalFrames);
+    const alpha = totalFrames - frameIdx;
 
-      if (this.currentFrame >= this.frameCount) {
-        this.currentFrame = this.frameCount - 1;
-        this._applyFrame(this.currentFrame);
-        this.playing = false;
-        if (this.onComplete) this.onComplete();
-        if (this.onProgress) this.onProgress(this.currentFrame, this.frameCount);
-        return;
-      }
-
+    if (frameIdx >= this.frameCount - 1) {
+      this.currentFrame = this.frameCount - 1;
       this._applyFrame(this.currentFrame);
-      if (this.onProgress) {
-        this.onProgress(this.currentFrame, this.frameCount);
-      }
+      this.playing = false;
+      if (this.onComplete) this.onComplete();
+      if (this.onProgress) this.onProgress(this.currentFrame, this.frameCount);
+      return;
+    }
+
+    this.currentFrame = frameIdx;
+    this._applyInterpolated(this.currentFrame, alpha);
+    if (this.onProgress) {
+      this.onProgress(this.currentFrame, this.frameCount);
     }
   }
 
@@ -157,6 +161,35 @@ export class ShotReplay {
       ball.mesh.visible = true;
       ball.mesh.position.x = x;
       ball.mesh.position.z = z;
+      ball.mesh.position.y = BALL.radius;
+    }
+  }
+
+  /** Apply frame with linear interpolation between current and next frame. */
+  _applyInterpolated(frameIdx, alpha) {
+    if (!this.frames || !this.ballsManager) return;
+    const base1 = frameIdx * 32;
+    const nextIdx = Math.min(frameIdx + 1, this.frameCount - 1);
+    const base2 = nextIdx * 32;
+
+    for (let i = 0; i < 16; i++) {
+      const ball = this.ballsManager.balls[i];
+      if (!ball) continue;
+
+      const x1 = this.frames[base1 + i * 2];
+      const z1 = this.frames[base1 + i * 2 + 1];
+      const x2 = this.frames[base2 + i * 2];
+      const z2 = this.frames[base2 + i * 2 + 1];
+
+      if (x1 === POCKETED_SENTINEL && z1 === POCKETED_SENTINEL) {
+        ball.mesh.visible = false;
+        continue;
+      }
+
+      ball.mesh.visible = true;
+      ball.mesh.position.x = x1 + (x2 - x1) * alpha;
+      ball.mesh.position.z = z1 + (z2 - z1) * alpha;
+      ball.mesh.position.y = BALL.radius;
     }
   }
 
@@ -168,11 +201,11 @@ export class ShotReplay {
 
   /** Get current time in seconds. */
   getCurrentTime() {
-    return this.currentFrame * FRAME_INTERVAL;
+    return this.currentFrame * (this.frameInterval || (1 / 60));
   }
 
   /** Get total duration in seconds. */
   getDuration() {
-    return this.frameCount * FRAME_INTERVAL;
+    return this.frameCount * (this.frameInterval || (1 / 60));
   }
 }

@@ -621,6 +621,8 @@ export class MenuSystem {
       this._stopReplayPlayback();
       return;
     }
+    // Attach metadata for HUD display
+    this.replayEngine._meta = replayData.metadata || null;
     this.replayEngine.play();
     this.replayEngine.onComplete = () => {
       // Auto-stop after playback completes
@@ -656,8 +658,13 @@ export class MenuSystem {
     const dt = Math.min((now - this._replayLastTime) / 1000, 0.05);
     this._replayLastTime = now;
 
+    // Sub-step replay update for ultra-smooth interpolation (~600fps feel)
+    const SUB_STEPS = 10;
+    const subDt = dt / SUB_STEPS;
     if (this.replayEngine) {
-      this.replayEngine.update(dt);
+      for (let i = 0; i < SUB_STEPS; i++) {
+        this.replayEngine.update(subDt);
+      }
     }
     if (this.replayPanel) {
       this.replayPanel.updateControls(this.replayEngine);

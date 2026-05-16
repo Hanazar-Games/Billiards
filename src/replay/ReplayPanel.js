@@ -395,6 +395,15 @@ export class ReplayPanel {
     this.exitBtn.style.cssText = this._btnStyle('40px');
     this.controlContainer.appendChild(this.exitBtn);
 
+    // Metadata display (power, pocketed, collisions, cushions)
+    this.metaDisplay = document.createElement('div');
+    this.metaDisplay.style.cssText = `
+      display: flex; align-items: center; gap: 12px;
+      padding-left: 10px; border-left: 1px solid rgba(255,255,255,0.12);
+      font-size: 12px; color: rgba(255,255,255,0.6);
+    `;
+    this.controlContainer.appendChild(this.metaDisplay);
+
     document.body.appendChild(this.controlContainer);
   }
 
@@ -488,6 +497,19 @@ export class ReplayPanel {
     this.speedBtn.textContent = replayEngine.getSpeedLabel();
     this.timeDisplay.textContent = `${current} / ${total}s`;
     this.progressFill.style.width = `${progress * 100}%`;
+
+    // Update metadata if available on the loaded replay data
+    const meta = replayEngine._meta;
+    if (meta && this.metaDisplay) {
+      const parts = [];
+      if (meta.maxPower > 0) parts.push(`力度 ${Math.round(meta.maxPower)}`);
+      const nonCue = (meta.pocketedIds || []).filter(id => id !== 0).length;
+      if (nonCue > 0) parts.push(`进球 ${nonCue}`);
+      if (meta.collisionCount > 0) parts.push(`碰撞 ${meta.collisionCount}`);
+      if (meta.cushionCount > 0) parts.push(`库边 ${meta.cushionCount}`);
+      if (meta.spinUsed) parts.push('旋转');
+      this.metaDisplay.textContent = parts.join('  ·  ');
+    }
   }
 
   _setupKeyboard() {
