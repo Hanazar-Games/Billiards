@@ -216,7 +216,7 @@ export class Ball {
     const dirZ = shotSpeed > 0.001 ? z / shotSpeed : 1;
 
     // Apply linear impulse at ball centre (relative to body COM)
-    this.body.applyImpulse(new CANNON.Vec3(x, y, z), new CANNON.Vec3(0, 0, 0));
+    this.body.applyImpulse(new CANNON.Vec3(x, y, z), this.body.position);
 
     // Compute spin from off-centre cue tip hit using physical torque.
     const e = cueTipOffsetX;
