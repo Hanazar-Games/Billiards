@@ -276,9 +276,11 @@ export class MenuSystem {
     // Stop menu BGM before entering trainer
     if (this.audio) this.audio.stopBGM(false);
 
-    // Create drill manager
+    // Create drill manager with absolute ideal zone
     this.activeDrill = drill;
-    this.drillManager = new DrillManager(drill.id);
+    const { resolveDrillPositions } = await import('../trainer/DrillData.js');
+    const { idealZone } = resolveDrillPositions(drill, getTableProfile('pool9ft'));
+    this.drillManager = new DrillManager(drill.id, idealZone);
     this.drillManager.start();
 
     // Create game with trainer mode
@@ -353,9 +355,9 @@ export class MenuSystem {
       const stats = {
         power: this.drillManager.shotPower,
       };
-      if (this.drillManager.drill && this.drillManager.drill.idealCueZone && this.drillManager.cueBallRestPos) {
-        const dx = this.drillManager.cueBallRestPos.x - this.drillManager.drill.idealCueZone.x;
-        const dz = this.drillManager.cueBallRestPos.z - this.drillManager.drill.idealCueZone.z;
+      if (this.drillManager.idealZone && this.drillManager.cueBallRestPos) {
+        const dx = this.drillManager.cueBallRestPos.x - this.drillManager.idealZone.x;
+        const dz = this.drillManager.cueBallRestPos.z - this.drillManager.idealZone.z;
         stats.distance = Math.sqrt(dx * dx + dz * dz);
       }
       const best = DrillManager.getAllBest()[this.drillManager.drill.id];

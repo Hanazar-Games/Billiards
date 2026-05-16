@@ -9,7 +9,6 @@
  */
 import { DRILLS, DRILL_CATEGORIES } from './DrillData.js';
 import { DrillManager } from './DrillManager.js';
-import { animMs } from '../core/AnimSpeed.js';
 
 export class TrainerPanel {
   constructor(onSelectDrill, onBack) {

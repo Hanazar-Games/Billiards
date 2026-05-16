@@ -131,9 +131,9 @@ export class TrainerHUD {
     const targetBallPos = positions[targetBallId];
     if (!targetBallPos) return;
 
-    const start = new THREE.Vector3(targetBallPos.x, 0.5, targetBallPos.z);
+    const start = new THREE.Vector3(targetBallPos.x, BALL.radius, targetBallPos.z);
     const end = targetPocket.clone();
-    end.y = 0.5;
+    end.y = BALL.radius;
 
     const dir = new THREE.Vector3().subVectors(end, start).normalize();
 

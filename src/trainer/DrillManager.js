@@ -4,12 +4,12 @@
  * Evaluates the player's shot against the drill objective and awards stars.
  * Tracks best scores in localStorage.
  */
-import { getDrill, DRILL_TYPE } from './DrillData.js';
+import { getDrill, DRILL_TYPE, DRILLS } from './DrillData.js';
 
 const STORAGE_KEY = 'billiards_trainer_v1';
 
 export class DrillManager {
-  constructor(drillId) {
+  constructor(drillId, idealZoneAbsolute = null) {
     this.drill = getDrill(drillId);
     if (!this.drill) throw new Error('Unknown drill: ' + drillId);
 
@@ -26,6 +26,9 @@ export class DrillManager {
 
     // Position-play tracking
     this.cueBallStartPos = null;
+
+    // Absolute ideal zone (passed from Game.js after resolveDrillPositions)
+    this.idealZone = idealZoneAbsolute;
 
     this.best = this._loadBest(drillId);
   }
@@ -80,17 +83,17 @@ export class DrillManager {
       return;
     }
 
-    if (type === DRILL_TYPE.POSITION && idealCueZone) {
+    if (type === DRILL_TYPE.POSITION && this.idealZone) {
       // Position play: score based on how close cue ball lands to ideal zone
-      const dx = this.cueBallRestPos.x - idealCueZone.x;
-      const dz = this.cueBallRestPos.z - idealCueZone.z;
+      const dx = this.cueBallRestPos.x - this.idealZone.x;
+      const dz = this.cueBallRestPos.z - this.idealZone.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
 
-      if (dist <= idealCueZone.radius * 0.4) {
+      if (dist <= this.idealZone.radius * 0.4) {
         this._complete(3);
-      } else if (dist <= idealCueZone.radius * 0.75) {
+      } else if (dist <= this.idealZone.radius * 0.75) {
         this._complete(2);
-      } else if (dist <= idealCueZone.radius) {
+      } else if (dist <= this.idealZone.radius) {
         this._complete(1);
       } else {
         // Made the ball but missed the zone — still 1 star for pocketing
@@ -121,11 +124,11 @@ export class DrillManager {
     const { name, type, idealCueZone, hintPower } = this.drill;
     let progress = '';
 
-    if (type === DRILL_TYPE.POSITION && idealCueZone && this.cueBallRestPos) {
-      const dx = this.cueBallRestPos.x - idealCueZone.x;
-      const dz = this.cueBallRestPos.z - idealCueZone.z;
+    if (type === DRILL_TYPE.POSITION && this.idealZone && this.cueBallRestPos) {
+      const dx = this.cueBallRestPos.x - this.idealZone.x;
+      const dz = this.cueBallRestPos.z - this.idealZone.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
-      const pct = Math.max(0, Math.min(100, Math.round((1 - dist / idealCueZone.radius) * 100)));
+      const pct = Math.max(0, Math.min(100, Math.round((1 - dist / this.idealZone.radius) * 100)));
       progress = `走位精度: ${pct}%`;
     } else if (this.completed) {
       progress = '✓ 完成';

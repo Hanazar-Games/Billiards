@@ -1,4 +1,24 @@
-# 3D Billiards v1.7.0 — Latest Update
+# 3D Billiards v1.7.1 — Latest Update
+
+## What's New in v1.7.1
+
+### 🔧 Shot Trainer Bug 修复
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **DrillManager 坐标修复** | `idealCueZone` 原为相对坐标（-1~1），与绝对坐标的 `cueBallRestPos` 混合计算导致走位偏差完全错误。现由 Game.js 通过 `resolveDrillPositions` 解析为绝对坐标后传入 DrillManager |
+| 2 | **DrillManager 解锁逻辑修复** | `isUnlocked()` 引用了 `DRILLS` 但未导入，导致解锁判断抛出 ReferenceError。已补充导入 |
+| 3 | **Game.js dispose 结构修复** | `trainerHUD.dispose()` 被错误嵌套在 `if (this.trajectory)` 代码块内，若 trajectory 不存在则 trainerHUD 泄漏。已分离为独立 if 块 |
+| 4 | **Game.js rules null 防护** | trainer mode 下 `this.rules` 为 null，`shoot()` 中的 `this.rules.breakShot` / `this.rules.startShot()` 以及碰撞监听中的 `this.rules.recordFirstHit()` 会抛出错误。已全部添加可选链或前置判断 |
+| 5 | **resetGame 消息处理** | 训练模式下点击"重置球型"后，UI 消息错误显示为 8-ball 对战文本，现正确显示训练模式提示 |
+| 6 | **_getObjectiveText 训练模式** | 未处理 trainer mode，返回默认 8-ball 文本。现返回"击球训练" |
+| 7 | **TrainerHUD y 坐标修正** | 提示线绘制高度使用 0.5（台面下方），现修正为 `BALL.radius`（球心高度） |
+| 8 | **TrainerPanel 死代码清理** | 移除未使用的 `animMs` 导入 |
+| 9 | **DrillData 死代码清理** | 移除未使用的 `categoryFor` 函数 |
+
+---
+
+# 3D Billiards v1.7.0
 
 ## What's New in v1.7.0
 

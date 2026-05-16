@@ -358,7 +358,7 @@ export class Game {
 
           // First hit tracking (only for cue ball)
           if (this.state === 'SHOOTING' && ball.id === 0 && otherBall.id !== 0) {
-            this.rules.recordFirstHit(otherBall.id);
+            this.rules?.recordFirstHit(otherBall.id);
             this.achievements.onBallCollision(relVel);
           }
 
@@ -415,10 +415,10 @@ export class Game {
     if (this.state !== 'SHOOTING') return;
 
     if (ballA.id === 0 && ballB.id !== 0) {
-      this.rules.recordFirstHit(ballB.id);
+      this.rules?.recordFirstHit(ballB.id);
       this.achievements.onBallCollision(relVel);
     } else if (ballB.id === 0 && ballA.id !== 0) {
-      this.rules.recordFirstHit(ballA.id);
+      this.rules?.recordFirstHit(ballA.id);
       this.achievements.onBallCollision(relVel);
     }
   }
@@ -731,8 +731,8 @@ export class Game {
     }
 
     // Track whether this shot is the break shot for achievement purposes
-    this._isBreakShot = this.rules.breakShot;
-    this.rules.startShot(this.currentPlayer);
+    this._isBreakShot = this.rules?.breakShot || false;
+    this.rules?.startShot(this.currentPlayer);
 
     const force = Math.max(this.power, SHOT.minPower);
     cueBall.applyImpulse(
@@ -1598,6 +1598,8 @@ export class Game {
     this.ui.setPlayerGroups(null, null);
     if (this.mode === 'freeplay') {
       this.ui.setMessage(UIText.freeplayReset);
+    } else if (this.mode === 'trainer') {
+      this.ui.setMessage('训练模式：调整瞄准线和力度，将目标球击入指定袋口');
     } else if (this.mode === '9ball') {
       this.ui.setMessage(UIText.nineBallReset);
     } else {
@@ -2070,6 +2072,7 @@ export class Game {
 
   _getObjectiveText() {
     if (this.challengeManager) return '挑战模式';
+    if (this.mode === 'trainer') return '击球训练';
     if (this.mode === 'freeplay') return UIText.objectiveFreeplay;
     if (this.mode === '9ball') return UIText.objective9Ball;
     if (this.aiEnabled) return UIText.objective8BallVsAI;
@@ -2651,11 +2654,11 @@ export class Game {
     // Remove trajectory
     if (this.trajectory) {
       this.trajectory.dispose();
+      this.trajectory = null;
+    }
     if (this.trainerHUD) {
       this.trainerHUD.dispose();
       this.trainerHUD = null;
-    }
-      this.trajectory = null;
     }
 
     // Clear effects
