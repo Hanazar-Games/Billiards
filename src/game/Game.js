@@ -24,8 +24,9 @@ import { BallReturnSystem } from '../fx/BallReturnSystem.js';
 import { ShotRecorder } from '../replay/ShotRecorder.js';
 import { settings } from '../core/SettingsStore.js';
 import { keyBindings } from '../input/KeyBindings.js';
-import { BALL, TABLE, POCKET, SHOT } from '../config.js';
+import { BALL, TABLE, POCKET, SHOT, CAMERA } from '../config.js';
 import { GameStateSerializer } from '../net/GameStateSerializer.js';
+import { SettingsScreen } from '../menu/SettingsScreen.js';
 import { animMs } from '../core/AnimSpeed.js';
 import { createShotInput, applyShotInput } from './ShotInput.js';
 import { UIText } from '../core/UIText.js';
@@ -118,6 +119,7 @@ export class Game {
     this._turnTimerRemaining = 0;
     this._turnTimerRunning = false;
     this._settingsOpen = false;
+    this.inGameSettings = null;
 
     // Listener refs for clean disposal
     this._ballCollideListeners = new Map(); // ballId -> listener fn
@@ -241,6 +243,14 @@ export class Game {
       try { this.achievementPanel.destroy(); } catch (e) {}
     }
     this.achievementPanel = new AchievementPanel(this.achievements);
+
+    // In-game settings (reuses SettingsScreen, mounted to body with high z-index)
+    if (this.inGameSettings) {
+      try { this.inGameSettings.destroy(); } catch (e) {}
+    }
+    this.inGameSettings = new SettingsScreen(() => this._onInGameSettingsClose(), document.body);
+    this.inGameSettings.setAudioManager(this.audio);
+    this.inGameSettings.setZIndex(100);
 
     // Spin indicator UI
     this._addCueTipPicker();
@@ -646,7 +656,9 @@ export class Game {
       if (settings.get('particlesEnabled') !== false) {
         this.shockwaves?.spawn(cueBall.mesh.position, force);
       }
-      this.screenShake?.trigger(force, this.aimDirection);
+      if (settings.get('cameraShake') !== false) {
+        this.screenShake?.trigger(force, this.aimDirection);
+      }
       this.powerLabel?.show(force);
       this.trails.startRecording(cueBall);
       return;
@@ -681,7 +693,9 @@ export class Game {
     if (settings.get('particlesEnabled') !== false) {
       this.shockwaves?.spawn(cueBall.mesh.position, force);
     }
-    this.screenShake?.trigger(force, this.aimDirection);
+    if (settings.get('cameraShake') !== false) {
+      this.screenShake?.trigger(force, this.aimDirection);
+    }
     this.powerLabel?.show(force);
     this.trails.startRecording(cueBall);
     this.recorder.start(this.ballsManager, this.mode, force, this.cueTipOffset);
@@ -950,6 +964,16 @@ export class Game {
 
     // Turn timer
     this._updateTurnTimer(dt);
+
+    // FPS counter
+    this._fpsFrameCount = (this._fpsFrameCount || 0) + 1;
+    const fpsNow = performance.now();
+    if (!this._fpsLastTime) this._fpsLastTime = fpsNow;
+    if (fpsNow - this._fpsLastTime >= 1000) {
+      this.ui.updateFPS?.(this._fpsFrameCount);
+      this._fpsFrameCount = 0;
+      this._fpsLastTime = fpsNow;
+    }
   }
 
   _updateTurnTimer(dt) {
@@ -1216,7 +1240,7 @@ export class Game {
     if (this.networkRole === 'host' && this.networkController) {
       const snapshot = GameStateSerializer.serializeGameState(this);
       this.networkController.sendStateSnapshot(snapshot);
-      this.networkController.sendTurnResolved({ nextPlayer: result.nextPlayer, foul: result.foul, scratch: result.scratch, message: result.message });
+      this.networkController.sendTurnResolved({ nextPlayer: result.nextPlayer, foul: result.foul, scratch: result.scratch, message: result.message, reasonCode: result.reasonCode });
     }
 
     // Auto-switch camera back from follow mode after shot resolves
@@ -1552,8 +1576,12 @@ export class Game {
       const key = e.key.toLowerCase();
       const mods = { ctrl: e.ctrlKey, shift: e.shiftKey, alt: e.altKey, meta: e.metaKey };
 
-      // Escape cancels charging and ball-in-hand preview
+      // Escape cancels charging and ball-in-hand preview, or closes settings
       if (key === 'escape') {
+        if (this._settingsOpen && this.inGameSettings) {
+          this._onInGameSettingsClose();
+          return;
+        }
         if (this.state === 'CHARGING') {
           this.state = 'AIM';
           this.power = 0;
@@ -1630,8 +1658,8 @@ export class Game {
   _resetCameraFree() {
     this.screenShake?.cancel();
     const cam = this.camera;
-    cam.position.set(140, 180, 100);
-    cam.lookAt(0, 0, 0);
+    cam.position.set(...CAMERA.defaultPos);
+    cam.lookAt(...CAMERA.lookAt);
     if (this.renderer.controls) {
       this.renderer.controls.target.set(0, 0, 0);
       this.renderer.controls.enabled = true;
@@ -1946,10 +1974,21 @@ export class Game {
 
   _openInGameSettings() {
     this._settingsOpen = true;
-    this.ui.showInGameSettings(this.audio, () => {
-      this._settingsOpen = false;
-      if (this.paused) this.ui.showPauseMenu();
-    });
+    // Hide pause overlay first to prevent double-backdrop
+    this.ui.hidePauseMenu();
+    if (this.inGameSettings) {
+      this.inGameSettings.show();
+    }
+  }
+
+  _onInGameSettingsClose() {
+    this._settingsOpen = false;
+    if (this.inGameSettings) {
+      this.inGameSettings.hide();
+    }
+    if (this.paused) {
+      this.ui.showPauseMenu();
+    }
   }
 
   _applySettings() {
@@ -1959,6 +1998,22 @@ export class Game {
 
     this._applyCameraMode(settings.get('defaultCamera'));
     if (this.minimap) this.minimap.setEnabled(settings.get('minimapEnabled') !== false);
+
+    // Apply HUD visibility settings
+    this._applyHudVisibility();
+  }
+
+  _applyHudVisibility() {
+    const hudScale = settings.get('hudScale') ?? 1.0;
+    this.ui.setHudScale?.(hudScale);
+    this.ui.setShowFPS?.(settings.get('showFPS'));
+    this.ui.setShowPowerBar?.(settings.get('showShotPowerPercent'));
+    this.ui.setShowSpinIndicator?.(settings.get('showSpinIndicator'));
+    this.ui.setShowCrosshair?.(settings.get('showCrosshair'));
+    this.ui.setShowBallLabels?.(settings.get('showBallLabels'));
+    this.ui.setShowRemainingBalls?.(settings.get('showRemainingBalls'));
+    this.ui.setShowComboCounter?.(settings.get('showComboCounter'));
+    this.ui.setStatsPanelEnabled?.(settings.get('statsPanelEnabled'));
   }
 
   _handleSettingsChange(key, value) {
@@ -1999,6 +2054,35 @@ export class Game {
         this.ui.hideTurnTimer();
         break;
       }
+      case 'cameraFov':
+        if (this.renderer && this.renderer.camera) {
+          this.renderer.camera.fov = Number(value) || 45;
+          this.renderer.camera.updateProjectionMatrix();
+        }
+        break;
+      case 'screenShakeIntensity':
+        // ScreenShake reads the setting live in trigger(), no cache needed
+        break;
+      case 'cameraShake':
+        // Toggles whether shake is applied at all (ScreenShake reads this live)
+        break;
+      case 'hudScale':
+      case 'showFPS':
+      case 'showShotPowerPercent':
+      case 'showSpinIndicator':
+      case 'showCrosshair':
+      case 'showBallLabels':
+      case 'showRemainingBalls':
+      case 'showComboCounter':
+      case 'statsPanelEnabled':
+        this._applyHudVisibility();
+        break;
+      case 'minimapPosition':
+        if (this.minimap) this.minimap._applyStyle();
+        break;
+      case 'timerPosition':
+        this.ui.setTimerPosition?.(value);
+        break;
     }
   }
 
@@ -2184,6 +2268,12 @@ export class Game {
       this._challengeEndTimeout = null;
     }
     this._challengeEnding = false;
+
+    // Clean up in-game settings screen
+    if (this.inGameSettings) {
+      try { this.inGameSettings.destroy(); } catch (e) {}
+      this.inGameSettings = null;
+    }
 
     // Clean up onboarding tips
     if (this.onboardingTips) {

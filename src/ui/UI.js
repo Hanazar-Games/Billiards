@@ -604,104 +604,13 @@ export class UI {
   }
 
   showInGameSettings(audioManager, onClose = null) {
-    if (!this.settingsOverlay) return;
-    // Hide pause overlay first to prevent double-backdrop
-    if (this.pauseOverlay) {
-      this.pauseOverlay.style.opacity = '0';
-      if (this._pauseHideTimer) clearTimeout(this._pauseHideTimer);
-      this._pauseHideTimer = setTimeout(() => {
-        if (this.pauseOverlay) this.pauseOverlay.style.display = 'none';
-        this._pauseHideTimer = null;
-      }, animMs(300));
-    }
-    this._onInGameSettingsClose = onClose;
-    const s = this._inGameSettings;
-    if (!s) return;
-    this._inGameSettingCards.forEach(c => c.remove());
-    this._inGameSettingCards = [];
-
-    const { input: soundInput } = s.createToggle(
-      settings.get('soundEnabled'),
-      (v) => {
-        settings.set('soundEnabled', v);
-        if (audioManager) audioManager.toggleSound(v);
-      }
-    );
-    s.createCard('音效', '开启或关闭所有游戏音效', soundInput.parentElement);
-
-    const { wrap: volWrap } = s.createSlider(
-      settings.get('masterVolume'), 0, 100,
-      (v) => { settings.set('masterVolume', v); if (audioManager) audioManager.setMasterVolume(v); }
-    );
-    s.createCard('主音量', '整体输出音量', volWrap);
-
-    const { input: trajInput } = s.createToggle(
-      settings.get('trajectoryEnabled'),
-      (v) => {
-        settings.set('trajectoryEnabled', v);
-        window.dispatchEvent(new CustomEvent('toggleTrajectory', { detail: v }));
-      }
-    );
-    s.createCard('轨迹预测线', '显示白球击球后的运动轨迹', trajInput.parentElement);
-
-    const { input: trailInput } = s.createToggle(
-      settings.get('shotTrailsEnabled'),
-      (v) => {
-        settings.set('shotTrailsEnabled', v);
-        window.dispatchEvent(new CustomEvent('toggleShotTrail', { detail: v }));
-      }
-    );
-    s.createCard('击球拖尾', '球运动时的尾迹效果', trailInput.parentElement);
-
-    const { input: partInput } = s.createToggle(
-      settings.get('particlesEnabled'),
-      (v) => settings.set('particlesEnabled', v)
-    );
-    s.createCard('粒子效果', '击球火花与进球喷泉特效', partInput.parentElement);
-
-    const { wrap: qualWrap } = s.createSelect(
-      settings.get('quality'),
-      [{ value: 'low', label: '低' }, { value: 'medium', label: '中' }, { value: 'high', label: '高' }],
-      (v) => settings.set('quality', v)
-    );
-    s.createCard('画质等级', '调整渲染质量以平衡性能', qualWrap);
-
-    const { wrap: camWrap } = s.createSelect(
-      settings.get('defaultCamera'),
-      [{ value: 'free', label: '自由视角' }, { value: 'top', label: '俯视视角' }, { value: 'follow', label: '跟随视角' }],
-      (v) => settings.set('defaultCamera', v)
-    );
-    s.createCard('默认视角', '进入游戏时的初始相机模式', camWrap);
-
-    const { wrap: timerWrap } = s.createSelect(
-      settings.get('turnTimer') || 'off',
-      [{ value: 'off', label: '不限时' }, { value: '30', label: '30 秒' }, { value: '60', label: '60 秒' }],
-      (v) => settings.set('turnTimer', v)
-    );
-    s.createCard('回合时间', '每回合击球限时（标准模式生效）', timerWrap);
-
-    this._settingsBackBtn.onclick = () => {
-      this.hideInGameSettings();
-      if (this._onInGameSettingsClose) {
-        this._onInGameSettingsClose();
-        this._onInGameSettingsClose = null;
-      }
-    };
-    if (this._settingsHideTimer) { clearTimeout(this._settingsHideTimer); this._settingsHideTimer = null; }
-    this.settingsOverlay.style.display = 'flex';
-    requestAnimationFrame(() => {
-      this.settingsOverlay.style.opacity = '1';
-    });
+    // DEPRECATED: in-game settings now reuse SettingsScreen.
+    // This method is kept for backward-compat but does nothing.
+    // Settings are handled by Game.js via SettingsScreen instance.
   }
 
   hideInGameSettings() {
-    if (!this.settingsOverlay) return;
-    this.settingsOverlay.style.opacity = '0';
-    if (this._settingsHideTimer) { clearTimeout(this._settingsHideTimer); }
-    this._settingsHideTimer = setTimeout(() => {
-      if (this.settingsOverlay) this.settingsOverlay.style.display = 'none';
-      this._settingsHideTimer = null;
-    }, animMs(300));
+    // DEPRECATED: no-op. SettingsScreen manages its own visibility.
   }
 
   flashRed() {
@@ -750,6 +659,80 @@ export class UI {
     this._floatTimers.push(t);
   }
 
+  // ── HUD visibility controls (wired from SettingsScreen) ──
+  setHudScale(v) {
+    if (this.bottomHud) {
+      this.bottomHud.style.transform = `scale(${Math.max(0.5, Math.min(2.0, v))})`;
+      this.bottomHud.style.transformOrigin = 'bottom center';
+    }
+  }
+
+  setShowFPS(v) {
+    if (!this._fpsEl && v) {
+      this._fpsEl = document.createElement('div');
+      this._fpsEl.style.cssText = `
+        position: absolute; top: 14px; left: 14px;
+        font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.6);
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        pointer-events: none; z-index: 10;
+      `;
+      const uiLayer = document.getElementById('ui-layer');
+      if (uiLayer) uiLayer.appendChild(this._fpsEl);
+    }
+    if (this._fpsEl) this._fpsEl.style.display = v ? 'block' : 'none';
+  }
+
+  updateFPS(fps) {
+    if (this._fpsEl && this._fpsEl.style.display !== 'none') {
+      this._fpsEl.textContent = fps + ' FPS';
+    }
+  }
+
+  setShowPowerBar(v) {
+    if (this.powerFill) {
+      const bar = this.powerFill.parentElement;
+      if (bar) bar.style.display = v ? 'block' : 'none';
+    }
+  }
+
+  setShowSpinIndicator(v) {
+    const el = document.getElementById('spin-indicator');
+    if (el) el.style.display = v ? 'block' : 'none';
+  }
+
+  setShowCrosshair(v) {
+    const el = document.getElementById('crosshair');
+    if (el) el.style.display = v ? 'block' : 'none';
+  }
+
+  setShowBallLabels(v) {
+    // Ball labels are rendered by the 3D scene; toggled via global CSS or scene flag
+    document.documentElement.style.setProperty('--ball-labels-visible', v ? '1' : '0');
+  }
+
+  setShowRemainingBalls(v) {
+    if (this._hudObjective) this._hudObjective.style.display = v ? 'block' : 'none';
+  }
+
+  setShowComboCounter(v) {
+    // Combo counter not yet implemented in HUD
+  }
+
+  setStatsPanelEnabled(v) {
+    // Stats panel visibility is controlled by StatsPanel class
+  }
+
+  setTimerPosition(pos) {
+    if (!this._hudTimer) return;
+    this._hudTimer.style.position = 'relative';
+    this._hudTimer.style.top = this._hudTimer.style.bottom = 'auto';
+    if (pos === 'top') {
+      this._hudTimer.style.marginBottom = '4px';
+    } else if (pos === 'bottom') {
+      this._hudTimer.style.marginTop = '4px';
+    }
+  }
+
   destroy() {
     if (this._messageTimer) {
       clearTimeout(this._messageTimer);
@@ -757,6 +740,10 @@ export class UI {
     }
     if (this._pauseHideTimer) { clearTimeout(this._pauseHideTimer); this._pauseHideTimer = null; }
     if (this._settingsHideTimer) { clearTimeout(this._settingsHideTimer); this._settingsHideTimer = null; }
+    if (this._fpsEl && this._fpsEl.parentNode) {
+      this._fpsEl.parentNode.removeChild(this._fpsEl);
+    }
+    this._fpsEl = null;
     if (this._flashTimer) {
       clearTimeout(this._flashTimer);
       this._flashTimer = null;

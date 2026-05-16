@@ -41,10 +41,18 @@ export class GameStateSerializer {
     const rules = game.rules ? {
       player1Group: game.rules.player1Group,
       player2Group: game.rules.player2Group,
+      player1Pocketed: game.rules.player1Pocketed,
+      player2Pocketed: game.rules.player2Pocketed,
       breakShot: game.rules.breakShot,
       gameOver: game.rules.gameOver,
       winner: game.rules.winner,
       pocketedBalls: game.rules.pocketedBalls || [],
+      player1ConsecutiveFouls: game.rules.player1ConsecutiveFouls,
+      player2ConsecutiveFouls: game.rules.player2ConsecutiveFouls,
+      pushOutAvailable: game.rules.pushOutAvailable,
+      pushOutDeclared: game.rules.pushOutDeclared,
+      pushOutPending: game.rules.pushOutPending,
+      pushOutPlayer: game.rules.pushOutPlayer,
     } : null;
 
     return {
@@ -113,10 +121,18 @@ export class GameStateSerializer {
       const rs = snapshot.rules;
       if (rs.player1Group !== undefined) game.rules.player1Group = rs.player1Group;
       if (rs.player2Group !== undefined) game.rules.player2Group = rs.player2Group;
+      if (rs.player1Pocketed !== undefined) game.rules.player1Pocketed = rs.player1Pocketed;
+      if (rs.player2Pocketed !== undefined) game.rules.player2Pocketed = rs.player2Pocketed;
       if (rs.breakShot !== undefined) game.rules.breakShot = rs.breakShot;
       if (rs.gameOver !== undefined) game.rules.gameOver = rs.gameOver;
       if (rs.winner !== undefined) game.rules.winner = rs.winner;
       if (rs.pocketedBalls !== undefined) game.rules.pocketedBalls = rs.pocketedBalls;
+      if (rs.player1ConsecutiveFouls !== undefined) game.rules.player1ConsecutiveFouls = rs.player1ConsecutiveFouls;
+      if (rs.player2ConsecutiveFouls !== undefined) game.rules.player2ConsecutiveFouls = rs.player2ConsecutiveFouls;
+      if (rs.pushOutAvailable !== undefined) game.rules.pushOutAvailable = rs.pushOutAvailable;
+      if (rs.pushOutDeclared !== undefined) game.rules.pushOutDeclared = rs.pushOutDeclared;
+      if (rs.pushOutPending !== undefined) game.rules.pushOutPending = rs.pushOutPending;
+      if (rs.pushOutPlayer !== undefined) game.rules.pushOutPlayer = rs.pushOutPlayer;
     }
 
     // Update UI labels for networked names

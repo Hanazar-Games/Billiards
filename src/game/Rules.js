@@ -19,6 +19,7 @@ export class Rules {
     this.railContactAfterFirstHit = false;
     this.scratch = false;
     this.breakRailContacts = new Set();
+    this.foulReason = null;
   }
 
   // Called at start of a shot to reset per-shot tracking
@@ -29,6 +30,7 @@ export class Rules {
     this.firstBallHit = null;
     this.railContactAfterFirstHit = false;
     this.breakRailContacts.clear();
+    this.foulReason = null;
     // Remember whether the table was open BEFORE this shot
     this.wasOpenTable = (this.player1Group === null);
   }
@@ -56,6 +58,7 @@ export class Rules {
     this.scratch = cueBallPocketed;
     if (cueBallPocketed) {
       this.foul = true;
+      this.foulReason = 'SCRATCH';
     }
 
     let currentGroup = this.currentPlayer === 1 ? this.player1Group : this.player2Group;
@@ -87,6 +90,7 @@ export class Rules {
 
       // Break foul: scratch or no ball hit
       if (this.foul || this.firstBallHit === null) {
+        const reasonCode = this.scratch ? 'SCRATCH' : 'NO_BALL_HIT';
         return {
           nextPlayer: opponent,
           foul: true,
@@ -97,6 +101,7 @@ export class Rules {
             ? '开球犯规：白球落袋！对手获得开球线后自由球'
             : '开球犯规：没有球被撞到。对手获得开球线后自由球',
           respotEightBall: pocketedEight,
+          reasonCode,
         };
       }
 
@@ -108,6 +113,7 @@ export class Rules {
           scratch: false,
           message: '开球进8号球 — 重新摆回。台面仍为开放状态。',
           respotEightBall: true,
+          reasonCode: 'EIGHT_ON_BREAK_RESPOT',
         };
       }
 
@@ -121,6 +127,7 @@ export class Rules {
           ballInHandBehindLine: true,
           message: '开球犯规：少于4颗球碰库。对手获得开球线后自由球',
           gameOver: false,
+          reasonCode: 'ILLEGAL_BREAK',
         };
       }
 
@@ -147,9 +154,11 @@ export class Rules {
     // All foul checks (must come BEFORE group assignment and 8-ball win/loss check)
     if (!cueBallPocketed && this.firstBallHit === null) {
       this.foul = true;
+      this.foulReason = 'NO_BALL_HIT';
     }
-    if (!cueBallPocketed && this.firstBallHit !== null && uniquePocketed.length === 0 && !this.railContactAfterFirstHit) {
+    if (!this.foul && !cueBallPocketed && this.firstBallHit !== null && uniquePocketed.length === 0 && !this.railContactAfterFirstHit) {
       this.foul = true;
+      this.foulReason = 'NO_RAIL_AFTER_CONTACT';
     }
 
     // Group assignment on first legal pocket after break (only on non-foul, non-break shots)
@@ -186,6 +195,7 @@ export class Rules {
       const hasClearedGroup = currentList.length + justPocketedOwn >= 7;
       if (firstHitType === BALL_TYPE.EIGHT && !hasClearedGroup) {
         this.foul = true;
+        this.foulReason = 'WRONG_FIRST_HIT';
       }
     }
 
@@ -199,6 +209,7 @@ export class Rules {
         if (firstHitType !== null && firstHitType !== expectedType && firstHitType !== BALL_TYPE.EIGHT) {
           // Did not hit own group first
           this.foul = true;
+          this.foulReason = 'WRONG_FIRST_HIT';
         }
       }
     }
@@ -219,12 +230,12 @@ export class Rules {
         // Pocketed 8-ball too early or on foul = lose
         this.gameOver = true;
         this.winner = opponent;
-        return { gameOver: true, winner: opponent, foul: true, message: '非法打进8号球！你输了！' };
+        return { gameOver: true, winner: opponent, foul: true, message: '非法打进8号球！你输了！', reasonCode: 'EARLY_EIGHT' };
       } else {
         // Legal 8-ball pocket = win
         this.gameOver = true;
         this.winner = this.currentPlayer;
-        return { gameOver: true, winner: this.currentPlayer, message: '恭喜你赢了！' };
+        return { gameOver: true, winner: this.currentPlayer, message: '恭喜你赢了！', reasonCode: 'LEGAL_EIGHT_WIN' };
       }
     }
 
@@ -268,6 +279,7 @@ export class Rules {
       message,
       pocketedOwn,
       pocketedOpponent,
+      reasonCode: this.foul ? this.foulReason : undefined,
     };
   }
 

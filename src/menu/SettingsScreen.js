@@ -12,12 +12,16 @@ import { onboarding } from '../core/OnboardingStore.js';
 
 
 const CATEGORIES = [
-  { id: 'audio',     label: '音频', letter: 'A' },
-  { id: 'graphics',  label: '图形', letter: 'G' },
-  { id: 'gameplay',  label: '游戏', letter: 'P' },
-  { id: 'controls',  label: '控制', letter: 'C' },
-  { id: 'other',     label: '其他', letter: 'O' },
-  { id: 'about',     label: '关于', letter: '?' },
+  { id: 'audio',         label: '音频',  icon: '🔊' },
+  { id: 'graphics',      label: '图形',  icon: '🎨' },
+  { id: 'appearance',    label: '外观',  icon: '🎱' },
+  { id: 'camera',        label: '相机',  icon: '📷' },
+  { id: 'hud',           label: '界面',  icon: '📊' },
+  { id: 'controls',      label: '控制',  icon: '🎮' },
+  { id: 'replay',        label: '回放',  icon: '⏪' },
+  { id: 'accessibility', label: '辅助',  icon: '♿' },
+  { id: 'other',         label: '其他',  icon: '⚙️' },
+  { id: 'about',         label: '关于',  icon: 'ℹ️' },
 ];
 
 const QUALITY_OPTIONS = [
@@ -40,10 +44,85 @@ const CUE_THEME_OPTIONS = [
   { value: 'green',   label: '翡翠' },
   { value: 'gold',    label: '鎏金' },
 ];
+const TABLE_THEME_OPTIONS = [
+  { value: 'classic', label: '经典绿' },
+  { value: 'blue', label: '皇家蓝' },
+  { value: 'red', label: '中国红' },
+  { value: 'black', label: '暗夜黑' },
+  { value: 'wood', label: '原木色' },
+];
+const BALL_STYLE_OPTIONS = [
+  { value: 'standard', label: '标准' },
+  { value: 'glossy', label: '高光' },
+  { value: 'matte', label: '哑光' },
+  { value: 'neon', label: '霓虹' },
+  { value: 'retro', label: '复古' },
+];
+const LIGHTING_STYLE_OPTIONS = [
+  { value: 'warm', label: '暖光' },
+  { value: 'cool', label: '冷光' },
+  { value: 'neutral', label: '自然' },
+  { value: 'dramatic', label: '戏剧' },
+  { value: 'studio', label: '摄影棚' },
+];
+const ROOM_STYLE_OPTIONS = [
+  { value: 'classic', label: '经典俱乐部' },
+  { value: 'modern', label: '现代简约' },
+  { value: 'pub', label: '英式酒馆' },
+  { value: 'neon', label: '霓虹夜店' },
+  { value: 'outdoor', label: '露天露台' },
+];
+const MINIMAP_POS_OPTIONS = [
+  { value: 'bottom-right', label: '右下' },
+  { value: 'bottom-left', label: '左下' },
+  { value: 'top-right', label: '右上' },
+  { value: 'top-left', label: '左上' },
+];
+const COLOR_BLIND_MODE_OPTIONS = [
+  { value: 'off', label: '关闭' },
+  { value: 'protanopia', label: '红色盲' },
+  { value: 'deuteranopia', label: '绿色盲' },
+  { value: 'tritanopia', label: '蓝色盲' },
+];
+const TIMER_POS_OPTIONS = [
+  { value: 'top', label: '顶部' },
+  { value: 'bottom', label: '底部' },
+  { value: 'center', label: '中央' },
+];
+const TURN_TIMER_OPTIONS = [
+  { value: 'off', label: '关闭' },
+  { value: '30', label: '30秒' },
+  { value: '60', label: '60秒' },
+  { value: '90', label: '90秒' },
+  { value: '120', label: '120秒' },
+];
+const FPS_LIMIT_OPTIONS = [
+  { value: 'unlimited', label: '无限制' },
+  { value: '30', label: '30 FPS' },
+  { value: '60', label: '60 FPS' },
+  { value: '120', label: '120 FPS' },
+  { value: '144', label: '144 FPS' },
+];
+const LANGUAGE_OPTIONS = [
+  { value: 'zh', label: '简体中文' },
+  { value: 'en', label: 'English' },
+  { value: 'ja', label: '日本語' },
+  { value: 'ko', label: '한국어' },
+];
+const UNIT_OPTIONS = [
+  { value: 'metric', label: '公制 (cm/m)' },
+  { value: 'imperial', label: '英制 (in/ft)' },
+];
+const SPEED_UNIT_OPTIONS = [
+  { value: 'kph', label: '公里/小时' },
+  { value: 'mph', label: '英里/小时' },
+  { value: 'mps', label: '米/秒' },
+];
 
 export class SettingsScreen {
-  constructor(onBack) {
+  constructor(onBack, mountContainer = null) {
     this.onBack = onBack;
+    this._mountContainer = mountContainer;
     this.audio = null;
     this.container = null;
     this._listeners = [];
@@ -69,6 +148,14 @@ export class SettingsScreen {
     window.addEventListener('settingsChanged', this._onSettingsChangedToast);
   }
 
+  setBackHandler(onBack) {
+    this.onBack = onBack;
+  }
+
+  setZIndex(zIndex) {
+    if (this.container) this.container.style.zIndex = String(zIndex);
+  }
+
   setAudioManager(audioManager) {
     this.audio = audioManager;
     if (this.audio) {
@@ -81,7 +168,7 @@ export class SettingsScreen {
   }
 
   _buildUI() {
-    const layer = document.getElementById('menu-layer');
+    const layer = this._mountContainer || document.getElementById('menu-layer');
     if (!layer) return;
 
     // ── Modal overlay ──
@@ -164,7 +251,7 @@ export class SettingsScreen {
         user-select: none;
       `;
       const badge = document.createElement('div');
-      badge.textContent = cat.letter;
+      badge.textContent = cat.icon;
       badge.style.cssText = `
         width: 28px; height: 28px; border-radius: 8px;
         background: rgba(255,255,255,0.08);
@@ -251,6 +338,30 @@ export class SettingsScreen {
       settings.set('musicVolume', v);
       if (this.audio) this.audio.setMusicVolume(v);
     });
+
+    this._rowSlider('环境音效', Math.round(settings.get('ambientVolumeScale') * 100), 0, 100, '%', (v) => {
+      settings.set('ambientVolumeScale', v / 100);
+      if (this.audio) this.audio.setAmbientVolume && this.audio.setAmbientVolume(v / 100);
+    });
+
+    this._rowSlider('菜单音效', Math.round(settings.get('uiSoundVolumeScale') * 100), 0, 100, '%', (v) => {
+      settings.set('uiSoundVolumeScale', v / 100);
+    });
+
+    this._rowSlider('击球反馈音', Math.round(settings.get('hitFeedbackVolumeScale') * 100), 0, 100, '%', (v) => {
+      settings.set('hitFeedbackVolumeScale', v / 100);
+    });
+
+    this._row('震动反馈', this._createSwitch(settings.get('vibrationEnabled'), (v) => {
+      settings.set('vibrationEnabled', v);
+    }));
+
+    this._row('低延迟模式',
+      this._createSwitch(settings.get('lowLatencyMode'), (v) => {
+        settings.set('lowLatencyMode', v);
+      }),
+      '减少音频缓冲，可能降低音质'
+    );
   }
 
   _buildGraphicsContent() {
@@ -335,66 +446,25 @@ export class SettingsScreen {
     this._rowSlider('拖尾淡出时间', Math.round((settings.get('trailFadeDuration') ?? 5.0) * 10), 20, 100, 's', (v) => {
       settings.set('trailFadeDuration', v / 10);
     });
-  }
 
-  _buildGameplayContent() {
-    this._sectionTitle('游戏');
-    this._sectionSubtitle('游戏规则与视角偏好');
+    // ── Rendering ──
+    this._sectionTitle('渲染', true);
+    this._row('垂直同步', this._createSwitch(settings.get('vSync'), (v) => settings.set('vSync', v)));
+    this._rowSelect('帧率限制', FPS_LIMIT_OPTIONS, settings.get('fpsLimit'), (v) => settings.set('fpsLimit', v));
+    this._rowSlider('渲染缩放', Math.round(settings.get('renderScale') * 100), 50, 200, '%', (v) => {
+      settings.set('renderScale', v / 100);
+    }, '需重启生效');
+    this._rowSlider('视野范围 (FOV)', settings.get('cameraFov'), 40, 90, '°', (v) => settings.set('cameraFov', v));
+    this._rowSlider('瞄准 FOV', settings.get('fovZoomed'), 30, 70, '°', (v) => settings.set('fovZoomed', v));
+    this._row('动态 FOV', this._createSwitch(settings.get('dynamicFov'), (v) => settings.set('dynamicFov', v)));
 
-    this._rowSelect('默认视角', CAMERA_OPTIONS, settings.get('defaultCamera'), (v) => {
-      settings.set('defaultCamera', v);
-    });
-
-    // ── Presets ──
-    this._sectionTitle('预设方案', true);
-    this._sectionSubtitle('一键切换推荐配置');
-    const gpPresetWrap = document.createElement('div');
-    gpPresetWrap.style.cssText = 'display:flex; gap:10px; flex-wrap:wrap;';
-    const beginnerBtn = this._presetButton('新手模式', () => {
-      settings.set('trajectoryEnabled', true);
-      settings.set('minimapEnabled', true);
-      settings.set('autoFollowCueBall', true);
-      settings.set('defaultCamera', 'follow');
-      this._toast('已切换为新手模式');
-      this._syncAllControls();
-    });
-    const proBtn = this._presetButton('高手模式', () => {
-      settings.set('trajectoryEnabled', false);
-      settings.set('minimapEnabled', false);
-      settings.set('autoFollowCueBall', false);
-      settings.set('defaultCamera', 'free');
-      this._toast('已切换为高手模式');
-      this._syncAllControls();
-    });
-    gpPresetWrap.appendChild(beginnerBtn);
-    gpPresetWrap.appendChild(proBtn);
-    this._contentArea.appendChild(gpPresetWrap);
-
-    // ── Minimap ──
-    this._sectionTitle('小地图', true);
-    this._row('显示小地图',
-      this._createSwitch(settings.get('minimapEnabled'), (v) => {
-        settings.set('minimapEnabled', v);
-      })
-    );
-    this._rowSlider('小地图尺寸', settings.get('minimapSize'), 80, 260, 'px', (v) => {
-      settings.set('minimapSize', v);
-    });
-    this._rowSlider('小地图透明度', Math.round(settings.get('minimapOpacity') * 100), 20, 100, '%', (v) => {
-      settings.set('minimapOpacity', v / 100);
-    });
-
-    this._row('自动追踪白球',
-      this._createSwitch(settings.get('autoFollowCueBall'), (v) => {
-        settings.set('autoFollowCueBall', v);
-      })
-    );
-
-    // ── Cue Theme ──
-    this._sectionTitle('球杆外观', true);
-    this._rowSelect('球杆皮肤', CUE_THEME_OPTIONS, settings.get('cueTheme'), (v) => {
-      settings.set('cueTheme', v);
-    });
+    // ── Post-processing ──
+    this._sectionTitle('后处理', true);
+    this._row('后处理效果', this._createSwitch(settings.get('postProcess'), (v) => settings.set('postProcess', v)));
+    this._row('泛光 (Bloom)', this._createSwitch(settings.get('bloom'), (v) => settings.set('bloom', v)));
+    this._row('色差效果', this._createSwitch(settings.get('chromaticAberration'), (v) => settings.set('chromaticAberration', v)));
+    this._row('胶片颗粒', this._createSwitch(settings.get('filmGrain'), (v) => settings.set('filmGrain', v)));
+    this._row('暗角效果', this._createSwitch(settings.get('vignette'), (v) => settings.set('vignette', v)));
   }
 
   _buildControlsContent() {
@@ -580,6 +650,96 @@ export class SettingsScreen {
     customWrap.appendChild(resetBtn);
   }
 
+  _buildAppearanceContent() {
+    this._sectionTitle('外观');
+    this._sectionSubtitle('球桌、球体与视觉风格');
+
+    this._rowSelect('球桌主题', TABLE_THEME_OPTIONS, settings.get('feltColorTheme'), (v) => settings.set('feltColorTheme', v));
+    this._rowSelect('球体风格', BALL_STYLE_OPTIONS, settings.get('ballStyle'), (v) => settings.set('ballStyle', v));
+    this._row('编号文字', this._createSwitch(settings.get('ballNumbers'), (v) => settings.set('ballNumbers', v)));
+    this._rowSelect('灯光风格', LIGHTING_STYLE_OPTIONS, settings.get('lightingStyle'), (v) => settings.set('lightingStyle', v));
+    this._rowSlider('灯光亮度', Math.round(settings.get('lightingIntensity') * 100), 30, 150, '%', (v) => settings.set('lightingIntensity', v / 100));
+    this._rowSlider('环境光', Math.round(settings.get('ambientIntensity') * 100), 0, 100, '%', (v) => settings.set('ambientIntensity', v / 100));
+    this._rowSelect('房间风格', ROOM_STYLE_OPTIONS, settings.get('roomStyle'), (v) => settings.set('roomStyle', v));
+    this._row('桌面反射', this._createSwitch(settings.get('tableReflection'), (v) => settings.set('tableReflection', v)));
+    this._row('球体反射', this._createSwitch(settings.get('ballReflection'), (v) => settings.set('ballReflection', v)));
+    this._row('景深效果', this._createSwitch(settings.get('depthOfField'), (v) => settings.set('depthOfField', v)));
+    this._rowSelect('球杆皮肤', CUE_THEME_OPTIONS, settings.get('cueTheme'), (v) => settings.set('cueTheme', v));
+  }
+
+  _buildCameraContent() {
+    this._sectionTitle('相机');
+    this._sectionSubtitle('视角、跟随与运动偏好');
+
+    this._rowSelect('默认视角', CAMERA_OPTIONS, settings.get('defaultCamera'), (v) => settings.set('defaultCamera', v));
+    this._row('自动追踪白球', this._createSwitch(settings.get('autoFollowCueBall'), (v) => settings.set('autoFollowCueBall', v)));
+    this._rowSlider('相机过渡速度', Math.round(settings.get('cameraDamping') * 100), 30, 200, '%', (v) => settings.set('cameraDamping', v / 100));
+    this._row('击球后自动复位', this._createSwitch(settings.get('cameraAutoResetAfterShot'), (v) => settings.set('cameraAutoResetAfterShot', v)));
+    this._rowSlider('复位延迟', Math.round(settings.get('cameraResetDelay') * 10), 10, 60, 's', (v) => settings.set('cameraResetDelay', v / 10));
+    this._row('自由相机边界', this._createSwitch(settings.get('cameraCollisionAvoidance'), (v) => settings.set('cameraCollisionAvoidance', v)));
+    this._row('击球时隐藏球杆', this._createSwitch(settings.get('hideCueOnShot'), (v) => settings.set('hideCueOnShot', v)));
+    this._row('俯视角度', this._createSwitch(settings.get('topDownAngle'), (v) => settings.set('topDownAngle', v)));
+    this._row('击球震动', this._createSwitch(settings.get('cameraShake'), (v) => settings.set('cameraShake', v)));
+    this._rowSlider('震动强度', Math.round(settings.get('screenShakeIntensity') * 100), 0, 200, '%', (v) => settings.set('screenShakeIntensity', v / 100));
+    this._row('平滑插值', this._createSwitch(settings.get('cameraSmoothing'), (v) => settings.set('cameraSmoothing', v)));
+    this._rowSlider('插值因子', Math.round(settings.get('cameraSmoothFactor') * 100), 10, 100, '%', (v) => settings.set('cameraSmoothFactor', v / 100));
+  }
+
+  _buildHudContent() {
+    this._sectionTitle('界面');
+    this._sectionSubtitle('HUD、小地图与信息显示');
+
+    this._row('显示小地图', this._createSwitch(settings.get('minimapEnabled'), (v) => settings.set('minimapEnabled', v)));
+    this._rowSlider('小地图尺寸', settings.get('minimapSize'), 80, 260, 'px', (v) => settings.set('minimapSize', v));
+    this._rowSlider('小地图透明度', Math.round(settings.get('minimapOpacity') * 100), 20, 100, '%', (v) => settings.set('minimapOpacity', v / 100));
+    this._rowSelect('小地图位置', MINIMAP_POS_OPTIONS, settings.get('minimapPosition'), (v) => settings.set('minimapPosition', v));
+    this._row('显示球号标签', this._createSwitch(settings.get('showBallLabels'), (v) => settings.set('showBallLabels', v)));
+    this._row('显示力度条', this._createSwitch(settings.get('showShotPowerPercent'), (v) => settings.set('showShotPowerPercent', v)));
+    this._row('显示旋转指示', this._createSwitch(settings.get('showSpinIndicator'), (v) => settings.set('showSpinIndicator', v)));
+    this._row('显示剩余球数', this._createSwitch(settings.get('showRemainingBalls'), (v) => settings.set('showRemainingBalls', v)));
+    this._row('显示连击计数', this._createSwitch(settings.get('showComboCounter'), (v) => settings.set('showComboCounter', v)));
+    this._row('显示准星', this._createSwitch(settings.get('showCrosshair'), (v) => settings.set('showCrosshair', v)));
+    this._row('显示击球统计', this._createSwitch(settings.get('statsPanelEnabled'), (v) => settings.set('statsPanelEnabled', v)));
+    this._rowSlider('UI 缩放', Math.round(settings.get('hudScale') * 100), 50, 200, '%', (v) => settings.set('hudScale', v / 100));
+    this._rowSelect('计时器位置', TIMER_POS_OPTIONS, settings.get('timerPosition'), (v) => settings.set('timerPosition', v));
+    this._row('显示 FPS', this._createSwitch(settings.get('showFPS'), (v) => settings.set('showFPS', v)));
+    this._rowSelect('回合计时器', TURN_TIMER_OPTIONS, settings.get('turnTimer'), (v) => settings.set('turnTimer', v));
+  }
+
+  _buildReplayContent() {
+    this._sectionTitle('回放');
+    this._sectionSubtitle('回放记录与数据统计');
+
+    this._row('自动保存回放', this._createSwitch(settings.get('autoSaveReplays'), (v) => settings.set('autoSaveReplays', v)));
+    this._rowSlider('最大回放数', settings.get('replayMaxSaved'), 5, 50, '', (v) => settings.set('replayMaxSaved', v));
+    this._row('显示击球数据', this._createSwitch(settings.get('showShotData'), (v) => settings.set('showShotData', v)));
+    this._row('显示热力图', this._createSwitch(settings.get('showHeatmap'), (v) => settings.set('showHeatmap', v)));
+    this._row('显示胜率预测', this._createSwitch(settings.get('showWinProbability'), (v) => settings.set('showWinProbability', v)));
+    this._row('显示详细统计', this._createSwitch(settings.get('showDetailedStats'), (v) => settings.set('showDetailedStats', v)));
+    this._row('击球历史追踪', this._createSwitch(settings.get('shotHistoryTracking'), (v) => settings.set('shotHistoryTracking', v)));
+    this._rowSlider('回放速度', Math.round(settings.get('replaySpeed') * 100), 25, 200, '%', (v) => settings.set('replaySpeed', v / 100));
+  }
+
+  _buildAccessibilityContent() {
+    this._sectionTitle('辅助功能');
+    this._sectionSubtitle('可访问性与操作辅助');
+
+    this._rowSelect('色盲模式', COLOR_BLIND_MODE_OPTIONS, settings.get('colorBlindMode'), (v) => settings.set('colorBlindMode', v));
+    this._row('高对比度', this._createSwitch(settings.get('highContrastUI'), (v) => settings.set('highContrastUI', v)));
+    this._row('大字体模式', this._createSwitch(settings.get('largeTextMode'), (v) => settings.set('largeTextMode', v)));
+    this._rowSlider('界面透明度', Math.round(settings.get('hudOpacity') * 100), 30, 100, '%', (v) => settings.set('hudOpacity', v / 100));
+    this._row('减弱动态效果', this._createSwitch(settings.get('reducedMotion'), (v) => settings.set('reducedMotion', v)));
+    this._row('单手柄模式', this._createSwitch(settings.get('singleHandMode'), (v) => settings.set('singleHandMode', v)));
+    this._row('左撇子模式', this._createSwitch(settings.get('leftHandMode'), (v) => settings.set('leftHandMode', v)));
+    this._row('自动提示', this._createSwitch(settings.get('autoHints'), (v) => settings.set('autoHints', v)));
+    this._rowSlider('提示频率', settings.get('hintFrequency'), 1, 5, '级', (v) => settings.set('hintFrequency', v));
+    this._row('击球确认', this._createSwitch(settings.get('confirmShotOnRelease'), (v) => settings.set('confirmShotOnRelease', v)));
+    this._row('语音播报', this._createSwitch(settings.get('voiceAnnounce'), (v) => settings.set('voiceAnnounce', v)));
+    this._row('音效可视化', this._createSwitch(settings.get('soundCueVisualHints'), (v) => settings.set('soundCueVisualHints', v)));
+    this._row('聚焦模式', this._createSwitch(settings.get('focusMode'), (v) => settings.set('focusMode', v)));
+    this._rowSlider('聚焦透明度', Math.round(settings.get('focusOpacity') * 100), 10, 80, '%', (v) => settings.set('focusOpacity', v / 100));
+  }
+
   _buildOtherContent() {
     this._sectionTitle('其他');
     this._sectionSubtitle('重置设置与数据管理');
@@ -595,6 +755,19 @@ export class SettingsScreen {
         }
       );
     });
+
+    // ── Game Preferences ──
+    this._sectionTitle('游戏偏好', true);
+    this._sectionSubtitle('个人化的游戏行为设置');
+    this._row('快速发球', this._createSwitch(settings.get('quickBreak'), (v) => settings.set('quickBreak', v)));
+    this._row('自动跳过动画', this._createSwitch(settings.get('autoSkipAnimation'), (v) => settings.set('autoSkipAnimation', v)));
+    this._row('跳过对手回合', this._createSwitch(settings.get('skipOpponentTurn'), (v) => settings.set('skipOpponentTurn', v)));
+    this._row('显示对手轨迹', this._createSwitch(settings.get('showOpponentTrajectory'), (v) => settings.set('showOpponentTrajectory', v)));
+    this._rowSelect('语言', LANGUAGE_OPTIONS, settings.get('language'), (v) => settings.set('language', v));
+    this._rowSelect('距离单位', UNIT_OPTIONS, settings.get('unitSystem'), (v) => settings.set('unitSystem', v));
+    this._rowSelect('速度单位', SPEED_UNIT_OPTIONS, settings.get('speedUnit'), (v) => settings.set('speedUnit', v));
+    this._row('显示物理调试', this._createSwitch(settings.get('showPhysicsDebug'), (v) => settings.set('showPhysicsDebug', v)));
+    this._row('开发者模式', this._createSwitch(settings.get('devMode'), (v) => settings.set('devMode', v)));
 
     // ── Import / Export ──
     this._sectionTitle('配置管理', true);
@@ -870,30 +1043,48 @@ export class SettingsScreen {
     this._contentArea.appendChild(el);
   }
 
-  _row(label, control) {
+  _row(label, control, tooltip = '') {
     const row = document.createElement('div');
     row.style.cssText = `
       display: flex; justify-content: space-between; align-items: center;
       padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
     `;
+    const left = document.createElement('div');
+    left.style.cssText = 'display: flex; flex-direction: column; gap: 2px;';
     const lbl = document.createElement('span');
     lbl.textContent = label;
     lbl.style.cssText = 'font-size: 15px; font-weight: 500; color: rgba(255,255,255,0.85);';
-    row.appendChild(lbl);
+    left.appendChild(lbl);
+    if (tooltip) {
+      const tip = document.createElement('span');
+      tip.textContent = tooltip;
+      tip.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.35);';
+      left.appendChild(tip);
+    }
+    row.appendChild(left);
     row.appendChild(control);
     this._contentArea.appendChild(row);
   }
 
-  _rowSlider(label, value, min, max, unit, onChange) {
+  _rowSlider(label, value, min, max, unit, onChange, tooltip = '') {
     const row = document.createElement('div');
     row.style.cssText = `
       display: flex; justify-content: space-between; align-items: center;
       padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
       gap: 20px;
     `;
-    const left = document.createElement('span');
-    left.textContent = label;
-    left.style.cssText = 'font-size: 15px; font-weight: 500; color: rgba(255,255,255,0.85); flex-shrink: 0;';
+    const left = document.createElement('div');
+    left.style.cssText = 'display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;';
+    const lbl = document.createElement('span');
+    lbl.textContent = label;
+    lbl.style.cssText = 'font-size: 15px; font-weight: 500; color: rgba(255,255,255,0.85);';
+    left.appendChild(lbl);
+    if (tooltip) {
+      const tip = document.createElement('span');
+      tip.textContent = tooltip;
+      tip.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.35);';
+      left.appendChild(tip);
+    }
     row.appendChild(left);
 
     const slider = this._createSlider(value, min, max, unit, onChange);
@@ -1367,8 +1558,9 @@ export class SettingsScreen {
   _showConfirmDialog(title, message, onConfirm, onCancel = null) {
     // Backdrop
     const backdrop = document.createElement('div');
+    backdrop.className = 'settings-confirm-backdrop';
     backdrop.style.cssText = `
-      position: fixed; inset: 0; z-index: 100;
+      position: fixed; inset: 0; z-index: 110;
       background: rgba(0,0,0,0.55);
       backdrop-filter: blur(6px);
       display: flex; align-items: center; justify-content: center;
@@ -1459,7 +1651,7 @@ export class SettingsScreen {
       // Show after a short delay so the modal is fully visible
       this._settingsTipTimer = setTimeout(() => {
         if (this.container && this.container.style.display !== 'none') {
-          this._toast('提示：辅助线、小地图和音效开关可在「图形」和「音频」分类中找到');
+          this._toast('提示：轨迹线、小地图和音效开关可在「图形」和「音频」分类中找到');
         }
         this._settingsTipTimer = null;
       }, 600);
@@ -1471,6 +1663,10 @@ export class SettingsScreen {
     this.container.style.opacity = '0';
     if (this._hideTimer) clearTimeout(this._hideTimer);
     this._hideTimer = setTimeout(() => { if (this.container) this.container.style.display = 'none'; }, animMs(300));
+    // Dismiss any open confirmation dialogs
+    document.querySelectorAll('.settings-confirm-backdrop').forEach(el => {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    });
   }
 
   destroy() {
@@ -1490,6 +1686,10 @@ export class SettingsScreen {
       if (tab) { tab.onclick = null; }
     });
     this._tabEls.clear();
+    // Remove any lingering confirm backdrops
+    document.querySelectorAll('.settings-confirm-backdrop').forEach(el => {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    });
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }

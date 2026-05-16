@@ -11,6 +11,7 @@
  */
 import * as THREE from 'three';
 import { settings } from '../core/SettingsStore.js';
+import { SHOT } from '../config.js';
 
 const _UP = new THREE.Vector3(0, 1, 0);
 
@@ -33,7 +34,7 @@ export class ScreenShake {
    * @param {THREE.Vector3} direction — shot direction (normalized)
    */
   trigger(power, direction) {
-    const maxPower = 82;
+    const maxPower = SHOT.maxPower || 110;
     const t = Math.min(power / maxPower, 1.0);
 
     const shakeScale = settings.get('screenShakeIntensity') ?? 1.0;

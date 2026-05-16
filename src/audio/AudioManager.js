@@ -155,14 +155,28 @@ export class AudioManager {
 
   setMusicVolume(vol) {
     this._musicVolume = Math.max(0, Math.min(1, vol / 100));
-    if (!this._bgmGain || !this.ctx) return;
-    this._bgmGain.gain.setTargetAtTime(this._musicVolume, this.ctx.currentTime, 0.05);
+    this._updateBGMVolume();
   }
 
   setSFXVolume(vol) {
     this._sfxVolume = Math.max(0, Math.min(1, vol / 100));
     if (!this._sfxGain || !this.ctx) return;
     this._sfxGain.gain.setTargetAtTime(this._sfxVolume, this.ctx.currentTime, 0.05);
+  }
+
+  setAmbientVolume(vol) {
+    const v = Math.max(0, Math.min(1, vol));
+    if (!this._bgmGain || !this.ctx) return;
+    // Ambient sounds share the BGM gain chain; apply as a secondary multiplier
+    this._ambientVolume = v;
+    this._updateBGMVolume();
+  }
+
+  _updateBGMVolume() {
+    if (!this._bgmGain || !this.ctx) return;
+    const base = this._musicVolume ?? 1.0;
+    const ambient = this._ambientVolume ?? 1.0;
+    this._bgmGain.gain.setTargetAtTime(base * ambient, this.ctx.currentTime, 0.05);
   }
 
   startBGM() {

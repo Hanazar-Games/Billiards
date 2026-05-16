@@ -32,6 +32,7 @@ export class Minimap {
       if (e.detail?.key === 'minimapEnabled') this.setEnabled(e.detail.value);
       if (e.detail?.key === 'minimapSize') { this._size = e.detail.value || 140; this._resize(); }
       if (e.detail?.key === 'minimapOpacity') { this._opacity = e.detail.value ?? 0.85; this._applyStyle(); }
+      if (e.detail?.key === 'minimapPosition') { this._applyStyle(); }
     };
     window.addEventListener('settingsChanged', this._onSettings);
     this._onResize = () => this._resize();
@@ -244,15 +245,21 @@ export class Minimap {
 
   _applyStyle() {
     const s = this.canvas.style;
+    const pos = settings.get('minimapPosition') || 'bottom-right';
     s.position = 'absolute';
-    s.bottom = '14px';
-    s.right = '14px';
     s.zIndex = '8';
     s.pointerEvents = 'none';
     s.borderRadius = '8px';
     s.boxShadow = '0 8px 24px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.08)';
     s.opacity = String(this._opacity);
     s.display = this._enabled ? 'block' : 'none';
+    // Reset all position props
+    s.top = s.bottom = s.left = s.right = 'auto';
+    const [v, h] = pos.split('-');
+    if (v === 'top') s.top = '14px';
+    else s.bottom = '14px';
+    if (h === 'left') s.left = '14px';
+    else s.right = '14px';
   }
 
   mount(parent) {

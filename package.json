@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "host": "node server/lan-server.js"
+    "host": "node server/lan-server.js",
+    "test:rules": "node test/rules.test.js"
   },
   "dependencies": {
     "cannon-es": "^0.20.0",

@@ -18,8 +18,8 @@ export const BALL = {
   radius: 0.028575 * SCALE,  // 2.8575 cm
   mass: 0.17,                // kg
   segments: 80,              // sphere geometry detail (high-res for crisp numbers)
-  restitution: 0.92,
-  collisionRestitution: 0.94,
+  restitution: 0.97,
+  collisionRestitution: 0.98,
   collisionTangentialFriction: 0.10,
   friction: 0.15,
   damping: 0.004,            // high-speed velocity drag
@@ -98,7 +98,7 @@ export const ROOM = {
   halfDepth: 380,
   wallHeight: 160,
   minCameraY: 10,
-  maxCameraY: 220,
+  maxCameraY: 140,
 };
 
 // Camera
@@ -106,13 +106,13 @@ export const CAMERA = {
   fov: 45,
   near: 0.1,
   far: 10000,
-  defaultPos: [140, 180, 100],
-  lookAt: [0, 0, 0],
+  defaultPos: [0, 100, -180],
+  lookAt: [0, 0, 60],
 };
 
 // Shooting
 export const SHOT = {
-  maxPower: 82,
+  maxPower: 110,
   chargeRate: 150,  // power units per second
-  minPower: 0.8,
+  minPower: 0,
 };

@@ -10,10 +10,14 @@
  *  - 9-ball pocketed on any legal shot = win
  *  - Scratch (cue ball pocketed) = foul, opponent gets ball-in-hand
  *  - No rail contact after first hit = foul
+ *  - Three consecutive fouls by same player = loss (optional)
  *  - Push-out: player can call "push" to pass the shot
  */
 export class NineBallRules {
-  constructor() {
+  constructor(options = {}) {
+    this.options = {
+      threeFoulLoss: options.threeFoulLoss ?? true,
+    };
     this.reset();
   }
 
@@ -28,6 +32,13 @@ export class NineBallRules {
     this.breakShot = true;
     this.pocketedBalls = []; // all pocketed ball IDs
     this.breakRailContacts = new Set(); // distinct balls contacting rail on break (for 4-ball rule)
+    this.foulReason = null;
+    this.player1ConsecutiveFouls = 0;
+    this.player2ConsecutiveFouls = 0;
+    this.pushOutAvailable = false;
+    this.pushOutDeclared = false;
+    this.pushOutPending = false;
+    this.pushOutPlayer = null;
   }
 
   startShot(player) {
@@ -36,6 +47,7 @@ export class NineBallRules {
     this.scratch = false;
     this.firstBallHit = null;
     this.railContactAfterFirstHit = false;
+    this.foulReason = null;
   }
 
   recordFirstHit(ballId) {
@@ -72,15 +84,81 @@ export class NineBallRules {
     }
   }
 
+  declarePushOut() {
+    if (this.pushOutAvailable && !this.pushOutPending) {
+      this.pushOutDeclared = true;
+      this.pushOutAvailable = false;
+      return true;
+    }
+    return false;
+  }
+
+  acceptPushOut() {
+    if (!this.pushOutPending) return null;
+    this.pushOutPending = false;
+    return { nextPlayer: this.currentPlayer };
+  }
+
+  passPushOut() {
+    if (!this.pushOutPending) return null;
+    this.pushOutPending = false;
+    return { nextPlayer: this.pushOutPlayer };
+  }
+
+  _applyConsecutiveFouls(result, opponent) {
+    if (this.foul) {
+      if (this.currentPlayer === 1) this.player1ConsecutiveFouls++;
+      else this.player2ConsecutiveFouls++;
+
+      if (!this.options.threeFoulLoss) return result;
+
+      const count = this.currentPlayer === 1 ? this.player1ConsecutiveFouls : this.player2ConsecutiveFouls;
+
+      if (count >= 3) {
+        this.gameOver = true;
+        this.winner = opponent;
+        return {
+          gameOver: true,
+          winner: opponent,
+          foul: true,
+          message: '连续三次犯规！判负。',
+          reasonCode: 'THREE_FOUL_LOSS',
+        };
+      }
+
+      if (count === 2) {
+        const baseMsg = result.message || '';
+        result.message = baseMsg
+          ? `已连续两次犯规，再犯一次将判负！${baseMsg}`
+          : '已连续两次犯规，再犯一次将判负！';
+      }
+    } else {
+      if (this.currentPlayer === 1) this.player1ConsecutiveFouls = 0;
+      else this.player2ConsecutiveFouls = 0;
+    }
+
+    return result;
+  }
+
+
   resolveShot(pocketedIds, cueBallPocketed) {
     if (this.gameOver) return { gameOver: true, winner: this.winner };
 
-    this.scratch = cueBallPocketed;
+    const isPushOut = this.pushOutDeclared;
     const opponent = this.currentPlayer === 1 ? 2 : 1;
+
+    // Consume push-out opportunity if not used
+    if (this.pushOutAvailable && !this.pushOutDeclared) {
+      this.pushOutAvailable = false;
+    }
+    this.pushOutDeclared = false;
+
+    this.scratch = cueBallPocketed;
 
     // Scratch is always a foul
     if (cueBallPocketed) {
       this.foul = true;
+      this.foulReason = 'SCRATCH';
     }
 
     // Check if 9-ball was pocketed
@@ -98,7 +176,7 @@ export class NineBallRules {
           if (idx !== -1) this.pocketedBalls.splice(idx, 1);
         }
         this.trackPocketedBalls(pocketedIds.filter(id => id !== 9));
-        return {
+        const result = {
           nextPlayer: opponent,
           foul: true,
           scratch: true,
@@ -106,17 +184,20 @@ export class NineBallRules {
           message: '开球犯规：白球落袋！对手获得自由球',
           gameOver: false,
           respotNineBall: pocketedIds.includes(9),
+          reasonCode: 'SCRATCH',
         };
+        return this._applyConsecutiveFouls(result, opponent);
       }
 
       if (this.firstBallHit === null) {
         this.foul = true;
+        this.foulReason = 'NO_BALL_HIT';
         if (pocketedIds.includes(9)) {
           const idx = this.pocketedBalls.indexOf(9);
           if (idx !== -1) this.pocketedBalls.splice(idx, 1);
         }
         this.trackPocketedBalls(pocketedIds.filter(id => id !== 9));
-        return {
+        const result = {
           nextPlayer: opponent,
           foul: true,
           scratch: false,
@@ -124,18 +205,21 @@ export class NineBallRules {
           message: '开球犯规：没有球被撞到。对手获得自由球',
           gameOver: false,
           respotNineBall: pocketedIds.includes(9),
+          reasonCode: 'NO_BALL_HIT',
         };
+        return this._applyConsecutiveFouls(result, opponent);
       }
 
       // Check if first hit was the 1-ball (required on break)
       if (this.firstBallHit !== 1) {
         this.foul = true;
+        this.foulReason = 'WRONG_FIRST_HIT';
         if (pocketedIds.includes(9)) {
           const idx = this.pocketedBalls.indexOf(9);
           if (idx !== -1) this.pocketedBalls.splice(idx, 1);
         }
         this.trackPocketedBalls(pocketedIds.filter(id => id !== 9));
-        return {
+        const result = {
           nextPlayer: opponent,
           foul: true,
           scratch: false,
@@ -143,18 +227,22 @@ export class NineBallRules {
           message: '开球犯规：必须先撞到1号球！',
           gameOver: false,
           respotNineBall: pocketedIds.includes(9),
+          reasonCode: 'WRONG_FIRST_HIT',
         };
+        return this._applyConsecutiveFouls(result, opponent);
       }
 
       // If 9-ball pocketed on break (and no foul), it's a win!
       if (ninePocketed && !this.foul) {
         this.gameOver = true;
         this.winner = this.currentPlayer;
-        return {
+        const result = {
           gameOver: true,
           winner: this.currentPlayer,
           message: '开球进9号球！你赢了！',
+          reasonCode: 'NINE_ON_BREAK_WIN',
         };
+        return this._applyConsecutiveFouls(result, opponent);
       }
 
       // Track pocketed balls
@@ -162,53 +250,68 @@ export class NineBallRules {
 
       // If nothing pocketed, check WPA 4-ball-to-rail rule before handing over
       if (pocketedIds.length === 0) {
-        if (this.breakRailContacts.size < 4 && !this.railContactAfterFirstHit) {
+        if (this.breakRailContacts.size < 4) {
           this.foul = true;
-          return {
+          this.foulReason = 'ILLEGAL_BREAK';
+          const result = {
             nextPlayer: opponent,
             foul: true,
             scratch: false,
             ballInHand: true,
             message: '开球犯规：少于4颗球碰库。对手获得自由球',
             gameOver: false,
+            reasonCode: 'ILLEGAL_BREAK',
           };
+          return this._applyConsecutiveFouls(result, opponent);
         }
-        return {
+        const result = {
           nextPlayer: opponent,
           foul: false,
           scratch: false,
           message: '开球：没有球进袋。',
           gameOver: false,
         };
+        // Legal break with no pocket: push-out available next shot
+        this.pushOutAvailable = true;
+        return this._applyConsecutiveFouls(result, opponent);
       }
 
       // Legal break with pocketed balls, player continues
-      return {
+      const result = {
         nextPlayer: this.currentPlayer,
         foul: false,
         scratch: false,
         message: pocketedIds.length > 0 ? '开球有效。继续击球。' : '开球有效。台面开放。',
         gameOver: false,
       };
+      // Legal break: push-out available next shot
+      this.pushOutAvailable = true;
+      return this._applyConsecutiveFouls(result, opponent);
     }
 
     // Normal shot (not break)
 
-    // Foul: did not hit the target ball first
-    const targetBall = this._currentTarget();
-    if (!cueBallPocketed && this.firstBallHit !== null && this.firstBallHit !== targetBall) {
-      this.foul = true;
+    // Push-out skips first-hit and rail checks (but scratch / no-hit still count)
+    if (!isPushOut) {
+      // Foul: did not hit the target ball first
+      const targetBall = this._currentTarget();
+      if (!cueBallPocketed && this.firstBallHit !== null && this.firstBallHit !== targetBall) {
+        this.foul = true;
+        this.foulReason = 'WRONG_FIRST_HIT';
+      }
     }
 
-    // Foul: no ball hit at all
+    // Foul: no ball hit at all (applies even to push-out)
     if (!cueBallPocketed && this.firstBallHit === null) {
       this.foul = true;
+      this.foulReason = 'NO_BALL_HIT';
     }
 
     // Foul: after a legal first contact, at least one ball must touch a rail
-    // unless an object ball was pocketed.
-    if (!cueBallPocketed && this.firstBallHit !== null && pocketedIds.length === 0 && !this.railContactAfterFirstHit) {
+    // unless an object ball was pocketed. (Skipped for push-out)
+    if (!isPushOut && !this.foul && !cueBallPocketed && this.firstBallHit !== null && pocketedIds.length === 0 && !this.railContactAfterFirstHit) {
       this.foul = true;
+      this.foulReason = 'NO_RAIL_AFTER_CONTACT';
     }
 
     // If foul occurred, opponent gets ball-in-hand
@@ -222,7 +325,8 @@ export class NineBallRules {
       // Track pocketed balls (WPA: object balls pocketed on foul remain pocketed;
       // only the 9-ball is spotted if pocketed on foul).
       this.trackPocketedBalls(pocketedIds.filter(id => id !== 9));
-      return {
+      const reasonCode = ninePocketedOnFoul ? 'NINE_ON_FOUL_RESPOT' : this.foulReason;
+      const result = {
         nextPlayer: opponent,
         foul: true,
         scratch: this.scratch,
@@ -230,21 +334,39 @@ export class NineBallRules {
         message: this.scratch ? '白球落袋！对手获得自由球。' : '犯规！对手获得自由球。',
         gameOver: false,
         respotNineBall: ninePocketedOnFoul,
+        reasonCode,
       };
+      return this._applyConsecutiveFouls(result, opponent);
     }
 
     // Track pocketed balls (already tracked above if foul; track here for legal shots)
-    if (!this.foul) this.trackPocketedBalls(pocketedIds);
+    this.trackPocketedBalls(pocketedIds);
 
     // Check for 9-ball win (9 pocketed on legal shot)
     if (ninePocketed) {
       this.gameOver = true;
       this.winner = this.currentPlayer;
-      return {
+      const result = {
         gameOver: true,
         winner: this.currentPlayer,
         message: '打进9号球！你赢了！',
+        reasonCode: 'LEGAL_NINE_WIN',
       };
+      return this._applyConsecutiveFouls(result, opponent);
+    }
+
+    // Push-out: enter pending state after a legal push-out shot
+    if (isPushOut) {
+      this.pushOutPending = true;
+      this.pushOutPlayer = this.currentPlayer;
+      const result = {
+        nextPlayer: opponent,
+        foul: false,
+        pushOutPending: true,
+        message: 'Push-out。对手可选择接受或让回。',
+        gameOver: false,
+      };
+      return this._applyConsecutiveFouls(result, opponent);
     }
 
     // Determine next player
@@ -254,13 +376,14 @@ export class NineBallRules {
       ? `打进 ${pocketedIds.length} 颗球！继续击球。`
       : '没有球进袋。轮到对手。';
 
-    return {
+    const result = {
       nextPlayer,
       foul: false,
       scratch: false,
       message,
       gameOver: false,
     };
+    return this._applyConsecutiveFouls(result, opponent);
   }
 
   getStatus() {
@@ -278,6 +401,10 @@ export class NineBallRules {
       breakShot: this.breakShot,
       gameOver: this.gameOver,
       winner: this.winner,
+      player1ConsecutiveFouls: this.player1ConsecutiveFouls,
+      player2ConsecutiveFouls: this.player2ConsecutiveFouls,
+      pushOutAvailable: this.pushOutAvailable,
+      pushOutPending: this.pushOutPending,
     };
   }
 }

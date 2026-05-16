@@ -46,7 +46,7 @@ export class Renderer {
     this.controls.enablePan = false;
     this.controls.enableZoom = true;
     this.controls.zoomSpeed = 0.85 * (settings.get('cameraZoomSens') || 1.0);
-    this.controls.target.set(0, 0, 0);
+    this.controls.target.set(...CAMERA.lookAt);
     this.controls.mouseButtons = {
       LEFT: THREE.MOUSE.ROTATE,
       MIDDLE: null,
@@ -90,8 +90,17 @@ export class Renderer {
     // Apply quality & shadow settings
     this.applyQualitySettings();
     this._onSettingsChanged = (e) => {
-      if (e.detail?.key === 'quality' || e.detail?.key === 'shadowsEnabled') {
+      const key = e.detail?.key;
+      if (key === 'quality' || key === 'shadowsEnabled') {
         this.applyQualitySettings();
+      }
+      if (key === 'cameraFov') {
+        const fov = Number(e.detail?.value) || CAMERA.fov;
+        this.camera.fov = fov;
+        this.camera.updateProjectionMatrix();
+      }
+      if (key === 'cameraZoomSens') {
+        this.controls.zoomSpeed = 0.85 * (Number(e.detail?.value) || 1.0);
       }
     };
     window.addEventListener('settingsChanged', this._onSettingsChanged);
@@ -335,7 +344,8 @@ export class Renderer {
 
     // Pixel ratio
     const dpr = window.devicePixelRatio || 1;
-    const maxDpr = quality === 'low' ? 1 : (quality === 'medium' ? 1.5 : 2);
+    const userMaxDpr = settings.get('maxPixelRatio') || 2;
+    const maxDpr = quality === 'low' ? 1 : (quality === 'medium' ? Math.min(1.5, userMaxDpr) : userMaxDpr);
     this.renderer.setPixelRatio(Math.min(dpr, maxDpr));
 
     // Shadow map
