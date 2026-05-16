@@ -29,6 +29,8 @@ import { GameStateSerializer } from '../net/GameStateSerializer.js';
 import { animMs } from '../core/AnimSpeed.js';
 import { createShotInput, applyShotInput } from './ShotInput.js';
 import { UIText } from '../core/UIText.js';
+import { OnboardingTips } from '../ui/OnboardingTips.js';
+import { onboarding } from '../core/OnboardingStore.js';
 
 
 export class Game {
@@ -62,6 +64,7 @@ export class Game {
     this.minimap = new Minimap();
     this.recorder = new ShotRecorder();
     this.replayLibrary = null; // injected by MenuSystem
+    this.onboardingTips = new OnboardingTips();
 
     this.state = 'AIM'; // AIM, CHARGING, SHOOTING, RESOLVING, AI_THINKING, GAME_OVER
     this.power = 0;
@@ -251,6 +254,17 @@ export class Game {
     window.addEventListener('settingsChanged', this._onSettingsChanged);
 
     this.setupCollisionEvents();
+
+    // Show game tutorial steps for new players
+    this._showGameTutorial();
+  }
+
+  _showGameTutorial() {
+    const step = onboarding.get('gameTutorialStep');
+    if (step === 0) {
+      this.onboardingTips.show('aim', null, 8000);
+      onboarding.advanceGameTutorial();
+    }
   }
 
   setAIEnabled(enabled) {
@@ -386,6 +400,12 @@ export class Game {
     this.power = 0;
     this.ui.setPower(0);
     this.trajectory.setVisible(false);
+
+    // Show charge tutorial on first charge
+    if (onboarding.get('gameTutorialStep') === 1) {
+      this.onboardingTips.show('charge', null, 8000);
+      onboarding.advanceGameTutorial();
+    }
   }
 
   onMouseUp() {
@@ -517,6 +537,10 @@ export class Game {
     const bihMsg = behindHeadString ? UIText.ballInHandBehindLine : UIText.ballInHandAnywhere;
     this.ui.setMessage(`${message ? `${message} ` : ''}${bihMsg}`);
     this.updateBallInHandPreview();
+    if (!onboarding.get('ballInHandExplained')) {
+      this.onboardingTips.show('ballInHand', null, 10000);
+      onboarding.set('ballInHandExplained', true);
+    }
   }
 
   updateBallInHandPreview() {
@@ -594,6 +618,12 @@ export class Game {
   shoot() {
     const cueBall = this.ballsManager.getCueBall();
     if (!cueBall) return;
+
+    // Show spin tutorial on first shot
+    if (onboarding.get('gameTutorialStep') === 2) {
+      this.onboardingTips.show('spin', null, 8000);
+      onboarding.advanceGameTutorial();
+    }
 
     // Client sends shot intent to host; host executes physically
     if (this.networkMode && this.networkRole === 'client' && this.isLocalPlayerTurn()) {
@@ -1142,6 +1172,10 @@ export class Game {
       this.audio.playFoul();
       this.ui.flashRed();
       this.achievements.onFoul();
+      if (!onboarding.get('foulExplained')) {
+        this.onboardingTips.show('foul', result.message, 10000);
+        onboarding.set('foulExplained', true);
+      }
     }
 
     // Achievement: turn end
@@ -2137,6 +2171,12 @@ export class Game {
       this._challengeEndTimeout = null;
     }
     this._challengeEnding = false;
+
+    // Clean up onboarding tips
+    if (this.onboardingTips) {
+      this.onboardingTips.destroy();
+      this.onboardingTips = null;
+    }
 
     // Clean up input
     if (this.input) {

@@ -8,6 +8,7 @@ import { settings } from '../core/SettingsStore.js';
 import { keyBindings, ACTIONS, ACTION_CATEGORIES } from '../input/KeyBindings.js';
 import { animMs } from '../core/AnimSpeed.js';
 import { VERSION_TAG } from '../core/Version.js';
+import { onboarding } from '../core/OnboardingStore.js';
 
 
 const CATEGORIES = [
@@ -689,6 +690,17 @@ export class SettingsScreen {
     importBtnRow.appendChild(importApplyBtn);
     importWrap.appendChild(importBtnRow);
     this._contentArea.appendChild(importWrap);
+
+    this._button('重置新手引导', () => {
+      this._showConfirmDialog(
+        '重置新手引导',
+        '确定要重新显示所有新手引导提示吗？下次进入游戏、犯规或打开设置时会再次显示。',
+        () => {
+          onboarding.reset();
+          this._toast('新手引导已重置');
+        }
+      );
+    });
 
     this._button('清除本地缓存', () => {
       this._showConfirmDialog(
@@ -1435,6 +1447,16 @@ export class SettingsScreen {
     requestAnimationFrame(() => {
       if (this.container) this.container.style.opacity = '1';
     });
+    // First-time settings tip
+    if (!onboarding.get('settingsExplained')) {
+      onboarding.set('settingsExplained', true);
+      // Show after a short delay so the modal is fully visible
+      setTimeout(() => {
+        if (this.container && this.container.style.display !== 'none') {
+          this._toast('提示：辅助线、小地图和音效开关可在「图形」和「音频」分类中找到');
+        }
+      }, 600);
+    }
   }
 
   hide() {
