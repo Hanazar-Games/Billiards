@@ -605,14 +605,14 @@ export class Table {
     const inset = POCKET.radius * 0.95;
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
-        addJaw(sx * (halfW - inset * 0.55), sz * (halfD + 2.2), 0, 11);
-        addJaw(sx * (halfW + 2.2), sz * (halfD - inset * 0.55), Math.PI / 2, 11);
+        addJaw(sx * (halfW - inset * 0.52), sz * (halfD + 2.8), 0, 13);
+        addJaw(sx * (halfW + 2.8), sz * (halfD - inset * 0.52), Math.PI / 2, 13);
       }
     }
 
     for (const sx of [-1, 1]) {
-      addJaw(sx * (halfW + 2.2), -POCKET.radius * 1.28, Math.PI / 2, 13);
-      addJaw(sx * (halfW + 2.2), POCKET.radius * 1.28, Math.PI / 2, 13);
+      addJaw(sx * (halfW + 2.8), -POCKET.radius * 1.35, Math.PI / 2, 15);
+      addJaw(sx * (halfW + 2.8), POCKET.radius * 1.35, Math.PI / 2, 15);
     }
   }
 
@@ -639,15 +639,17 @@ export class Table {
     ];
 
     for (const [x, z, rot] of cornerPositions) {
-      const casting = new THREE.Mesh(new THREE.BoxGeometry(18, 2.7, 10), nickelMat);
-      casting.position.set(x, railTopY, z);
+      // Lower, flatter pocket iron that sits flush with the rail top
+      const casting = new THREE.Mesh(new THREE.BoxGeometry(11, 1.4, 5.5), nickelMat);
+      casting.position.set(x, railTopY - 0.3, z);
       casting.rotation.y = rot;
       casting.castShadow = true;
       casting.receiveShadow = true;
       this.meshGroup.add(casting);
 
-      const pad = new THREE.Mesh(new THREE.BoxGeometry(12.5, 0.7, 6.4), blackInsetMat);
-      pad.position.set(x, railTopY + 1.55, z);
+      // Small recessed inset on top
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(7.5, 0.35, 3.2), blackInsetMat);
+      pad.position.set(x, railTopY + 0.45, z);
       pad.rotation.y = rot;
       pad.castShadow = true;
       this.meshGroup.add(pad);
@@ -817,14 +819,16 @@ export class Table {
     ];
 
     for (const [x, y, z] of capPositions) {
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(10, 8.6, 2.0, 8), capMat);
-      cap.position.set(x, y, z);
+      // Small flat octagonal cap — sits low and does not protrude above rails
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(6.2, 5.2, 1.0, 8), capMat);
+      cap.position.set(x, y - 0.5, z);
       cap.rotation.y = Math.PI / 8;
       cap.castShadow = true;
       this.meshGroup.add(cap);
 
-      const crown = new THREE.Mesh(new THREE.CylinderGeometry(6.8, 6.8, 0.75, 8), nickelMat);
-      crown.position.set(x, y + 1.2, z);
+      // Tiny decorative crown on top
+      const crown = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.2, 0.35, 8), nickelMat);
+      crown.position.set(x, y + 0.15, z);
       crown.rotation.y = Math.PI / 8;
       crown.castShadow = true;
       this.meshGroup.add(crown);
