@@ -25,6 +25,9 @@ import { ShotReplay } from '../replay/ShotReplay.js';
 import { ChallengePanel } from '../challenges/ChallengePanel.js';
 import { ChallengeManager } from '../challenges/ChallengeManager.js';
 import { ChallengeResult } from '../challenges/ChallengeResult.js';
+import { TrainerPanel } from '../trainer/TrainerPanel.js';
+import { TrainerResult } from '../trainer/TrainerResult.js';
+import { DrillManager } from '../trainer/DrillManager.js';
 import { LanRoomPanel } from './LanRoomPanel.js';
 import { MatchSetupPanel } from './MatchSetupPanel.js';
 import { MatchManager } from '../game/MatchManager.js';
@@ -71,6 +74,12 @@ export class MenuSystem {
     // Local match system
     this.matchSetupPanel = null;
     this.matchManager = null;
+
+    // Trainer system
+    this.trainerPanel = null;
+    this.trainerResult = null;
+    this.drillManager = null;
+    this.activeDrill = null;
 
     this._initAudio().then(() => {
       this._setupMenu();
@@ -129,7 +138,8 @@ export class MenuSystem {
       () => this._showChallenges(),
       () => this._quit(),
       () => this._showLanRoom(),
-      () => this._showMatchSetup()
+      () => this._showMatchSetup(),
+      () => this._showTrainer()
     );
 
     // Create achievement panel (for viewing from menu)
@@ -162,6 +172,8 @@ export class MenuSystem {
     if (this.achievementPanel) this.achievementPanel.hideWall?.();
     if (this.challengePanel) this.challengePanel.hide();
     if (this.challengeResult) this.challengeResult.hide();
+    if (this.trainerPanel) this.trainerPanel.hide();
+    if (this.trainerResult) this.trainerResult.hide();
     this.settingsScreen.show();
   }
 
@@ -171,6 +183,8 @@ export class MenuSystem {
     if (this.replayPanel) this.replayPanel.hideList();
     if (this.achievementPanel) this.achievementPanel.hideWall();
     if (this.challengePanel) this.challengePanel.hide();
+    if (this.trainerPanel) this.trainerPanel.hide();
+    if (this.trainerResult) this.trainerResult.hide();
     this.mainMenu.show();
   }
 
@@ -180,6 +194,8 @@ export class MenuSystem {
     if (this.replayPanel) this.replayPanel.hideList();
     if (this.challengePanel) this.challengePanel.hide();
     if (this.challengeResult) this.challengeResult.hide();
+    if (this.trainerPanel) this.trainerPanel.hide();
+    if (this.trainerResult) this.trainerResult.hide();
     this.achievementPanel.showWall();
   }
 
@@ -189,6 +205,8 @@ export class MenuSystem {
     if (this.achievementPanel) this.achievementPanel.hideWall?.();
     if (this.challengePanel) this.challengePanel.hide();
     if (this.challengeResult) this.challengeResult.hide();
+    if (this.trainerPanel) this.trainerPanel.hide();
+    if (this.trainerResult) this.trainerResult.hide();
     if (!this.replayPanel) {
       this.replayPanel = new ReplayPanel(
         this.replayLibrary,
@@ -206,6 +224,8 @@ export class MenuSystem {
     if (this.replayPanel) this.replayPanel.hideList();
     if (this.achievementPanel) this.achievementPanel.hideWall?.();
     if (this.challengeResult) this.challengeResult.hide();
+    if (this.trainerPanel) this.trainerPanel.hide();
+    if (this.trainerResult) this.trainerResult.hide();
     if (!this.challengePanel) {
       this.challengePanel = new ChallengePanel(
         (challenge) => this._startChallenge(challenge),
@@ -213,6 +233,150 @@ export class MenuSystem {
       );
     }
     this.challengePanel.show();
+  }
+
+  _showTrainer() {
+    this.state = 'MENU';
+    this.mainMenu.hide();
+    if (this.replayPanel) this.replayPanel.hideList();
+    if (this.achievementPanel) this.achievementPanel.hideWall?.();
+    if (this.challengePanel) this.challengePanel.hide();
+    if (this.challengeResult) this.challengeResult.hide();
+    if (this.trainerResult) this.trainerResult.hide();
+    if (!this.trainerPanel) {
+      this.trainerPanel = new TrainerPanel(
+        (drill) => this._startTrainer(drill),
+        () => this._showMainMenu()
+      );
+    }
+    this.trainerPanel.show();
+  }
+
+  async _startTrainer(drill) {
+    if (this.state !== 'MENU' && this.state !== 'TRANSITION') return;
+    this.state = 'TRANSITION';
+
+    if (this.trainerPanel) this.trainerPanel.hide();
+    if (this.achievementPanel) this.achievementPanel.hideWall();
+
+    // Hide menu
+    const menuLayer = document.getElementById('menu-layer');
+    if (menuLayer) {
+      menuLayer.style.transition = 'opacity calc(0.5s / var(--ui-anim-speed)) ease';
+      menuLayer.style.opacity = '0';
+    }
+    await this._delay(animMs(500));
+    if (this.state !== 'TRANSITION') return;
+    if (menuLayer) menuLayer.style.display = 'none';
+
+    // Show game UI
+    const uiLayer = document.getElementById('ui-layer');
+    if (uiLayer) uiLayer.style.display = 'flex';
+
+    // Stop menu BGM before entering trainer
+    if (this.audio) this.audio.stopBGM(false);
+
+    // Create drill manager
+    this.activeDrill = drill;
+    this.drillManager = new DrillManager(drill.id);
+    this.drillManager.start();
+
+    // Create game with trainer mode
+    this.game = new Game(this.renderer, this.physics, this.audio);
+    this.game.achievements = this.achievements;
+    this.game.replayLibrary = this.replayLibrary;
+    this.game.drillManager = this.drillManager;
+    this.game.onTrainerComplete = (completed, stars) => {
+      this._stopTrainer();
+    };
+
+    const modeConfig = { mode: 'trainer', aiEnabled: false, drill, tableProfileId: 'pool9ft' };
+    try {
+      await this.game.init(modeConfig);
+    } catch (err) {
+      console.error('Trainer game init failed:', err);
+      this.state = 'MENU';
+      if (menuLayer) { menuLayer.style.display = 'flex'; menuLayer.style.opacity = '1'; }
+      if (uiLayer) uiLayer.style.display = 'none';
+      return;
+    }
+    this.game.onReturnToMenu = () => this._stopTrainer();
+
+    // Create and start game loop
+    this.loop = new GameLoop({
+      update: (dt) => {
+        this.physics.step(dt);
+        this.game.update(dt);
+      },
+      render: () => {
+        this.game.render(this.renderer);
+        this.renderer.render();
+      },
+    });
+
+    this.state = 'PLAYING';
+    this.loop.start();
+  }
+
+  async _stopTrainer() {
+    if (this.state !== 'PLAYING') return;
+    this.state = 'TRANSITION';
+
+    // Stop game loop
+    if (this.loop) {
+      this.loop.stop();
+      this.loop = null;
+    }
+
+    // Dispose game
+    if (this.game) {
+      this.game.dispose();
+      this.game = null;
+    }
+
+    // Hide game UI
+    const uiLayer = document.getElementById('ui-layer');
+    if (uiLayer) uiLayer.style.display = 'none';
+
+    // Restart menu render loop
+    this._startMenuLoop();
+
+    // Show trainer result
+    if (this.drillManager) {
+      const hud = this.drillManager.getHUDData();
+      if (!this.trainerResult) {
+        this.trainerResult = new TrainerResult(
+          () => this._startTrainer(this.activeDrill),
+          () => this._showTrainer()
+        );
+      }
+      const stats = {
+        power: this.drillManager.shotPower,
+      };
+      if (this.drillManager.drill && this.drillManager.drill.idealCueZone && this.drillManager.cueBallRestPos) {
+        const dx = this.drillManager.cueBallRestPos.x - this.drillManager.drill.idealCueZone.x;
+        const dz = this.drillManager.cueBallRestPos.z - this.drillManager.drill.idealCueZone.z;
+        stats.distance = Math.sqrt(dx * dx + dz * dz);
+      }
+      const best = DrillManager.getAllBest()[this.drillManager.drill.id];
+      if (best) stats.attempts = best.attempts;
+
+      this.trainerResult.show(
+        hud.name,
+        this.drillManager.completed,
+        this.drillManager.stars || 0,
+        stats
+      );
+    }
+
+    // Restore menu-layer
+    const menuLayer = document.getElementById('menu-layer');
+    if (menuLayer) {
+      menuLayer.style.display = 'flex';
+      menuLayer.style.opacity = '1';
+    }
+
+    this.drillManager = null;
   }
 
   async _startChallenge(challenge) {

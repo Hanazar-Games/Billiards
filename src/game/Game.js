@@ -154,7 +154,10 @@ export class Game {
     }
 
     // Create rules engine based on game mode
-    if (this.mode === '9ball') {
+    if (this.mode === 'trainer') {
+      // Trainer mode uses no rules engine — pure physics practice
+      this.rules = null;
+    } else if (this.mode === '9ball') {
       this.rules = new NineBallRules();
     } else {
       this.rules = new Rules();
@@ -185,8 +188,13 @@ export class Game {
 
     this.ballsManager = new BallsManager(this.physics, this.tableProfile);
     this.ballsManager.createBalls();
-    const rackMode = this.mode === '9ball' ? '9ball' : '8ball';
-    this.ballsManager.rackBalls(rackMode);
+    if (this.mode === 'trainer' && this.drillConfig) {
+      const { idealZone } = this.ballsManager.setupDrill(this.drillConfig, this.tableProfile);
+      this.drillIdealZone = idealZone;
+    } else {
+      const rackMode = this.mode === '9ball' ? '9ball' : '8ball';
+      this.ballsManager.rackBalls(rackMode);
+    }
     this._wireBallsManagerEvents();
     this.ballsManager.addToScene(this.scene);
     // Apply ball visual settings after creation
@@ -206,6 +214,15 @@ export class Game {
 
     this.trajectory = new TrajectoryPredictor(this.scene, this.tableProfile);
 
+    if (this.mode === 'trainer' && this.drillConfig) {
+      const { TrainerHUD } = await import('../trainer/TrainerHUD.js');
+      this.trainerHUD = new TrainerHUD(this.scene, this.drillConfig, this.tableProfile);
+      if (this.drillIdealZone) {
+        this.trainerHUD.showTargetZone(this.drillIdealZone);
+      }
+      this.trainerHUD.setOnReset(() => this._resetTrainerDrill());
+    }
+
     if (!this.achievements) {
       this.achievements = new AchievementSystem();
     }
@@ -222,6 +239,8 @@ export class Game {
     this.ui.setPlayerTurn(1);
     if (this.mode === 'freeplay') {
       this.ui.setMessage(UIText.freeplayIntro);
+    } else if (this.mode === 'trainer') {
+      this.ui.setMessage('训练模式：调整瞄准线和力度，将目标球击入指定袋口');
     } else if (this.mode === '9ball') {
       this.ui.setMessage(UIText.nineBallIntro);
     } else {
@@ -235,13 +254,17 @@ export class Game {
       () => { if (this.onReturnToMenu) this.onReturnToMenu(); }
     );
 
-    // Concede button (hidden in freeplay)
+    // Concede button (hidden in freeplay and trainer)
     this.ui.setupConcede(() => this._concede());
-    this.ui.setShowConcede(this.mode !== 'freeplay');
+    this.ui.setShowConcede(this.mode !== 'freeplay' && this.mode !== 'trainer');
 
     // Match info
-    const objective = this._getObjectiveText();
-    this.ui.setMatchInfo(objective);
+    if (this.mode === 'trainer') {
+      this.ui.setMatchInfo('练习击球技巧 — 进球后查看评分');
+    } else {
+      const objective = this._getObjectiveText();
+      this.ui.setMatchInfo(objective);
+    }
     this._updatePlayerStats();
     this._onToggleTrajectory = (e) => {
       this.trajectoryEnabled = Boolean(e.detail);
@@ -252,7 +275,11 @@ export class Game {
     };
     window.addEventListener('toggleTrajectory', this._onToggleTrajectory);
     window.addEventListener('toggleShotTrail', this._onToggleShotTrail);
-    this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
+    if (this.mode === 'trainer') {
+      this.ui.showResetButton(() => this._resetTrainerDrill(), '重置球型');
+    } else {
+      this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
+    }
 
     // Back-to-menu button
     this._addBackToMenuButton();
@@ -904,6 +931,7 @@ export class Game {
               this.achievements.onPocket(entry.id, pocket, this.mode);
               this.recorder.recordPocket(entry.id);
               if (this.challengeManager) this.challengeManager.onPocket(entry.id);
+              if (this.drillManager) this.drillManager.onPocket(entry.id);
               const pBall = this.ballsManager.getBall(entry.id);
               if (pBall && this.ballReturn && entry.id !== 0) {
                 this.ballReturn.animateBallReturn(pBall.mesh, pocket);
@@ -1255,6 +1283,25 @@ export class Game {
     const cueBall = this.ballsManager.getCueBall();
     const cuePocketed = cueBall.pocketed;
 
+    // Trainer mode: evaluate drill, auto-reset for retry
+    if (this.mode === 'trainer') {
+      if (this.drillManager) {
+        this.drillManager.onBallsStopped(cueBall);
+      }
+      if (this.drillManager && this.drillManager.completed) {
+        if (this.onTrainerComplete) {
+          this.onTrainerComplete(this.drillManager.completed, this.drillManager.stars);
+        }
+      } else {
+        // Auto-reset for next attempt (cue ball only if pocketed)
+        if (cuePocketed) {
+          this.ballsManager.resetCueBallIfPocketed();
+        }
+        this._enterAimState({ showCue: true, showTrajectory: true, updateAim: false });
+      }
+      return;
+    }
+
     // Free Play mode: no rules, no win/lose, no turn switching
     if (this.mode === 'freeplay') {
       if (cuePocketed) {
@@ -1301,7 +1348,11 @@ export class Game {
       if (this.matchManager) {
         this.matchManager.onGameEnd(result.winner);
       } else {
-        this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
+        if (this.mode === 'trainer') {
+      this.ui.showResetButton(() => this._resetTrainerDrill(), '重置球型');
+    } else {
+      this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
+    }
       }
 
       const summary = this.statsTracker.endGame(result.winner);
@@ -1481,8 +1532,13 @@ export class Game {
     this._ballCollideListeners.clear();
     this.ballsManager = new BallsManager(this.physics, this.tableProfile);
     this.ballsManager.createBalls();
-    const rackMode = this.mode === '9ball' ? '9ball' : '8ball';
-    this.ballsManager.rackBalls(rackMode);
+    if (this.mode === 'trainer' && this.drillConfig) {
+      const { idealZone } = this.ballsManager.setupDrill(this.drillConfig, this.tableProfile);
+      this.drillIdealZone = idealZone;
+    } else {
+      const rackMode = this.mode === '9ball' ? '9ball' : '8ball';
+      this.ballsManager.rackBalls(rackMode);
+    }
     this._wireBallsManagerEvents();
     this.ballsManager.addToScene(this.scene);
     this.setupCollisionEvents();
@@ -1490,7 +1546,7 @@ export class Game {
       ball.updateVisualSettings(settings);
     }
 
-    this.rules.reset();
+    if (this.rules) this.rules.reset();
     this.statsTracker.reset();
     this.particles.clear();
     this.trails.clear();
@@ -1548,7 +1604,11 @@ export class Game {
       this.ui.setMessage(this.aiEnabled ? UIText.eightBallResetVsAI : UIText.eightBallReset);
     }
     this.ui.hideResetButton();
-    this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
+    if (this.mode === 'trainer') {
+      this.ui.showResetButton(() => this._resetTrainerDrill(), '重置球型');
+    } else {
+      this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
+    }
     this.ui.setMatchInfo(this._getObjectiveText());
     this._updatePlayerStats();
     this.cue.show();
@@ -2164,7 +2224,11 @@ export class Game {
     }
 
     this.audio.playWin();
-    this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
+    if (this.mode === 'trainer') {
+      this.ui.showResetButton(() => this._resetTrainerDrill(), '重置球型');
+    } else {
+      this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
+    }
     this.ui.setPlayerTurn(winner);
     this.ui.hideThreeFoulWarning();
     this.ui.hidePushOutButton();
@@ -2436,6 +2500,54 @@ export class Game {
     }
   }
 
+  _resetTrainerDrill() {
+    if (this.mode !== 'trainer' || !this.drillConfig) return;
+
+    // Remove old balls
+    for (const ball of this.ballsManager.balls) {
+      const listener = this._ballCollideListeners.get(ball.id);
+      if (listener) ball.body.removeEventListener('collide', listener);
+      this.scene.remove(ball.mesh);
+      this.physics.removeBody(ball.body);
+      ball.geometry.dispose();
+      ball.material.dispose();
+    }
+    this._ballCollideListeners.clear();
+
+    // Recreate balls in drill layout
+    this.ballsManager = new BallsManager(this.physics, this.tableProfile);
+    this.ballsManager.createBalls();
+    const { idealZone } = this.ballsManager.setupDrill(this.drillConfig, this.tableProfile);
+    this.drillIdealZone = idealZone;
+    this._wireBallsManagerEvents();
+    this.ballsManager.addToScene(this.scene);
+    this.setupCollisionEvents();
+    for (const ball of this.ballsManager.balls) {
+      ball.updateVisualSettings(settings);
+    }
+
+    // Reset drill manager state
+    if (this.drillManager) {
+      this.drillManager.resetDrill();
+    }
+
+    // Update target zone visualization
+    if (this.trainerHUD) {
+      this.trainerHUD._hideTargetZone();
+      if (this.drillIdealZone) {
+        this.trainerHUD.showTargetZone(this.drillIdealZone);
+      }
+      this.trainerHUD.updateLabel(`🎯 ${this.drillConfig.name}`);
+      if (this.trainerHUD.hintsEnabled) {
+        this.trainerHUD._showHints();
+      }
+    }
+
+    this._enterAimState({ resetPower: true, showCue: true, showTrajectory: true, updateAim: false });
+    this.power = 0;
+    this.ui.setPower(0);
+  }
+
   dispose() {
     if (this._strikeHideTimer) {
       clearTimeout(this._strikeHideTimer);
@@ -2539,6 +2651,10 @@ export class Game {
     // Remove trajectory
     if (this.trajectory) {
       this.trajectory.dispose();
+    if (this.trainerHUD) {
+      this.trainerHUD.dispose();
+      this.trainerHUD = null;
+    }
       this.trajectory = null;
     }
 

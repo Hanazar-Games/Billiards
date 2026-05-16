@@ -1,6 +1,7 @@
 import { Ball } from './Ball.js';
 import { BALL, BALL_COLORS, getBallType, BALL_TYPE } from '../config.js';
 import { getDefaultTableProfile } from './TableProfiles.js';
+import { resolveDrillPositions } from '../trainer/DrillData.js';
 
 export class BallsManager {
   constructor(physics, tableProfile = null) {
@@ -128,6 +129,37 @@ export class BallsManager {
   _removeBallFromRack(id) {
     const ball = this.balls[id];
     if (ball) ball.remove();
+  }
+
+  /**
+   * Setup a specific drill layout.
+   * Places balls at preset positions and removes unused balls.
+   */
+  setupDrill(drill, profile) {
+    if (this.balls.length === 0) {
+      this.createBalls();
+    }
+
+    const { positions, idealZone } = resolveDrillPositions(drill, profile);
+    const usedIds = new Set(Object.keys(drill.ballPositions).map(Number));
+
+    // Place used balls
+    for (const [ballIdStr, pos] of Object.entries(positions)) {
+      const ballId = parseInt(ballIdStr, 10);
+      this._placeBall(ballId, pos.x, BALL.radius, pos.z);
+      // Wake up body in case it was sleeping
+      const ball = this.balls[ballId];
+      if (ball && ball.body) ball.body.wakeUp();
+    }
+
+    // Remove unused balls (hide them from play)
+    for (const ball of this.balls) {
+      if (!usedIds.has(ball.id)) {
+        ball.remove();
+      }
+    }
+
+    return { idealZone };
   }
 
   getCueBall() {

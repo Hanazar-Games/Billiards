@@ -11,7 +11,7 @@ import { animMs } from '../core/AnimSpeed.js';
  *  - Back button when returning from settings
  */
 export class MainMenuScreen {
-  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onShowChallenges, onQuit, onLanMultiplayer, onMatchSetup) {
+  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onShowChallenges, onQuit, onLanMultiplayer, onMatchSetup, onShowTrainer) {
     this.onSelectMode = onSelectMode;
     this.onSettings = onSettings;
     this.onAchievements = onAchievements;
@@ -20,6 +20,7 @@ export class MainMenuScreen {
     this.onQuit = onQuit;
     this.onLanMultiplayer = onLanMultiplayer;
     this.onMatchSetup = onMatchSetup;
+    this.onShowTrainer = onShowTrainer;
     this.container = null;
     this._fadeTimer = null;
     this._hideTimer = null;
@@ -109,6 +110,11 @@ export class MainMenuScreen {
       if (this.onShowChallenges) this.onShowChallenges();
     });
 
+    // Shot Trainer
+    this._addButton(btnGroup, '击球训练', '从直线球到走位控制，逐步提升击球技巧', () => {
+      if (this.onShowTrainer) this.onShowTrainer();
+    });
+
     // LAN Multiplayer
     this._addButton(btnGroup, '局域网联机', '同一 Wi-Fi 下创建或加入房间，与好友对战', () => {
       if (this.onLanMultiplayer) this.onLanMultiplayer();
@@ -140,7 +146,7 @@ export class MainMenuScreen {
 
     // Version
     const version = document.createElement('div');
-    version.textContent = 'v1.4.4';
+    version.textContent = 'v1.6.1';
     version.style.cssText = `
       position: absolute; bottom: 44px; left: 40px;
       font-size: 12px; color: rgba(244,247,244,0.32);
