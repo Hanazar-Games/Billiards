@@ -75,10 +75,11 @@ export class AchievementStore {
 
   /** Increment a stat counter */
   incrementStat(key, amount = 1) {
-    if (this.data.stats[key] !== undefined) {
-      this.data.stats[key] += amount;
-      this._save();
+    if (this.data.stats[key] === undefined) {
+      this.data.stats[key] = 0;
     }
+    this.data.stats[key] += amount;
+    this._save();
   }
 
   /** Set a stat value */

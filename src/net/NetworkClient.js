@@ -142,7 +142,11 @@ export class NetworkClient extends EventTarget {
         this.dispatchEvent(new CustomEvent('netError', { detail: data }));
         break;
       default:
-        this.dispatchEvent(new CustomEvent(type, { detail: data }));
+        if (type) {
+          this.dispatchEvent(new CustomEvent(type, { detail: data }));
+        } else {
+          console.warn('[NetworkClient] received message with no type:', data);
+        }
     }
   }
 

@@ -428,6 +428,8 @@ export class Renderer {
       this.controls.dispose();
     }
     this.renderer.dispose();
-    this.container.removeChild(this.renderer.domElement);
+    if (this.renderer.domElement.parentNode === this.container) {
+      this.container.removeChild(this.renderer.domElement);
+    }
   }
 }

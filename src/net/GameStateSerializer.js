@@ -110,6 +110,7 @@ export class GameStateSerializer {
         ball.body.position.set(0, -1000, 0);
         ball.body.velocity.set(0, 0, 0);
         ball.body.angularVelocity.set(0, 0, 0);
+        ball.sync();
       }
     }
 

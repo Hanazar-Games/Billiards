@@ -525,8 +525,8 @@ export class BallsManager {
       if (x < -halfW || x > halfW || z < -halfD || z > halfD) return false;
       for (const ball of this.balls) {
         if (ball.id === 0 || ball.pocketed) continue;
-        const dx = ball.mesh.position.x - x;
-        const dz = ball.mesh.position.z - z;
+        const dx = ball.body.position.x - x;
+        const dz = ball.body.position.z - z;
         if (dx * dx + dz * dz < (BALL.radius * 2.2) ** 2) {
           return false;
         }
