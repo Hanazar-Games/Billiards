@@ -95,7 +95,10 @@ export class TrainerHUD {
   }
 
   setOnReset(callback) {
-    this.resetBtnEl.onclick = callback;
+    if (this.resetBtnEl) {
+      this.resetBtnEl.onclick = null;
+      this.resetBtnEl.onclick = callback;
+    }
   }
 
   toggleHints() {

@@ -238,6 +238,7 @@ export class AudioManager {
     noise.start(t);
 
     this.bgmNodes.push(noise, noiseFilter, noiseGain);
+    this._bgmWasPlaying = true;
   }
 
   stopBGM(preserveFlag = true) {

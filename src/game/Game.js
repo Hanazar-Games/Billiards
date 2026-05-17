@@ -1289,6 +1289,7 @@ export class Game {
         this.drillManager.onBallsStopped(cueBall);
       }
       if (this.drillManager && this.drillManager.completed) {
+        this.audio.playWin();
         if (this.onTrainerComplete) {
           this.onTrainerComplete(this.drillManager.completed, this.drillManager.stars);
         }
@@ -1348,11 +1349,7 @@ export class Game {
       if (this.matchManager) {
         this.matchManager.onGameEnd(result.winner);
       } else {
-        if (this.mode === 'trainer') {
-      this.ui.showResetButton(() => this._resetTrainerDrill(), '重置球型');
-    } else {
-      this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
-    }
+        this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
       }
 
       const summary = this.statsTracker.endGame(result.winner);
@@ -2196,6 +2193,7 @@ export class Game {
 
   _concede() {
     if (this.mode === 'freeplay') return;
+    if (this.mode === 'trainer') return;
     if (this.networkMode) {
       this.ui.setMessage(UIText.networkCannotConcede, 2000);
       return;

@@ -1,4 +1,25 @@
-# 3D Billiards v1.7.1 — Latest Update
+# 3D Billiards v1.7.2 — Latest Update
+
+## What's New in v1.7.2
+
+### 🎵 UI/UX/SFX/BGM 全面优化
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **菜单初始 BGM** | 首次进入菜单时若声音已开启，自动启动环境背景音乐（此前仅在从游戏返回菜单时才启动） |
+| 2 | **BGM 状态追踪修复** | `AudioManager.startBGM()` 成功后设置 `_bgmWasPlaying = true`，确保标签页切换、声音开关等场景下 BGM 恢复行为一致 |
+| 3 | **训练完成音效** | 练习成功时播放胜利音效 `playWin()`，提供正向反馈（此前完全静默） |
+| 4 | **结果面板 Enter 键** | 训练结果面板支持按 Enter 快速"再试一次"，提升键盘操作体验 |
+| 5 | **认输模式保护** | `_concede()` 增加 trainer 模式保护，防止快捷键等非常规途径触发认输 |
+| 6 | **死代码清理** | 移除 `resolveTurn()` 中永远不会执行的 trainer 分支（trainer 已在更早处 return） |
+| 7 | **事件处理器清理** | `TrainerHUD.setOnReset()` 先清空旧 `onclick` 再绑定新回调，防止重复注册 |
+| 8 | **DrillManager 死代码** | `getHUDData()` 移除未使用的 `idealCueZone` 解构 |
+| 9 | **应用退出清理** | `MenuSystem._quit()` 补充 `trainerPanel` 和 `trainerResult` 的 `destroy()` 调用，防止 DOM/事件泄漏 |
+| 10 | **防御性 dispose** | `_startTrainer()` 启动前检查并 dispose 旧 game 实例，与 `_startGame()` 行为一致 |
+
+---
+
+# 3D Billiards v1.7.1
 
 ## What's New in v1.7.1
 

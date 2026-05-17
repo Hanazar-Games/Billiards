@@ -149,6 +149,11 @@ export class MenuSystem {
     this.settingsScreen = new SettingsScreen(() => this._showMainMenu());
     this.settingsScreen.setAudioManager(this.audio);
 
+    // Start menu BGM if sound is enabled
+    if (this.audio && this.audio.soundEnabled) {
+      this.audio.startBGM();
+    }
+
     // Start a render loop for the menu background (just the 3D scene, no physics)
     this._startMenuLoop();
   }
@@ -255,6 +260,16 @@ export class MenuSystem {
   async _startTrainer(drill) {
     if (this.state !== 'MENU' && this.state !== 'TRANSITION') return;
     this.state = 'TRANSITION';
+
+    // Dispose any existing game instance before creating a new one
+    if (this.game) {
+      try { this.game.dispose(); } catch (e) { console.warn('Old game dispose error:', e); }
+      this.game = null;
+    }
+    if (this.loop) {
+      this.loop.stop();
+      this.loop = null;
+    }
 
     if (this.trainerPanel) this.trainerPanel.hide();
     if (this.achievementPanel) this.achievementPanel.hideWall();
@@ -955,6 +970,8 @@ export class MenuSystem {
     try { if (this.challengePanel) this.challengePanel.destroy(); } catch (e) {}
     try { if (this.challengeResult) this.challengeResult.destroy(); } catch (e) {}
     try { if (this.achievementPanel) this.achievementPanel.destroy(); } catch (e) {}
+    try { if (this.trainerPanel) { this.trainerPanel.destroy(); this.trainerPanel = null; } } catch (e) {}
+    try { if (this.trainerResult) { this.trainerResult.destroy(); this.trainerResult = null; } } catch (e) {}
     try { if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; } } catch (e) {}
 
     // Clean up shared core

@@ -121,7 +121,7 @@ export class DrillManager {
   // ── HUD data ──
 
   getHUDData() {
-    const { name, type, idealCueZone, hintPower } = this.drill;
+    const { name, type, hintPower } = this.drill;
     let progress = '';
 
     if (type === DRILL_TYPE.POSITION && this.idealZone && this.cueBallRestPos) {
