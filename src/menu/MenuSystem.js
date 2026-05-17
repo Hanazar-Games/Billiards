@@ -239,6 +239,7 @@ export class MenuSystem {
   _showChallenges() {
     this.state = 'MENU';
     this.mainMenu.hide();
+    if (this.settingsScreen) this.settingsScreen.hide();
     if (this.replayPanel) this.replayPanel.hideList();
     if (this.achievementPanel) this.achievementPanel.hideWall?.();
     if (this.challengeResult) this.challengeResult.hide();
@@ -258,6 +259,7 @@ export class MenuSystem {
   _showTrainer() {
     this.state = 'MENU';
     this.mainMenu.hide();
+    if (this.settingsScreen) this.settingsScreen.hide();
     if (this.replayPanel) this.replayPanel.hideList();
     if (this.achievementPanel) this.achievementPanel.hideWall?.();
     if (this.challengePanel) this.challengePanel.hide();
@@ -651,6 +653,14 @@ export class MenuSystem {
 
   _showLanRoom() {
     this.mainMenu.hide();
+    if (this.settingsScreen) this.settingsScreen.hide();
+    if (this.replayPanel) this.replayPanel.hideList();
+    if (this.achievementPanel) this.achievementPanel.hideWall?.();
+    if (this.challengePanel) this.challengePanel.hide();
+    if (this.challengeResult) this.challengeResult.hide();
+    if (this.trainerPanel) this.trainerPanel.hide();
+    if (this.trainerResult) this.trainerResult.hide();
+    if (this.matchSetupPanel) this.matchSetupPanel.hide?.();
     this.lanRoomPanel = new LanRoomPanel(
       (client, mode, tableProfileId) => this._startNetworkGame(client, mode, tableProfileId),
       () => this._showMainMenu()
@@ -668,6 +678,14 @@ export class MenuSystem {
 
   _showMatchSetup() {
     this.mainMenu.hide();
+    if (this.settingsScreen) this.settingsScreen.hide();
+    if (this.replayPanel) this.replayPanel.hideList();
+    if (this.achievementPanel) this.achievementPanel.hideWall?.();
+    if (this.challengePanel) this.challengePanel.hide();
+    if (this.challengeResult) this.challengeResult.hide();
+    if (this.trainerPanel) this.trainerPanel.hide();
+    if (this.trainerResult) this.trainerResult.hide();
+    if (this.lanRoomPanel) this.lanRoomPanel.hide?.();
     this.matchSetupPanel = new MatchSetupPanel(
       (config) => this._startMatchGame(config),
       () => this._showMainMenu()

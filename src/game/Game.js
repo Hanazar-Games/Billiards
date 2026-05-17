@@ -2229,11 +2229,7 @@ export class Game {
     }
 
     this.audio.playWin();
-    if (this.mode === 'trainer') {
-      this.ui.showResetButton(() => this._resetTrainerDrill(), '重置球型');
-    } else {
-      this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
-    }
+    this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
     this.ui.setPlayerTurn(winner);
     this.ui.hideThreeFoulWarning();
     this.ui.hidePushOutButton();
