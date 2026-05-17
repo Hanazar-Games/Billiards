@@ -1,4 +1,19 @@
-# 3D Billiards v1.7.7 — Latest Update
+# 3D Billiards v1.7.8 — Latest Update
+
+## What's New in v1.7.8
+
+### 🔧 Network & Input Safety Fixes
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **网络客户端 Push-out 保护** | 局域网客户端在推杆后未选择接受/拒绝前，现在会正确阻止发送击球指令，与单机/主机端行为一致 |
+| 2 | **键盘输入分层保护** | 游戏暂停或游戏内设置面板打开时，所有游戏快捷键（除 Escape 外）被完全屏蔽，防止热键穿透设置面板触发意外操作 |
+| 3 | **设置确认框监听器完整清理** | `SettingsScreen.hide()` 和 `destroy()` 现在会正确移除确认对话框的 `keydown` 监听器，补充 v1.7.7 #2 的完整性 |
+| 4 | **网络客户端力度值规范化** | 客户端发送给主机的击球力度现在经过 `Math.max(power, minPower)` 处理，确保力度值不低于有效下限 |
+
+---
+
+# 3D Billiards v1.7.7
 
 ## What's New in v1.7.7
 

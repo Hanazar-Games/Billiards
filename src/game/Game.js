@@ -706,8 +706,13 @@ export class Game {
 
     // Client sends shot intent to host; host executes physically
     if (this.networkMode && this.networkRole === 'client' && this.isLocalPlayerTurn()) {
+      // Block shot while push-out choice is pending
+      if (this.rules?.pushOutPending) {
+        this.ui.setMessage(UIText.pushOutMustChoose, 2000);
+        return;
+      }
       const force = Math.max(this.power, SHOT.minPower);
-      this.networkController?.sendShotInput(this.aimDirection, this.power, this.cueTipOffset);
+      this.networkController?.sendShotInput(this.aimDirection, force, this.cueTipOffset);
       this.state = 'SHOOTING';
       this._shotStartTime = performance.now();
       this.charging = false;
@@ -1800,14 +1805,19 @@ export class Game {
   _setupSpinControls() {
     this._onKeyDown = (e) => {
       const key = e.key.toLowerCase();
+      // Ignore all game keys while paused (except Escape which toggles pause)
+      if (this.paused && key !== 'escape') return;
+      // Ignore all game keys while in-game settings is open (except Escape which closes it)
+      if (this._settingsOpen) {
+        if (key === 'escape' && this.inGameSettings) {
+          this._onInGameSettingsClose();
+        }
+        return;
+      }
       const mods = { ctrl: e.ctrlKey, shift: e.shiftKey, alt: e.altKey, meta: e.metaKey };
 
-      // Escape cancels charging and ball-in-hand preview, or closes settings
+      // Escape cancels charging and ball-in-hand preview
       if (key === 'escape') {
-        if (this._settingsOpen && this.inGameSettings) {
-          this._onInGameSettingsClose();
-          return;
-        }
         if (this.state === 'CHARGING') {
           this.state = 'AIM';
           this.power = 0;

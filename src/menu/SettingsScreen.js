@@ -1855,6 +1855,7 @@ export class SettingsScreen {
       }
     };
     window.addEventListener('keydown', onKeyDown);
+    backdrop._keydownHandler = onKeyDown;
 
     cancelBtn.onclick = () => { close(); if (onCancel) onCancel(); };
     confirmBtn.onclick = () => { close(); onConfirm(); };
@@ -1894,6 +1895,7 @@ export class SettingsScreen {
     this._hideTimer = setTimeout(() => { if (this.container) this.container.style.display = 'none'; }, animMs(300));
     // Dismiss any open confirmation dialogs
     document.querySelectorAll('.settings-confirm-backdrop').forEach(el => {
+      if (el._keydownHandler) window.removeEventListener('keydown', el._keydownHandler);
       if (el.parentNode) el.parentNode.removeChild(el);
     });
   }
@@ -1917,6 +1919,7 @@ export class SettingsScreen {
     this._tabEls.clear();
     // Remove any lingering confirm backdrops and their keydown listeners
     document.querySelectorAll('.settings-confirm-backdrop').forEach(el => {
+      if (el._keydownHandler) window.removeEventListener('keydown', el._keydownHandler);
       if (el.parentNode) el.parentNode.removeChild(el);
     });
     // Remove any lingering toast elements
