@@ -583,7 +583,8 @@ export class Game {
     for (const pocket of this.table.getPocketPositions()) {
       const dx = x - pocket.x;
       const dz = z - pocket.z;
-      if (dx * dx + dz * dz < (this.tableProfile.pocketRadius + BALL.radius * 0.45) ** 2) {
+      const avoidRadius = pocket.radius + BALL.radius * 0.45;
+      if (dx * dx + dz * dz < avoidRadius * avoidRadius) {
         return false;
       }
     }

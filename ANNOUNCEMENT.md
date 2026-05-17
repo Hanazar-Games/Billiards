@@ -1,3 +1,23 @@
+# 3D Billiards v1.7.3 — Latest Update
+
+## What's New in v1.7.3
+
+### 🎱 Pocket System Overhaul — 袋口系统重构
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **不同位置袋口大小** | 支持 `cornerPocketRadius` 和 `sidePocketRadius`，角落袋和中袋可独立配置 |
+| 2 | **pool9ft/pool8ft** | corner = BALL.r×2.25, side = BALL.r×2.1（标准美式，中袋稍小） |
+| 3 | **bar7ft** | corner = BALL.r×2.35, side = BALL.r×2.2（酒吧台更宽松） |
+| 4 | **chinese8** | corner = BALL.r×1.95, side = BALL.r×1.75（中式八球，中袋明显更小） |
+| 5 | **snooker12ft** | corner = BALL.r×1.7, side = BALL.r×1.5（斯诺克风格） |
+| 6 | **视觉-检测一致** | `checkPockets` 和 `_isNearPocketMouth` 统一使用 `pocket.radius + pocketDetectMargin`，消除 0.95 不一致因子 |
+| 7 | **检测使用 body.position** | `checkPockets` 从 `ball.mesh.position` 改为 `ball.body.position`，更准确 |
+| 8 | **config.js 清理** | 移除未被引用的 `POCKET` 死代码常量 |
+| 9 | **公平性注释** | TableProfiles 注释明确列出 `cornerPocketRadius` / `sidePocketRadius` 为网络同步参数 |
+
+---
+
 # 3D Billiards v1.7.2 — Latest Update
 
 ## What's New in v1.7.2

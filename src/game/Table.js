@@ -126,8 +126,11 @@ export class Table {
     const cy = BALL.radius;
     const ch = BALL.radius;
 
-    const cornerGap = this.profile.pocketRadius * 2.25;
-    const sideGap = this.profile.pocketRadius * 2.65;
+    const cornerR = this.profile.cornerPocketRadius ?? this.profile.pocketRadius;
+    const sideR = this.profile.sidePocketRadius ?? this.profile.pocketRadius;
+
+    const cornerGap = cornerR * 2.25;
+    const sideGap = sideR * 2.65;
 
     const shortRailLen = this.profile.width - cornerGap * 2;
     this.addCushion(
@@ -322,13 +325,23 @@ export class Table {
 
     this.pocketPositions = [];
 
-    for (const [x, y, z] of positions) {
-      const pocketGeo = new THREE.CylinderGeometry(this.profile.pocketRadius, this.profile.pocketRadius, this.profile.height + 4, 24);
+    for (let i = 0; i < positions.length; i++) {
+      const [x, y, z] = positions[i];
+      const isCorner = i === 0 || i === 1 || i === 4 || i === 5;
+      const radius = isCorner
+        ? (this.profile.cornerPocketRadius ?? this.profile.pocketRadius)
+        : (this.profile.sidePocketRadius ?? this.profile.pocketRadius);
+
+      const pocketGeo = new THREE.CylinderGeometry(radius, radius, this.profile.height + 4, 24);
       const mesh = new THREE.Mesh(pocketGeo, pocketMat);
       mesh.position.set(x, y - 2, z);
       mesh.receiveShadow = true;
       this.meshGroup.add(mesh);
-      this.pocketPositions.push(new THREE.Vector3(x, y, z));
+
+      const pos = new THREE.Vector3(x, y, z);
+      pos.radius = radius;
+      pos.type = isCorner ? 'corner' : 'side';
+      this.pocketPositions.push(pos);
     }
   }
 
@@ -348,7 +361,10 @@ export class Table {
     const halfW = this.profile.width / 2;
     const halfD = this.profile.depth / 2;
 
-    const cornerGap = this.profile.pocketRadius * 2.9;
+    const cornerR = this.profile.cornerPocketRadius ?? this.profile.pocketRadius;
+    const sideR = this.profile.sidePocketRadius ?? this.profile.pocketRadius;
+
+    const cornerGap = cornerR * 2.9;
     const shortRailLen = this.profile.width - cornerGap * 2;
 
     const rail1 = new THREE.Mesh(new THREE.BoxGeometry(shortRailLen, railH, railW), railMat);
@@ -382,7 +398,7 @@ export class Table {
     roundShort2.position.set(0, railH + roundTubeR + 0.1, halfD + railW / 2 - roundTubeR);
     this.meshGroup.add(roundShort2);
 
-    const sideGap = this.profile.pocketRadius * 3.05;
+    const sideGap = sideR * 3.05;
     const sideRailLen = (this.profile.depth - sideGap) / 2;
     const sideZ = sideGap / 2 + sideRailLen / 2;
     const sideX = [-halfW - railW / 2, halfW + railW / 2];
@@ -427,9 +443,11 @@ export class Table {
     });
     const halfW = this.profile.width / 2;
     const halfD = this.profile.depth / 2;
-    const cornerGap = this.profile.pocketRadius * 3.0;
+    const cornerR = this.profile.cornerPocketRadius ?? this.profile.pocketRadius;
+    const sideR = this.profile.sidePocketRadius ?? this.profile.pocketRadius;
+    const cornerGap = cornerR * 3.0;
     const shortLen = this.profile.width - cornerGap * 2;
-    const sideGap = this.profile.pocketRadius * 3.1;
+    const sideGap = sideR * 3.1;
     const sideLen = (this.profile.depth - sideGap) / 2;
     const sideZ = sideGap / 2 + sideLen / 2;
 
@@ -542,8 +560,10 @@ export class Table {
     });
 
     for (const pocket of this.pocketPositions) {
+      const r = pocket.radius;
+
       const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(this.profile.pocketRadius * 1.12, 1.65, 12, 48),
+        new THREE.TorusGeometry(r * 1.12, 1.65, 12, 48),
         ringMat
       );
       ring.position.set(pocket.x, 1.1, pocket.z);
@@ -552,7 +572,7 @@ export class Table {
       this.meshGroup.add(ring);
 
       const facing = new THREE.Mesh(
-        new THREE.TorusGeometry(this.profile.pocketRadius * 1.32, 2.4, 10, 48),
+        new THREE.TorusGeometry(r * 1.32, 2.4, 10, 48),
         leatherMat
       );
       facing.position.set(pocket.x, 0.35, pocket.z);
@@ -561,7 +581,7 @@ export class Table {
       this.meshGroup.add(facing);
 
       const skirt = new THREE.Mesh(
-        new THREE.TorusGeometry(this.profile.pocketRadius * 1.25, 1.6, 10, 48),
+        new THREE.TorusGeometry(r * 1.25, 1.6, 10, 48),
         leatherMat
       );
       skirt.position.set(pocket.x, 0.02, pocket.z);
@@ -570,7 +590,7 @@ export class Table {
       this.meshGroup.add(skirt);
 
       const drop = new THREE.Mesh(
-        new THREE.CylinderGeometry(this.profile.pocketRadius * 0.96, this.profile.pocketRadius * 0.7, 16, 36),
+        new THREE.CylinderGeometry(r * 0.96, r * 0.7, 16, 36),
         linerMat
       );
       drop.position.set(pocket.x, -8, pocket.z);
@@ -578,7 +598,7 @@ export class Table {
       this.meshGroup.add(drop);
 
       const cup = new THREE.Mesh(
-        new THREE.CylinderGeometry(this.profile.pocketRadius * 0.7, this.profile.pocketRadius * 0.52, 8, 32),
+        new THREE.CylinderGeometry(r * 0.7, r * 0.52, 8, 32),
         cupMat
       );
       cup.position.set(pocket.x, -19, pocket.z);
@@ -605,7 +625,7 @@ export class Table {
       const count = 5;
       for (let i = 0; i < count; i++) {
         const t = (i + 1) / (count + 1);
-        const radius = this.profile.pocketRadius * (0.85 - t * 0.45);
+        const radius = pocket.radius * (0.85 - t * 0.45);
         const y = -2 - t * 14;
         const tube = 0.7 - t * 0.35;
 
@@ -638,7 +658,10 @@ export class Table {
       this.meshGroup.add(jaw);
     };
 
-    const inset = this.profile.pocketRadius * 0.95;
+    const cornerR = this.profile.cornerPocketRadius ?? this.profile.pocketRadius;
+    const sideR = this.profile.sidePocketRadius ?? this.profile.pocketRadius;
+
+    const inset = cornerR * 0.95;
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
         addJaw(sx * (halfW - inset * 0.52), sz * (halfD + 2.8), 0, 13);
@@ -647,8 +670,8 @@ export class Table {
     }
 
     for (const sx of [-1, 1]) {
-      addJaw(sx * (halfW + 2.8), -this.profile.pocketRadius * 1.35, Math.PI / 2, 15);
-      addJaw(sx * (halfW + 2.8), this.profile.pocketRadius * 1.35, Math.PI / 2, 15);
+      addJaw(sx * (halfW + 2.8), -sideR * 1.35, Math.PI / 2, 15);
+      addJaw(sx * (halfW + 2.8), sideR * 1.35, Math.PI / 2, 15);
     }
   }
 

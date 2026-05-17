@@ -42,12 +42,6 @@ export const BALL = {
   sideSpinDecay: 0.45,
 };
 
-// Pocket radius = ~1.5x ball radius (standard pool)
-export const POCKET = {
-  radius: BALL.radius * 2.25,  // ~13.1 cm diameter — realistic for 8-ball pool
-  detectMargin: BALL.radius * 1.1,
-};
-
 // Physics world
 export const PHYSICS = {
   gravity: new Float32Array([0, -9.82 * SCALE, 0]),

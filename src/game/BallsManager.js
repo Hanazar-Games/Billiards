@@ -458,13 +458,12 @@ export class BallsManager {
 
   _isNearPocketMouth(ball, pocketPositions) {
     const pos = ball.body.position;
-    const pocketPassRadius = this.profile.pocketRadius + this.profile.pocketDetectMargin * 0.95;
-    const passSq = pocketPassRadius * pocketPassRadius;
 
     for (const pocket of pocketPositions) {
+      const pocketPassRadius = pocket.radius + this.profile.pocketDetectMargin;
       const dx = pos.x - pocket.x;
       const dz = pos.z - pocket.z;
-      if (dx * dx + dz * dz <= passSq) {
+      if (dx * dx + dz * dz <= pocketPassRadius * pocketPassRadius) {
         return true;
       }
     }
@@ -490,14 +489,14 @@ export class BallsManager {
    */
   checkPockets(pocketPositions) {
     const pocketed = [];
-    const detectDist = this.profile.pocketRadius + this.profile.pocketDetectMargin;
 
     for (const ball of this.balls) {
       if (ball.pocketed) continue;
       for (let pi = 0; pi < pocketPositions.length; pi++) {
         const pocket = pocketPositions[pi];
-        const dx = ball.mesh.position.x - pocket.x;
-        const dz = ball.mesh.position.z - pocket.z;
+        const detectDist = pocket.radius + this.profile.pocketDetectMargin;
+        const dx = ball.body.position.x - pocket.x;
+        const dz = ball.body.position.z - pocket.z;
         const distSq = dx * dx + dz * dz;
         if (distSq < detectDist * detectDist) {
           ball.remove();

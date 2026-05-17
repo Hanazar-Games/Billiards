@@ -15,13 +15,10 @@ function cm(v) {
  * identical across all clients in a networked game.  They are chosen
  * by the host and must not be overridden by local player settings:
  *   - width, depth, height, cushionHeight, cushionWidth
- *   - pocketRadius, pocketDetectMargin
+ *   - pocketRadius, cornerPocketRadius, sidePocketRadius, pocketDetectMargin
  *   - ballSet (future)
  *
  * Visual-only fields (feltColor, woodColor, etc.) may be personalised.
- *
- * TODO: cornerPocketRadius / sidePocketRadius are not yet supported;
- * all 6 pockets currently share the same radius.
  */
 export const TABLE_PROFILES = {
   pool9ft: {
@@ -34,6 +31,8 @@ export const TABLE_PROFILES = {
     cushionHeight: 5,
     cushionWidth: 4,
     pocketRadius: BALL.radius * 2.25,
+    cornerPocketRadius: BALL.radius * 2.25,
+    sidePocketRadius: BALL.radius * 2.1,
     pocketDetectMargin: BALL.radius,
     pocketStyle: 'american',
     ballSet: 'pool57',
@@ -52,6 +51,8 @@ export const TABLE_PROFILES = {
     cushionHeight: 5,
     cushionWidth: 4,
     pocketRadius: BALL.radius * 2.25,
+    cornerPocketRadius: BALL.radius * 2.25,
+    sidePocketRadius: BALL.radius * 2.1,
     pocketDetectMargin: BALL.radius,
     pocketStyle: 'american',
     ballSet: 'pool57',
@@ -70,6 +71,8 @@ export const TABLE_PROFILES = {
     cushionHeight: 5,
     cushionWidth: 4,
     pocketRadius: BALL.radius * 2.35,
+    cornerPocketRadius: BALL.radius * 2.35,
+    sidePocketRadius: BALL.radius * 2.2,
     pocketDetectMargin: BALL.radius,
     pocketStyle: 'american_bar',
     ballSet: 'pool57',
@@ -88,6 +91,8 @@ export const TABLE_PROFILES = {
     cushionHeight: 5,
     cushionWidth: 4,
     pocketRadius: BALL.radius * 1.95,
+    cornerPocketRadius: BALL.radius * 1.95,
+    sidePocketRadius: BALL.radius * 1.75,
     pocketDetectMargin: BALL.radius,
     pocketStyle: 'chinese',
     ballSet: 'pool57',
@@ -106,6 +111,8 @@ export const TABLE_PROFILES = {
     cushionHeight: 5,
     cushionWidth: 4,
     pocketRadius: BALL.radius * 1.7,
+    cornerPocketRadius: BALL.radius * 1.7,
+    sidePocketRadius: BALL.radius * 1.5,
     pocketDetectMargin: BALL.radius,
     pocketStyle: 'snooker',
     ballSet: 'snooker52',
@@ -125,6 +132,8 @@ export const TABLE_PROFILES = {
     cushionHeight: 5,
     cushionWidth: 4,
     pocketRadius: 0,
+    cornerPocketRadius: 0,
+    sidePocketRadius: 0,
     pocketDetectMargin: 0,
     pocketStyle: 'none',
     ballSet: 'carom61',
@@ -134,6 +143,14 @@ export const TABLE_PROFILES = {
     reason: 'future mode, requires pocketless table and carom rules',
   },
 };
+
+export function getCornerPocketRadius(profile) {
+  return profile.cornerPocketRadius ?? profile.pocketRadius;
+}
+
+export function getSidePocketRadius(profile) {
+  return profile.sidePocketRadius ?? profile.pocketRadius;
+}
 
 export function getTableProfile(id) {
   return TABLE_PROFILES[id] || TABLE_PROFILES.pool9ft;
