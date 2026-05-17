@@ -2081,13 +2081,16 @@ export class Game {
     const status = this.rules ? this.rules.getStatus() : null;
     const p2Name = this.aiEnabled ? 'AI' : (this.networkPlayer2Name || '玩家 2');
     const p1Name = this.networkPlayer1Name || '玩家 1';
+    const is9Ball = this.mode === '9ball';
+    const defaultRemaining = is9Ball ? 9 : 7;
     this.ui.setPlayerStats({
       p1Name,
       p1Group: status?.player1Group ?? null,
-      p1Remaining: status?.player1Remaining ?? 7,
+      p1Remaining: status?.player1Remaining ?? defaultRemaining,
       p2Name,
       p2Group: status?.player2Group ?? null,
-      p2Remaining: status?.player2Remaining ?? 7,
+      p2Remaining: status?.player2Remaining ?? defaultRemaining,
+      mode: this.mode,
     });
   }
 
@@ -2253,7 +2256,7 @@ export class Game {
     if (this.inGameSettings) {
       this.inGameSettings.hide();
     }
-    if (this.paused) {
+    if (this.paused && this.state !== 'GAME_OVER') {
       this.ui.showPauseMenu();
     }
   }
@@ -2548,6 +2551,8 @@ export class Game {
     this._enterAimState({ resetPower: true, showCue: true, showTrajectory: true, updateAim: false });
     this.power = 0;
     this.ui.setPower(0);
+    this.recorder.reset();
+    this.gameStartTime = performance.now();
   }
 
   dispose() {
@@ -2744,6 +2749,12 @@ export class Game {
       this._challengeEndTimeout = null;
     }
     this._challengeEnding = false;
+
+    // Cancel network disconnect timer
+    if (this._netDisconnectTimer) {
+      clearTimeout(this._netDisconnectTimer);
+      this._netDisconnectTimer = null;
+    }
 
     // Clean up in-game settings screen
     if (this.inGameSettings) {

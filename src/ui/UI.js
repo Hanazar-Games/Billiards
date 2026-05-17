@@ -288,22 +288,31 @@ export class UI {
     }
   }
 
-  setPlayerStats({ p1Name, p1Group, p1Remaining, p2Name, p2Group, p2Remaining }) {
+  setPlayerStats({ p1Name, p1Group, p1Remaining, p2Name, p2Group, p2Remaining, mode }) {
     if (this._hudP1Name) this._hudP1Name.textContent = p1Name || '玩家 1';
     if (this._hudP2Name) this._hudP2Name.textContent = p2Name || '玩家 2';
 
     const groupLabel = (g) => {
-      if (!g) return '未分组';
+      if (!g) return '';
       return g === 'solid' ? '● 全色' : '◯ 花色';
     };
 
+    // 9-ball mode: show target ball instead of group
+    const is9Ball = mode === '9ball';
+
     if (this._hudP1Detail) {
-      const r1 = Number.isFinite(p1Remaining) ? p1Remaining : 7;
-      this._hudP1Detail.innerHTML = `<span class="hud-group">${groupLabel(p1Group)}</span><span class="hud-remain">剩 ${r1}</span>`;
+      const r1 = Number.isFinite(p1Remaining) ? p1Remaining : (is9Ball ? 9 : 7);
+      const group1 = is9Ball ? '' : groupLabel(p1Group);
+      this._hudP1Detail.innerHTML = group1
+        ? `<span class="hud-group">${group1}</span><span class="hud-remain">剩 ${r1}</span>`
+        : `<span class="hud-remain">剩 ${r1}</span>`;
     }
     if (this._hudP2Detail) {
-      const r2 = Number.isFinite(p2Remaining) ? p2Remaining : 7;
-      this._hudP2Detail.innerHTML = `<span class="hud-group">${groupLabel(p2Group)}</span><span class="hud-remain">剩 ${r2}</span>`;
+      const r2 = Number.isFinite(p2Remaining) ? p2Remaining : (is9Ball ? 9 : 7);
+      const group2 = is9Ball ? '' : groupLabel(p2Group);
+      this._hudP2Detail.innerHTML = group2
+        ? `<span class="hud-group">${group2}</span><span class="hud-remain">剩 ${r2}</span>`
+        : `<span class="hud-remain">剩 ${r2}</span>`;
     }
   }
 

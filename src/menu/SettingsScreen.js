@@ -1064,16 +1064,20 @@ export class SettingsScreen {
         text-decoration:none;cursor:pointer;
         transition:all calc(0.2s / var(--ui-anim-speed)) ease;
       `;
-      a.onmouseenter = () => {
+      const onLinkEnter = () => {
         a.style.background = 'rgba(255,255,255,0.12)';
         a.style.borderColor = 'rgba(255,255,255,0.25)';
         a.style.color = '#fff';
       };
-      a.onmouseleave = () => {
+      const onLinkLeave = () => {
         a.style.background = 'rgba(255,255,255,0.06)';
         a.style.borderColor = 'rgba(255,255,255,0.1)';
         a.style.color = 'rgba(255,255,255,0.65)';
       };
+      a.addEventListener('mouseenter', onLinkEnter);
+      a.addEventListener('mouseleave', onLinkLeave);
+      this._listeners.push({ el: a, type: 'mouseenter', fn: onLinkEnter });
+      this._listeners.push({ el: a, type: 'mouseleave', fn: onLinkLeave });
       return a;
     };
 
@@ -1836,7 +1840,20 @@ export class SettingsScreen {
       confirmBtn.style.color = '#ff8a9a';
     };
 
-    const close = () => { if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); };
+    const close = () => {
+      if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        close();
+        if (onCancel) onCancel();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
 
     cancelBtn.onclick = () => { close(); if (onCancel) onCancel(); };
     confirmBtn.onclick = () => { close(); onConfirm(); };

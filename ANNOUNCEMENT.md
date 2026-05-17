@@ -1,3 +1,23 @@
+# 3D Billiards v1.7.4 — Latest Update
+
+## What's New in v1.7.4
+
+### 🔧 UI/UX/SFX/BGM Bug Fixes & Improvements
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **主菜单版本号动态化** | `MainMenuScreen` 使用 `VERSION_TAG` 替代硬编码 `v1.6.1` |
+| 2 | **BGM 自动恢复** | `_initAudio()` 从 `settings` 同步 `soundEnabled`，解决声音设置开启但 BGM 不自动播放的问题 |
+| 3 | **面板切换一致性** | 6 个 `_show*` 方法补充隐藏 `lanRoomPanel` / `matchSetupPanel`，防止面板堆叠 |
+| 4 | **设置确认框 Escape** | `_showConfirmDialog` 支持 Escape 键关闭，并阻止事件冒泡避免误触游戏内 Escape 处理 |
+| 5 | **About 链接事件清理** | 使用 `addEventListener` / `removeEventListener` 管理链接 hover，避免 destroy 时内存泄漏 |
+| 6 | **Game dispose 完整性** | 补充清理 `_netDisconnectTimer`，防止网络断开后返回菜单的定时器残留 |
+| 7 | **游戏结束状态保护** | `_onInGameSettingsClose` 增加 `state !== 'GAME_OVER'` 检查，避免游戏结束时关闭设置意外恢复暂停菜单 |
+| 8 | **训练模式重置完整性** | `_resetTrainerDrill` 补充 `recorder.reset()` 和 `gameStartTime` 重置 |
+| 9 | **9-ball HUD 优化** | `setPlayerStats` 在 9-ball 模式下隐藏分组标签（改为仅显示剩余球数），默认剩余球数改为 9 |
+
+---
+
 # 3D Billiards v1.7.3 — Latest Update
 
 ## What's New in v1.7.3

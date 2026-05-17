@@ -1,4 +1,5 @@
 import { animMs } from '../core/AnimSpeed.js';
+import { VERSION_TAG } from '../core/Version.js';
 
 /**
  * MainMenuScreen — The primary entry screen with mode selection.
@@ -146,7 +147,7 @@ export class MainMenuScreen {
 
     // Version
     const version = document.createElement('div');
-    version.textContent = 'v1.6.1';
+    version.textContent = VERSION_TAG;
     version.style.cssText = `
       position: absolute; bottom: 44px; left: 40px;
       font-size: 12px; color: rgba(244,247,244,0.32);
