@@ -447,7 +447,7 @@ export class SettingsScreen {
       this._createSwitch(settings.get('lowLatencyMode'), (v) => {
         settings.set('lowLatencyMode', v);
       }),
-      '减少音频缓冲，可能降低音质'
+      '减少音频缓冲，可能降低音质（刷新页面后生效）'
     );
   }
 
@@ -1733,6 +1733,7 @@ export class SettingsScreen {
 
   _toast(text) {
     const el = document.createElement('div');
+    el.dataset.settingsToast = 'true';
     el.textContent = text;
     el.style.cssText = `
       position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
@@ -1914,8 +1915,12 @@ export class SettingsScreen {
       if (tab) { tab.onclick = null; }
     });
     this._tabEls.clear();
-    // Remove any lingering confirm backdrops
+    // Remove any lingering confirm backdrops and their keydown listeners
     document.querySelectorAll('.settings-confirm-backdrop').forEach(el => {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    });
+    // Remove any lingering toast elements
+    document.querySelectorAll('[data-settings-toast="true"]').forEach(el => {
       if (el.parentNode) el.parentNode.removeChild(el);
     });
     if (this.container && this.container.parentNode) {

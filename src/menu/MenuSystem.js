@@ -661,6 +661,7 @@ export class MenuSystem {
     if (this.trainerPanel) this.trainerPanel.hide();
     if (this.trainerResult) this.trainerResult.hide();
     if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
+    if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; }
     this.lanRoomPanel = new LanRoomPanel(
       (client, mode, tableProfileId) => this._startNetworkGame(client, mode, tableProfileId),
       () => this._showMainMenu()

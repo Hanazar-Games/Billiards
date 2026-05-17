@@ -274,7 +274,7 @@ export class AudioManager {
     return true;
   }
 
-  playCueHit(power = 0.5) {
+  playCueHit(power = 50) {
     if (!this._canPlay()) return;
     this.resume();
 

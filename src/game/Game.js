@@ -1526,7 +1526,6 @@ export class Game {
       ball.geometry.dispose();
       ball.material.dispose();
     }
-
     this._ballCollideListeners.clear();
     this.ballsManager = new BallsManager(this.physics, this.tableProfile);
     this.ballsManager.createBalls();
@@ -2600,12 +2599,6 @@ export class Game {
     if (this._onKeyDown) {
       window.removeEventListener('keydown', this._onKeyDown);
       this._onKeyDown = null;
-    }
-
-    // Destroy achievement panel
-    if (this.achievementPanel) {
-      this.achievementPanel.destroy();
-      this.achievementPanel = null;
     }
 
     // Remove all balls and their collide listeners

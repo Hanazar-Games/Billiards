@@ -1,4 +1,23 @@
-# 3D Billiards v1.7.6 — Latest Update
+# 3D Billiards v1.7.7 — Latest Update
+
+## What's New in v1.7.7
+
+### 🔧 UI/UX/SFX/BGM 深度修复
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **球号标签显示修复** | 补充 CSS 变量 `--ball-labels-visible` 缺失的样式规则，设置中「显示球号标签」开关现可正常工作 |
+| 2 | **设置确认框 Escape 泄漏修复** | `SettingsScreen.destroy()` 现在会正确清理确认对话框的 `keydown` 监听器，避免返回菜单后 Escape 键持续触发已销毁对象的逻辑 |
+| 3 | **Toast 元素泄漏修复** | `SettingsScreen.destroy()` 现在会清理所有残留的 toast DOM 元素，防止设置面板关闭后浮动提示短暂残留 |
+| 4 | **击球音效默认参数修正** | `AudioManager.playCueHit()` 默认参数从 `0.5` 修正为 `50`，与实际的 0–100 力度范围一致 |
+| 5 | **低延迟模式提示优化** | 音频设置中「低延迟模式」增加「刷新页面后生效」提示，避免用户误以为切换后无效果 |
+| 6 | **局域网房间面板重复创建修复** | `MenuSystem._showLanRoom()` 现在会先销毁旧的 `LanRoomPanel` 再创建新的，防止重复面板和事件残留 |
+| 7 | **Game dispose 代码清理** | 移除 `Game.dispose()` 中对 `achievementPanel` 的重复 `destroy()` 调用 |
+| 8 | **重置游戏监听器清理** | `Game._resetGame()` 现在会在清空 listener Map 前正确移除旧球的 `collide` 监听器，防止 physics body 残留引用 |
+
+---
+
+# 3D Billiards v1.7.6
 
 ## What's New in v1.7.6
 
