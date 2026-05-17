@@ -184,8 +184,8 @@ export class MenuSystem {
     if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerPanel) this.trainerPanel.hide();
     if (this.trainerResult) this.trainerResult.hide();
-    if (this.lanRoomPanel) this.lanRoomPanel.hide?.();
-    if (this.matchSetupPanel) this.matchSetupPanel.hide?.();
+    if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
+    if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
     this.settingsScreen.show();
   }
 
@@ -197,8 +197,8 @@ export class MenuSystem {
     if (this.challengePanel) this.challengePanel.hide();
     if (this.trainerPanel) this.trainerPanel.hide();
     if (this.trainerResult) this.trainerResult.hide();
-    if (this.lanRoomPanel) this.lanRoomPanel.hide?.();
-    if (this.matchSetupPanel) this.matchSetupPanel.hide?.();
+    if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
+    if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
     this.mainMenu.show();
   }
 
@@ -210,8 +210,8 @@ export class MenuSystem {
     if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerPanel) this.trainerPanel.hide();
     if (this.trainerResult) this.trainerResult.hide();
-    if (this.lanRoomPanel) this.lanRoomPanel.hide?.();
-    if (this.matchSetupPanel) this.matchSetupPanel.hide?.();
+    if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
+    if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
     this.achievementPanel.showWall();
   }
 
@@ -223,8 +223,8 @@ export class MenuSystem {
     if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerPanel) this.trainerPanel.hide();
     if (this.trainerResult) this.trainerResult.hide();
-    if (this.lanRoomPanel) this.lanRoomPanel.hide?.();
-    if (this.matchSetupPanel) this.matchSetupPanel.hide?.();
+    if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
+    if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
     if (!this.replayPanel) {
       this.replayPanel = new ReplayPanel(
         this.replayLibrary,
@@ -245,8 +245,8 @@ export class MenuSystem {
     if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerPanel) this.trainerPanel.hide();
     if (this.trainerResult) this.trainerResult.hide();
-    if (this.lanRoomPanel) this.lanRoomPanel.hide?.();
-    if (this.matchSetupPanel) this.matchSetupPanel.hide?.();
+    if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
+    if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
     if (!this.challengePanel) {
       this.challengePanel = new ChallengePanel(
         (challenge) => this._startChallenge(challenge),
@@ -265,8 +265,8 @@ export class MenuSystem {
     if (this.challengePanel) this.challengePanel.hide();
     if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerResult) this.trainerResult.hide();
-    if (this.lanRoomPanel) this.lanRoomPanel.hide?.();
-    if (this.matchSetupPanel) this.matchSetupPanel.hide?.();
+    if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
+    if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
     if (!this.trainerPanel) {
       this.trainerPanel = new TrainerPanel(
         (drill) => this._startTrainer(drill),
@@ -660,7 +660,7 @@ export class MenuSystem {
     if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerPanel) this.trainerPanel.hide();
     if (this.trainerResult) this.trainerResult.hide();
-    if (this.matchSetupPanel) this.matchSetupPanel.hide?.();
+    if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
     this.lanRoomPanel = new LanRoomPanel(
       (client, mode, tableProfileId) => this._startNetworkGame(client, mode, tableProfileId),
       () => this._showMainMenu()
@@ -685,7 +685,7 @@ export class MenuSystem {
     if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerPanel) this.trainerPanel.hide();
     if (this.trainerResult) this.trainerResult.hide();
-    if (this.lanRoomPanel) this.lanRoomPanel.hide?.();
+    if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
     this.matchSetupPanel = new MatchSetupPanel(
       (config) => this._startMatchGame(config),
       () => this._showMainMenu()

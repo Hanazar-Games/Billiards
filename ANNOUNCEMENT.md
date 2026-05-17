@@ -1,6 +1,6 @@
-# 3D Billiards v1.7.4 — Latest Update
+# 3D Billiards v1.7.6 — Latest Update
 
-## What's New in v1.7.4
+## What's New in v1.7.6
 
 ### 🔧 UI/UX/SFX/BGM Bug Fixes & Improvements
 

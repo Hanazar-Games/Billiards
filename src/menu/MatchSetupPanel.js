@@ -226,7 +226,7 @@ export class MatchSetupPanel {
     this._tableSelect = newWrap;
   }
 
-  hide() {
+  hide(skipCallback = false) {
     if (!this.container) return;
     this.container.style.opacity = '0';
     if (this._fadeTimer) clearTimeout(this._fadeTimer);
@@ -235,7 +235,7 @@ export class MatchSetupPanel {
         this.container.parentNode.removeChild(this.container);
       }
       this.container = null;
-      if (this.onCancel) this.onCancel();
+      if (!skipCallback && this.onCancel) this.onCancel();
     }, animMs(400));
   }
 

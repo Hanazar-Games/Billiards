@@ -324,7 +324,7 @@ export class LanRoomPanel {
     this._state = 'idle';
   }
 
-  hide() {
+  hide(skipCallback = false) {
     if (this.client) {
       this.client.leaveRoom();
       this.client = null;
@@ -337,7 +337,7 @@ export class LanRoomPanel {
         this.container.parentNode.removeChild(this.container);
       }
       this.container = null;
-      if (this.onCancel) this.onCancel();
+      if (!skipCallback && this.onCancel) this.onCancel();
     }, animMs(400));
   }
 
