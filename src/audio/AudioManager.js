@@ -94,10 +94,10 @@ export class AudioManager {
 
     // Pre-emptively resume on any user gesture
     this._gestureHandler = () => this.resume();
-    document.addEventListener('click', this._gestureHandler, { once: true, passive: true });
-    document.addEventListener('keydown', this._gestureHandler, { once: true, passive: true });
-    document.addEventListener('touchstart', this._gestureHandler, { once: true, passive: true });
-    document.addEventListener('pointerdown', this._gestureHandler, { once: true, passive: true });
+    document.addEventListener('click', this._gestureHandler, { passive: true });
+    document.addEventListener('keydown', this._gestureHandler, { passive: true });
+    document.addEventListener('touchstart', this._gestureHandler, { passive: true });
+    document.addEventListener('pointerdown', this._gestureHandler, { passive: true });
 
     // Pause BGM when tab is hidden to save battery (respect muteWhenUnfocused)
     this._visibilityHandler = () => {

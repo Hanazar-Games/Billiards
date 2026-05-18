@@ -748,6 +748,7 @@ export class Game {
       }
       this.powerLabel?.show(force);
       this.trails.startRecording(cueBall);
+      this.recorder.start(this.ballsManager, this.mode, force, this.cueTipOffset, this.tableProfileId);
       return;
     }
 
@@ -1113,6 +1114,13 @@ export class Game {
   }
 
   _onTurnTimerExpired() {
+    // Network clients should not locally resolve turn timeouts — host is authoritative
+    if (this.networkMode && this.networkRole === 'client') {
+      this.ui.setMessage('⏰ 回合时间到，等待房主确认…', 2000);
+      this._turnTimerRemaining = 0;
+      this._turnTimerRunning = false;
+      return;
+    }
     // Foul: switch to other player with ball-in-hand
     const otherPlayer = this.currentPlayer === 1 ? 2 : 1;
     const cName = this.currentPlayer === 1 ? this.networkPlayer1Name : this.networkPlayer2Name;
@@ -2753,12 +2761,14 @@ export class Game {
       if (this._onNetPushOutDeclare) this.networkController.removeEventListener('pushOutDeclare', this._onNetPushOutDeclare);
       if (this._onNetPushOutChoice) this.networkController.removeEventListener('pushOutChoice', this._onNetPushOutChoice);
       if (this._onNetDisconnected) this.networkController.removeEventListener('disconnected', this._onNetDisconnected);
+      if (this._onNetRoomClosed) this.networkController.removeEventListener('roomClosed', this._onNetRoomClosed);
       this._onStateSnapshot = null;
       this._onNetShotInput = null;
       this._onNetPocketEvent = null;
       this._onNetPushOutDeclare = null;
       this._onNetPushOutChoice = null;
       this._onNetDisconnected = null;
+      this._onNetRoomClosed = null;
     }
 
     // Remove event listeners

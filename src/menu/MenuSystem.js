@@ -349,7 +349,7 @@ export class MenuSystem {
         this.game.update(dt);
       },
       render: () => {
-        this.game.render(this.renderer);
+        if (this.game) this.game.render(this.renderer);
         this.renderer.render();
       },
     });
@@ -486,7 +486,7 @@ export class MenuSystem {
         this.game.update(dt);
       },
       render: () => {
-        this.game.render(this.renderer);
+        if (this.game) this.game.render(this.renderer);
         this.renderer.render();
       },
     });
@@ -649,7 +649,7 @@ export class MenuSystem {
         this.game.update(dt);
       },
       render: () => {
-        this.game.render(this.renderer);
+        if (this.game) this.game.render(this.renderer);
         this.renderer.render();
       },
     });
@@ -679,7 +679,7 @@ export class MenuSystem {
   async _startNetworkGame(client, mode, tableProfileId = null) {
     const role = client.isHost ? 'host' : 'client';
     const localId = client.playerId || 1;
-    await this._startGame('local2p', client, role, localId, null, tableProfileId);
+    await this._startGame(mode, client, role, localId, null, tableProfileId);
   }
 
   // ── Local Match Mode ──
@@ -766,6 +766,7 @@ export class MenuSystem {
         case 'freeplay':
           return { mode: 'freeplay', aiEnabled: false };
         case 'local2p':
+        case '8ball':
           return { mode: 'local2p', aiEnabled: false };
         case 'vsai':
           return { mode: 'vsai', aiEnabled: true, aiDifficulty: 'normal' };

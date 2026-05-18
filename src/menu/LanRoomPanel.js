@@ -173,6 +173,12 @@ export class LanRoomPanel {
     return btn;
   }
 
+  _setButtonsDisabled(disabled) {
+    [this._createBtn, this._joinBtn, this._startBtn, this._cancelBtn].forEach((btn) => {
+      if (btn) { btn.disabled = disabled; btn.style.opacity = disabled ? '0.5' : '1'; btn.style.pointerEvents = disabled ? 'none' : 'auto'; }
+    });
+  }
+
   async _connect() {
     this._setStatus('正在连接服务器…');
     this.client = new NetworkClient();
@@ -226,6 +232,7 @@ export class LanRoomPanel {
       this._setStatus('尚未连接到服务器');
       return;
     }
+    this._setButtonsDisabled(true);
     this.client.createRoom();
     this._setStatus('正在创建房间…');
     this._state = 'creating';
@@ -243,6 +250,7 @@ export class LanRoomPanel {
     this._startBtn.style.display = 'inline-block';
     if (this._tableSelectWrap) this._tableSelectWrap.style.display = 'flex';
     this._updatePlayerList(detail.playerList);
+    this._setButtonsDisabled(false);
     this._state = 'ready';
   }
 
@@ -256,6 +264,7 @@ export class LanRoomPanel {
       this._setStatus('尚未连接到服务器');
       return;
     }
+    this._setButtonsDisabled(true);
     this.client.joinRoom(roomId);
     this._setStatus('正在加入房间…');
     this._state = 'joining';
@@ -274,11 +283,13 @@ export class LanRoomPanel {
     this._startBtn.style.display = 'none';
     if (this._tableSelectWrap) this._tableSelectWrap.style.display = 'none';
     this._updatePlayerList(detail.playerList);
+    this._setButtonsDisabled(false);
     this._state = 'joined';
   }
 
   _onStartGame() {
     if (!this.client || !this.client.isHost) return;
+    this._setButtonsDisabled(true);
     const tableProfileId = this._tableSelect?.value || 'pool9ft';
     this.client.startGame('8ball', tableProfileId);
     // Local callback is triggered by startGame event as well
@@ -339,6 +350,7 @@ export class LanRoomPanel {
     this._joinRow.style.display = 'flex';
     this._startBtn.style.display = 'none';
     this._playerListEl.innerHTML = '';
+    this._setButtonsDisabled(false);
     this._state = 'idle';
   }
 

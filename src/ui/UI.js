@@ -435,11 +435,15 @@ export class UI {
   showFloatingText(text, screenX, screenY, color = '#d8b15f') {
     const uiLayer = document.getElementById('ui-layer');
     if (!uiLayer) return;
+    const vw = window.innerWidth || 1;
+    const vh = window.innerHeight || 1;
+    const clampedX = Math.max(0, Math.min(vw, screenX));
+    const clampedY = Math.max(0, Math.min(vh, screenY));
     const el = document.createElement('div');
     el.className = 'ui-float-text';
     el.textContent = text;
     el.style.cssText = `
-      position: absolute; left: ${screenX}px; top: ${screenY}px;
+      position: absolute; left: ${clampedX}px; top: ${clampedY}px;
       transform: translate(-50%, -50%);
       font-size: 18px; font-weight: 800; color: ${color};
       text-shadow: 0 2px 8px rgba(0,0,0,0.8);

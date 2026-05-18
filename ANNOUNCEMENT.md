@@ -1,4 +1,23 @@
-# 3D Billiards v1.7.17 — Latest Update
+# 3D Billiards v1.7.18 — Latest Update
+
+## What's New in v1.7.18
+
+### 🔧 Deep Audit — Network Stability, Audio Resilience & UI Hardening
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **Game dispose 遗漏网络监听器** | `Game.dispose()` 移除了 `stateSnapshot`/`shotInput`/`pocketEvent`/`pushOutDeclare`/`pushOutChoice`/`disconnected`，但漏了 `roomClosed`。已补充移除 `roomClosed` 监听器并清空 `_onNetRoomClosed` 引用，防止销毁后 LAN 房间关闭事件仍触发已释放对象的回调 |
+| 2 | **网络客户端回合计时器越权** | `_onTurnTimerExpired()` 在网络客户端模式下仍本地切换玩家并给自由球，导致与房主状态不同步。已修复：客户端仅显示提示并停止本地计时，等待房主权威快照 |
+| 3 | **网络客户端回放录制缺失** | 局域网客户端路径的 `shoot()` 未调用 `recorder.start()`，导致客户端无法录制回放。已补充与本地路径一致的录制启动 |
+| 4 | **游戏循环 render 空指针** | `MenuSystem` 游戏循环 `render` 回调未检查 `this.game` 是否存在，极端场景下（游戏快速dispose）可能崩溃。已添加 `if (this.game)` 守卫 |
+| 5 | **音频手势恢复一次性失效** | `AudioManager` 的 click/keydown/touchstart/pointerdown 手势监听器使用 `{ once: true }`，浏览器再次挂起 AudioContext 后无法通过后续手势恢复。已移除 `{ once: true }`，保证任意手势均可尝试恢复 |
+| 6 | **浮动文字越界** | `UI.showFloatingText()` 对屏幕外坐标（如投影失败时的极端值）未做限制，文字可能飘出视口甚至产生滚动条。已添加视口边界 clamp |
+| 7 | **局域网面板按钮连击** | 创建/加入/开始按钮在异步操作期间未禁用，快速点击可导致重复请求和状态错乱。已添加 `_setButtonsDisabled()` 在操作期间锁定按钮 |
+| 8 | **局域网模式参数丢失** | `_startNetworkGame()` 硬编码 `'local2p'` 忽略了房主广播的实际 `mode`（未来 9 球联机时会导致规则错误）。已改为透传 `mode`，并在 `_getModeConfig()` 中显式处理 `'8ball'` |
+
+---
+
+# 3D Billiards v1.7.17
 
 ## What's New in v1.7.17
 
