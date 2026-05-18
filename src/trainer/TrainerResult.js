@@ -1,7 +1,7 @@
 /**
  * TrainerResult — Post-drill summary overlay for Shot Trainer mode.
  *
- * Shows stars earned, feedback, and retry/exit buttons.
+ * Shows stars earned, feedback, historical comparison, and retry/exit buttons.
  */
 export class TrainerResult {
   constructor(onRetry, onExit) {
@@ -28,7 +28,7 @@ export class TrainerResult {
     // Card
     const card = document.createElement('div');
     card.style.cssText = `
-      width: 400px; max-width: 90vw;
+      width: 420px; max-width: 90vw;
       padding: 36px;
       background: rgba(20,20,20,0.95);
       border: 1px solid rgba(255,255,255,0.15);
@@ -43,22 +43,35 @@ export class TrainerResult {
 
     // Subtitle
     this.subtitleEl = document.createElement('div');
-    this.subtitleEl.style.cssText = 'font-size: 14px; color: rgba(255,255,255,0.5); margin-bottom: 20px;';
+    this.subtitleEl.style.cssText = 'font-size: 14px; color: rgba(255,255,255,0.5); margin-bottom: 12px;';
     card.appendChild(this.subtitleEl);
+
+    // New best banner
+    this.newBestEl = document.createElement('div');
+    this.newBestEl.style.cssText = `
+      font-size: 13px; font-weight: 700; color: #ffd700;
+      background: rgba(255,215,0,0.12);
+      border: 1px solid rgba(255,215,0,0.3);
+      border-radius: 8px;
+      padding: 6px 14px;
+      margin-bottom: 16px;
+      display: none;
+    `;
+    card.appendChild(this.newBestEl);
 
     // Stars
     this.starsEl = document.createElement('div');
-    this.starsEl.style.cssText = 'font-size: 36px; color: #ffd700; margin-bottom: 24px; letter-spacing: 4px;';
+    this.starsEl.style.cssText = 'font-size: 36px; color: #ffd700; margin-bottom: 20px; letter-spacing: 4px;';
     card.appendChild(this.starsEl);
 
     // Feedback
     this.feedbackEl = document.createElement('div');
-    this.feedbackEl.style.cssText = 'font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 28px; line-height: 1.6;';
+    this.feedbackEl.style.cssText = 'font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 24px; line-height: 1.6;';
     card.appendChild(this.feedbackEl);
 
     // Stats
     this.statsEl = document.createElement('div');
-    this.statsEl.style.cssText = 'margin-bottom: 28px; text-align: left;';
+    this.statsEl.style.cssText = 'margin-bottom: 24px; text-align: left;';
     card.appendChild(this.statsEl);
 
     // Buttons
@@ -107,11 +120,24 @@ export class TrainerResult {
   show(name, completed, stars, stats = {}) {
     this.container.style.display = 'flex';
 
+    const { powerError, isNewBestStars, isNewBestPowerError, completions, prevBestStars } = stats;
+
     if (completed) {
       this.titleEl.textContent = '🎉 练习成功！';
       this.titleEl.style.color = '#00e676';
       this.starsEl.textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
       this.subtitleEl.textContent = `${name} — 获得 ${stars} 星`;
+
+      // New best banner
+      const banners = [];
+      if (isNewBestStars) banners.push('🌟 新纪录！');
+      else if (isNewBestPowerError) banners.push('🎯 最佳力度！');
+      if (banners.length > 0) {
+        this.newBestEl.textContent = banners.join('  ');
+        this.newBestEl.style.display = 'inline-block';
+      } else {
+        this.newBestEl.style.display = 'none';
+      }
 
       // Feedback text based on stars
       if (stars === 3) {
@@ -126,14 +152,20 @@ export class TrainerResult {
       this.titleEl.style.color = '#ff5252';
       this.starsEl.textContent = '☆☆☆';
       this.subtitleEl.textContent = name;
+      this.newBestEl.style.display = 'none';
       this.feedbackEl.textContent = '目标球未进袋。建议查看瞄准提示，调整击球角度和力度。';
     }
 
     // Render stats
     const rows = [];
     if (typeof stats.power === 'number') rows.push(`💪 击球力度: ${Math.round(stats.power)}%`);
+    if (typeof powerError === 'number') rows.push(`🎯 力度误差: ${powerError.toFixed(1)}` + (isNewBestPowerError ? ' (新最佳!)' : ''));
     if (typeof stats.distance === 'number') rows.push(`📏 走位偏差: ${stats.distance.toFixed(1)}cm`);
-    if (stats.attempts !== undefined) rows.push(`🎯 累计尝试: ${stats.attempts} 次`);
+    if (typeof completions === 'number') rows.push(`✅ 累计完成: ${completions} 次`);
+    if (typeof stats.attempts === 'number') rows.push(`🎯 累计尝试: ${stats.attempts} 次`);
+    if (typeof prevBestStars === 'number' && prevBestStars > 0 && !isNewBestStars) {
+      rows.push(`🏆 历史最佳: ${prevBestStars} 星`);
+    }
 
     this.statsEl.innerHTML = rows.length
       ? rows.map((r) => `<div style="padding:4px 0;color:rgba(255,255,255,0.7);font-size:13px;">${r}</div>`).join('')

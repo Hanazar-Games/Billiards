@@ -392,6 +392,9 @@ export class MenuSystem {
       }
       const stats = {
         power: this.drillManager.shotPower,
+        powerError: this.drillManager.powerError,
+        isNewBestStars: this.drillManager.isNewBestStars,
+        isNewBestPowerError: this.drillManager.isNewBestPowerError,
       };
       if (this.drillManager.idealZone && this.drillManager.cueBallRestPos) {
         const dx = this.drillManager.cueBallRestPos.x - this.drillManager.idealZone.x;
@@ -399,7 +402,11 @@ export class MenuSystem {
         stats.distance = Math.sqrt(dx * dx + dz * dz);
       }
       const best = DrillManager.getAllBest()[this.drillManager.drill.id];
-      if (best) stats.attempts = best.attempts;
+      if (best) {
+        stats.attempts = best.attempts;
+        stats.completions = best.completions;
+        stats.prevBestStars = best.stars;
+      }
 
       this.trainerResult.show(
         hud.name,

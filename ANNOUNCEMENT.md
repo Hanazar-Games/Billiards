@@ -1,6 +1,23 @@
-# 3D Billiards v1.7.18 — Latest Update
+# 3D Billiards v1.7.19 — Latest Update
 
-## What's New in v1.7.18
+## What's New in v1.7.19
+
+### 🎱 Training Course Progression System
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **训练课程进度系统** | 训练模式升级为课程进度系统：每个关卡记录最佳星级、最佳力度误差、完成次数；基础关卡完成后解锁进阶关卡，进阶完成后解锁高级关卡 |
+| 2 | **DrillManager 数据模型增强** | 新增 `powerError`（力度误差）、`completions`（完成次数）、`bestPowerError`（历史最佳误差）、`lastPlayed`（最后游玩时间）字段，所有数据持久化到 localStorage（`billiards_trainer_v1`） |
+| 3 | **TrainerPanel 进度 UI** | 训练列表顶部新增总进度条（完成关卡数 + 总星级）；每个训练卡片显示完成次数徽章、最佳力度误差徽章、建议力度徽章；类别头部显示 `X/Y 完成 · N/M 星` |
+| 4 | **TrainerPanel 解锁提示** | 锁定的进阶/高级关卡显示具体解锁条件（如"完成 1 个基础练习以解锁"），替代模糊的"完成前置练习以解锁" |
+| 5 | **TrainerHUD 个人最佳徽章** | 游戏内 HUD 顶部标签旁显示个人最佳星级和力度误差；新增蓝色"建议力度"药丸提示 |
+| 6 | **TrainerResult 新纪录提示** | 结果面板新增金色横幅：获得新星级纪录时显示"🌟 新纪录！"，获得新力度误差纪录时显示"🎯 最佳力度！"；统计区显示力度误差、历史最佳星级 |
+| 7 | **MenuSystem 数据透传** | `_stopTrainer()` 将 `powerError`、`isNewBestStars`、`isNewBestPowerError`、`completions`、`prevBestStars` 完整传递给结果面板 |
+| 8 | **Game.js 修复 drillConfig 未赋值** | `init()` 中补充 `this.drillConfig = modeConfig.drill || null`，修复训练模式动态导入 `TrainerHUD.js` 时 `drillConfig` 始终为 `undefined` 导致 HUD 无法创建的隐患 |
+| 9 | **烟雾测试增强** | 训练流程新增 3 项断言：总进度条可见、卡片包含力度提示、游戏内 HUD 可见（含 🎯 和建议力度），烟雾测试总数从 44 项增至 47 项 |
+
+---
+
 
 ### 🔧 Deep Audit — Network Stability, Audio Resilience & UI Hardening
 

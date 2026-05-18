@@ -3,6 +3,7 @@
  *
  * Displays:
  *   - Current drill name and objective
+ *   - Personal best badge (stars, power error, completions)
  *   - Hint toggle (shows recommended aim line and power)
  *   - Target zone visualization (for position-play drills)
  *   - Real-time progress feedback
@@ -10,6 +11,7 @@
 import * as THREE from 'three';
 import { resolveDrillPositions } from './DrillData.js';
 import { BALL } from '../config.js';
+import { DrillManager } from './DrillManager.js';
 
 export class TrainerHUD {
   constructor(scene, drill, profile) {
@@ -29,6 +31,8 @@ export class TrainerHUD {
     const uiLayer = document.getElementById('ui-layer');
     if (!uiLayer) return;
 
+    const progress = DrillManager.getProgress(this.drill.id);
+
     // Drill info label (top center)
     this.labelEl = document.createElement('div');
     this.labelEl.style.cssText = `
@@ -42,9 +46,46 @@ export class TrainerHUD {
       backdrop-filter: blur(10px);
       z-index: 15;
       white-space: nowrap;
+      display: flex; align-items: center; gap: 10px;
     `;
-    this.labelEl.textContent = `🎯 ${this.drill.name}`;
+
+    const titleSpan = document.createElement('span');
+    titleSpan.textContent = `🎯 ${this.drill.name}`;
+    this.labelEl.appendChild(titleSpan);
+
+    // Personal best badge
+    if (progress && progress.stars > 0) {
+      const bestBadge = document.createElement('span');
+      bestBadge.style.cssText = `
+        font-size: 11px; font-weight: 600; color: #ffd700;
+        background: rgba(255,215,0,0.12);
+        padding: 2px 8px; border-radius: 4px;
+        border: 1px solid rgba(255,215,0,0.25);
+      `;
+      const pe = progress.bestPowerError;
+      bestBadge.textContent = `最佳 ${progress.stars}★` + (pe !== null ? ` · 误差${pe.toFixed(1)}` : '');
+      this.labelEl.appendChild(bestBadge);
+    }
+
     uiLayer.appendChild(this.labelEl);
+
+    // Recommended power pill (top center, below label)
+    if (this.drill.hintPower) {
+      this.powerPill = document.createElement('div');
+      this.powerPill.style.cssText = `
+        position: absolute; top: 56px; left: 50%; transform: translateX(-50%);
+        padding: 4px 12px;
+        background: rgba(68,138,255,0.15);
+        border: 1px solid rgba(68,138,255,0.35);
+        border-radius: 20px;
+        color: #448aff; font-size: 12px; font-weight: 700;
+        pointer-events: none;
+        z-index: 15;
+        white-space: nowrap;
+      `;
+      this.powerPill.textContent = `💪 建议力度: ${this.drill.hintPower}%`;
+      uiLayer.appendChild(this.powerPill);
+    }
 
     // Hint toggle button (bottom right)
     this.hintBtnEl = document.createElement('button');
@@ -239,8 +280,12 @@ export class TrainerHUD {
     if (this.resetBtnEl && this.resetBtnEl.parentNode) {
       this.resetBtnEl.parentNode.removeChild(this.resetBtnEl);
     }
+    if (this.powerPill && this.powerPill.parentNode) {
+      this.powerPill.parentNode.removeChild(this.powerPill);
+    }
     this.labelEl = null;
     this.hintBtnEl = null;
     this.resetBtnEl = null;
+    this.powerPill = null;
   }
 }

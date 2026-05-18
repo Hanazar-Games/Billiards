@@ -138,6 +138,7 @@ export class Game {
 
   async init(modeConfig = {}) {
     this.mode = modeConfig.mode || 'local2p';
+    this.drillConfig = modeConfig.drill || null;
     this.aiEnabled = modeConfig.aiEnabled || false;
 
     // Resolve table profile (match setting, locked for the whole game)

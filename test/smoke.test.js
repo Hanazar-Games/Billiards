@@ -390,6 +390,23 @@ async function runTrainerTest() {
   });
   record('Trainer list visible', listVisible);
 
+  // Check overall progress bar
+  const progressBar = await page.evaluate(() => {
+    const panel = document.getElementById('trainer-panel');
+    if (!panel) return false;
+    return panel.textContent.includes('总进度');
+  });
+  record('Trainer progress bar visible', progressBar);
+
+  // Check that drill cards show category info
+  const cardsHaveInfo = await page.evaluate(() => {
+    const panel = document.getElementById('trainer-panel');
+    if (!panel) return false;
+    const text = panel.textContent;
+    return text.includes('建议') && text.includes('基础技巧');
+  });
+  record('Trainer cards have power hints', cardsHaveInfo);
+
   const cardClicked = await page.evaluate(() => {
     const cards = Array.from(document.querySelectorAll('#trainer-panel div[style*="cursor: pointer"]'));
     if (cards.length > 0) { cards[0].click(); return true; }
@@ -404,6 +421,18 @@ async function runTrainerTest() {
     }, GAME_INIT_TIMEOUT + 8000, 400);
     const errors = recentErrorsSince(mark);
     record('Drill game UI visible', gameReady);
+
+    // Check trainer HUD elements
+    const hudVisible = await waitFor(async () => {
+      return page.evaluate(() => {
+        const ui = document.getElementById('ui-layer');
+        if (!ui) return false;
+        const text = ui.textContent;
+        return text.includes('🎯') && text.includes('建议力度');
+      });
+    }, 6000, 300);
+    record('Trainer HUD visible', hudVisible);
+
     record('No severe errors', !hasSevereErrors(errors), errors.filter((e) => hasSevereErrors([e])).map((e) => e.message).join('; '));
     await clickBackToMenu();
   } else {

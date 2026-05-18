@@ -30,6 +30,11 @@ export class DrillManager {
     // Absolute ideal zone (passed from Game.js after resolveDrillPositions)
     this.idealZone = idealZoneAbsolute;
 
+    // Progress tracking for this session
+    this.isNewBestStars = false;
+    this.isNewBestPowerError = false;
+    this.powerError = null;
+
     this.best = this._loadBest(drillId);
   }
 
@@ -41,6 +46,9 @@ export class DrillManager {
     this.targetBallPocketed = false;
     this.cueBallRestPos = null;
     this.cueBallStartPos = null;
+    this.isNewBestStars = false;
+    this.isNewBestPowerError = false;
+    this.powerError = null;
   }
 
   resetDrill() {
@@ -110,7 +118,23 @@ export class DrillManager {
     if (this.completed || this.failed) return;
     this.completed = true;
     this.stars = stars;
-    this._saveBest(Math.max(stars, this.best.stars || 0));
+
+    // Calculate power error (absolute difference from recommended power)
+    const hintPower = this.drill.hintPower || 0;
+    this.powerError = hintPower > 0 ? Math.abs(this.shotPower - hintPower) : null;
+
+    const prevStars = this.best.stars || 0;
+    const prevPowerError = this.best.bestPowerError ?? Infinity;
+    const currentPowerError = this.powerError ?? Infinity;
+
+    this.isNewBestStars = stars > prevStars;
+    this.isNewBestPowerError = stars >= prevStars && currentPowerError < prevPowerError;
+
+    this._saveBest({
+      stars: Math.max(stars, prevStars),
+      powerError: this.powerError,
+      powerErrorStars: this.powerError !== null ? stars : (this.best.bestPowerErrorStars || 0),
+    });
   }
 
   _fail() {
@@ -145,6 +169,9 @@ export class DrillManager {
       failed: this.failed,
       stars: this.stars,
       targetPocketed: this.targetBallPocketed,
+      powerError: this.powerError,
+      isNewBestStars: this.isNewBestStars,
+      isNewBestPowerError: this.isNewBestPowerError,
     };
   }
 
@@ -154,19 +181,42 @@ export class DrillManager {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const data = raw ? JSON.parse(raw) : {};
-      return data[id] || { stars: 0, attempts: 0 };
+      const entry = data[id] || {};
+      return {
+        stars: entry.stars || 0,
+        attempts: entry.attempts || 0,
+        completions: entry.completions || 0,
+        bestPowerError: entry.bestPowerError ?? null,
+        bestPowerErrorStars: entry.bestPowerErrorStars || 0,
+        lastPlayed: entry.lastPlayed || null,
+      };
     } catch (e) {
-      return { stars: 0, attempts: 0 };
+      return { stars: 0, attempts: 0, completions: 0, bestPowerError: null, bestPowerErrorStars: 0, lastPlayed: null };
     }
   }
 
-  _saveBest(stars) {
+  _saveBest(updates) {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const data = raw ? JSON.parse(raw) : {};
-      const existing = data[this.drill.id] || { stars: 0, attempts: 0 };
-      existing.stars = Math.max(existing.stars, stars);
+      const existing = data[this.drill.id] || { stars: 0, attempts: 0, completions: 0, bestPowerError: null, bestPowerErrorStars: 0, lastPlayed: null };
+
+      existing.stars = updates.stars ?? existing.stars ?? 0;
       existing.attempts = (existing.attempts || 0) + 1;
+
+      if (this.completed) {
+        existing.completions = (existing.completions || 0) + 1;
+      }
+
+      if (updates.powerError !== null && updates.powerError !== undefined) {
+        const prevErr = existing.bestPowerError ?? Infinity;
+        if (updates.powerError < prevErr) {
+          existing.bestPowerError = updates.powerError;
+          existing.bestPowerErrorStars = updates.powerErrorStars || this.stars;
+        }
+      }
+
+      existing.lastPlayed = new Date().toISOString();
       data[this.drill.id] = existing;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
@@ -181,6 +231,41 @@ export class DrillManager {
     } catch (e) {
       return {};
     }
+  }
+
+  /**
+   * Get structured progress data for a specific drill.
+   */
+  static getProgress(drillId) {
+    const drill = getDrill(drillId);
+    if (!drill) return null;
+    const all = DrillManager.getAllBest();
+    const entry = all[drillId] || {};
+    return {
+      stars: entry.stars || 0,
+      attempts: entry.attempts || 0,
+      completions: entry.completions || 0,
+      bestPowerError: entry.bestPowerError ?? null,
+      bestPowerErrorStars: entry.bestPowerErrorStars || 0,
+      lastPlayed: entry.lastPlayed || null,
+      unlocked: DrillManager.isUnlocked(drillId),
+    };
+  }
+
+  /**
+   * Get category-level progress summary.
+   */
+  static getCategoryProgress() {
+    const all = DrillManager.getAllBest();
+    const result = {};
+    for (const cat of ['BASIC', 'INTERMEDIATE', 'ADVANCED']) {
+      const drills = DRILLS.filter((d) => d.category === cat);
+      const completed = drills.filter((d) => (all[d.id]?.stars || 0) >= 1).length;
+      const totalStars = drills.reduce((sum, d) => sum + (all[d.id]?.stars || 0), 0);
+      const maxStars = drills.length * 3;
+      result[cat] = { completed, total: drills.length, totalStars, maxStars };
+    }
+    return result;
   }
 
   /**
@@ -209,5 +294,29 @@ export class DrillManager {
       return completedIntermediate >= 2;
     }
     return true;
+  }
+
+  /**
+   * Get a human-readable unlock requirement message.
+   */
+  static getUnlockRequirement(drillId) {
+    const drill = getDrill(drillId);
+    if (!drill) return '';
+    if (drill.category === 'BASIC') return '';
+    if (drill.category === 'INTERMEDIATE') {
+      const best = DrillManager.getAllBest();
+      const completed = DRILLS.filter(
+        (d) => d.category === 'BASIC' && (best[d.id]?.stars || 0) >= 1
+      ).length;
+      return `完成 ${Math.max(0, 2 - completed)} 个基础练习以解锁`;
+    }
+    if (drill.category === 'ADVANCED') {
+      const best = DrillManager.getAllBest();
+      const completed = DRILLS.filter(
+        (d) => d.category === 'INTERMEDIATE' && (best[d.id]?.stars || 0) >= 1
+      ).length;
+      return `完成 ${Math.max(0, 2 - completed)} 个进阶练习以解锁`;
+    }
+    return '';
   }
 }

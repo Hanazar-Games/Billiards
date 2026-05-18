@@ -6,6 +6,8 @@
  *   - Star ratings (0-3) showing best performance
  *   - Lock state for drills that aren't unlocked yet
  *   - Difficulty indicator and description
+ *   - Historical best (power error, completions)
+ *   - Category progress summary
  */
 import { DRILLS, DRILL_CATEGORIES } from './DrillData.js';
 import { DrillManager } from './DrillManager.js';
@@ -62,6 +64,19 @@ export class TrainerPanel {
 
     this.container.appendChild(header);
 
+    // Overall progress bar
+    this._progressWrap = document.createElement('div');
+    this._progressWrap.style.cssText = `
+      max-width: 900px; width: 100%;
+      margin-bottom: 24px;
+      background: rgba(12,15,18,0.6);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: flex; flex-direction: column; gap: 8px;
+    `;
+    this.container.appendChild(this._progressWrap);
+
     // Content area
     this.contentEl = document.createElement('div');
     this.contentEl.style.cssText = `
@@ -106,8 +121,13 @@ export class TrainerPanel {
   _renderList() {
     if (!this.contentEl) return;
     this.contentEl.innerHTML = '';
+    this._progressWrap.innerHTML = '';
 
     const bestData = DrillManager.getAllBest();
+    const catProgress = DrillManager.getCategoryProgress();
+
+    // Render overall progress
+    this._renderOverallProgress(catProgress);
 
     // Group drills by category
     const categories = ['BASIC', 'INTERMEDIATE', 'ADVANCED'];
@@ -118,14 +138,27 @@ export class TrainerPanel {
       const catInfo = DRILL_CATEGORIES[catKey];
       const section = document.createElement('div');
 
-      // Category header
+      // Category header with progress
       const catHeader = document.createElement('div');
       catHeader.style.cssText = `
-        font-size: 14px; font-weight: 700; color: ${catInfo.color};
-        text-transform: uppercase; letter-spacing: 2px;
+        display: flex; align-items: baseline; gap: 12px;
         margin-bottom: 12px; padding-left: 4px;
       `;
-      catHeader.textContent = catInfo.label;
+
+      const catTitle = document.createElement('div');
+      catTitle.style.cssText = `
+        font-size: 14px; font-weight: 700; color: ${catInfo.color};
+        text-transform: uppercase; letter-spacing: 2px;
+      `;
+      catTitle.textContent = catInfo.label;
+      catHeader.appendChild(catTitle);
+
+      const catSub = document.createElement('div');
+      catSub.style.cssText = 'font-size: 12px; color: rgba(255,255,255,0.4);';
+      const cp = catProgress[catKey];
+      catSub.textContent = `${cp.completed}/${cp.total} 完成  ·  ${cp.totalStars}/${cp.maxStars} 星`;
+      catHeader.appendChild(catSub);
+
       section.appendChild(catHeader);
 
       // Grid
@@ -136,9 +169,8 @@ export class TrainerPanel {
       `;
 
       catDrills.forEach((drill) => {
-        const best = bestData[drill.id] || { stars: 0 };
-        const unlocked = DrillManager.isUnlocked(drill.id);
-        const card = this._createCard(drill, best.stars, unlocked);
+        const progress = DrillManager.getProgress(drill.id);
+        const card = this._createCard(drill, progress);
         grid.appendChild(card);
       });
 
@@ -147,7 +179,46 @@ export class TrainerPanel {
     }
   }
 
-  _createCard(drill, bestStars, unlocked) {
+  _renderOverallProgress(catProgress) {
+    const totalCompleted = Object.values(catProgress).reduce((s, c) => s + c.completed, 0);
+    const totalDrills = DRILLS.length;
+    const totalStars = Object.values(catProgress).reduce((s, c) => s + c.totalStars, 0);
+    const maxStars = Object.values(catProgress).reduce((s, c) => s + c.maxStars, 0);
+    const pct = totalDrills > 0 ? Math.round((totalCompleted / totalDrills) * 100) : 0;
+
+    const titleRow = document.createElement('div');
+    titleRow.style.cssText = `
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 13px; color: rgba(255,255,255,0.7);
+    `;
+    titleRow.innerHTML = `
+      <span>📚 总进度: ${totalCompleted}/${totalDrills} 关卡</span>
+      <span>⭐ ${totalStars}/${maxStars} 星</span>
+    `;
+    this._progressWrap.appendChild(titleRow);
+
+    const barWrap = document.createElement('div');
+    barWrap.style.cssText = `
+      width: 100%; height: 6px; background: rgba(255,255,255,0.08);
+      border-radius: 3px; overflow: hidden;
+    `;
+    const barFill = document.createElement('div');
+    barFill.style.cssText = `
+      width: ${pct}%; height: 100%;
+      background: linear-gradient(90deg, #00e676, #448aff);
+      border-radius: 3px;
+      transition: width 400ms ease;
+    `;
+    barWrap.appendChild(barFill);
+    this._progressWrap.appendChild(barWrap);
+  }
+
+  _createCard(drill, progress) {
+    const unlocked = progress.unlocked;
+    const bestStars = progress.stars || 0;
+    const completions = progress.completions || 0;
+    const bestPowerError = progress.bestPowerError;
+
     const card = document.createElement('div');
     card.style.cssText = `
       padding: 18px;
@@ -200,9 +271,40 @@ export class TrainerPanel {
 
     // Description
     const desc = document.createElement('div');
-    desc.style.cssText = 'font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 12px; line-height: 1.5;';
-    desc.textContent = unlocked ? drill.desc : '完成前置练习以解锁';
+    desc.style.cssText = 'font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 10px; line-height: 1.5;';
+    if (unlocked) {
+      desc.textContent = drill.desc;
+    } else {
+      const req = DrillManager.getUnlockRequirement(drill.id);
+      desc.textContent = req || '完成前置练习以解锁';
+    }
     card.appendChild(desc);
+
+    // Progress info row
+    const infoRow = document.createElement('div');
+    infoRow.style.cssText = `
+      display: flex; flex-wrap: wrap; gap: 6px;
+      margin-bottom: 10px;
+    `;
+
+    if (unlocked) {
+      // Completion badge
+      if (completions > 0) {
+        const badge = this._badge(`✓ 完成 ${completions} 次`, 'rgba(0,230,118,0.15)', '#00e676');
+        infoRow.appendChild(badge);
+      }
+      // Best power error badge
+      if (bestPowerError !== null && bestPowerError !== undefined) {
+        const badge = this._badge(`🎯 最佳误差 ${bestPowerError.toFixed(1)}`, 'rgba(255,171,0,0.15)', '#ffab00');
+        infoRow.appendChild(badge);
+      }
+      // Recommended power badge
+      if (drill.hintPower) {
+        const badge = this._badge(`💪 建议 ${drill.hintPower}%`, 'rgba(68,138,255,0.15)', '#448aff');
+        infoRow.appendChild(badge);
+      }
+    }
+    card.appendChild(infoRow);
 
     // Bottom row: best stars + lock icon
     const bottomRow = document.createElement('div');
@@ -234,6 +336,19 @@ export class TrainerPanel {
     card.appendChild(bottomRow);
 
     return card;
+  }
+
+  _badge(text, bg, color) {
+    const el = document.createElement('span');
+    el.style.cssText = `
+      font-size: 11px; font-weight: 600; color: ${color};
+      background: ${bg};
+      padding: 3px 8px; border-radius: 4px;
+      border: 1px solid ${bg.replace('0.15', '0.3')};
+      white-space: nowrap;
+    `;
+    el.textContent = text;
+    return el;
   }
 
   _typeLabel(type) {
