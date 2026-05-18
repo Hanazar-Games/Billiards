@@ -14,22 +14,54 @@ export class InputHandler {
 
     this._handleMouseMove = this.handleMouseMove.bind(this);
     this._handlePointerMove = this.handlePointerMove.bind(this);
+    this._handlePointerDown = this.handlePointerDown.bind(this);
     this._handleMouseDown = this.handleMouseDown.bind(this);
     this._handleMouseUp = this.handleMouseUp.bind(this);
+    this._handlePointerCancel = this._handlePointerCancel.bind(this);
+    this._handleBlur = this._handleBlur.bind(this);
     this._handleContextMenu = (e) => e.preventDefault();
 
     if (typeof window !== 'undefined' && window.PointerEvent) {
       element.addEventListener('pointermove', this._handlePointerMove);
+      element.addEventListener('pointerdown', this._handlePointerDown);
       element.addEventListener('pointerup', this._handleMouseUp);
+      element.addEventListener('pointercancel', this._handlePointerCancel);
+      element.addEventListener('pointerleave', this._handlePointerCancel);
       if ('onpointerrawupdate' in window) {
         element.addEventListener('pointerrawupdate', this._handlePointerMove);
       }
     } else {
       element.addEventListener('mousemove', this._handleMouseMove);
+      element.addEventListener('mouseleave', this._handlePointerCancel);
     }
     element.addEventListener('mousedown', this._handleMouseDown);
     window.addEventListener('mouseup', this._handleMouseUp);
+    window.addEventListener('blur', this._handleBlur);
     element.addEventListener('contextmenu', this._handleContextMenu);
+  }
+
+  _isCanvasTarget(e) {
+    return e.target && e.target.tagName && e.target.tagName.toUpperCase() === 'CANVAS';
+  }
+
+  _handlePointerCancel(e) {
+    // Treat pointer cancel/leave as mouse-up to prevent soft-lock
+    if (this.isDown) {
+      this.isDown = false;
+      if (this.onMouseUp) this.onMouseUp(e);
+    }
+  }
+
+  _handleBlur() {
+    // Reset state when window loses focus to prevent stuck buttons
+    if (this.isDown) {
+      this.isDown = false;
+      if (this.onMouseUp) this.onMouseUp();
+    }
+    if (this.rightDown) {
+      this.rightDown = false;
+      if (this.onRightMouseUp) this.onRightMouseUp();
+    }
   }
 
   handleMouseMove(e) {
@@ -41,13 +73,31 @@ export class InputHandler {
   }
 
   handlePointerMove(e) {
-    const events = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : null;
-    const latest = events && events.length > 0 ? events[events.length - 1] : e;
-    this.mouseX = latest.clientX;
-    this.mouseY = latest.clientY;
+    // Use the event itself for the latest position rather than coalesced events,
+    // which may not always include the current frame's final coordinate.
+    this.mouseX = e.clientX;
+    this.mouseY = e.clientY;
     if (this.onMouseMove) {
-      this.onMouseMove(latest.clientX, latest.clientY);
+      this.onMouseMove(e.clientX, e.clientY);
     }
+  }
+
+  handlePointerDown(e) {
+    if (!e.isPrimary || e.shiftKey) return;
+    this.mouseX = e.clientX;
+    this.mouseY = e.clientY;
+
+    const isPrimaryButton = e.button === 0 || e.pointerType === 'touch' || e.pointerType === 'pen';
+    if (!isPrimaryButton) return;
+    if (!this._isCanvasTarget(e)) return;
+    // Prevent duplicate down events (e.g. mousedown following pointerdown)
+    if (this.isDown) return;
+
+    this.isDown = true;
+    if (this.element.setPointerCapture && e.pointerId != null) {
+      try { this.element.setPointerCapture(e.pointerId); } catch (err) {}
+    }
+    if (this.onMouseDown) this.onMouseDown(e);
   }
 
   handleMouseDown(e) {
@@ -56,7 +106,9 @@ export class InputHandler {
     if (e.shiftKey) return;
     if (e.button === 0) {
       // Left click: only trigger if target is canvas (not UI)
-      if (e.target.tagName === 'CANVAS') {
+      if (this._isCanvasTarget(e)) {
+        // Prevent duplicate down events when PointerEvents also fire
+        if (this.isDown) return;
         this.isDown = true;
         if (this.onMouseDown) this.onMouseDown(e);
       }
@@ -83,12 +135,17 @@ export class InputHandler {
   dispose() {
     this.element.removeEventListener('mousemove', this._handleMouseMove);
     this.element.removeEventListener('pointermove', this._handlePointerMove);
+    this.element.removeEventListener('pointerdown', this._handlePointerDown);
     this.element.removeEventListener('pointerup', this._handleMouseUp);
+    this.element.removeEventListener('pointercancel', this._handlePointerCancel);
+    this.element.removeEventListener('pointerleave', this._handlePointerCancel);
     if (typeof window !== 'undefined' && 'onpointerrawupdate' in window) {
       this.element.removeEventListener('pointerrawupdate', this._handlePointerMove);
     }
     this.element.removeEventListener('mousedown', this._handleMouseDown);
     window.removeEventListener('mouseup', this._handleMouseUp);
+    window.removeEventListener('blur', this._handleBlur);
+    this.element.removeEventListener('mouseleave', this._handlePointerCancel);
     this.element.removeEventListener('contextmenu', this._handleContextMenu);
   }
 }

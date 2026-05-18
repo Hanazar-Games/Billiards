@@ -1,3 +1,19 @@
+# 3D Billiards v1.7.13 — Latest Update
+
+## What's New in v1.7.13
+
+### 🎱 Shot Charging Fix
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **修复蓄力状态卡住** | `InputHandler` 新增 `pointercancel`、`pointerleave` 和 `blur` 监听器，防止鼠标移出窗口或标签页失焦后蓄力状态 stuck 在 `CHARGING`，导致后续无法再次蓄力 |
+| 2 | **PointerMove 坐标精度修复** | `handlePointerMove` 不再依赖 `getCoalescedEvents()` 获取坐标，直接使用当前事件 `e.clientX/clientY`，避免合并事件坐标滞后导致 power 计算不准确 |
+| 3 | **Canvas 目标检测兼容性** | `tagName` 比较改为大小写不敏感（`toUpperCase()`），兼容部分浏览器或文档模式下 tagName 返回小写的场景 |
+| 4 | **蓄力方向 Fallback** | `updateDragPower` 在 ball/anchor 屏幕投影重合时（极端 camera 角度），改用 `lockedAimDirection` 的屏幕投影作为 fallback 方向，避免 `pullLen ≈ 0` 时直接退出导致 power 始终为零 |
+| 5 | **CHARGING 软锁自动恢复** | `Game.onMouseDown` 增加防御性检查：若检测到 `state === 'CHARGING'` 但 `input.isDown === false`（mouseup 丢失），自动调用 `_enterAimState()` 恢复，不影响玩家正常操作 |
+
+---
+
 # 3D Billiards v1.7.12 — Latest Update
 
 ## What's New in v1.7.12

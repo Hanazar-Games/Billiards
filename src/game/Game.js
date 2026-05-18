@@ -443,6 +443,10 @@ export class Game {
   }
 
   onMouseDown(e) {
+    // Recover from soft-locked CHARGING state (e.g. missed mouseup)
+    if (this.state === 'CHARGING' && this.input && !this.input.isDown) {
+      this._enterAimState();
+    }
     if (this.state !== 'AIM') return;
     if (this.aiEnabled && this.currentPlayer === 2) return; // AI turn
     if (this.networkMode && !this.isLocalPlayerTurn()) return; // Network: not your turn
@@ -520,9 +524,19 @@ export class Game {
     let pullX = anchorX - ballX;
     let pullY = anchorY - ballY;
     const pullLen = Math.hypot(pullX, pullY);
-    if (pullLen < 0.001) return;
-    pullX /= pullLen;
-    pullY /= pullLen;
+    if (pullLen < 0.001) {
+      // Fallback: project aim direction onto screen when anchor overlaps ball
+      const fallbackScreen = this._tmpVec3c.copy(this.lockedAimDirection).project(this.camera);
+      pullX = fallbackScreen.x;
+      pullY = -fallbackScreen.y;
+      const fbLen = Math.hypot(pullX, pullY);
+      if (fbLen < 0.001) return;
+      pullX /= fbLen;
+      pullY /= fbLen;
+    } else {
+      pullX /= pullLen;
+      pullY /= pullLen;
+    }
 
     const dragX = this.input.mouseX - this.dragStart.x;
     const dragY = this.input.mouseY - this.dragStart.y;
