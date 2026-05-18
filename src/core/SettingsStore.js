@@ -263,8 +263,11 @@ export class SettingsStore {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        this._data = { ...DEFAULTS, ...parsed };
-      }
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          this._data = { ...DEFAULTS, ...parsed };
+        } else {
+          this._data = { ...DEFAULTS };
+        }
     } catch (e) {
       console.warn('Settings load failed, using defaults');
     }

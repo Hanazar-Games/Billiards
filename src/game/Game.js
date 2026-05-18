@@ -1024,11 +1024,11 @@ export class Game {
     // Camera mode updates
     this._updateCamera();
 
-    if (this.state === 'AIM' && this.cue.visible) {
+    if (this.state === 'AIM' && this.cue && this.cue.visible) {
       this.updateAimDirection();
       this.setAimTrajectoryVisible(true);
       this.updateTrajectory();
-    } else if (this.state === 'CHARGING' && this.cue.visible) {
+    } else if (this.state === 'CHARGING' && this.cue && this.cue.visible) {
       this.updateDragPower();
     }
 
@@ -1119,10 +1119,11 @@ export class Game {
     this.audio.playFoul();
     this.ui.flashRed();
     this.currentPlayer = otherPlayer;
-    this.state = 'AIM';
+    if (this.state !== 'DISPOSED' && this.state !== 'GAME_OVER') {
+      this._enterAimState();
+    }
     this.ballInHand = true;
     this.ballInHandBehindLine = false;
-    if (this.cue) this.cue.show();
     this._turnTimerRemaining = this._turnTimerMax;
     this._updatePlayerStats();
     this.ui.setPlayerTurn(this.currentPlayer);
@@ -1443,11 +1444,7 @@ export class Game {
       return;
     }
 
-    this.state = 'AIM';
-    this.power = 0;
-    this.ui.setPower(0);
-    if (this.cue) this.cue.show();
-    this.setAimTrajectoryVisible(true);
+    this._enterAimState({ resetPower: true, showCue: true, showTrajectory: true, updateAim: false });
 
     // Host broadcasts final state after turn resolution
     if (this.networkRole === 'host' && this.networkController) {
@@ -1890,6 +1887,7 @@ export class Game {
       // Enter to confirm shot when confirmShotOnRelease is disabled
       if (key === 'enter' && settings.get('confirmShotOnRelease') === false) {
         if (this.state === 'AIM' && this.power >= 1) {
+          this.state = 'SHOOTING';
           this.shoot();
           return;
         }
@@ -1978,6 +1976,8 @@ export class Game {
   _updateChallengeHUD() {
     if (!this.challengeManager) return;
     const data = this.challengeManager.getHUDData();
+    const uiLayer = document.getElementById('ui-layer');
+    if (!uiLayer) return;
     let el = document.getElementById('challenge-hud');
     if (!el) {
       el = document.createElement('div');
@@ -1996,8 +1996,7 @@ export class Game {
         max-width: 220px;
         transition: border-color calc(0.3s / var(--ui-anim-speed));
       `;
-      const uiLayer = document.getElementById('ui-layer');
-      if (uiLayer) uiLayer.appendChild(el);
+      uiLayer.appendChild(el);
     }
     // Only update DOM when data actually changes
     const newHash = `${data.name}|${data.progress}|${data.completed}|${data.failed}`;

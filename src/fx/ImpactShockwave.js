@@ -26,6 +26,7 @@ export class ImpactShockwave {
    */
   spawn(position, power) {
     if (!position || !position.isVector3) return;
+    if (!Number.isFinite(power) || power <= 0) return;
     const maxPower = 82; // SHOT.maxPower
     const t = Math.min(power / maxPower, 1.0);
 

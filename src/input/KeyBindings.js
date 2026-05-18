@@ -180,6 +180,13 @@ export class KeyBindings {
     window.addEventListener('settingsChanged', this._onSettingsChanged);
   }
 
+  dispose() {
+    if (this._onSettingsChanged) {
+      window.removeEventListener('settingsChanged', this._onSettingsChanged);
+      this._onSettingsChanged = null;
+    }
+  }
+
   _load() {
     const stored = settings.get('keyBindings') || {};
     const result = {};
@@ -256,6 +263,7 @@ export class KeyBindings {
 
   /** Save current bindings as a named custom preset. */
   saveCustomPreset(name) {
+    if (name === '__proto__' || name === 'constructor') return false;
     const presets = settings.get('customKeybindingPresets') || {};
     presets[name] = { ...this._bindings };
     settings.set('customKeybindingPresets', presets);
@@ -264,6 +272,7 @@ export class KeyBindings {
 
   /** Load a named custom preset. */
   loadCustomPreset(name) {
+    if (name === '__proto__' || name === 'constructor') return false;
     const presets = settings.get('customKeybindingPresets') || {};
     if (!presets[name]) return false;
     Object.assign(this._bindings, presets[name]);

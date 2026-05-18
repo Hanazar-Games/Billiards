@@ -13,6 +13,7 @@ export class ReplayPanel {
     this.onExitReplay = onExitReplay;
     this.listContainer = null;
     this.controlContainer = null;
+    this._importTimeout = null;
     this._buildListUI();
     this._buildControlUI();
     this._setupKeyboard();
@@ -476,7 +477,7 @@ export class ReplayPanel {
     };
     document.body.appendChild(input);
     input.click();
-    setTimeout(() => { if (input.parentNode) input.parentNode.removeChild(input); }, 5000);
+    this._importTimeout = setTimeout(() => { if (input.parentNode) input.parentNode.removeChild(input); }, 5000);
   }
 
   showControls() {
@@ -540,5 +541,7 @@ export class ReplayPanel {
       window.removeEventListener('keydown', this._onKeyDown);
       this._onKeyDown = null;
     }
+    if (this._importTimeout) { clearTimeout(this._importTimeout); this._importTimeout = null; }
+    document.querySelectorAll("#replay-import-input").forEach(el => { if (el.parentNode) el.parentNode.removeChild(el); });
   }
 }

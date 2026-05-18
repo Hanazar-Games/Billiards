@@ -293,6 +293,8 @@ export class MenuSystem {
     }
 
     if (this.trainerPanel) this.trainerPanel.hide();
+    if (this.trainerResult) this.trainerResult.hide();
+    if (this.replayPanel) this.replayPanel.hideList();
     if (this.achievementPanel) this.achievementPanel.hideWall();
 
     // Hide menu
@@ -422,6 +424,8 @@ export class MenuSystem {
     this.state = 'TRANSITION';
 
     if (this.challengePanel) this.challengePanel.hide();
+    if (this.challengeResult) this.challengeResult.hide();
+    if (this.replayPanel) this.replayPanel.hideList();
     if (this.achievementPanel) this.achievementPanel.hideWall();
 
     // Hide menu
@@ -690,10 +694,12 @@ export class MenuSystem {
     if (this.trainerPanel) this.trainerPanel.hide();
     if (this.trainerResult) this.trainerResult.hide();
     if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
+    if (this.matchSetupPanel) { this.matchSetupPanel.destroy(); this.matchSetupPanel = null; }
     this.matchSetupPanel = new MatchSetupPanel(
       (config) => this._startMatchGame(config),
       () => this._showMainMenu()
     );
+    this.matchSetupPanel.show();
   }
 
   async _startMatchGame(config) {

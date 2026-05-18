@@ -66,7 +66,12 @@ class Room {
   }
 
   broadcast(msg, excludeWs = null) {
-    const payload = JSON.stringify(msg);
+    let payload;
+    try {
+      payload = JSON.stringify(msg);
+    } catch {
+      return;
+    }
     if (this.host && this.host !== excludeWs && this.host.readyState === 1) {
       this.host.send(payload);
     }
@@ -78,21 +83,39 @@ class Room {
   }
 
   sendToHost(msg) {
+    let payload;
+    try {
+      payload = JSON.stringify(msg);
+    } catch {
+      return;
+    }
     if (this.host && this.host.readyState === 1) {
-      this.host.send(JSON.stringify(msg));
+      this.host.send(payload);
     }
   }
 
   sendToGuest(guestWs, msg) {
+    let payload;
+    try {
+      payload = JSON.stringify(msg);
+    } catch {
+      return;
+    }
     if (guestWs && guestWs.readyState === 1) {
-      guestWs.send(JSON.stringify(msg));
+      guestWs.send(payload);
     }
   }
 }
 
 function send(ws, msg) {
+  let payload;
+  try {
+    payload = JSON.stringify(msg);
+  } catch {
+    return;
+  }
   if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify(msg));
+    ws.send(payload);
   }
 }
 
@@ -157,7 +180,7 @@ wss.on('connection', (ws, req) => {
         send(ws, { type: 'error', error: 'Already in a room' });
         return;
       }
-      const roomId = (data.roomId || '').toUpperCase().trim();
+      const roomId = String(data.roomId || '').toUpperCase().trim();
       const room = rooms.get(roomId);
       if (!room) {
         send(ws, { type: 'error', error: 'Room not found' });
@@ -305,6 +328,7 @@ wss.on('connection', (ws, req) => {
       room.removeGuest(ws);
       if (room.guests.size === 0 && !room.started) {
         // Empty idle room: clean up
+        if (room.host) room.host._room = null;
         rooms.delete(room.id);
       }
     }

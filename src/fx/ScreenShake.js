@@ -112,4 +112,8 @@ export class ScreenShake {
       this._currentOffset.set(0, 0, 0);
     }
   }
+  dispose() {
+    this.camera = null;
+    this._originalPosition = null;
+  }
 }

@@ -50,6 +50,7 @@ export class NineBallRules {
     this.firstBallHit = null;
     this.railContactAfterFirstHit = false;
     this.foulReason = null;
+    this.pushOutPending = false;
   }
 
   recordFirstHit(ballId) {

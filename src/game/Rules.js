@@ -256,6 +256,7 @@ export class Rules {
     }
 
     // Determine next player
+    const continueTurn = pocketedOwn > 0 || (this.wasOpenTable && uniquePocketed.length > 0);
     let nextPlayer = this.currentPlayer;
     let message = '';
 
@@ -264,10 +265,10 @@ export class Rules {
       message = cueBallPocketed
         ? '白球落袋！对手获得自由球。'
         : '犯规！对手获得自由球。';
-    } else if (pocketedOwn === 0 && !this.foul) {
+    } else if (!continueTurn) {
       nextPlayer = opponent;
       message = '没有球进袋。轮到对手。';
-    } else if (!this.foul) {
+    } else {
       message = `打进 ${pocketedOwn} 颗球！继续击球。`;
     }
 

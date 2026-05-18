@@ -36,9 +36,13 @@ export class NetworkClient extends EventTarget {
 
   connect() {
     return new Promise((resolve, reject) => {
+      this._connectResolved = false;
       if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
         resolve();
         return;
+      }
+      if (this.ws) {
+        this.ws.onopen = this.ws.onmessage = this.ws.onerror = this.ws.onclose = null;
       }
       try {
         this.ws = new WebSocket(this.serverUrl);
@@ -48,6 +52,7 @@ export class NetworkClient extends EventTarget {
       }
 
       this.ws.onopen = () => {
+        this._connectResolved = true;
         this.connected = true;
         this._startPing();
         this.dispatchEvent(new CustomEvent('connected'));
@@ -73,6 +78,9 @@ export class NetworkClient extends EventTarget {
         this.connected = false;
         this._stopPing();
         this.dispatchEvent(new CustomEvent('disconnected'));
+        if (!this._connectResolved) {
+          reject(new Error('WebSocket closed'));
+        }
       };
     });
   }

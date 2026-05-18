@@ -714,6 +714,8 @@ export class UI {
     }
     this._threeFoulBadge = null;
 
+    document.documentElement.style.setProperty("--ball-labels-visible", "0");
+    document.documentElement.classList.remove("high-contrast", "large-text", "reduce-motion");
     this.player1Badge = null;
     this.player2Badge = null;
     this.message = null;
@@ -733,6 +735,7 @@ export class UI {
     this._hudCenter = null;
     this._hudTimer = null;
     this._hudObjective = null;
+    if (this._hudNewGameBtn) this._hudNewGameBtn.onclick = null;
     this._hudScore = null;
     if (this._hudSettingsBtn) { this._hudSettingsBtn.onclick = null; }
     if (this._hudConcedeBtn) { this._hudConcedeBtn.onclick = null; }

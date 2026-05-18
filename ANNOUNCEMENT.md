@@ -1,4 +1,37 @@
-# 3D Billiards v1.7.16 — Latest Update
+# 3D Billiards v1.7.17 — Latest Update
+
+## What's New in v1.7.17
+
+### 🔧 Comprehensive Deep Audit — UI/UX/SFX/BGM & Critical Bug Fixes
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **Enter 键直接击球失效** | `Game._setupSpinControls()` 中按 Enter 击球前未设置 `this.state = 'SHOOTING'`，导致 `update()` 不处理物理和进袋判定，Enter 键击球完全失效。已修复为先切状态再调用 `shoot()` |
+| 2 | **球杆可见性空指针防护** | `Game.update()` 中 `this.cue.visible` 两处访问未做空值检查，球杆未初始化时会崩溃。已补充 `this.cue &&` 守卫 |
+| 3 | **回合计时器到期后状态不一致** | `_onTurnTimerExpired()` 手动重置 `this.state = 'AIM'` 但未清理 `charging` 和 `dragStart`，若玩家正在拖动会导致状态残留。已改为调用 `_enterAimState()` 统一重置 |
+| 4 | **resolveTurn 状态重置统一化** | `resolveTurn()` 中手动设置 AIM 状态和重置球杆/轨迹/力度逻辑，与 `_enterAimState()` 重复。已替换为统一调用 `_enterAimState()` |
+| 5 | **挑战 HUD 帧级 DOM 泄漏** | `_updateChallengeHUD()` 在 `ui-layer` 被移除时仍每帧创建新的 `<div>` 孤儿节点。已添加 `if (!uiLayer) return;` 提前退出 |
+| 6 | **比赛设置面板未显示** | `MenuSystem._showMatchSetup()` 创建 `MatchSetupPanel` 后未调用 `.show()`，面板始终不可见。已补充 `.show()` 调用 |
+| 7 | **比赛设置面板重复实例泄漏** | `_showMatchSetup()` 未销毁旧面板直接覆盖引用，快速点击会产生孤儿实例。已添加先 `destroy()` 再创建的逻辑 |
+| 8 | **训练/挑战开始时结果面板未隐藏** | `_startTrainer()` 和 `_startChallenge()` 未隐藏 `trainerResult`/`challengeResult`，点击"再试一次"时结果面板残留。已补充 `hide()` |
+| 9 | **UI 全局 CSS 属性泄漏** | `UI.destroy()` 未重置 `--ball-labels-visible` 和 `high-contrast`/`large-text`/`reduce-motion` 类，销毁后仍影响全局样式。已补充清理 |
+| 10 | **UI 重置按钮 onclick 泄漏** | `UI.destroy()` 显式清空设置/认输按钮的 `onclick`，但遗漏了 `_hudNewGameBtn.onclick`。已补充清空 |
+| 11 | **回放导入定时器泄漏** | `ReplayPanel._importReplays()` 中 5 秒清理 `input` 的 `setTimeout` 未被追踪，`destroy()` 前触发会导致 DOM 残留。已追踪并在 `destroy()` 中清理 |
+| 12 | **ScreenShake 缺失 dispose** | `ScreenShake` 类无 `dispose()` 方法，`this.camera` 引用永不释放，阻碍 GC。已添加 `dispose()` 清空引用 |
+| 13 | **冲击波 NaN/Infinity 泄漏** | `ImpactShockwave.spawn()` 对非法 `power`（NaN/Infinity）无防护，`update()` 中 `p` 永远达不到 1.0，网格永久残留。已添加 `Number.isFinite(power)` 守卫 |
+| 14 | **8 球开台规则错误** | 开台时同时打进纯色和花色，代码未分配组别且将球权交给对手。已修复：开台状态打进任意目标球时击球者继续击球 |
+| 15 | **9 球 pushOutPending 状态泄漏** | `startShot()` 未清除 `pushOutPending`，若对手未及时选择 accept/pass， stale 状态会带入下一杆。已补充清零 |
+| 16 | **局域网服务器 JSON 崩溃** | `lan-server.js` 中 `JSON.stringify` 无 try/catch，循环引用消息会导致整个服务器进程崩溃。已全路径包裹 try/catch |
+| 17 | **局域网服务器类型错误崩溃** | `data.roomId.toUpperCase()` 假设输入为字符串，数字输入会抛出未捕获 TypeError。已改为 `String()` 转换 |
+| 18 | **局域网房间 host 引用泄漏** | 最后一个客人离开后房间被删除，但 `room.host._room` 未清空，房主无法再创建新房。已补充清空 |
+| 19 | **网络客户端 Promise 挂起** | `connect()` 在仅触发 `onclose` 无 `onerror` 时 Promise 永不 resolve/reject，调用方永久等待。已添加 `_connectResolved` 标志并在 `onclose` 中 reject |
+| 20 | **网络客户端旧 socket 监听器泄漏** | `connect()` 未清理旧 WebSocket 的事件处理器就创建新连接。已先置空旧处理器 |
+| 21 | **键位绑定原型污染** | `KeyBindings.saveCustomPreset()` / `loadCustomPreset()` 使用 `__proto__` 或 `constructor` 作为名称可污染对象原型。已添加名称黑名单拦截 |
+| 22 | **设置存储 JSON 解析损坏** | `SettingsStore._load()` 对 `JSON.parse` 结果直接展开，非对象值（如字符串/数字）会 corrupt 所有设置。已添加 `typeof === 'object'` 校验并回退到默认配置 |
+
+---
+
+# 3D Billiards v1.7.16
 
 ## What's New in v1.7.16
 
