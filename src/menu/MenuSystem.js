@@ -539,10 +539,17 @@ export class MenuSystem {
         this.challengeManager.completed,
         this.challengeManager.stars || 0,
         {
+          challengeId: this.activeChallenge?.id,
           duration: this.challengeManager.gameDuration,
           fouls: this.challengeManager.totalFouls,
           spinPockets: this.challengeManager.spinPocketCount,
           breakPocketed: this.challengeManager.breakPocketedCount,
+          totalShots: this.challengeManager.totalShots,
+          consecutivePockets: this.challengeManager.maxConsecutivePocketShots,
+          totalBallsPocketed: this.challengeManager.totalBallsPocketed,
+          bestStars: this.challengeManager.best?.stars || 0,
+          isNewRecord: this.challengeManager.completed && (this.challengeManager.stars || 0) > (this.challengeManager.best?.prevStars || 0),
+          failureReason: this.challengeManager.failureReason,
         }
       );
     }

@@ -1,8 +1,15 @@
 /**
  * ChallengeResult — Post-challenge summary overlay.
  *
- * Shows stars earned, stats, and retry/exit buttons.
+ * v2 adds:
+ *   - Failure reason display
+ *   - Achievement conditions (what you needed to do)
+ *   - Star standards table
+ *   - New-record banner
+ *   - Retry / exit buttons (retry already existed)
  */
+import { getChallenge, getStarConditions } from './ChallengeData.js';
+
 export class ChallengeResult {
   constructor(onRetry, onExit) {
     this.onRetry = onRetry;
@@ -23,37 +30,68 @@ export class ChallengeResult {
       backdrop-filter: blur(12px);
       z-index: 250;
       pointer-events: auto;
+      padding: 20px;
     `;
 
     // Card
     const card = document.createElement('div');
     card.style.cssText = `
-      width: 400px; max-width: 90vw;
-      padding: 36px;
+      width: 420px; max-width: 100%;
+      padding: 32px;
       background: rgba(20,20,20,0.95);
       border: 1px solid rgba(255,255,255,0.15);
       border-radius: 20px;
       text-align: center;
+      max-height: 90vh;
+      overflow-y: auto;
     `;
+
+    // New record banner (hidden by default)
+    this.bannerEl = document.createElement('div');
+    this.bannerEl.style.cssText = `
+      display: none; margin-bottom: 14px; padding: 8px 16px;
+      background: linear-gradient(90deg, #d8b15f, #ffd700);
+      color: #1a1200; font-size: 14px; font-weight: 800;
+      border-radius: 8px; letter-spacing: 1px;
+    `;
+    this.bannerEl.textContent = '🏆 新纪录！';
+    card.appendChild(this.bannerEl);
 
     // Title
     this.titleEl = document.createElement('div');
-    this.titleEl.style.cssText = 'font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 8px;';
+    this.titleEl.style.cssText = 'font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 6px;';
     card.appendChild(this.titleEl);
 
     // Subtitle
     this.subtitleEl = document.createElement('div');
-    this.subtitleEl.style.cssText = 'font-size: 14px; color: rgba(255,255,255,0.5); margin-bottom: 20px;';
+    this.subtitleEl.style.cssText = 'font-size: 14px; color: rgba(255,255,255,0.5); margin-bottom: 16px;';
     card.appendChild(this.subtitleEl);
 
     // Stars
     this.starsEl = document.createElement('div');
-    this.starsEl.style.cssText = 'font-size: 36px; color: #ffd700; margin-bottom: 24px; letter-spacing: 4px;';
+    this.starsEl.style.cssText = 'font-size: 36px; color: #ffd700; margin-bottom: 20px; letter-spacing: 4px;';
     card.appendChild(this.starsEl);
+
+    // Failure reason
+    this.failReasonEl = document.createElement('div');
+    this.failReasonEl.style.cssText = `
+      display: none; margin-bottom: 16px; padding: 10px 14px;
+      background: rgba(255,82,82,0.12); border: 1px solid rgba(255,82,82,0.3);
+      border-radius: 8px; color: #ff8a80; font-size: 13px; text-align: left;
+    `;
+    card.appendChild(this.failReasonEl);
+
+    // Conditions block
+    this.conditionsEl = document.createElement('div');
+    this.conditionsEl.style.cssText = `
+      margin-bottom: 16px; text-align: left;
+      background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px;
+    `;
+    card.appendChild(this.conditionsEl);
 
     // Stats
     this.statsEl = document.createElement('div');
-    this.statsEl.style.cssText = 'margin-bottom: 28px; text-align: left;';
+    this.statsEl.style.cssText = 'margin-bottom: 24px; text-align: left;';
     card.appendChild(this.statsEl);
 
     // Buttons
@@ -101,25 +139,56 @@ export class ChallengeResult {
 
   show(name, completed, stars, stats = {}) {
     this.container.style.display = 'flex';
+    const challenge = stats.challengeId ? getChallenge(stats.challengeId) : null;
+
+    // Banner
+    if (stats.isNewRecord) {
+      this.bannerEl.style.display = 'block';
+      this.bannerEl.textContent = stars === 3 ? '🏆 完美新纪录！' : '🏆 新纪录！';
+    } else {
+      this.bannerEl.style.display = 'none';
+    }
 
     if (completed) {
       this.titleEl.textContent = '🎉 挑战成功！';
       this.titleEl.style.color = '#00e676';
       this.starsEl.textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
       this.subtitleEl.textContent = `${name} — 获得 ${stars} 星`;
+      this.failReasonEl.style.display = 'none';
     } else {
       this.titleEl.textContent = '💔 挑战失败';
       this.titleEl.style.color = '#ff5252';
       this.starsEl.textContent = '☆☆☆';
       this.subtitleEl.textContent = name;
+      this.failReasonEl.style.display = 'block';
+      this.failReasonEl.textContent = `失败原因：${stats.failureReason || '未达到挑战条件'}`;
     }
 
-    // Render stats
+    // Conditions block
+    const condRows = [];
+    if (challenge) {
+      condRows.push(`<div style="font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:6px;">挑战条件</div>`);
+      condRows.push(`<div style="font-size:13px;color:rgba(255,255,255,0.8);margin-bottom:4px;">${challenge.desc}</div>`);
+      const starText = getStarConditions(challenge);
+      if (starText) {
+        condRows.push(`<div style="font-size:12px;color:#d8b15f;margin-top:6px;">${starText}</div>`);
+      }
+    }
+    this.conditionsEl.innerHTML = condRows.join('');
+
+    // Stats rows
     const rows = [];
     if (typeof stats.duration === 'number') rows.push(`⏱ 用时: ${stats.duration.toFixed(1)}s`);
+    if (stats.totalShots !== undefined) rows.push(`🎯 总杆数: ${stats.totalShots}`);
     if (stats.fouls !== undefined) rows.push(`⚠ 犯规: ${stats.fouls}`);
     if (stats.spinPockets !== undefined) rows.push(`🌀 旋转进球: ${stats.spinPockets}`);
     if (stats.breakPocketed !== undefined) rows.push(`🎱 开球进袋: ${stats.breakPocketed}`);
+    if (stats.consecutivePockets !== undefined) rows.push(`🔥 最高连击: ${stats.consecutivePockets}`);
+    if (stats.totalBallsPocketed !== undefined) rows.push(`🎱 总进球: ${stats.totalBallsPocketed}`);
+    if (stats.bestStars !== undefined) {
+      const bestStr = '★'.repeat(stats.bestStars) + '☆'.repeat(3 - stats.bestStars);
+      rows.push(`⭐ 历史最佳: ${bestStr}`);
+    }
 
     this.statsEl.innerHTML = rows.length
       ? rows.map((r) => `<div style="padding:4px 0;color:rgba(255,255,255,0.7);font-size:13px;">${r}</div>`).join('')

@@ -365,6 +365,7 @@ export class Game {
           if (this.state === 'SHOOTING' && ball.id === 0 && otherBall.id !== 0) {
             this.rules?.recordFirstHit(otherBall.id);
             this.achievements.onBallCollision(relVel);
+              if (this.challengeManager) this.challengeManager.onBallCollision(ball, otherBall);
           }
 
           // Deduplicate: cannon-es fires collide on BOTH bodies.
@@ -395,7 +396,7 @@ export class Game {
             this.statsTracker.recordCushionCollision(this.currentPlayer);
             this.achievements.onCushionCollision();
             this.recorder.recordCushion();
-            if (this.challengeManager) this.challengeManager.onCushionHit();
+            if (this.challengeManager) this.challengeManager.onCushionHit(ball.id);
           }
         }
       };
@@ -422,9 +423,11 @@ export class Game {
     if (ballA.id === 0 && ballB.id !== 0) {
       this.rules?.recordFirstHit(ballB.id);
       this.achievements.onBallCollision(relVel);
+              if (this.challengeManager) this.challengeManager.onBallCollision(ball, otherBall);
     } else if (ballB.id === 0 && ballA.id !== 0) {
       this.rules?.recordFirstHit(ballA.id);
       this.achievements.onBallCollision(relVel);
+              if (this.challengeManager) this.challengeManager.onBallCollision(ball, otherBall);
     }
   }
 
@@ -1427,7 +1430,11 @@ export class Game {
 
     // Achievement: turn end
     this.achievements.onTurnEnd(result, effectivePocketedIds, this.mode);
-    if (this.challengeManager) this.challengeManager.onTurnEnd(result);
+    if (this.challengeManager) {
+      const cueBall = this.ballsManager && this.ballsManager.getCueBall();
+      const cueBallPos = cueBall ? { x: cueBall.mesh.position.x, z: cueBall.mesh.position.z } : null;
+      this.challengeManager.onTurnEnd({ ...result, cueBallPos });
+      }
 
     // Achievement: break shot check
     if (this._isBreakShot) {

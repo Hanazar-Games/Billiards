@@ -463,8 +463,29 @@ async function runChallengeTest() {
   });
   record('Challenge list visible', listVisible);
 
+  // Check new UI elements
+  const progressVisible = await page.evaluate(() => {
+    const panel = document.getElementById('challenge-panel');
+    return panel ? panel.textContent.includes('/') && panel.textContent.includes('%') : false;
+  });
+  record('Challenge progress bar visible', progressVisible);
+
+  const filtersVisible = await page.evaluate(() => {
+    const row = document.getElementById('challenge-filters');
+    return row && row.querySelectorAll('button').length >= 3;
+  });
+  record('Challenge filter tabs visible', filtersVisible);
+
+  const bannersVisible = await page.evaluate(() => {
+    const banners = document.getElementById('challenge-banners');
+    return banners && banners.children.length > 0;
+  });
+  record('Challenge banners visible', bannersVisible);
+
   const cardClicked = await page.evaluate(() => {
-    const cards = Array.from(document.querySelectorAll('#challenge-panel div[style*="cursor: pointer"]'));
+    const grid = document.getElementById('challenge-grid');
+    if (!grid) return false;
+    const cards = Array.from(grid.querySelectorAll('div[style*="cursor: pointer"]'));
     if (cards.length > 0) { cards[0].click(); return true; }
     return false;
   });
@@ -486,7 +507,6 @@ async function runChallengeTest() {
 
   await waitFor(async () => await isMenuLayerVisible(), 5000, 200);
 }
-
 async function runLanRoomTest() {
   console.log('\n▶ LAN Room');
   const mark = consoleErrors.length;
