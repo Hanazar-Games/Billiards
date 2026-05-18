@@ -1,3 +1,17 @@
+# 3D Billiards v1.7.12 — Latest Update
+
+## What's New in v1.7.12
+
+### 🔧 UI/UX & Lifecycle Fixes (Follow-up to v1.7.11)
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **挑战模式引用清理** | `_stopChallenge()` 现在会清空 `this.activeChallenge`，防止挑战配置对象在 MenuSystem 生命周期结束后持续残留 |
+| 2 | **设置面板分类切换确认框清理** | `_switchCategory()` 现在会在切换分类前主动移除所有未关闭的确认对话框，防止键盘监听器泄漏 |
+| 3 | **设置提示定时器清理** | `SettingsScreen.hide()` 现在会正确清理 `_settingsTipTimer`，修复快速开关设置面板时提示 toast 延迟弹出的问题 |
+
+---
+
 # 3D Billiards v1.7.11 — Latest Update
 
 ## What's New in v1.7.11

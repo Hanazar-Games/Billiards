@@ -67,6 +67,7 @@ export class MenuSystem {
     // Challenge system
     this.challengePanel = null;
     this.challengeManager = null;
+    this.activeChallenge = null;
     this.challengeResult = null;
     this.activeChallenge = null;
     this._menuLoopId = null;
@@ -549,6 +550,7 @@ export class MenuSystem {
     }
 
     this.challengeManager = null;
+    this.activeChallenge = null;
   }
 
   async _startGame(mode, networkClient = null, networkRole = null, localPlayerId = 1, matchStatus = null, tableProfileId = null) {
