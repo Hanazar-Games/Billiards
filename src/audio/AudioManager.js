@@ -126,6 +126,7 @@ export class AudioManager {
       document.removeEventListener('click', this._gestureHandler);
       document.removeEventListener('keydown', this._gestureHandler);
       document.removeEventListener('touchstart', this._gestureHandler);
+      document.removeEventListener('pointerdown', this._gestureHandler);
       this._gestureHandler = null;
     }
     if (this._visibilityHandler) {

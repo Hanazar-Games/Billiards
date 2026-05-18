@@ -27,6 +27,7 @@ export class Minimap {
     this._cueTrail = [];    // recent cue-ball positions for trail drawing
     this._maxTrail = 40;
     this._dirty = true;     // only redraw when data changes
+    this._profile = getDefaultTableProfile();
     this._resize();
     this._applyStyle();
     this._onSettings = (e) => {
@@ -38,7 +39,6 @@ export class Minimap {
     window.addEventListener('settingsChanged', this._onSettings);
     this._onResize = () => this._resize();
     window.addEventListener('resize', this._onResize);
-    this._profile = getDefaultTableProfile();
   }
 
   setTableProfile(profile) {
@@ -230,6 +230,9 @@ export class Minimap {
   }
 
   _resize() {
+    if (!this._profile) {
+      this._profile = getDefaultTableProfile();
+    }
     const dpr = Math.min(window.devicePixelRatio, 2);
     const cssSize = Math.max(80, Math.min(260, this._size));
     this.canvas.width = cssSize * dpr;

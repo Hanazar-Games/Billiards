@@ -1,4 +1,18 @@
-# 3D Billiards v1.7.9 — Latest Update
+# 3D Billiards v1.7.10 — Latest Update
+
+## What's New in v1.7.10
+
+### 🔧 Critical Bug Fixes
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **Minimap 初始化崩溃修复** | `Minimap` 构造函数中 `_profile` 赋值移到 `_resize()` 之前，修复 `Cannot read properties of undefined (reading 'depth')` 导致游戏无法启动的问题 |
+| 2 | **环境音效滑块单位修正** | 设置面板中「环境音效」滑块回调传入正确单位（0-100），修复拖动滑块后环境音效几乎无声的问题 |
+| 3 | **AudioManager 监听器泄漏修复** | `_removeResilienceListeners()` 补充移除 `pointerdown` 手势监听器，避免应用退出后残留全局事件监听 |
+
+---
+
+# 3D Billiards v1.7.9
 
 ## What's New in v1.7.9
 
