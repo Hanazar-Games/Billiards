@@ -546,7 +546,7 @@ export class Game {
     this.ui.setPower((this.power / SHOT.maxPower) * 100);
 
     const cuePullback = (this.power / SHOT.maxPower) * 40;
-    this.cue.setAim(cueBall.mesh.position, this.lockedAimDirection, cuePullback);
+    if (this.cue) this.cue.setAim(cueBall.mesh.position, this.lockedAimDirection, cuePullback);
   }
 
   updateAimDirection() {
@@ -564,7 +564,7 @@ export class Game {
       this.aimDirection.copy(aim);
     }
 
-    this.cue.setAim(ballPos, this.aimDirection);
+    if (this.cue) this.cue.setAim(ballPos, this.aimDirection);
   }
 
   getMouseTablePoint(y = BALL.radius) {
@@ -628,7 +628,7 @@ export class Game {
     this.ballInHandBehindLine = behindHeadString;
     this.power = 0;
     this.ui.setPower(0);
-    this.cue.hide();
+    if (this.cue) this.cue.hide();
     this.trajectory.setVisible(false);
     const bihMsg = behindHeadString ? UIText.ballInHandBehindLine : UIText.ballInHandAnywhere;
     this.ui.setMessage(`${message ? `${message} ` : ''}${bihMsg}`);
@@ -684,7 +684,7 @@ export class Game {
           { x: cueBall.mesh.position.x, y: cueBall.mesh.position.y, z: cueBall.mesh.position.z }
         );
       }
-      this.cue.show();
+      if (this.cue) this.cue.show();
       this.ui.setMessage(UIText.ballInHandWaitHost, 2000);
       return;
     }
@@ -730,7 +730,7 @@ export class Game {
       this._shotStartTime = performance.now();
       this.charging = false;
       this.dragStart = null;
-      if (settings.get('hideCueOnShot') !== false) this.cue.hide();
+      if (settings.get('hideCueOnShot') !== false && this.cue) this.cue.hide();
       this.trajectory.setVisible(false);
       // Local immediate feedback: audio + FX (host will authoritatively resolve physics)
       this.audio.playCueHit(force);
@@ -789,7 +789,7 @@ export class Game {
     this.recorder.start(this.ballsManager, this.mode, force, this.cueTipOffset, this.tableProfileId);
 
     // Strike snap: cue visually touches the ball for one frame before hiding
-    this.cue.strikeSnap(cueBall.mesh.position, this.aimDirection);
+    if (this.cue) this.cue.strikeSnap(cueBall.mesh.position, this.aimDirection);
     if (this._strikeHideTimer) clearTimeout(this._strikeHideTimer);
     const hideCue = settings.get('hideCueOnShot') !== false;
     this._strikeHideTimer = setTimeout(() => {
@@ -809,7 +809,7 @@ export class Game {
     this.state = 'AI_THINKING';
     this.ui.setMessage(UIText.aiThinking);
     this.trajectory.setVisible(false);
-    this.cue.hide();
+    if (this.cue) this.cue.hide();
 
     let decision = null;
     try {
@@ -839,7 +839,7 @@ export class Game {
     const aimStart = performance.now();
     const aimDuration = 350 + Math.random() * 300;
     const startAim = this.aimDirection.clone();
-    this.cue.show();
+    if (this.cue) this.cue.show();
     await new Promise(resolve => {
       const tick = () => {
         if (this.paused) {
@@ -855,12 +855,12 @@ export class Game {
         // Smooth ease-out
         const eased = 1 - Math.pow(1 - t, 3);
         this.aimDirection.lerpVectors(startAim, targetAim, eased).normalize();
-        this.cue.setAim(this.ballsManager.getCueBall().mesh.position, this.aimDirection);
+        if (this.cue) this.cue.setAim(this.ballsManager.getCueBall().mesh.position, this.aimDirection);
         if (t < 1 && this.state === 'AI_THINKING') {
           requestAnimationFrame(tick);
         } else {
           this.aimDirection.copy(targetAim);
-          this.cue.setAim(this.ballsManager.getCueBall().mesh.position, this.aimDirection);
+          if (this.cue) this.cue.setAim(this.ballsManager.getCueBall().mesh.position, this.aimDirection);
           resolve();
         }
       };
@@ -874,7 +874,7 @@ export class Game {
     this.charging = true;
     this.power = 0;
     this.trajectory.setVisible(false);
-    this.cue.hide();
+    if (this.cue) this.cue.hide();
 
     // Animate charging
     const targetPower = decision.power;
@@ -1213,7 +1213,7 @@ export class Game {
     this.state = 'AIM';
     this.power = 0;
     this.ui.setPower(0);
-    this.cue.show();
+    if (this.cue) this.cue.show();
     this.setAimTrajectoryVisible(true);
     this._updatePlayerStats();
 
@@ -1446,7 +1446,7 @@ export class Game {
     this.state = 'AIM';
     this.power = 0;
     this.ui.setPower(0);
-    this.cue.show();
+    if (this.cue) this.cue.show();
     this.setAimTrajectoryVisible(true);
 
     // Host broadcasts final state after turn resolution
@@ -1636,7 +1636,7 @@ export class Game {
     }
     this.ui.setMatchInfo(this._getObjectiveText());
     this._updatePlayerStats();
-    this.cue.show();
+    if (this.cue) this.cue.show();
     this.setAimTrajectoryVisible(true);
 
     this._broadcastSnapshot();
@@ -1845,14 +1845,14 @@ export class Game {
           this.charging = false;
           this.dragStart = null;
           this.ui.setPower(0);
-          this.cue.show();
+          if (this.cue) this.cue.show();
           return;
         }
         if (this.ballInHand) {
           this.ballInHand = false;
           this.ballInHandValid = false;
           this.state = 'AIM';
-          this.cue.show();
+          if (this.cue) this.cue.show();
           this.ui.setMessage(UIText.ballInHandCanceled);
           return;
         }
@@ -2085,7 +2085,7 @@ export class Game {
 
     this.aimDirection.copy(camDir);
     this.lockedAimDirection.copy(camDir);
-    this.cue.setAim(ballPos, this.aimDirection);
+    if (this.cue) this.cue.setAim(ballPos, this.aimDirection);
     this.updateTrajectory();
   }
 
@@ -2244,7 +2244,7 @@ export class Game {
     const winner = this.currentPlayer === 1 ? 2 : 1;
     this.ui.setMessage(UIText.concedeWinner(winner), 0);
     this.state = 'GAME_OVER';
-    this.cue.hide();
+    if (this.cue) this.cue.hide();
 
     // Notify rules engine
     if (this.rules) {

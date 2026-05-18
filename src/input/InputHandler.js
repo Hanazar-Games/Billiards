@@ -5,7 +5,7 @@ export class InputHandler {
     this.mouseY = 0;
     this.isDown = false;
     this.rightDown = false;
-      this._capturedPointerId = null;
+    this._capturedPointerId = null;
 
     this.onMouseMove = null;
     this.onMouseDown = null;
@@ -59,6 +59,7 @@ export class InputHandler {
     // Reset state when window loses focus to prevent stuck buttons
     if (this.isDown) {
       this.isDown = false;
+      this._capturedPointerId = null;
       if (this.onMouseUp) this.onMouseUp();
     }
     if (this.rightDown) {

@@ -1,4 +1,4 @@
-import{V as e,j as k,y as v,u as P,x as c,t as u,n as f,h as b}from"./three-BK8GnUnT.js";import{r as C,B as E}from"./index-B8Z9qhg4.js";import"./physics-DAiIzLkS.js";class L{constructor(t,s,i){this.scene=t,this.drill=s,this.profile=i,this.hintsEnabled=!1,this.hintMeshes=[],this.zoneMesh=null,this.labelEl=null,this.hintBtnEl=null,this.resetBtnEl=null,this._buildUI()}_buildUI(){const t=document.getElementById("ui-layer");t&&(this.labelEl=document.createElement("div"),this.labelEl.style.cssText=`
+import{V as e,j as k,y as v,u as P,x as c,t as u,n as f,h as b}from"./three-BK8GnUnT.js";import{r as C,B as E}from"./index-CGU2n-k-.js";import"./physics-DAiIzLkS.js";class L{constructor(t,s,i){this.scene=t,this.drill=s,this.profile=i,this.hintsEnabled=!1,this.hintMeshes=[],this.zoneMesh=null,this.labelEl=null,this.hintBtnEl=null,this.resetBtnEl=null,this._buildUI()}_buildUI(){const t=document.getElementById("ui-layer");t&&(this.labelEl=document.createElement("div"),this.labelEl.style.cssText=`
       position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
       padding: 8px 20px;
       background: rgba(12,14,17,0.7);

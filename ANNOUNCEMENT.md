@@ -1,4 +1,19 @@
-# 3D Billiards v1.7.14 — Latest Update
+# 3D Billiards v1.7.15 — Latest Update
+
+## What's New in v1.7.15
+
+### 🔧 Comprehensive Deep Audit Fixes
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **球杆实例全路径空指针保护** | `Game.js` 中所有 18 处 `this.cue.show()`/`hide()`/`setAim()`/`strikeSnap()` 调用统一增加 `this.cue` 存在性检查，覆盖蓄力、瞄准、AI 动画、球权切换、认输、重置等全部代码路径，彻底消除球杆未初始化或已销毁时的崩溃风险 |
+| 2 | **blur 事件指针捕获清理** | `InputHandler._handleBlur()` 在 `isDown` 分支中补充清空 `_capturedPointerId`，防止窗口失焦后指针捕获状态残留 |
+| 3 | **构造函数缩进修复** | `InputHandler` 构造函数中 `_capturedPointerId` 初始化语句缩进修正 |
+| 4 | **移除重复的挑战结果隐藏调用** | `MenuSystem` 中 `_showSettings`、`_showAchievements`、`_showReplays`、`_showChallenges`、`_showTrainer`、`_showLanRoom`、`_showMatchSetup` 共 7 处方法删除多余的 `challengeResult.hide()` 重复调用 |
+
+---
+
+# 3D Billiards v1.7.14
 
 ## What's New in v1.7.14
 
