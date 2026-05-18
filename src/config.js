@@ -92,7 +92,7 @@ export const ROOM = {
   halfDepth: 380,
   wallHeight: 160,
   minCameraY: 10,
-  maxCameraY: 180,
+  maxCameraY: 150,
 };
 
 // Camera

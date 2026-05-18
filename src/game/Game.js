@@ -1951,7 +1951,7 @@ export class Game {
     this.screenShake?.cancel();
     const cam = this.camera;
     const topDown = settings.get('topDownAngle');
-    cam.position.set(0, 200, topDown ? 0.01 : 0.1);
+    cam.position.set(0, 170, topDown ? 0.01 : 0.1);
     cam.lookAt(0, 0, 0);
     if (this.renderer.controls) {
       this.renderer.controls.target.set(0, 0, 0);
