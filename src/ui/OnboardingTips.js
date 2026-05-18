@@ -168,6 +168,10 @@ export class OnboardingTips {
  */
 export function showOnce(tipsInstance, storeKey, tipKey, dynamicText = null, autoDismissMs = 0) {
   if (onboarding.get(storeKey)) return;
-  onboarding.set(storeKey, true);
-  tipsInstance.show(tipKey, dynamicText, autoDismissMs);
+  try {
+    tipsInstance.show(tipKey, dynamicText, autoDismissMs);
+    onboarding.set(storeKey, true);
+  } catch (e) {
+    // Tip display failed (e.g. missing ui-layer), don't mark as shown so it retries next time
+  }
 }

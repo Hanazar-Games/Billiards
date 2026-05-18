@@ -1571,6 +1571,14 @@ export class Game {
       clearTimeout(this._netDisconnectTimer);
       this._netDisconnectTimer = null;
     }
+    if (this._strikeHideTimer) {
+      clearTimeout(this._strikeHideTimer);
+      this._strikeHideTimer = null;
+    }
+    if (this._cameraResetTimer) {
+      clearTimeout(this._cameraResetTimer);
+      this._cameraResetTimer = null;
+    }
     this._challengeEnding = false;
 
     this._removeChallengeHUD();
@@ -2759,6 +2767,14 @@ export class Game {
     if (this._challengeEndTimeout) {
       clearTimeout(this._challengeEndTimeout);
       this._challengeEndTimeout = null;
+    }
+    if (this._strikeHideTimer) {
+      clearTimeout(this._strikeHideTimer);
+      this._strikeHideTimer = null;
+    }
+    if (this._cameraResetTimer) {
+      clearTimeout(this._cameraResetTimer);
+      this._cameraResetTimer = null;
     }
     this._challengeEnding = false;
 

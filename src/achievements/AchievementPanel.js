@@ -82,6 +82,7 @@ export class AchievementPanel {
     textBlock.appendChild(descRow);
 
     toast.appendChild(textBlock);
+    if (!this.toastContainer) return;
     this.toastContainer.appendChild(toast);
 
     // Animate in

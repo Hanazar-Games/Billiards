@@ -373,8 +373,14 @@ export class SettingsScreen {
   }
 
   _switchCategory(id) {
+    if (!this._contentArea) return;
     // Cancel any pending keybinding listen to prevent global listener leak
     keyBindings.cancelListening();
+    // Dismiss any open confirmation dialogs before switching categories
+    document.querySelectorAll('.settings-confirm-backdrop').forEach(el => {
+      if (el._keydownHandler) window.removeEventListener('keydown', el._keydownHandler);
+      if (el.parentNode) el.parentNode.removeChild(el);
+    });
     this._currentCategory = id;
     this._tabEls.forEach((els, catId) => {
       const active = catId === id;
@@ -528,9 +534,9 @@ export class SettingsScreen {
     this._rowSlider('粒子效果强度', Math.round((settings.get('particleIntensity') ?? 1.0) * 100), 20, 200, '%', (v) => {
       settings.set('particleIntensity', v / 100);
     });
-    this._rowSlider('拖尾淡出时间', Math.round((settings.get('trailFadeDuration') ?? 5.0) * 10), 20, 100, 's', (v) => {
+    this._rowSlider('拖尾淡出时间', Math.round((settings.get('trailFadeDuration') ?? 5.0) * 10), 20, 100, '', (v) => {
       settings.set('trailFadeDuration', v / 10);
-    });
+    }, '', (v) => (v / 10).toFixed(1) + 's');
 
     // ── Rendering ──
     this._sectionTitle('渲染', true);
@@ -792,7 +798,7 @@ export class SettingsScreen {
     this._row('自动追踪白球', this._createSwitch(settings.get('autoFollowCueBall'), (v) => settings.set('autoFollowCueBall', v)));
     this._rowSlider('相机过渡速度', Math.round(settings.get('cameraDamping') * 100), 30, 200, '%', (v) => settings.set('cameraDamping', v / 100));
     this._row('击球后自动复位', this._createSwitch(settings.get('cameraAutoResetAfterShot'), (v) => settings.set('cameraAutoResetAfterShot', v)));
-    this._rowSlider('复位延迟', Math.round(settings.get('cameraResetDelay') * 10), 10, 60, 's', (v) => settings.set('cameraResetDelay', v / 10));
+    this._rowSlider('复位延迟', Math.round(settings.get('cameraResetDelay') * 10), 10, 60, '', (v) => settings.set('cameraResetDelay', v / 10), '', (v) => (v / 10).toFixed(1) + 's');
     this._row('自由相机边界', this._createSwitch(settings.get('cameraCollisionAvoidance'), (v) => settings.set('cameraCollisionAvoidance', v)));
     this._row('击球时隐藏球杆', this._createSwitch(settings.get('hideCueOnShot'), (v) => settings.set('hideCueOnShot', v)));
     this._row('俯视角度', this._createSwitch(settings.get('topDownAngle'), (v) => settings.set('topDownAngle', v)));
@@ -1195,7 +1201,7 @@ export class SettingsScreen {
     this._contentArea.appendChild(row);
   }
 
-  _rowSlider(label, value, min, max, unit, onChange, tooltip = '') {
+  _rowSlider(label, value, min, max, unit, onChange, tooltip = '', formatLabel = null) {
     const row = document.createElement('div');
     row.style.cssText = `
       display: flex; justify-content: space-between; align-items: center;
@@ -1216,14 +1222,14 @@ export class SettingsScreen {
     }
     row.appendChild(left);
 
-    const slider = this._createSlider(value, min, max, unit, onChange);
+    const slider = this._createSlider(value, min, max, unit, onChange, formatLabel);
     slider.style.flex = '1';
     slider.style.maxWidth = '320px';
     row.appendChild(slider);
     this._contentArea.appendChild(row);
   }
 
-  _rowSliderIn(container, label, value, min, max, unit, onChange, tooltip = '') {
+  _rowSliderIn(container, label, value, min, max, unit, onChange, tooltip = '', formatLabel = null) {
     const row = document.createElement('div');
     row.style.cssText = `
       display: flex; justify-content: space-between; align-items: center;
@@ -1243,7 +1249,7 @@ export class SettingsScreen {
       left.appendChild(tip);
     }
     row.appendChild(left);
-    const slider = this._createSlider(value, min, max, unit, onChange);
+    const slider = this._createSlider(value, min, max, unit, onChange, formatLabel);
     slider.style.flex = '1';
     slider.style.maxWidth = '260px';
     row.appendChild(slider);
@@ -1643,7 +1649,7 @@ export class SettingsScreen {
     return wrap;
   }
 
-  _createSlider(value, min, max, unit, onChange) {
+  _createSlider(value, min, max, unit, onChange, formatLabel) {
     const wrap = document.createElement('div');
     wrap.style.cssText = 'display: flex; align-items: center; gap: 14px; width: 100%;';
 
@@ -1699,12 +1705,12 @@ export class SettingsScreen {
     trackWrap.appendChild(input);
 
     const label = document.createElement('span');
-    label.textContent = value + unit;
+    label.textContent = formatLabel ? formatLabel(value) : (value + unit);
     label.style.cssText = `
       font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.55);
       min-width: 44px; text-align: right; font-variant-numeric: tabular-nums;
     `;
-    const labelFn = () => { label.textContent = input.value + unit; };
+    const labelFn = () => { label.textContent = formatLabel ? formatLabel(input.value) : (input.value + unit); };
     input.addEventListener('input', labelFn);
     this._listeners.push({ el: input, type: 'input', fn: labelFn });
 
@@ -1889,6 +1895,7 @@ export class SettingsScreen {
     if (!this.container) return;
     this.container.style.opacity = '0';
     if (this._hideTimer) clearTimeout(this._hideTimer);
+    if (this._settingsTipTimer) { clearTimeout(this._settingsTipTimer); this._settingsTipTimer = null; }
     this._hideTimer = setTimeout(() => { if (this.container) this.container.style.display = 'none'; }, animMs(300));
     // Dismiss any open confirmation dialogs
     document.querySelectorAll('.settings-confirm-backdrop').forEach(el => {

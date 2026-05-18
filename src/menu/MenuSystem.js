@@ -116,6 +116,7 @@ export class MenuSystem {
   }
 
   _setupMenu() {
+    if (this.state === 'DESTROYED') return;
     // Ensure menu-layer exists
     let menuLayer = document.getElementById('menu-layer');
     if (!menuLayer) {
@@ -183,6 +184,7 @@ export class MenuSystem {
     if (this.challengePanel) this.challengePanel.hide();
     if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerPanel) this.trainerPanel.hide();
+    if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerResult) this.trainerResult.hide();
     if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
     if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
@@ -196,6 +198,7 @@ export class MenuSystem {
     if (this.achievementPanel) this.achievementPanel.hideWall();
     if (this.challengePanel) this.challengePanel.hide();
     if (this.trainerPanel) this.trainerPanel.hide();
+    if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerResult) this.trainerResult.hide();
     if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
     if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
@@ -209,6 +212,7 @@ export class MenuSystem {
     if (this.challengePanel) this.challengePanel.hide();
     if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerPanel) this.trainerPanel.hide();
+    if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerResult) this.trainerResult.hide();
     if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
     if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
@@ -222,6 +226,7 @@ export class MenuSystem {
     if (this.challengePanel) this.challengePanel.hide();
     if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerPanel) this.trainerPanel.hide();
+    if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerResult) this.trainerResult.hide();
     if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
     if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
@@ -244,6 +249,7 @@ export class MenuSystem {
     if (this.achievementPanel) this.achievementPanel.hideWall?.();
     if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerPanel) this.trainerPanel.hide();
+    if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerResult) this.trainerResult.hide();
     if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
     if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
@@ -263,6 +269,7 @@ export class MenuSystem {
     if (this.replayPanel) this.replayPanel.hideList();
     if (this.achievementPanel) this.achievementPanel.hideWall?.();
     if (this.challengePanel) this.challengePanel.hide();
+    if (this.challengeResult) this.challengeResult.hide();
     if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerResult) this.trainerResult.hide();
     if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
@@ -659,6 +666,7 @@ export class MenuSystem {
     if (this.challengePanel) this.challengePanel.hide();
     if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerPanel) this.trainerPanel.hide();
+    if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerResult) this.trainerResult.hide();
     if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
     if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; }
@@ -685,6 +693,7 @@ export class MenuSystem {
     if (this.challengePanel) this.challengePanel.hide();
     if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerPanel) this.trainerPanel.hide();
+    if (this.challengeResult) this.challengeResult.hide();
     if (this.trainerResult) this.trainerResult.hide();
     if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
     this.matchSetupPanel = new MatchSetupPanel(

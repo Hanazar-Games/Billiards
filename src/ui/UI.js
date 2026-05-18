@@ -366,7 +366,12 @@ export class UI {
     if (this._hudSettingsBtn) {
       this._hudSettingsBtn.onclick = onSettings;
     }
-    this._pauseActions.forEach(btn => btn.remove());
+    this._pauseActions.forEach(btn => {
+      btn.onmouseenter = null;
+      btn.onmouseleave = null;
+      btn.onclick = null;
+      btn.remove();
+    });
     this._pauseActions = [];
 
     this._addPauseAction('继续游戏', '', onResume);
@@ -417,7 +422,11 @@ export class UI {
     if (this._flashTimer) clearTimeout(this._flashTimer);
     this._flashTimer = setTimeout(() => {
       const f = document.getElementById('ui-red-flash');
-      if (f) f.style.opacity = '0';
+      if (f) {
+        f.style.opacity = '0';
+        // Remove from DOM after fade-out transition completes
+        setTimeout(() => { if (f.parentNode) f.parentNode.removeChild(f); }, animMs(300));
+      }
       this._flashTimer = null;
     }, animMs(350));
   }
