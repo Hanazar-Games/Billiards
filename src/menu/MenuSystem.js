@@ -193,12 +193,12 @@ export class MenuSystem {
   _showMainMenu() {
     this.state = 'MENU';
     this.settingsScreen.hide();
-    if (this.replayPanel) this.replayPanel.hideList();
+    if (this.replayPanel) { this.replayPanel.destroy(); this.replayPanel = null; }
     if (this.achievementPanel) this.achievementPanel.hideWall();
     if (this.challengePanel) this.challengePanel.hide();
     if (this.trainerPanel) this.trainerPanel.hide();
-    if (this.challengeResult) this.challengeResult.hide();
-    if (this.trainerResult) this.trainerResult.hide();
+    if (this.challengeResult) { this.challengeResult.destroy(); this.challengeResult = null; }
+    if (this.trainerResult) { this.trainerResult.destroy(); this.trainerResult = null; }
     if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
     if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
     this.mainMenu.show();
@@ -818,7 +818,7 @@ export class MenuSystem {
     }
 
     // Show main menu
-    if (this.challengeResult) this.challengeResult.hide();
+    if (this.challengeResult) { this.challengeResult.destroy(); this.challengeResult = null; }
     this.mainMenu.show();
     this.state = 'MENU';
 
@@ -976,7 +976,7 @@ export class MenuSystem {
     }
 
     // Show main menu
-    if (this.challengeResult) this.challengeResult.hide();
+    if (this.challengeResult) { this.challengeResult.destroy(); this.challengeResult = null; }
     this.mainMenu.show();
     this.state = 'MENU';
     this._startMenuLoop();

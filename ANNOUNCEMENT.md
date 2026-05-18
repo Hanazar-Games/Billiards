@@ -1,4 +1,18 @@
-# 3D Billiards v1.7.15 — Latest Update
+# 3D Billiards v1.7.16 — Latest Update
+
+## What's New in v1.7.16
+
+### 🔧 Panel Lifecycle Leak Fixes
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **返回主菜单时彻底销毁结果面板** | `MenuSystem._showMainMenu()` 中将 `replayPanel.hideList()`、`challengeResult.hide()`、`trainerResult.hide()` 改为 `destroy()` 并清空引用，防止结果面板的键盘事件监听器和 DOM 元素在返回主菜单后持续泄漏 |
+| 2 | **回放结束后清理结果面板** | `MenuSystem._stopReplayPlayback()` 中同样将 `challengeResult.hide()` 改为 `destroy()`，确保回放流程结束后不留残余监听器 |
+| 3 | **普通游戏返回菜单时清理结果面板** | `MenuSystem._returnToMenu()` 中将 `challengeResult.hide()` 改为 `destroy()`，统一所有返回主菜单路径的清理行为 |
+
+---
+
+# 3D Billiards v1.7.15
 
 ## What's New in v1.7.15
 
