@@ -558,7 +558,7 @@ export class Game {
     if (!hit) return;
     const aim = this._tmpVec3d.subVectors(hit, ballPos);
     aim.y = 0;
-    aim.normalize();
+    if (aim.lengthSq() > 0) aim.normalize();
 
     if (aim.lengthSq() > 0.001) {
       this.aimDirection.copy(aim);
@@ -1122,7 +1122,7 @@ export class Game {
     this.state = 'AIM';
     this.ballInHand = true;
     this.ballInHandBehindLine = false;
-    this.cue.show();
+    if (this.cue) this.cue.show();
     this._turnTimerRemaining = this._turnTimerMax;
     this._updatePlayerStats();
     this.ui.setPlayerTurn(this.currentPlayer);
@@ -1139,7 +1139,7 @@ export class Game {
       this.power = 0;
       this.ui.setPower(0);
     }
-    if (showCue) this.cue.show();
+    if (showCue && this.cue) this.cue.show();
     if (showTrajectory) this.setAimTrajectoryVisible(true);
     if (updateAim) {
       this.updateAimDirection();
@@ -1152,7 +1152,7 @@ export class Game {
     this.ballInHand = false;
     this.ballInHandValid = false;
     this.ballInHandBehindLine = false;
-    this.cue.show();
+    if (this.cue) this.cue.show();
     this.setAimTrajectoryVisible(true);
     this.updateAimDirection();
     this.updateTrajectory();

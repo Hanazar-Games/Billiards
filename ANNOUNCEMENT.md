@@ -1,4 +1,20 @@
-# 3D Billiards v1.7.13 — Latest Update
+# 3D Billiards v1.7.14 — Latest Update
+
+## What's New in v1.7.14
+
+### 🔧 Deep Audit Defensive Fixes
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **Pointer Capture 正确释放** | `InputHandler.dispose()` 现在使用实际捕获的 `pointerId` 释放指针捕获，而非硬编码 `1`，避免多指针设备或异常场景下释放失败 |
+| 2 | **指针 ID 全生命周期跟踪** | `InputHandler` 在 `pointerdown` 时记录 `pointerId`，在 `pointerup`/`pointercancel`/`blur`/`lostpointercapture` 时清空，确保 dispose 时始终释放正确的捕获 |
+| 3 | **瞄准方向零向量防护** | `Game.updateAimDirection()` 在归一化前检查 `aim.lengthSq() > 0`，防止鼠标恰好位于 cue ball 正上方时产生 NaN 方向向量 |
+| 4 | **球杆实例空指针保护** | `Game` 中所有 `this.cue.show()` 调用增加 `this.cue` 存在性检查，防止球杆对象未初始化或已销毁时崩溃 |
+| 5 | **移除已废弃的 directPullAim 引用** | 清理 `Game` 构造函数和 `_enterAimState` 中残留的 `directPullAim` 属性赋值（该功能已从鼠标事件处理中移除） |
+
+---
+
+# 3D Billiards v1.7.13
 
 ## What's New in v1.7.13
 
@@ -14,7 +30,7 @@
 
 ---
 
-# 3D Billiards v1.7.12 — Latest Update
+# 3D Billiards v1.7.12
 
 ## What's New in v1.7.12
 
@@ -28,7 +44,7 @@
 
 ---
 
-# 3D Billiards v1.7.11 — Latest Update
+# 3D Billiards v1.7.11
 
 ## What's New in v1.7.11
 

@@ -5,6 +5,7 @@ export class InputHandler {
     this.mouseY = 0;
     this.isDown = false;
     this.rightDown = false;
+      this._capturedPointerId = null;
 
     this.onMouseMove = null;
     this.onMouseDown = null;
@@ -49,6 +50,7 @@ export class InputHandler {
     // Treat pointer cancel/leave as mouse-up to prevent soft-lock
     if (this.isDown) {
       this.isDown = false;
+      this._capturedPointerId = null;
       if (this.onMouseUp) this.onMouseUp(e);
     }
   }
@@ -61,6 +63,7 @@ export class InputHandler {
     }
     if (this.rightDown) {
       this.rightDown = false;
+      this._capturedPointerId = null;
       if (this.onRightMouseUp) this.onRightMouseUp();
     }
   }
@@ -96,7 +99,7 @@ export class InputHandler {
 
     this.isDown = true;
     if (this.element.setPointerCapture && e.pointerId != null) {
-      try { this.element.setPointerCapture(e.pointerId); } catch (err) {}
+      try { this.element.setPointerCapture(e.pointerId); this._capturedPointerId = e.pointerId; } catch (err) {}
     }
     if (this.onMouseDown) this.onMouseDown(e);
   }
@@ -124,11 +127,13 @@ export class InputHandler {
     this.mouseY = e.clientY;
     if (e.button === 0 && this.isDown) {
       this.isDown = false;
+      this._capturedPointerId = null;
       // Always notify game of mouse-up to prevent soft-lock in CHARGING state.
       // Game.js will ignore the release if it lands on interactive UI.
       if (this.onMouseUp) this.onMouseUp(e);
     } else if (e.button === 2 && this.rightDown) {
       this.rightDown = false;
+      this._capturedPointerId = null;
       if (this.onRightMouseUp) this.onRightMouseUp();
     }
   }
@@ -142,8 +147,9 @@ export class InputHandler {
     this.element.removeEventListener('pointerleave', this._handlePointerCancel);
     this.element.removeEventListener('lostpointercapture', this._handlePointerCancel);
     // Release active pointer capture to prevent browser keeping capture after disposal
-    if (this.element.releasePointerCapture) {
-      try { this.element.releasePointerCapture(1); } catch (e) {}
+    if (this.element.releasePointerCapture && this._capturedPointerId != null) {
+      try { this.element.releasePointerCapture(this._capturedPointerId); } catch (e) {}
+      this._capturedPointerId = null;
     }
     if (typeof window !== 'undefined' && 'onpointerrawupdate' in window) {
       this.element.removeEventListener('pointerrawupdate', this._handlePointerMove);
