@@ -26,6 +26,7 @@ export class InputHandler {
       element.addEventListener('pointerdown', this._handlePointerDown);
       element.addEventListener('pointerup', this._handleMouseUp);
       element.addEventListener('pointercancel', this._handlePointerCancel);
+      element.addEventListener('lostpointercapture', this._handlePointerCancel);
       element.addEventListener('pointerleave', this._handlePointerCancel);
       if ('onpointerrawupdate' in window) {
         element.addEventListener('pointerrawupdate', this._handlePointerMove);
@@ -139,6 +140,11 @@ export class InputHandler {
     this.element.removeEventListener('pointerup', this._handleMouseUp);
     this.element.removeEventListener('pointercancel', this._handlePointerCancel);
     this.element.removeEventListener('pointerleave', this._handlePointerCancel);
+    this.element.removeEventListener('lostpointercapture', this._handlePointerCancel);
+    // Release active pointer capture to prevent browser keeping capture after disposal
+    if (this.element.releasePointerCapture) {
+      try { this.element.releasePointerCapture(1); } catch (e) {}
+    }
     if (typeof window !== 'undefined' && 'onpointerrawupdate' in window) {
       this.element.removeEventListener('pointerrawupdate', this._handlePointerMove);
     }

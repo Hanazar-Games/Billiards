@@ -338,6 +338,8 @@ export class KeyBindings {
 
   _onKeyDown(e) {
     if (!this._waitingAction || !this._waitingCallback) return;
+    if (e.repeat) return; // ignore key-repeat while capturing a binding
+    e.preventDefault();   // prevent browser actions (F5, Tab, etc.) during capture
     // Ignore modifier-only keys
     if (['shift', 'control', 'alt', 'meta'].includes(e.key.toLowerCase())) return;
     const key = e.key.toLowerCase();

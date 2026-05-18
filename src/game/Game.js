@@ -724,11 +724,6 @@ export class Game {
 
     // Client sends shot intent to host; host executes physically
     if (this.networkMode && this.networkRole === 'client' && this.isLocalPlayerTurn()) {
-      // Block shot while push-out choice is pending
-      if (this.rules?.pushOutPending) {
-        this.ui.setMessage(UIText.pushOutMustChoose, 2000);
-        return;
-      }
       const force = Math.max(this.power, SHOT.minPower);
       this.networkController?.sendShotInput(this.aimDirection, force, this.cueTipOffset);
       this.state = 'SHOOTING';
