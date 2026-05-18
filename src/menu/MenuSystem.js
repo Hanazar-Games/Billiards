@@ -69,7 +69,6 @@ export class MenuSystem {
     this.challengeManager = null;
     this.activeChallenge = null;
     this.challengeResult = null;
-    this.activeChallenge = null;
     this._menuLoopId = null;
 
     // Local match system
