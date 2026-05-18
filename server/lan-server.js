@@ -40,6 +40,7 @@ class Room {
     this.guests = new Map(); // ws -> { id, nickname }
     this.nextGuestId = 2;
     this.started = false;
+    this.maxPlayers = 2; // MVP: only 2-player matches
   }
 
   addGuest(ws, nickname = '') {
@@ -170,6 +171,7 @@ wss.on('connection', (ws, req) => {
         type: 'roomCreated',
         roomId,
         playerId: 1,
+        maxPlayers: room.maxPlayers,
         playerList: room.getPlayerList(),
       });
       return;
@@ -190,8 +192,7 @@ wss.on('connection', (ws, req) => {
         send(ws, { type: 'error', error: 'Game already started' });
         return;
       }
-      if (room.guests.size >= 3) {
-        // Keep it simple: max 4 players total (1 host + 3 guests)
+      if (room.guests.size >= room.maxPlayers - 1) {
         send(ws, { type: 'error', error: 'Room is full' });
         return;
       }
@@ -203,6 +204,7 @@ wss.on('connection', (ws, req) => {
         type: 'joinedRoom',
         roomId,
         playerId: info.id,
+        maxPlayers: room.maxPlayers,
         playerList: room.getPlayerList(),
       });
       // Notify host and other guests
@@ -210,6 +212,7 @@ wss.on('connection', (ws, req) => {
         type: 'playerJoined',
         playerId: info.id,
         nickname: info.nickname,
+        maxPlayers: room.maxPlayers,
         playerList: room.getPlayerList(),
       }, ws);
       return;
@@ -231,7 +234,7 @@ wss.on('connection', (ws, req) => {
       if (!room) return;
       if (ws._isHost) {
         // Host left — destroy room
-        room.broadcast({ type: 'roomClosed', reason: 'Host left' });
+        room.broadcast({ type: 'roomClosed', reason: 'hostLeft' });
         for (const [gws] of room.guests) {
           gws._room = null;
           gws._isHost = false;
@@ -318,7 +321,7 @@ wss.on('connection', (ws, req) => {
     const room = ws._room;
     if (!room) return;
     if (ws._isHost) {
-      room.broadcast({ type: 'roomClosed', reason: 'Host disconnected' });
+      room.broadcast({ type: 'roomClosed', reason: 'hostDisconnected' });
       for (const [gws] of room.guests) {
         gws._room = null;
         gws.close();

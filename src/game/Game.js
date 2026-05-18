@@ -540,7 +540,9 @@ export class Game {
 
     const dragX = this.input.mouseX - this.dragStart.x;
     const dragY = this.input.mouseY - this.dragStart.y;
-    const pullDistance = Math.max(0, dragX * pullX + dragY * pullY);
+    const rawPull = Math.max(0, dragX * pullX + dragY * pullY);
+    const deadzone = settings.get('dragDeadzone') ?? 4;
+    const pullDistance = rawPull > deadzone ? rawPull - deadzone : 0;
     const powerSens = settings.get('shotPowerSens') || 1.0;
     this.power = Math.min(SHOT.maxPower, pullDistance * 0.42 * powerSens);
     this.ui.setPower((this.power / SHOT.maxPower) * 100);
@@ -1032,9 +1034,9 @@ export class Game {
       this.updateDragPower();
     }
 
-    // Fade table lights when they obstruct the camera view
+    // Fade or hide room elements that obstruct the camera view
     if (this.room) {
-      this.room.updateLampOpacity(this.camera);
+      this.room.updateCameraVisibility(this.camera);
     }
 
     // Host broadcasts snapshot during shooting (20–30 Hz)
@@ -2195,6 +2197,19 @@ export class Game {
           }
         }
       };
+      this._onNetRoomClosed = (e) => {
+        if (!this.networkMode || this._netDisconnectHandled) return;
+        this._netDisconnectHandled = true;
+        const reason = e.detail?.reason;
+        const msg = reason === 'hostLeft' ? UIText.hostLeft
+          : reason === 'hostDisconnected' ? UIText.hostDisconnected
+          : UIText.networkDisconnect;
+        this.ui.setMessage(msg, 3000);
+        this._netDisconnectTimer = setTimeout(() => {
+          this._netDisconnectTimer = null;
+          if (this.onReturnToMenu) this.onReturnToMenu();
+        }, 3000);
+      };
       this._onNetDisconnected = () => {
         if (!this.networkMode || this._netDisconnectHandled) return;
         this._netDisconnectHandled = true;
@@ -2209,6 +2224,7 @@ export class Game {
       controller.addEventListener('pocketEvent', this._onNetPocketEvent);
       controller.addEventListener('pushOutDeclare', this._onNetPushOutDeclare);
       controller.addEventListener('pushOutChoice', this._onNetPushOutChoice);
+      controller.addEventListener('roomClosed', this._onNetRoomClosed);
       controller.addEventListener('disconnected', this._onNetDisconnected);
     }
   }

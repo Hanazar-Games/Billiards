@@ -77,6 +77,8 @@ try {
     showError('ENGINE INIT ERROR: ' + err.message + '\n' + (err.stack || ''));
     throw err;
   }
+  // Expose for browser-level integration tests (smoke tests, e2e)
+  if (typeof window !== 'undefined') window.__menu = menu;
 
   // Phase 3 — Menu UI built
   setInitPhase('menu-build');

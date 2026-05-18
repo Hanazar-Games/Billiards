@@ -33,6 +33,8 @@ export const UIText = {
 
   // Network messages
   networkDisconnect: '网络连接已断开，即将返回主菜单…',
+  hostLeft: '房主已离开，房间关闭，即将返回主菜单…',
+  hostDisconnected: '房主连接已断开，即将返回主菜单…',
   networkCannotConcede: '网络对战中无法主动认输',
   concedeWinner: (winner) => `玩家 ${winner} 获胜！（对手认输）`,
   resetRequested: '已请求重新开始…',

@@ -218,13 +218,14 @@ export class UI {
         this._messageTimer = null;
       }
       if (duration > 0) {
+        const scale = (typeof settings !== 'undefined' && settings.get) ? (settings.get('messageDurationScale') ?? 1.0) : 1.0;
         this._messageTimer = setTimeout(() => {
           this._messageTimer = null;
           if (this.message && this._messageId === id) {
             this.message.textContent = '';
             this._lastMessage = '';
           }
-        }, duration);
+        }, duration * scale);
       }
     }
   }

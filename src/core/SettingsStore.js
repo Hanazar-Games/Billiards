@@ -38,8 +38,7 @@ const DEFAULTS = {
   fogEnabled: true,
   roomLightingQuality: 'high', // 'low' | 'medium' | 'high'
   reflectionQuality: 'medium', // 'off' | 'low' | 'medium'
-  ballDetail: 'high', // 'medium' | 'high'
-  tableDetail: 'high', // 'medium' | 'high'
+  // NOTE: ballDetail / tableDetail removed — use ballTextureQuality / clothWearEnabled
   backgroundAnimationEnabled: true,
   vSync: true,
   fpsLimit: 'unlimited', // 'unlimited' | '30' | '60' | '120' | '144'
@@ -93,7 +92,6 @@ const DEFAULTS = {
   pocketHighlightEnabled: true,
   cushionHighlightEnabled: false,
   cueOpacity: 1.0,
-  tableWearEnabled: true,
 
   // ── Camera & View ──
   defaultCamera: 'free', // 'free' | 'top' | 'follow'
@@ -127,7 +125,8 @@ const DEFAULTS = {
   compactHud: false,
   showShotPowerPercent: true,
   showSpinIndicator: true,
-  showPlayerStatsPanel: true,
+  // NOTE: showPlayerStatsPanel renamed to statsPanelEnabled for consistency
+  // (Game.js already used statsPanelEnabled, SettingsScreen used showPlayerStatsPanel)
   showFPS: false,
   showBallLabels: false,
   showRemainingBalls: true,
@@ -268,6 +267,7 @@ export class SettingsStore {
         } else {
           this._data = { ...DEFAULTS };
         }
+      }
     } catch (e) {
       console.warn('Settings load failed, using defaults');
     }
@@ -331,6 +331,8 @@ export const MATCH_FAIRNESS_KEYS = new Set([
   'showCrosshair',
   'autoHints',
   'hintFrequency',
+  // These are visual/audio only and SHOULD NOT be in fairness keys:
+  // 'particlesEnabled', 'shotTrailsEnabled', 'cameraShake', 'soundEnabled', etc.
 ]);
 
 /** Settings that are debug/dev-only and should be hidden/protected in normal use. */

@@ -20,16 +20,24 @@ export class Room {
     this._themeGroups = {};
     this._themeLights = {};
 
+    // Core architectural structure
     this.createFloor();
     this.createWalls();
-    this.createWallDetails();
-    this.createWindows();
     this.createCeiling();
-    this.createPaintings();
-    this.createPlants();
+
+    // Lighting (must come before decorations that may reference lights)
     this.createTableLights();
+
+    // Decorations — all optional, guarded by existence checks in applyVisualSettings
+    this.createPlants();
+    this.createPlaque();
     this.createLoungeArea();
     this.createRug();
+
+    // Stubs for future optional detail systems
+    this.createPaintings();
+    this.createWallDetails();
+    this.createWindows();
   }
 
   addToScene(scene) {
@@ -104,6 +112,14 @@ export class Room {
     this._addWall(hw, wallCenterY, 0, wallThick, wallTotalH, hd * 2, wallMat);
   }
 
+  createWallDetails() {
+    // Stub — reserved for future wall trim / wainscoting detail meshes
+  }
+
+  createWindows() {
+    // Stub — reserved for future window meshes
+  }
+
   _addWall(x, y, z, w, h, d, material) {
     const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
     wall.position.set(x, y, z);
@@ -126,7 +142,9 @@ export class Room {
       color: 0xf5e6c8,
       roughness: 0.9,
       metalness: 0.02,
-      side: THREE.DoubleSide,
+      // Intentionally FrontSide only: the plane is rotated so its normal points
+      // downward. This makes the ceiling invisible from above (default / top
+      // cameras) while remaining visible from below.
     });
     const w = ROOM.halfWidth * 2;
     const d = ROOM.halfDepth * 2;
@@ -185,6 +203,12 @@ export class Room {
       depthWrite: false,
     });
 
+    // Structural elements (crossbar, rods, chains) are grouped so they can be
+    // hidden when the camera is above them, preventing obstruction of the
+    // default and top-down views.
+    this._themeGroups.tableLightStructure = new THREE.Group();
+    this.meshGroup.add(this._themeGroups.tableLightStructure);
+
     const crossbarMat = this._mat('crossbar', {
       color: 0x2b2418,
       emissive: 0x4a3214,
@@ -197,7 +221,7 @@ export class Room {
     });
     const crossbar = new THREE.Mesh(new THREE.BoxGeometry(4, 3, this.profile.depth * 0.68), crossbarMat);
     crossbar.position.set(0, railY + 14, 0);
-    this.meshGroup.add(crossbar);
+    this._themeGroups.tableLightStructure.add(crossbar);
 
     const rodMat = this._mat('rod', {
       color: 0x8a7a68,
@@ -211,7 +235,7 @@ export class Room {
       const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, rodLen, 12), rodMat);
       rod.position.set(0, crossbarTopY + rodLen / 2, z);
       rod.castShadow = true;
-      this.meshGroup.add(rod);
+      this._themeGroups.tableLightStructure.add(rod);
     }
 
     // Chain links from crossbar to ceiling
@@ -231,7 +255,7 @@ export class Room {
         const t = i / (linksCount - 1);
         link.position.set(0, chainBotY + t * chainLen, z);
         link.rotation.y = (i % 2) * Math.PI / 2;
-        this.meshGroup.add(link);
+        this._themeGroups.tableLightStructure.add(link);
       }
     }
 
@@ -1046,10 +1070,26 @@ export class Room {
     }
   }
 
-  updateLampOpacity(camera) {
+  updateCameraVisibility(camera) {
+    const camPos = camera.position;
+    const camY = camPos.y;
+
+    // ── Ceiling grid: hide when camera is above the ceiling so the default
+    // and top-down views remain unobstructed.
+    if (this._themeGroups.ceilingGrid) {
+      this._themeGroups.ceilingGrid.visible = camY < ROOM.wallHeight - 2;
+    }
+
+    // ── Table light structure (crossbar, rods, chains): hide when camera is
+    // well above the lights (default & top-down camera positions).
+    if (this._themeGroups.tableLightStructure) {
+      this._themeGroups.tableLightStructure.visible = camY < ROOM.wallHeight + 8;
+    }
+
+    // ── Lamp diffuser fade (existing logic, preserves visual clarity when
+    // the camera is between the lamp and the table).
     if (!this._lampDiffusers || this._lampDiffusers.length === 0) return;
 
-    const camPos = camera.position;
     const tableCenter = this._tmpToTable.set(0, BALL.radius, 0);
     const toTable = this._tmpToTable.subVectors(tableCenter, camPos);
     const distToTable = toTable.length();

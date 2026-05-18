@@ -18,7 +18,7 @@ export class LanRoomPanel {
     this.onCancel = onCancel;
     this.client = null;
     this.container = null;
-    this._state = 'idle'; // idle | connecting | creating | joined | ready
+    this._state = 'idle'; // idle | connecting | creating | joined | ready | disconnected
     this._fadeTimer = null;
   }
 
@@ -177,15 +177,15 @@ export class LanRoomPanel {
     this._setStatus('正在连接服务器…');
     this.client = new NetworkClient();
     this.client.addEventListener('connected', () => {
-      this._setStatus('已连接服务器');
+      this._setStatus('已连接服务器', 'connected');
       this._state = 'idle';
     });
     this.client.addEventListener('disconnected', () => {
-      this._setStatus('连接已断开');
-      this._state = 'idle';
+      this._setStatus('连接已断开', 'disconnected');
+      this._state = 'disconnected';
     });
     this.client.addEventListener('netError', (e) => {
-      this._setStatus('错误：' + (e.detail?.error || '未知错误'));
+      this._setStatus('错误：' + (e.detail?.error || '未知错误'), 'error');
     });
     this.client.addEventListener('roomCreated', (e) => {
       this._onRoomCreated(e.detail);
@@ -195,17 +195,23 @@ export class LanRoomPanel {
     });
     this.client.addEventListener('playerJoined', (e) => {
       this._updatePlayerList(e.detail.playerList);
-      this._setStatus(`玩家 ${e.detail.nickname || e.detail.playerId} 加入房间`);
+      const currentCount = e.detail.playerList?.length || 1;
+      const maxCount = e.detail.maxPlayers || 2;
+      this._setStatus(`玩家 ${e.detail.nickname || e.detail.playerId} 加入房间 (${currentCount}/${maxCount})`, 'connected');
     });
     this.client.addEventListener('playerLeft', (e) => {
       this._updatePlayerList(this.client.playerList || []);
-      this._setStatus(`玩家 ${e.detail.playerId} 离开房间`);
+      this._setStatus(`玩家 ${e.detail.playerId} 离开房间`, 'warning');
     });
     this.client.addEventListener('startGame', (e) => {
       this._onRemoteStartGame(e.detail);
     });
-    this.client.addEventListener('roomClosed', () => {
-      this._setStatus('房间已关闭');
+    this.client.addEventListener('roomClosed', (e) => {
+      const reason = e.detail?.reason;
+      const msg = reason === 'hostLeft' ? '房主已离开，房间关闭'
+        : reason === 'hostDisconnected' ? '房主连接断开，房间关闭'
+        : '房间已关闭';
+      this._setStatus(msg, 'error');
       this._resetToIdle();
     });
     try {
@@ -229,7 +235,8 @@ export class LanRoomPanel {
     this._roomId = detail.roomId;
     this._roomIdEl.textContent = detail.roomId;
     this._roomIdEl.style.display = 'block';
-    this._setStatus('房间已创建，等待玩家加入…');
+    const max = detail.maxPlayers || 2;
+    this._setStatus(`房间已创建，等待玩家加入… (1/${max})`, 'connected');
     this._createBtn.style.display = 'none';
     this._joinBtn.style.display = 'none';
     this._joinRow.style.display = 'none';
@@ -258,7 +265,9 @@ export class LanRoomPanel {
     this._roomId = detail.roomId;
     this._roomIdEl.textContent = detail.roomId;
     this._roomIdEl.style.display = 'block';
-    this._setStatus('已加入房间，等待房主开始游戏…');
+    const current = detail.playerList?.length || 1;
+    const max = detail.maxPlayers || 2;
+    this._setStatus(`已加入房间，等待房主开始游戏… (${current}/${max})`, 'connected');
     this._createBtn.style.display = 'none';
     this._joinBtn.style.display = 'none';
     this._joinRow.style.display = 'none';
@@ -310,8 +319,17 @@ export class LanRoomPanel {
     }
   }
 
-  _setStatus(text) {
-    if (this._statusEl) this._statusEl.textContent = text;
+  _setStatus(text, tone = 'neutral') {
+    if (!this._statusEl) return;
+    this._statusEl.textContent = text;
+    const colors = {
+      neutral: 'rgba(255,255,255,0.55)',
+      connected: '#7ab860',
+      disconnected: '#ff6b6b',
+      error: '#ff6b6b',
+      warning: '#d8b15f',
+    };
+    this._statusEl.style.color = colors[tone] || colors.neutral;
   }
 
   _resetToIdle() {

@@ -25,7 +25,7 @@ export class Renderer {
     this.camera.lookAt(...CAMERA.lookAt);
 
     // Renderer
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer = new THREE.WebGLRenderer({ antialias: settings.get('antialiasEnabled') !== false });
     this.renderer.setSize(this.width, this.height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;

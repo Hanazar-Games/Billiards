@@ -16,6 +16,7 @@ export class NetworkClient extends EventTarget {
     this.playerId = null;
     this.isHost = false;
     this.connected = false;
+    this.playerList = [];
     this.reconnectTimer = null;
     this._pingInterval = null;
   }
@@ -116,18 +117,22 @@ export class NetworkClient extends EventTarget {
         this.roomId = data.roomId;
         this.playerId = data.playerId;
         this.isHost = true;
+        this.playerList = data.playerList || [];
         this.dispatchEvent(new CustomEvent('roomCreated', { detail: data }));
         break;
       case 'joinedRoom':
         this.roomId = data.roomId;
         this.playerId = data.playerId;
         this.isHost = false;
+        this.playerList = data.playerList || [];
         this.dispatchEvent(new CustomEvent('joinedRoom', { detail: data }));
         break;
       case 'playerJoined':
+        this.playerList = data.playerList || this.playerList;
         this.dispatchEvent(new CustomEvent('playerJoined', { detail: data }));
         break;
       case 'playerLeft':
+        this.playerList = data.playerList || this.playerList;
         this.dispatchEvent(new CustomEvent('playerLeft', { detail: data }));
         break;
       case 'startGame':
