@@ -250,6 +250,7 @@ export class SettingsScreen {
       this.audio.setMasterVolume(settings.get('masterVolume'));
       this.audio.setMusicVolume(settings.get('musicVolume'));
       this.audio.setSFXVolume(settings.get('sfxVolume'));
+      this.audio.setAmbientVolume(settings.get('ambientVolumeScale') * 100);
     }
     this._syncAllControls();
   }
@@ -429,10 +430,6 @@ export class SettingsScreen {
     this._rowSlider('环境音效', Math.round(settings.get('ambientVolumeScale') * 100), 0, 100, '%', (v) => {
       settings.set('ambientVolumeScale', v / 100);
       if (this.audio) this.audio.setAmbientVolume && this.audio.setAmbientVolume(v / 100);
-    });
-
-    this._rowSlider('菜单音效', Math.round(settings.get('uiSoundVolumeScale') * 100), 0, 100, '%', (v) => {
-      settings.set('uiSoundVolumeScale', v / 100);
     });
 
     this._rowSlider('击球反馈音', Math.round(settings.get('hitFeedbackVolumeScale') * 100), 0, 100, '%', (v) => {

@@ -1,4 +1,25 @@
-# 3D Billiards v1.7.8 — Latest Update
+# 3D Billiards v1.7.9 — Latest Update
+
+## What's New in v1.7.9
+
+### 🔊 Audio System Deep Fixes
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **低延迟模式逻辑修正** | AudioManager 中低延迟模式配置完全反转：enabled 时正确选择 interactive（最低延迟），disabled 时选择 playback（标准延迟） |
+| 2 | **M 键静音切换** | 键盘快捷键 M 现在真正生效——在游戏中按 M 可即时切换声音开关，并显示状态提示 |
+| 3 | **各音效独立音量比例生效** | cueHitVolumeScale、collisionVolumeScale、pocketVolumeScale、foulVolumeScale、hitFeedbackVolumeScale 五个滑块现在真正影响对应音效的响度 |
+| 4 | **muteWhenUnfocused 设置生效** | 后台静音开关关闭时，切换浏览器标签页不再强制停止 BGM；开启时行为与此前一致 |
+| 5 | **AudioContext closed 状态防护** | 所有音量 setter、BGM 控制和 SFX 播放方法现在都会检查 ctx.state !== closed，避免音频硬件被系统回收后抛出异常 |
+| 6 | **环境音量初始化同步** | SettingsScreen 首次挂载时环境音效音量不再停留在默认值，而是正确同步到用户持久化设置 |
+| 7 | **击球音效防重复** | playCueHit() 增加 20ms 冷却，防止网络延迟或快速点击导致的重音声 |
+| 8 | **iOS 中断恢复 + 手势覆盖扩展** | statechange 监听器新增 interrupted 状态自动恢复；手势监听器补充 pointerdown，覆盖 Surface/手写笔等混合设备 |
+| 9 | **移除无效滑块** | 设置面板中「菜单音效」（uiSoundVolumeScale）滑块从未被音频系统读取，现已移除，减少用户困惑 |
+| 10 | **Game 音频初始化优化** | 共享 AudioManager 实例不再被 Game.init() 重复调用 init()，仅独立音频上下文时执行 |
+
+---
+
+# 3D Billiards v1.7.8
 
 ## What's New in v1.7.8
 
@@ -8,8 +29,10 @@
 |---|------|------|
 | 1 | **网络客户端 Push-out 保护** | 局域网客户端在推杆后未选择接受/拒绝前，现在会正确阻止发送击球指令，与单机/主机端行为一致 |
 | 2 | **键盘输入分层保护** | 游戏暂停或游戏内设置面板打开时，所有游戏快捷键（除 Escape 外）被完全屏蔽，防止热键穿透设置面板触发意外操作 |
-| 3 | **设置确认框监听器完整清理** | `SettingsScreen.hide()` 和 `destroy()` 现在会正确移除确认对话框的 `keydown` 监听器，补充 v1.7.7 #2 的完整性 |
-| 4 | **网络客户端力度值规范化** | 客户端发送给主机的击球力度现在经过 `Math.max(power, minPower)` 处理，确保力度值不低于有效下限 |
+| 3 | **设置确认框监听器完整清理** | SettingsScreen.hide() 和 destroy() 现在会正确移除确认对话框的 keydown 监听器，补充 v1.7.7 #2 的完整性 |
+| 4 | **网络客户端力度值规范化** | 客户端发送给主机的击球力度现在经过 Math.max(power, minPower) 处理，确保力度值不低于有效下限 |
+
+---
 
 ---
 

@@ -67,7 +67,7 @@ export class AudioManager {
   init() {
     if (this.initialized) return;
     try {
-      const latencyHint = settings.get('lowLatencyMode') ? 'playback' : 'interactive';
+      const latencyHint = settings.get('lowLatencyMode') ? 'interactive' : 'playback';
       this.ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint });
       this._masterGain = this.ctx.createGain();
       this._masterGain.gain.value = 1.0;
@@ -97,21 +97,24 @@ export class AudioManager {
     document.addEventListener('click', this._gestureHandler, { once: true, passive: true });
     document.addEventListener('keydown', this._gestureHandler, { once: true, passive: true });
     document.addEventListener('touchstart', this._gestureHandler, { once: true, passive: true });
+    document.addEventListener('pointerdown', this._gestureHandler, { once: true, passive: true });
 
-    // Pause BGM when tab is hidden to save battery
+    // Pause BGM when tab is hidden to save battery (respect muteWhenUnfocused)
     this._visibilityHandler = () => {
       if (document.hidden) {
         this._bgmWasPlaying = this.bgmNodes.length > 0;
-        this.stopBGM();
+        if (settings.get('muteWhenUnfocused') !== false) {
+          this.stopBGM();
+        }
       } else if (this._bgmWasPlaying && this.soundEnabled) {
         this.startBGM();
       }
     };
     document.addEventListener('visibilitychange', this._visibilityHandler);
 
-    // Auto-recover from browser-initiated suspension
+    // Auto-recover from browser-initiated suspension / interruption
     this._stateHandler = () => {
-      if (this.ctx && this.ctx.state === 'suspended') {
+      if (this.ctx && (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted')) {
         this.resume();
       }
     };
@@ -137,9 +140,9 @@ export class AudioManager {
 
   toggleSound(enabled) {
     this.soundEnabled = enabled;
-    if (this._masterGain) {
-      const v = enabled ? (this._masterVolume ?? 1.0) : 0.0;
-      this._masterGain.gain.setTargetAtTime(v, this.ctx?.currentTime ?? 0, 0.05);
+    if (this._masterGain && this.ctx && this.ctx.state !== 'closed') {
+      const v = enabled ? this._masterVolume : 0.0;
+      this._masterGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
     }
     // Stop BGM when sound is turned off to save CPU cycles;
     // visibilitychange will restart it when sound is re-enabled.
@@ -151,7 +154,7 @@ export class AudioManager {
   }
 
   setMasterVolume(vol) {
-    if (!this._masterGain || !this.ctx) return;
+    if (!this._masterGain || !this.ctx || this.ctx.state === 'closed') return;
     const v = Math.max(0, Math.min(1, vol / 100));
     this._masterVolume = v;
     this._masterGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
@@ -159,27 +162,28 @@ export class AudioManager {
 
   setMusicVolume(vol) {
     this._musicVolume = Math.max(0, Math.min(1, vol / 100));
+    if (!this.ctx || this.ctx.state === 'closed') return;
     this._updateBGMVolume();
   }
 
   setSFXVolume(vol) {
     this._sfxVolume = Math.max(0, Math.min(1, vol / 100));
-    if (!this._sfxGain || !this.ctx) return;
+    if (!this._sfxGain || !this.ctx || this.ctx.state === 'closed') return;
     this._sfxGain.gain.setTargetAtTime(this._sfxVolume, this.ctx.currentTime, 0.05);
   }
 
   setAmbientVolume(vol) {
-    const v = Math.max(0, Math.min(1, vol));
-    if (!this._bgmGain || !this.ctx) return;
+    const v = Math.max(0, Math.min(1, vol / 100));
+    if (!this._bgmGain || !this.ctx || this.ctx.state === 'closed') return;
     // Ambient sounds share the BGM gain chain; apply as a secondary multiplier
     this._ambientVolume = v;
     this._updateBGMVolume();
   }
 
   _updateBGMVolume() {
-    if (!this._bgmGain || !this.ctx) return;
-    const base = this._musicVolume ?? 1.0;
-    const ambient = this._ambientVolume ?? 1.0;
+    if (!this._bgmGain || !this.ctx || this.ctx.state === 'closed') return;
+    const base = this._musicVolume;
+    const ambient = this._ambientVolume;
     this._bgmGain.gain.setTargetAtTime(base * ambient, this.ctx.currentTime, 0.05);
   }
 
@@ -262,7 +266,7 @@ export class AudioManager {
   }
 
   _canPlay() {
-    return this.enabled && this.ctx && this.soundEnabled;
+    return this.enabled && this.ctx && this.ctx.state !== 'closed' && this.soundEnabled;
   }
 
   /** Rate-limit rapid-fire identical SFX (collisions, cushion bounces). */
@@ -276,6 +280,7 @@ export class AudioManager {
 
   playCueHit(power = 50) {
     if (!this._canPlay()) return;
+    if (!this._cooldown('cueHit')) return;
     this.resume();
 
     const t = this.ctx.currentTime;
@@ -286,7 +291,7 @@ export class AudioManager {
     osc.frequency.setValueAtTime(200 + power * 3, t);
     osc.frequency.exponentialRampToValueAtTime(80, t + 0.08);
 
-    const vol = 0.15 + Math.min(power / 100, 1) * 0.25;
+    const vol = (0.15 + Math.min(power / 100, 1) * 0.25) * settings.get('cueHitVolumeScale');
     gain.gain.setValueAtTime(vol, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
 
@@ -313,7 +318,7 @@ export class AudioManager {
     osc.frequency.setValueAtTime(600 + intensity * 400, t);
     osc.frequency.exponentialRampToValueAtTime(300, t + 0.05);
 
-    gain.gain.setValueAtTime(intensity * 0.1, t);
+    gain.gain.setValueAtTime(intensity * 0.1 * settings.get('collisionVolumeScale'), t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
 
     osc.connect(gain);
@@ -347,7 +352,7 @@ export class AudioManager {
     filter.frequency.value = 800 + intensity * 1000;
 
     const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(intensity * 0.12, t);
+    gain.gain.setValueAtTime(intensity * 0.12 * settings.get('collisionVolumeScale'), t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
 
     noise.connect(filter);
@@ -369,7 +374,7 @@ export class AudioManager {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(150, t);
     osc.frequency.exponentialRampToValueAtTime(40, t + 0.2);
-    gain.gain.setValueAtTime(0.2, t);
+    gain.gain.setValueAtTime(0.2 * settings.get('pocketVolumeScale'), t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
     osc.connect(gain);
     gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
@@ -386,7 +391,7 @@ export class AudioManager {
     const noise = this.ctx.createBufferSource();
     noise.buffer = buffer;
     const nGain = this.ctx.createGain();
-    nGain.gain.setValueAtTime(0.08, t);
+    nGain.gain.setValueAtTime(0.08 * settings.get('pocketVolumeScale'), t);
     nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
     noise.connect(nGain);
     nGain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
@@ -406,7 +411,7 @@ export class AudioManager {
       const gain = this.ctx.createGain();
       osc.type = 'sine';
       osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.18, t + i * 0.08);
+      gain.gain.setValueAtTime(0.18 * settings.get('hitFeedbackVolumeScale'), t + i * 0.08);
       gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.22);
       osc.connect(gain);
       gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
@@ -428,7 +433,7 @@ export class AudioManager {
       osc.type = 'square';
       osc.frequency.setValueAtTime(180, t + offset);
       osc.frequency.exponentialRampToValueAtTime(90, t + offset + 0.12);
-      gain.gain.setValueAtTime(0.12, t + offset);
+      gain.gain.setValueAtTime(0.12 * settings.get('foulVolumeScale'), t + offset);
       gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.14);
       osc.connect(gain);
       gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);

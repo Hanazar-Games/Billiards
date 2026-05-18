@@ -163,7 +163,11 @@ export class Game {
       this.rules = new Rules();
     }
 
-    this.audio.init();
+    // Audio manager is already initialised by MenuSystem (shared singleton).
+    // Game only calls init() when it owns a standalone instance.
+    if (this._ownsAudio) {
+      this.audio.init();
+    }
 
     // Initialize turn timer (disabled for freeplay / challenge / replay)
     const timerSetting = settings.get('turnTimer') || 'off';
@@ -1854,6 +1858,15 @@ export class Game {
       }
       if (keyBindings.matches('pause', key, mods)) {
         this._togglePause();
+        return;
+      }
+
+      // Toggle sound (M key)
+      if (keyBindings.matches('toggleSound', key, mods)) {
+        const next = !settings.get('soundEnabled');
+        settings.set('soundEnabled', next);
+        this.audio?.toggleSound(next);
+        this.ui?.setMessage(next ? '声音已开启' : '声音已关闭', 1200);
         return;
       }
 
