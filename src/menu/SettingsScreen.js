@@ -593,7 +593,7 @@ export class SettingsScreen {
       { id: 'win',    label: 'Win',    icon: '⊞' },
       { id: 'mobile', label: '触屏',   icon: '☰' },
     ];
-    const currentPreset = keyBindings.getCurrentPreset().split(':')[0] || 'win';
+    const currentPreset = (keyBindings.getCurrentPreset() || '').split(':')[0] || 'win';
     presets.forEach(p => {
       const btn = document.createElement('button');
       const active = currentPreset === p.id;
@@ -921,7 +921,7 @@ export class SettingsScreen {
       a.href = url;
       a.download = 'billiards-settings.json';
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
       this._toast('配置已下载');
     });
     exportWrap.appendChild(exportClipboardBtn);

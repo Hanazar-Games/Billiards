@@ -23,7 +23,7 @@ const TIPS = {
   },
   foul: {
     title: '犯规提示',
-    text: (msg) => `${msg} 提示：白球必须先碰到自己的球，且不能先碰黑八或进袋。`,
+    text: (msg) => `${msg} 提示：白球不能落袋，且必须先碰合法目标球，击球后需有球碰库或进袋。`,
   },
   ballInHand: {
     title: '自由球',
@@ -54,8 +54,8 @@ export class OnboardingTips {
     this._ensureCard();
     if (!this._card) return;
 
-    const text = dynamicText && typeof tip.text === 'function'
-      ? tip.text(dynamicText)
+    const text = typeof tip.text === 'function'
+      ? tip.text(dynamicText ?? '')
       : tip.text;
 
     this._card.querySelector('.ob-title').textContent = tip.title;

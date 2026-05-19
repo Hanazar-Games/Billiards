@@ -1,4 +1,42 @@
-# 3D Billiards v1.7.25 — Latest Update
+# 3D Billiards v1.7.26 — Latest Update
+
+## What's New in v1.7.26
+
+### 🎮 Game Experience Enhancements — Foul Feedback, Target Hints & Practice Mode
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **犯规原因详细提示** | 8球/9球规则引擎的犯规消息现在带具体原因：「白球落袋」「没有球被撞到」「没有球碰库」「先碰了错误的球」「开球犯规（少于4颗球碰库）」等，玩家清楚知道为什么犯规 |
+| 2 | **8球 HUD 动态目标提示** | 台面开放时显示「台面开放 · 先进球决定分组」；分组后显示「玩家 1: 全色 ● | 玩家 2: 花色 ◯」，每回合自动更新 |
+| 3 | **9球 HUD 目标球提示** | 顶部玩家详情栏从「剩 9」改为显示当前目标球号码「目标 3号」；顶部信息栏显示「9球模式 · 目标球: 3号」 |
+| 4 | **自由球摆放具体原因提示** | 白球摆放位置无效时，不再只显示笼统的「当前位置无效」，而是具体提示「自由球必须放在台面内」「自由球必须放在开球线后」「自由球不能贴住其他球」「自由球不能放在袋口附近」 |
+| 5 | **练习模式击球反馈** | freeplay 模式每次击球后显示 2.5 秒 shot feedback，如「力度 78% · 进 2 颗 · 右旋 · 中」，帮助玩家感知力度、进球数和旋转效果 |
+| 6 | **犯规引导提示通用化** | 首次犯规提示从仅适用于 8球的「先碰自己的球，不能先碰黑八」改为通用规则说明「白球不能落袋，且必须先碰合法目标球，击球后需有球碰库或进袋」 |
+| 7 | **9球开球文案修正** | 移除 9球开球成功消息中不恰当的「台面开放」表述（9球没有 open table 概念） |
+
+### 🔧 Deep Audit Bug Fixes — Critical Crashes, Memory Leaks & State Bugs
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 8 | **挑战模式球碰撞崩溃** | `setupCollisionEvents` 中引用不存在的 `ballA`/`ballB` 变量，挑战模式下每次球碰撞抛出 `ReferenceError`。已修正为 `ball`/`otherBall` |
+| 9 | **训练模式库边碰撞崩溃** | `this.rules.recordCushionHit?.(ball.id)` 在训练模式（`this.rules === null`）下抛出 `TypeError`。已改为 `this.rules?.recordCushionHit?.(ball.id)` |
+| 10 | **Push-out Accept 按钮逻辑错误** | `acceptPushOut()` 返回 `this.currentPlayer`（即推杆者本人），导致对手点击「接受」后仍然是推杆者击球。已修正为返回对手 |
+| 11 | **犯规引导提示显示函数源码** | `OnboardingTips.show()` 当 `dynamicText` 为 falsy 且 `tip.text` 为函数时，`textContent` 被设为函数对象本身，玩家看到 JavaScript 源码。已改为始终调用函数并传入空字符串 |
+| 12 | **PowerLabel 重置后不重建** | `resetGame()` 中 `powerLabel?.dispose()` 后未重新创建，导致「再来一局」后力度分级标签永久消失。已补充重建 |
+| 13 | **AudioManager 音量 NaN 防护** | 6 处 `settings.get('...VolumeScale')` 在设置项缺失时返回 `undefined`，与数字相乘产生 `NaN`，导致对应音效无声。已全部添加 `|| 1.0` 回退 |
+| 14 | **AudioManager 环境音量设置丢失** | `setAmbientVolume()` 在音频上下文未就绪时提前返回，导致 `_ambientVolume` 未被存储，设置丢失。已将赋值移至 guard 之前 |
+| 15 | **MenuSystem _delay 定时器泄漏** | `_delay()` 连续调用时旧 timer ID 被覆盖且无法取消，泄漏定时器并可能在错误状态触发 resolve。已添加 `clearTimeout` 清理旧 timer |
+| 16 | **回放桌面配置崩溃** | `_startReplayPlayback()` 中 `getTableProfile()` 对未知 ID 可能返回 `null`，`new Table(..., null)` 会崩溃。已添加 `getDefaultTableProfile()` 回退 |
+| 17 | **粒子系统 bounding sphere 膨胀** | 死粒子被移到 `(99999, ...)` 导致 Three.js 计算巨大的 bounding sphere，破坏视锥剔除。已为 Points mesh 设置 `frustumCulled = false` |
+| 18 | **SettingsScreen 键位预设崩溃** | `keyBindings.getCurrentPreset()` 可能返回 `null`，`.split(':')` 抛出 TypeError。已添加空字符串回退 |
+| 19 | **SettingsScreen 配置下载 URL 过早释放** | 导出设置时 `URL.revokeObjectURL(url)` 紧跟 `a.click()` 之后，部分浏览器可能在下载开始前 revoke。已改为 5 秒后延迟释放 |
+| 20 | **ScreenShake dispose 引用不存在属性** | `dispose()` 中 `this._originalPosition = null` 引用从未声明的属性，已移除无效代码 |
+| 21 | **Game.js 硬编码中文统一化** | 训练模式「练习击球技巧 — 进球后查看评分」「重置球型」、声音开关「声音已开启/已关闭」、挑战模式「挑战模式」共 5 处硬编码中文已移至 `UIText.js` |
+| 22 | **UIText 练习模式文案修正** | `freeplayIntro` 提到「犯规自由球时白球可在球桌内任意摆放」，但练习模式没有犯规系统。已改为更准确的描述 |
+
+---
+
+# 3D Billiards v1.7.25
 
 ## What's New in v1.7.25
 
@@ -59,7 +97,7 @@
 
 ---
 
-# 3D Billiards v1.7.19 — Latest Update
+# 3D Billiards v1.7.19
 
 ## What's New in v1.7.19
 
@@ -78,7 +116,6 @@
 | 9 | **烟雾测试增强** | 训练流程新增 3 项断言：总进度条可见、卡片包含力度提示、游戏内 HUD 可见（含 🎯 和建议力度），烟雾测试总数从 44 项增至 47 项 |
 
 ---
-
 
 ### 🔧 Deep Audit — Network Stability, Audio Resilience & UI Hardening
 

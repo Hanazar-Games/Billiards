@@ -91,15 +91,14 @@ export class Rules {
       // Break foul: scratch or no ball hit
       if (this.foul || this.firstBallHit === null) {
         const reasonCode = this.scratch ? 'SCRATCH' : 'NO_BALL_HIT';
+        const reasonText = reasonCode === 'SCRATCH' ? '白球落袋' : '没有球被撞到';
         return {
           nextPlayer: opponent,
           foul: true,
           scratch: this.scratch,
           ballInHand: true,
           ballInHandBehindLine: true,
-          message: cueBallPocketed
-            ? '开球犯规：白球落袋！对手获得开球线后自由球'
-            : '开球犯规：没有球被撞到。对手获得开球线后自由球',
+          message: `开球犯规：${reasonText}！对手获得开球线后自由球`,
           respotEightBall: pocketedEight,
           reasonCode,
         };
@@ -125,7 +124,7 @@ export class Rules {
           scratch: false,
           ballInHand: true,
           ballInHandBehindLine: true,
-          message: '开球犯规：少于4颗球碰库。对手获得开球线后自由球',
+          message: '开球犯规：少于4颗球碰库！对手获得开球线后自由球',
           gameOver: false,
           reasonCode: 'ILLEGAL_BREAK',
         };
@@ -262,9 +261,18 @@ export class Rules {
 
     if (this.foul) {
       nextPlayer = opponent;
-      message = cueBallPocketed
-        ? '白球落袋！对手获得自由球。'
-        : '犯规！对手获得自由球。';
+      const reasonText = this.foulReason === 'NO_BALL_HIT' ? '没有球被撞到'
+        : this.foulReason === 'NO_RAIL_AFTER_CONTACT' ? '没有球碰库'
+        : this.foulReason === 'WRONG_FIRST_HIT' ? '先碰了错误的球'
+        : this.foulReason === 'EARLY_EIGHT' ? '非法打进8号球'
+        : '';
+      if (cueBallPocketed) {
+        message = '白球落袋！对手获得自由球。';
+      } else if (reasonText) {
+        message = `犯规：${reasonText}！对手获得自由球。`;
+      } else {
+        message = '犯规！对手获得自由球。';
+      }
     } else if (!continueTurn) {
       nextPlayer = opponent;
       message = '没有球进袋。轮到对手。';

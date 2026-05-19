@@ -228,6 +228,7 @@ export class ParticleSystem {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(data.positions, 3));
     const points = new THREE.Points(geometry, material);
+    points.frustumCulled = false;
     this.scene.add(points);
 
     this.systems.push({

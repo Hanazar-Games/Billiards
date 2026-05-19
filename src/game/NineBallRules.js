@@ -99,7 +99,8 @@ export class NineBallRules {
   acceptPushOut() {
     if (!this.pushOutPending) return null;
     this.pushOutPending = false;
-    return { nextPlayer: this.currentPlayer };
+    // The opponent (non-push-out player) accepts and plays next
+    return { nextPlayer: this.pushOutPlayer === 1 ? 2 : 1 };
   }
 
   passPushOut() {
@@ -205,7 +206,7 @@ export class NineBallRules {
           foul: true,
           scratch: false,
           ballInHand: true,
-          message: '开球犯规：没有球被撞到。对手获得自由球',
+          message: '开球犯规：没有球被撞到！对手获得自由球',
           gameOver: false,
           respotNineBall: pocketedIds.includes(9),
           reasonCode: 'NO_BALL_HIT',
@@ -227,7 +228,7 @@ export class NineBallRules {
           foul: true,
           scratch: false,
           ballInHand: true,
-          message: '开球犯规：必须先撞到1号球！',
+          message: '开球犯规：必须先碰到1号球！对手获得自由球',
           gameOver: false,
           respotNineBall: pocketedIds.includes(9),
           reasonCode: 'WRONG_FIRST_HIT',
@@ -284,7 +285,7 @@ export class NineBallRules {
         nextPlayer: this.currentPlayer,
         foul: false,
         scratch: false,
-        message: pocketedIds.length > 0 ? '开球有效。继续击球。' : '开球有效。台面开放。',
+        message: pocketedIds.length > 0 ? '开球有效。继续击球。' : '开球有效。',
         gameOver: false,
       };
       // Legal break: push-out available next shot
@@ -329,12 +330,26 @@ export class NineBallRules {
       // only the 9-ball is spotted if pocketed on foul).
       this.trackPocketedBalls(pocketedIds.filter(id => id !== 9));
       const reasonCode = ninePocketedOnFoul ? 'NINE_ON_FOUL_RESPOT' : this.foulReason;
+      const reasonText = this.foulReason === 'NO_BALL_HIT' ? '没有球被撞到'
+        : this.foulReason === 'NO_RAIL_AFTER_CONTACT' ? '没有球碰库'
+        : this.foulReason === 'WRONG_FIRST_HIT' ? '先碰了错误的球'
+        : '';
+      let message;
+      if (this.scratch) {
+        message = '白球落袋！对手获得自由球。';
+      } else if (ninePocketedOnFoul) {
+        message = '犯规：9号球进袋（已摆回）。对手获得自由球。';
+      } else if (reasonText) {
+        message = `犯规：${reasonText}！对手获得自由球。`;
+      } else {
+        message = '犯规！对手获得自由球。';
+      }
       const result = {
         nextPlayer: opponent,
         foul: true,
         scratch: this.scratch,
         ballInHand: true,
-        message: this.scratch ? '白球落袋！对手获得自由球。' : '犯规！对手获得自由球。',
+        message,
         gameOver: false,
         respotNineBall: ninePocketedOnFoul,
         reasonCode,

@@ -114,6 +114,5 @@ export class ScreenShake {
   }
   dispose() {
     this.camera = null;
-    this._originalPosition = null;
   }
 }

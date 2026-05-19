@@ -7,7 +7,7 @@
 
 export const UIText = {
   // Mode introduction messages
-  freeplayIntro: '练习模式：无胜负规则；白球进袋会自动复位，犯规自由球时白球可在球桌内任意摆放。',
+  freeplayIntro: '练习模式：无胜负规则，白球进袋会自动复位，可自由摆放白球。',
   nineBallIntro: '9 球规则：白球必须先碰当前最小号码球；合法打进 9 号球获胜。',
   eightBallIntro: '标准 8 球规则：开球后按进球分配全色/花色；清完本组后打进 8 号球获胜。',
   freeplayReset: '练习模式：无胜负规则；白球进袋会自动复位，自由球可在球桌内任意摆放。',
@@ -23,6 +23,32 @@ export const UIText = {
   ballInHandWaitHost: '等待房主确认自由球位置…',
   ballInHandCanceled: '自由球已取消。',
 
+  // Ball-in-hand invalid placement reasons
+  ballInHandInvalidOutOfBounds: '自由球必须放在台面内。',
+  ballInHandInvalidBehindLine: '自由球必须放在开球线后。',
+  ballInHandInvalidNearBall: '自由球不能贴住其他球。',
+  ballInHandInvalidNearPocket: '自由球不能放在袋口附近。',
+
+  // Foul reason mapping (used by UI to explain WHY a foul happened)
+  foulReasonMap: {
+    SCRATCH: '白球落袋',
+    NO_BALL_HIT: '没有球被撞到',
+    NO_RAIL_AFTER_CONTACT: '没有球碰库',
+    WRONG_FIRST_HIT: '先碰了错误的球',
+    ILLEGAL_BREAK: '开球犯规（少于4颗球碰库）',
+    EARLY_EIGHT: '非法打进8号球',
+    NINE_ON_FOUL_RESPOT: '犯规时9号球进袋（已摆回）',
+    THREE_FOUL_LOSS: '连续三次犯规',
+    NINE_ON_BREAK_WIN: '开球进9号球',
+    LEGAL_NINE_WIN: '合法打进9号球',
+    LEGAL_EIGHT_WIN: '合法打进8号球',
+    EIGHT_ON_BREAK_RESPOT: '开球进8号球（已摆回）',
+  },
+
+  foulReason(code) {
+    return this.foulReasonMap[code] || code;
+  },
+
   // AI messages
   aiThinking: 'AI 思考中…',
   aiPlanningFailed: 'AI 规划失败，已恢复玩家控制。',
@@ -30,6 +56,10 @@ export const UIText = {
   // Turn timer
   turnTimeout: (currentName, otherName) =>
     `⏰ 回合超时！${currentName} 犯规，${otherName} 获得自由球`,
+
+  // Sound toggle
+  soundOn: '声音已开启',
+  soundOff: '声音已关闭',
 
   // Network messages
   networkDisconnect: '网络连接已断开，即将返回主菜单…',
@@ -71,9 +101,33 @@ export const UIText = {
   cueTipHigh: '高杆',
   cueTipLow: '低杆',
 
+  // Trainer
+  trainerReset: '训练模式：调整瞄准线和力度，将目标球击入指定袋口',
+  trainerObjective: '练习击球技巧 — 进球后查看评分',
+  trainerResetLabel: '重置球型',
+
   // Objective lines
+  objectiveChallenge: '挑战模式',
   objectiveFreeplay: '练习模式 · 自由击球',
-  objective9Ball: '9球模式 · 先进9号球获胜',
+  objective9Ball: (target) => `9球模式 · 目标球: ${target}号`,
+  objective9BallOpen: '9球模式 · 先打1号球',
   objective8BallVsAI: '标准8球 · 对战AI · 清台获胜',
   objective8Ball: '标准8球 · 清台获胜',
+  objective8BallOpen: '台面开放 · 先进球决定分组',
+  objective8BallClosed: (p1Group, p2Group) => {
+    const g1 = p1Group === 'solid' ? '全色 ●' : (p1Group === 'stripe' ? '花色 ◯' : '待定');
+    const g2 = p2Group === 'solid' ? '全色 ●' : (p2Group === 'stripe' ? '花色 ◯' : '待定');
+    return `玩家 1: ${g1}  |  玩家 2: ${g2}`;
+  },
+
+  // Freeplay feedback
+  freeplayFeedback: ({ power, pocketedCount, spinText, positionQuality }) => {
+    const parts = [];
+    if (power) parts.push(`力度 ${power}%`);
+    if (pocketedCount > 0) parts.push(`进 ${pocketedCount} 颗`);
+    else parts.push('未进球');
+    if (spinText && spinText !== '中心击球') parts.push(spinText);
+    if (positionQuality) parts.push(positionQuality);
+    return parts.join(' · ');
+  },
 };

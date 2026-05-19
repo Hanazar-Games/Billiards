@@ -251,7 +251,7 @@ export class Game {
     if (this.mode === 'freeplay') {
       this.ui.setMessage(UIText.freeplayIntro);
     } else if (this.mode === 'trainer') {
-      this.ui.setMessage('训练模式：调整瞄准线和力度，将目标球击入指定袋口');
+      this.ui.setMessage(UIText.trainerReset);
     } else if (this.mode === '9ball') {
       this.ui.setMessage(UIText.nineBallIntro);
     } else {
@@ -271,7 +271,7 @@ export class Game {
 
     // Match info
     if (this.mode === 'trainer') {
-      this.ui.setMatchInfo('练习击球技巧 — 进球后查看评分');
+      this.ui.setMatchInfo(UIText.trainerObjective);
     } else {
       const objective = this._getObjectiveText();
       this.ui.setMatchInfo(objective);
@@ -291,7 +291,7 @@ export class Game {
     window.addEventListener('toggleShotTrail', this._onToggleShotTrail);
     window.addEventListener('toggleComboCounter', this._onToggleComboCounter);
     if (this.mode === 'trainer') {
-      this.ui.showResetButton(() => this._resetTrainerDrill(), '重置球型');
+      this.ui.showResetButton(() => this._resetTrainerDrill(), UIText.trainerResetLabel);
     } else {
       this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
     }
@@ -375,7 +375,7 @@ export class Game {
           if (this.state === 'SHOOTING' && ball.id === 0 && otherBall.id !== 0) {
             this.rules?.recordFirstHit(otherBall.id);
             this.achievements.onBallCollision(relVel);
-              if (this.challengeManager) this.challengeManager.onBallCollision(ballA, ballB);
+              if (this.challengeManager) this.challengeManager.onBallCollision(ball, otherBall);
           }
 
           // Deduplicate: cannon-es fires collide on BOTH bodies.
@@ -397,7 +397,7 @@ export class Game {
           // Ball-cushion collision
           this.ballsManager?.applyCushionSpin(ball);
           if (this.state === 'SHOOTING') {
-            this.rules.recordCushionHit?.(ball.id);
+            this.rules?.recordCushionHit?.(ball.id);
           }
           if (v > 0.8) {
             this.audio.playCushionBounce(v);
@@ -423,7 +423,7 @@ export class Game {
     };
     this.ballsManager.onManualCushionContact = (ball) => {
       if (this.state === 'SHOOTING') {
-        this.rules.recordCushionHit?.(ball.id);
+        this.rules?.recordCushionHit?.(ball.id);
       }
     };
   }
@@ -497,7 +497,7 @@ export class Game {
     this.charging = true;
     this.power = 0;
     this.ui.setPower(0);
-    this.trajectory.setVisible(false);
+    this.trajectory?.setVisible(false);
 
     // Show charge tutorial on first charge
     if (onboarding.get('gameTutorialStep') === 1) {
@@ -648,15 +648,21 @@ export class Game {
   }
 
   isCueBallPlacementLegal(x, z, behindHeadString = false) {
+    return this.getCueBallPlacementReason(x, z, behindHeadString) === null;
+  }
+
+  getCueBallPlacementReason(x, z, behindHeadString = false) {
     // Cue ball must stay inside the playing surface, clear of cushion faces
     const halfW = this.tableProfile.width / 2 - this.tableProfile.cushionWidth - BALL.radius;
     const halfD = this.tableProfile.depth / 2 - this.tableProfile.cushionWidth - BALL.radius;
-    if (x < -halfW || x > halfW || z < -halfD || z > halfD) return false;
+    if (x < -halfW || x > halfW || z < -halfD || z > halfD) {
+      return 'OUT_OF_BOUNDS';
+    }
 
     // Behind the head string restriction (break foul ball-in-hand)
     if (behindHeadString) {
       const headStringZ = -this.tableProfile.depth / 2 * 0.55;
-      if (z > headStringZ) return false;
+      if (z > headStringZ) return 'BEHIND_LINE';
     }
 
     for (const pocket of this.table.getPocketPositions()) {
@@ -664,7 +670,7 @@ export class Game {
       const dz = z - pocket.z;
       const avoidRadius = pocket.radius + BALL.radius * 0.45;
       if (dx * dx + dz * dz < avoidRadius * avoidRadius) {
-        return false;
+        return 'NEAR_POCKET';
       }
     }
 
@@ -673,10 +679,10 @@ export class Game {
       const dx = x - ball.body.position.x;
       const dz = z - ball.body.position.z;
       if (dx * dx + dz * dz < (BALL.radius * 2.15) ** 2) {
-        return false;
+        return 'NEAR_BALL';
       }
     }
-    return true;
+    return null;
   }
 
   startBallInHand(message = '', behindHeadString = false) {
@@ -706,6 +712,7 @@ export class Game {
     if (!cueBall) return;
     if (!point) {
       this.ballInHandValid = false;
+      this.ballInHandInvalidReason = null;
       return;
     }
 
@@ -720,7 +727,8 @@ export class Game {
     } else {
       z = Math.max(-halfD, Math.min(halfD, point.z));
     }
-    this.ballInHandValid = this.isCueBallPlacementLegal(x, z, this.ballInHandBehindLine);
+    this.ballInHandInvalidReason = this.getCueBallPlacementReason(x, z, this.ballInHandBehindLine);
+    this.ballInHandValid = this.ballInHandInvalidReason === null;
 
     if (this.ballInHandValid) {
       cueBall.reset(x, BALL.radius, z);
@@ -730,7 +738,14 @@ export class Game {
   confirmBallInHandPlacement() {
     this.updateBallInHandPreview();
     if (!this.ballInHandValid) {
-      this.ui.setMessage(UIText.ballInHandInvalid, 2500);
+      const reasonMap = {
+        OUT_OF_BOUNDS: UIText.ballInHandInvalidOutOfBounds,
+        BEHIND_LINE: UIText.ballInHandInvalidBehindLine,
+        NEAR_BALL: UIText.ballInHandInvalidNearBall,
+        NEAR_POCKET: UIText.ballInHandInvalidNearPocket,
+      };
+      const msg = reasonMap[this.ballInHandInvalidReason] || UIText.ballInHandInvalid;
+      this.ui.setMessage(msg, 2500);
       return;
     }
 
@@ -786,6 +801,7 @@ export class Game {
     // Client sends shot intent to host; host executes physically
     if (this.networkMode && this.networkRole === 'client' && this.isLocalPlayerTurn()) {
       const force = Math.max(this.power, SHOT.minPower);
+      this._lastShotPower = this.power;
       this.networkController?.sendShotInput(this.aimDirection, force, this.cueTipOffset);
       this.state = 'SHOOTING';
       this._shotStartTime = performance.now();
@@ -816,6 +832,7 @@ export class Game {
     this.rules?.startShot(this.currentPlayer);
 
     const force = Math.max(this.power, SHOT.minPower);
+    this._lastShotPower = this.power;
     cueBall.applyImpulse(
       this.aimDirection.x * force,
       0,
@@ -1400,6 +1417,28 @@ export class Game {
         this.audio.playFoul();
         this.ui.flashRed();
       }
+      // Show brief shot feedback
+      const pocketedCount = pocketedIds.filter(id => id !== 0).length;
+      const powerPct = Math.round((this._lastShotPower || 0) * 100);
+      const spin = this.cueTipOffset || { x: 0, y: 0 };
+      const absX = Math.abs(spin.x);
+      const absY = Math.abs(spin.y);
+      let spinText = '无旋转';
+      if (absX >= 0.05 || absY >= 0.05) {
+        const dirH = spin.x > 0.05 ? '右' : spin.x < -0.05 ? '左' : '';
+        const dirV = spin.y > 0.05 ? '下' : spin.y < -0.05 ? '上' : '';
+        const strength = Math.max(absX, absY);
+        const level = strength > 0.7 ? '强' : strength > 0.35 ? '中' : '弱';
+        spinText = `${dirV}${dirH}旋 · ${level}`;
+      }
+      const feedback = UIText.freeplayFeedback({
+        power: powerPct,
+        pocketedCount,
+        spinText,
+      });
+      if (feedback) {
+        this.ui.setMessage(feedback, 2500);
+      }
       this._enterAimState({ showCue: true, showTrajectory: true, updateAim: false });
       return;
     }
@@ -1693,13 +1732,14 @@ export class Game {
     this.gameStartTime = performance.now();
     this._applyCameraMode(settings.get('defaultCamera') || 'free');
     this.powerLabel?.dispose();
+    this.powerLabel = new PowerLabel();
     this.ui.setPower(0);
     this.ui.setPlayerTurn(1);
     this.ui.setPlayerGroups(null, null);
     if (this.mode === 'freeplay') {
       this.ui.setMessage(UIText.freeplayReset);
     } else if (this.mode === 'trainer') {
-      this.ui.setMessage('训练模式：调整瞄准线和力度，将目标球击入指定袋口');
+      this.ui.setMessage(UIText.trainerReset);
     } else if (this.mode === '9ball') {
       this.ui.setMessage(UIText.nineBallReset);
     } else {
@@ -1707,7 +1747,7 @@ export class Game {
     }
     this.ui.hideResetButton();
     if (this.mode === 'trainer') {
-      this.ui.showResetButton(() => this._resetTrainerDrill(), '重置球型');
+      this.ui.showResetButton(() => this._resetTrainerDrill(), UIText.trainerResetLabel);
     } else {
       this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
     }
@@ -1961,7 +2001,7 @@ export class Game {
         const next = !settings.get('soundEnabled');
         settings.set('soundEnabled', next);
         this.audio?.toggleSound(next);
-        this.ui?.setMessage(next ? '声音已开启' : '声音已关闭', 1200);
+        this.ui?.setMessage(next ? UIText.soundOn : UIText.soundOff, 1200);
         return;
       }
 
@@ -2189,12 +2229,32 @@ export class Game {
   }
 
   _getObjectiveText() {
-    if (this.challengeManager) return '挑战模式';
+    if (this.challengeManager) return UIText.objectiveChallenge;
     if (this.mode === 'trainer') return '击球训练';
     if (this.mode === 'freeplay') return UIText.objectiveFreeplay;
-    if (this.mode === '9ball') return UIText.objective9Ball;
+    if (this.mode === '9ball') {
+      const status = this.rules?.getStatus();
+      if (status?.targetBall) {
+        return UIText.objective9Ball(status.targetBall);
+      }
+      return UIText.objective9BallOpen;
+    }
+    // 8-ball: dynamic based on open/closed table
+    const status = this.rules?.getStatus();
+    if (status) {
+      if (!status.player1Group && !status.player2Group) {
+        return UIText.objective8BallOpen;
+      }
+      return UIText.objective8BallClosed(status.player1Group, status.player2Group);
+    }
     if (this.aiEnabled) return UIText.objective8BallVsAI;
     return UIText.objective8Ball;
+  }
+
+  _updateObjectiveText() {
+    if (this.ui) {
+      this.ui.setMatchInfo(this._getObjectiveText());
+    }
   }
 
   _updatePlayerStats() {
@@ -2211,7 +2271,9 @@ export class Game {
       p2Group: status?.player2Group ?? null,
       p2Remaining: status?.player2Remaining ?? defaultRemaining,
       mode: this.mode,
+      targetBall: is9Ball ? status?.targetBall : undefined,
     });
+    this._updateObjectiveText();
   }
 
   _onResetButtonClicked() {

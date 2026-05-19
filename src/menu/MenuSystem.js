@@ -14,7 +14,7 @@ import { GameLoop } from '../core/GameLoop.js';
 import { Game } from '../game/Game.js';
 import { Table } from '../game/Table.js';
 import { BallsManager } from '../game/BallsManager.js';
-import { getTableProfile, validateModeTableProfile } from '../game/TableProfiles.js';
+import { getTableProfile, getDefaultTableProfile, validateModeTableProfile } from '../game/TableProfiles.js';
 import { MainMenuScreen } from './MainMenuScreen.js';
 import { keyBindings } from '../input/KeyBindings.js';
 import { SettingsScreen } from './SettingsScreen.js';
@@ -871,7 +871,7 @@ export class MenuSystem {
     // Create table and balls for replay (visual only, no physics step)
     const replayProfileId = replayData.metadata?.tableProfileId || null;
     const replayProfile = replayProfileId ? getTableProfile(replayProfileId) : null;
-    this._replayTable = new Table(this.physics, replayProfile);
+    this._replayTable = new Table(this.physics, replayProfile || getDefaultTableProfile());
     this._replayTable.addToScene(this.renderer.scene);
 
     this._replayBalls = new BallsManager(this.physics);
@@ -1067,6 +1067,7 @@ export class MenuSystem {
 
   _delay(ms) {
     return new Promise((resolve) => {
+      if (this._delayTimer) clearTimeout(this._delayTimer);
       this._delayTimer = setTimeout(() => {
         this._delayTimer = null;
         resolve();
