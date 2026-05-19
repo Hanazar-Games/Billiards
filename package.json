@@ -11,8 +11,9 @@
     "test:rules": "node test/rules.test.js",
     "test:table": "node test/table-profiles.test.js",
     "test:lan": "node test/lan-server.test.js",
+    "test:ai": "node test/ai.test.js",
     "test:smoke": "node test/smoke.test.js",
-    "test": "npm run test:rules && npm run test:table && npm run test:lan && npm run test:smoke"
+    "test": "npm run test:rules && npm run test:table && npm run test:lan && npm run test:ai && npm run test:smoke"
   },
   "dependencies": {
     "cannon-es": "^0.20.0",
