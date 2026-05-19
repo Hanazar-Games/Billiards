@@ -27,10 +27,10 @@ export const BALL = {
   sleepSpeedLimit: 0.35,
   sleepAngularSpeedLimit: 0.28,
   sleepTimeLimit: 0.16,
-  rollingResistance: 3.5,     // cloth deceleration in cm/s^2
+  rollingResistance: 2.2,     // cloth deceleration in cm/s^2
   slowBrakeSpeed: 10,         // below this, braking ramps up as speed approaches zero
-  slowBrakeStrength: 0.18,
-  stopSpeedLimit: 0.18,
+  slowBrakeStrength: 0.08,
+  stopSpeedLimit: 0.12,
   maxSpeed: 520,
   boundaryRestitution: 0.74,
   overlapIterations: 4,
