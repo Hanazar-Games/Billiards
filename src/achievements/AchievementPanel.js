@@ -97,8 +97,10 @@ export class AchievementPanel {
       toast.style.opacity = '0';
       const removeTimer = setTimeout(() => {
         if (toast.parentNode) toast.parentNode.removeChild(toast);
+        this._toastTimers = this._toastTimers.filter(t => t !== removeTimer);
       }, 500);
       this._toastTimers.push(removeTimer);
+      this._toastTimers = this._toastTimers.filter(t => t !== dismissTimer);
     }, 3500);
     this._toastTimers.push(dismissTimer);
   }

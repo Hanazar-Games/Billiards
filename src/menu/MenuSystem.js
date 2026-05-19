@@ -16,6 +16,7 @@ import { Table } from '../game/Table.js';
 import { BallsManager } from '../game/BallsManager.js';
 import { getTableProfile, validateModeTableProfile } from '../game/TableProfiles.js';
 import { MainMenuScreen } from './MainMenuScreen.js';
+import { keyBindings } from '../input/KeyBindings.js';
 import { SettingsScreen } from './SettingsScreen.js';
 import { AchievementSystem } from '../achievements/AchievementSystem.js';
 import { AchievementPanel } from '../achievements/AchievementPanel.js';
@@ -1036,6 +1037,7 @@ export class MenuSystem {
     try { if (this.trainerPanel) { this.trainerPanel.destroy(); this.trainerPanel = null; } } catch (e) {}
     try { if (this.trainerResult) { this.trainerResult.destroy(); this.trainerResult = null; } } catch (e) {}
     try { if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; } } catch (e) {}
+    try { keyBindings.dispose(); } catch (e) {}
 
     // Clean up shared core
     this.renderer.dispose();

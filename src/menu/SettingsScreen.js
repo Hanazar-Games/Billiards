@@ -220,6 +220,7 @@ export class SettingsScreen {
     this._hideTimer = null;
     this._saveToastTimer = null;
     this._settingsTipTimer = null;
+    this._confirmHandlers = new Set();
     this._buildUI();
 
     // Debounced save toast for settings changes while modal is open
@@ -540,22 +541,20 @@ export class SettingsScreen {
 
     // ── Rendering ──
     this._sectionTitle('渲染', true);
-    this._row('垂直同步', this._createSwitch(settings.get('vSync'), (v) => settings.set('vSync', v)));
+    this._rowDisabled('垂直同步', this._createDisabledSwitch(settings.get('vSync'), () => {}), '由浏览器帧率控制，暂不可调');
     this._rowSelect('帧率限制', FPS_LIMIT_OPTIONS, settings.get('fpsLimit'), (v) => settings.set('fpsLimit', v));
-    this._rowSlider('渲染缩放', Math.round(settings.get('renderScale') * 100), 50, 200, '%', (v) => {
-      settings.set('renderScale', v / 100);
-    }, '需重启生效');
-    this._rowSlider('视野范围 (FOV)', settings.get('cameraFov'), 40, 90, '°', (v) => settings.set('cameraFov', v));
-    this._rowSlider('瞄准 FOV', settings.get('fovZoomed'), 30, 70, '°', (v) => settings.set('fovZoomed', v));
-    this._row('动态 FOV', this._createSwitch(settings.get('dynamicFov'), (v) => settings.set('dynamicFov', v)));
+    this._rowDisabled('渲染缩放', this._createDisabledSwitch(false, () => {}), '需重启生效');
+    this._rowDisabled('视野范围 (FOV)', this._createDisabledSwitch(false, () => {}));
+    this._rowDisabled('瞄准 FOV', this._createDisabledSwitch(false, () => {}));
+    this._rowDisabled('动态 FOV', this._createDisabledSwitch(false, () => {}));
 
     // ── Post-processing ──
     this._sectionTitle('后处理', true);
-    this._row('后处理效果', this._createSwitch(settings.get('postProcess'), (v) => settings.set('postProcess', v)));
-    this._row('泛光 (Bloom)', this._createSwitch(settings.get('bloom'), (v) => settings.set('bloom', v)));
-    this._row('色差效果', this._createSwitch(settings.get('chromaticAberration'), (v) => settings.set('chromaticAberration', v)));
-    this._row('胶片颗粒', this._createSwitch(settings.get('filmGrain'), (v) => settings.set('filmGrain', v)));
-    this._row('暗角效果', this._createSwitch(settings.get('vignette'), (v) => settings.set('vignette', v)));
+    this._rowDisabled('后处理效果', this._createDisabledSwitch(settings.get('postProcess'), () => {}), '需要 EffectComposer 支持');
+    this._rowDisabled('泛光 (Bloom)', this._createDisabledSwitch(settings.get('bloom'), () => {}));
+    this._rowDisabled('色差效果', this._createDisabledSwitch(settings.get('chromaticAberration'), () => {}));
+    this._rowDisabled('胶片颗粒', this._createDisabledSwitch(settings.get('filmGrain'), () => {}));
+    this._rowDisabled('暗角效果', this._createDisabledSwitch(settings.get('vignette'), () => {}));
   }
 
   _buildControlsContent() {
@@ -820,7 +819,10 @@ export class SettingsScreen {
     this._row('显示力度条', this._createSwitch(settings.get('showShotPowerPercent'), (v) => settings.set('showShotPowerPercent', v)));
     this._row('显示旋转指示', this._createSwitch(settings.get('showSpinIndicator'), (v) => settings.set('showSpinIndicator', v)));
     this._row('显示剩余球数', this._createSwitch(settings.get('showRemainingBalls'), (v) => settings.set('showRemainingBalls', v)));
-    this._row('显示连击计数', this._createSwitch(settings.get('showComboCounter'), (v) => settings.set('showComboCounter', v)));
+    this._row('显示连击计数', this._createSwitch(settings.get('showComboCounter'), (v) => {
+      settings.set('showComboCounter', v);
+      if (window.dispatchEvent) window.dispatchEvent(new CustomEvent('toggleComboCounter', { detail: v }));
+    }), '击球连续进球时显示');
     this._row('显示准星', this._createSwitch(settings.get('showCrosshair'), (v) => settings.set('showCrosshair', v)), '联机/竞技模式可能由房主统一锁定');
     this._row('显示击球统计', this._createSwitch(settings.get('statsPanelEnabled'), (v) => settings.set('statsPanelEnabled', v)));
     this._rowSlider('UI 缩放', Math.round(settings.get('hudScale') * 100), 50, 200, '%', (v) => settings.set('hudScale', v / 100));
@@ -836,10 +838,10 @@ export class SettingsScreen {
     this._row('自动保存回放', this._createSwitch(settings.get('autoSaveReplays'), (v) => settings.set('autoSaveReplays', v)));
     this._rowSlider('最大回放数', settings.get('replayMaxSaved'), 5, 50, '', (v) => settings.set('replayMaxSaved', v));
     this._row('显示击球数据', this._createSwitch(settings.get('showShotData'), (v) => settings.set('showShotData', v)));
-    this._row('显示热力图', this._createSwitch(settings.get('showHeatmap'), (v) => settings.set('showHeatmap', v)));
-    this._row('显示胜率预测', this._createSwitch(settings.get('showWinProbability'), (v) => settings.set('showWinProbability', v)), '联机/竞技模式可能由房主统一锁定');
-    this._row('显示详细统计', this._createSwitch(settings.get('showDetailedStats'), (v) => settings.set('showDetailedStats', v)));
-    this._row('击球历史追踪', this._createSwitch(settings.get('shotHistoryTracking'), (v) => settings.set('shotHistoryTracking', v)));
+    this._rowDisabled('显示热力图', this._createDisabledSwitch(settings.get('showHeatmap'), () => {}));
+    this._rowDisabled('显示胜率预测', this._createDisabledSwitch(settings.get('showWinProbability'), () => {}), '联机/竞技模式可能由房主统一锁定');
+    this._rowDisabled('显示详细统计', this._createDisabledSwitch(settings.get('showDetailedStats'), () => {}));
+    this._rowDisabled('击球历史追踪', this._createDisabledSwitch(settings.get('shotHistoryTracking'), () => {}));
     this._rowSlider('回放速度', Math.round(settings.get('replaySpeed') * 100), 25, 200, '%', (v) => settings.set('replaySpeed', v / 100));
   }
 
@@ -852,15 +854,15 @@ export class SettingsScreen {
     this._row('大字体模式', this._createSwitch(settings.get('largeTextMode'), (v) => settings.set('largeTextMode', v)));
     this._rowSlider('界面透明度', Math.round(settings.get('hudOpacity') * 100), 30, 100, '%', (v) => settings.set('hudOpacity', v / 100));
     this._row('减弱动态效果', this._createSwitch(settings.get('reducedMotion'), (v) => settings.set('reducedMotion', v)));
-    this._row('单手柄模式', this._createSwitch(settings.get('singleHandMode'), (v) => settings.set('singleHandMode', v)));
-    this._row('左撇子模式', this._createSwitch(settings.get('leftHandMode'), (v) => settings.set('leftHandMode', v)));
-    this._row('自动提示', this._createSwitch(settings.get('autoHints'), (v) => settings.set('autoHints', v)), '联机/竞技模式可能由房主统一锁定');
-    this._rowSlider('提示频率', settings.get('hintFrequency'), 1, 5, '级', (v) => settings.set('hintFrequency', v), '联机/竞技模式可能由房主统一锁定');
+    this._rowDisabled('单手柄模式', this._createDisabledSwitch(settings.get('singleHandMode'), () => {}));
+    this._rowDisabled('左撇子模式', this._createDisabledSwitch(settings.get('leftHandMode'), () => {}));
+    this._rowDisabled('自动提示', this._createDisabledSwitch(settings.get('autoHints'), () => {}), '联机/竞技模式可能由房主统一锁定');
+    this._rowDisabled('提示频率', this._createDisabledSwitch(false, () => {}), '联机/竞技模式可能由房主统一锁定');
     this._row('击球确认', this._createSwitch(settings.get('confirmShotOnRelease'), (v) => settings.set('confirmShotOnRelease', v)));
-    this._row('语音播报', this._createSwitch(settings.get('voiceAnnounce'), (v) => settings.set('voiceAnnounce', v)));
-    this._row('音效可视化', this._createSwitch(settings.get('soundCueVisualHints'), (v) => settings.set('soundCueVisualHints', v)));
-    this._row('聚焦模式', this._createSwitch(settings.get('focusMode'), (v) => settings.set('focusMode', v)));
-    this._rowSlider('聚焦透明度', Math.round(settings.get('focusOpacity') * 100), 10, 80, '%', (v) => settings.set('focusOpacity', v / 100));
+    this._rowDisabled('语音播报', this._createDisabledSwitch(settings.get('voiceAnnounce'), () => {}));
+    this._rowDisabled('音效可视化', this._createDisabledSwitch(settings.get('soundCueVisualHints'), () => {}));
+    this._rowDisabled('聚焦模式', this._createDisabledSwitch(settings.get('focusMode'), () => {}));
+    this._rowDisabled('聚焦透明度', this._createDisabledSwitch(false, () => {}));
   }
 
   _buildOtherContent() {
@@ -882,16 +884,16 @@ export class SettingsScreen {
     // ── Game Preferences ──
     this._sectionTitle('游戏偏好', true);
     this._sectionSubtitle('个人化的游戏行为设置');
-    this._row('快速发球', this._createSwitch(settings.get('quickBreak'), (v) => settings.set('quickBreak', v)));
-    this._row('自动跳过动画', this._createSwitch(settings.get('autoSkipAnimation'), (v) => settings.set('autoSkipAnimation', v)));
-    this._row('跳过对手回合', this._createSwitch(settings.get('skipOpponentTurn'), (v) => settings.set('skipOpponentTurn', v)), '联机/竞技模式可能由房主统一锁定');
-    this._row('显示对手轨迹', this._createSwitch(settings.get('showOpponentTrajectory'), (v) => settings.set('showOpponentTrajectory', v)), '联机/竞技模式可能由房主统一锁定');
+    this._rowDisabled('快速发球', this._createDisabledSwitch(settings.get('quickBreak'), () => {}));
+    this._rowDisabled('自动跳过动画', this._createDisabledSwitch(settings.get('autoSkipAnimation'), () => {}));
+    this._rowDisabled('跳过对手回合', this._createDisabledSwitch(settings.get('skipOpponentTurn'), () => {}), '联机/竞技模式可能由房主统一锁定');
+    this._rowDisabled('显示对手轨迹', this._createDisabledSwitch(settings.get('showOpponentTrajectory'), () => {}), '联机/竞技模式可能由房主统一锁定');
     this._rowSelect('默认球桌 (8球)', TABLE_PROFILE_OPTIONS, settings.get('defaultTableProfile8Ball'), (v) => settings.set('defaultTableProfile8Ball', v), '仅影响新对局的默认选择，比赛/联机中由房主锁定');
     this._rowSelect('默认球桌 (9球)', TABLE_PROFILE_OPTIONS.filter(o => o.value !== 'chinese8'), settings.get('defaultTableProfile9Ball'), (v) => settings.set('defaultTableProfile9Ball', v), '仅影响新对局的默认选择，比赛/联机中由房主锁定');
     this._rowSelect('默认球桌 (练习)', TABLE_PROFILE_OPTIONS, settings.get('defaultTableProfileFreeplay'), (v) => settings.set('defaultTableProfileFreeplay', v), '仅影响新对局的默认选择');
-    this._rowSelect('语言', LANGUAGE_OPTIONS, settings.get('language'), (v) => settings.set('language', v));
-    this._rowSelect('距离单位', UNIT_OPTIONS, settings.get('unitSystem'), (v) => settings.set('unitSystem', v));
-    this._rowSelect('速度单位', SPEED_UNIT_OPTIONS, settings.get('speedUnit'), (v) => settings.set('speedUnit', v));
+    this._rowDisabled('语言', this._createDisabledValue('简体中文'), '当前仅支持简体中文');
+    this._rowDisabled('距离单位', this._createDisabledValue('公制 (cm/m)'));
+    this._rowDisabled('速度单位', this._createDisabledValue('公里/小时'));
     if (settings.get('devMode')) {
       this._row('显示物理调试', this._createSwitch(settings.get('showPhysicsDebug'), (v) => settings.set('showPhysicsDebug', v)));
     }
@@ -1277,6 +1279,68 @@ export class SettingsScreen {
     row.appendChild(left);
     row.appendChild(this._createSwitch(checked, onChange));
     container.appendChild(row);
+  }
+
+  _createDisabledSwitch(checked, onChange) {
+    // Always use a no-op callback so disabled controls cannot mutate settings,
+    // even if the user bypasses the disabled state via DevTools.
+    const wrap = this._createSwitch(checked, () => {});
+    wrap.style.opacity = '0.45';
+    wrap.style.cursor = 'not-allowed';
+    wrap.title = '此功能尚未实现，敬请期待';
+    const input = wrap.querySelector('input[type="checkbox"]');
+    if (input) {
+      input.disabled = true;
+    }
+    return wrap;
+  }
+
+  _createDisabledValue(text) {
+    const el = document.createElement('span');
+    el.textContent = text;
+    el.style.cssText = `
+      font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.35);
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px; padding: 4px 10px; letter-spacing: 0.3px;
+      flex-shrink: 0;
+    `;
+    return el;
+  }
+
+  _rowDisabled(label, control, tooltip = '') {
+    const row = document.createElement('div');
+    row.style.cssText = `
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+      opacity: 0.5;
+    `;
+    const left = document.createElement('div');
+    left.style.cssText = 'display: flex; flex-direction: column; gap: 2px;';
+    const lblWrap = document.createElement('div');
+    lblWrap.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+    const lbl = document.createElement('span');
+    lbl.textContent = label;
+    lbl.style.cssText = 'font-size: 15px; font-weight: 500; color: rgba(255,255,255,0.6);';
+    lblWrap.appendChild(lbl);
+    const badge = document.createElement('span');
+    badge.textContent = '未实现';
+    badge.style.cssText = `
+      font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.55);
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 4px; padding: 2px 7px; letter-spacing: 0.5px;
+      flex-shrink: 0;
+    `;
+    lblWrap.appendChild(badge);
+    left.appendChild(lblWrap);
+    if (tooltip) {
+      const tip = document.createElement('span');
+      tip.textContent = tooltip;
+      tip.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.25);';
+      left.appendChild(tip);
+    }
+    row.appendChild(left);
+    row.appendChild(control);
+    this._contentArea.appendChild(row);
   }
 
   _rowSelectIn(container, label, options, value, onChange) {
@@ -1847,6 +1911,7 @@ export class SettingsScreen {
     const close = () => {
       if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
       window.removeEventListener('keydown', onKeyDown);
+      this._confirmHandlers.delete(onKeyDown);
     };
 
     const onKeyDown = (e) => {
@@ -1859,6 +1924,7 @@ export class SettingsScreen {
     };
     window.addEventListener('keydown', onKeyDown);
     backdrop._keydownHandler = onKeyDown;
+    this._confirmHandlers.add(onKeyDown);
 
     cancelBtn.onclick = () => { close(); if (onCancel) onCancel(); };
     confirmBtn.onclick = () => { close(); onConfirm(); };
@@ -1898,8 +1964,11 @@ export class SettingsScreen {
     if (this._settingsTipTimer) { clearTimeout(this._settingsTipTimer); this._settingsTipTimer = null; }
     this._hideTimer = setTimeout(() => { if (this.container) this.container.style.display = 'none'; }, animMs(300));
     // Dismiss any open confirmation dialogs
+    for (const handler of this._confirmHandlers) {
+      window.removeEventListener('keydown', handler);
+    }
+    this._confirmHandlers.clear();
     document.querySelectorAll('.settings-confirm-backdrop').forEach(el => {
-      if (el._keydownHandler) window.removeEventListener('keydown', el._keydownHandler);
       if (el.parentNode) el.parentNode.removeChild(el);
     });
   }
@@ -1922,8 +1991,11 @@ export class SettingsScreen {
     });
     this._tabEls.clear();
     // Remove any lingering confirm backdrops and their keydown listeners
+    for (const handler of this._confirmHandlers) {
+      window.removeEventListener('keydown', handler);
+    }
+    this._confirmHandlers.clear();
     document.querySelectorAll('.settings-confirm-backdrop').forEach(el => {
-      if (el._keydownHandler) window.removeEventListener('keydown', el._keydownHandler);
       if (el.parentNode) el.parentNode.removeChild(el);
     });
     // Remove any lingering toast elements

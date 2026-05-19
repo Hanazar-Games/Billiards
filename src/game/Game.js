@@ -138,6 +138,11 @@ export class Game {
   }
 
   async init(modeConfig = {}) {
+    if (this._initialized) {
+      console.warn('[Game] init() called twice on same instance');
+      return;
+    }
+    this._initialized = true;
     this.mode = modeConfig.mode || 'local2p';
     this.drillConfig = modeConfig.drill || null;
     this.aiEnabled = modeConfig.aiEnabled || false;
@@ -279,8 +284,12 @@ export class Game {
     this._onToggleShotTrail = (e) => {
       if (this.trails) this.trails.setEnabled(e.detail);
     };
+    this._onToggleComboCounter = (e) => {
+      if (this.ui) this.ui.setShowComboCounter(e.detail);
+    };
     window.addEventListener('toggleTrajectory', this._onToggleTrajectory);
     window.addEventListener('toggleShotTrail', this._onToggleShotTrail);
+    window.addEventListener('toggleComboCounter', this._onToggleComboCounter);
     if (this.mode === 'trainer') {
       this.ui.showResetButton(() => this._resetTrainerDrill(), '重置球型');
     } else {
@@ -366,7 +375,7 @@ export class Game {
           if (this.state === 'SHOOTING' && ball.id === 0 && otherBall.id !== 0) {
             this.rules?.recordFirstHit(otherBall.id);
             this.achievements.onBallCollision(relVel);
-              if (this.challengeManager) this.challengeManager.onBallCollision(ball, otherBall);
+              if (this.challengeManager) this.challengeManager.onBallCollision(ballA, ballB);
           }
 
           // Deduplicate: cannon-es fires collide on BOTH bodies.
@@ -425,11 +434,11 @@ export class Game {
     if (ballA.id === 0 && ballB.id !== 0) {
       this.rules?.recordFirstHit(ballB.id);
       this.achievements.onBallCollision(relVel);
-              if (this.challengeManager) this.challengeManager.onBallCollision(ball, otherBall);
+              if (this.challengeManager) this.challengeManager.onBallCollision(ballA, ballB);
     } else if (ballB.id === 0 && ballA.id !== 0) {
       this.rules?.recordFirstHit(ballA.id);
       this.achievements.onBallCollision(relVel);
-              if (this.challengeManager) this.challengeManager.onBallCollision(ball, otherBall);
+              if (this.challengeManager) this.challengeManager.onBallCollision(ballA, ballB);
     }
   }
 
@@ -1415,8 +1424,13 @@ export class Game {
     }
     if (result.foul) {
       this.statsTracker.recordFoul(this.currentPlayer, result.scratch);
+      if (this.ui) this.ui.updateComboCounter(0);
     } else if (effectivePocketedIds.length === 0) {
       this.statsTracker.recordMiss(this.currentPlayer);
+      if (this.ui) this.ui.updateComboCounter(0);
+    } else {
+      const streak = this.statsTracker.playerStats[this.currentPlayer].consecutivePockets;
+      if (this.ui) this.ui.updateComboCounter(streak);
     }
 
     if (result.gameOver) {
@@ -1669,6 +1683,7 @@ export class Game {
     this.ballInHandBehindLine = false;
     this.cueTipOffset = { x: 0, y: 0 };
     this._updateCueTipPicker();
+    if (this.ui) this.ui.updateComboCounter(0);
     this.aimDirection.set(0, 0, 1);
     this.lockedAimDirection.set(0, 0, 1);
     this._wasShiftCameraControl = false;
@@ -1866,6 +1881,7 @@ export class Game {
   }
 
   _updateCueTipPicker() {
+    if (this.ui) this.ui.setSpin(this.cueTipOffset);
     const marker = document.getElementById('cue-tip-marker');
     const hint = document.getElementById('cue-tip-hint');
     if (!marker || !hint) return;
@@ -1987,6 +2003,7 @@ export class Game {
       }
       if (changed) {
         this._updateCueTipPicker();
+        if (this.ui) this.ui.setSpin(this.cueTipOffset);
       }
     };
     window.addEventListener('keydown', this._onKeyDown);
@@ -2829,8 +2846,10 @@ export class Game {
     // Remove event listeners
     window.removeEventListener('toggleTrajectory', this._onToggleTrajectory);
     window.removeEventListener('toggleShotTrail', this._onToggleShotTrail);
+    window.removeEventListener('toggleComboCounter', this._onToggleComboCounter);
     this._onToggleTrajectory = null;
     this._onToggleShotTrail = null;
+    this._onToggleComboCounter = null;
 
     // Destroy UI elements created by this game session
     if (this.ui) {
@@ -2903,7 +2922,11 @@ export class Game {
     this.scene = null;
     this.camera = null;
     this.matchManager = null;
+    this.aiPlayer = null;
+    this.networkController = null;
+    this.rules = null;
     this._settingsOpen = false;
+    this._initialized = false;
 
     this.state = 'DISPOSED';
   }

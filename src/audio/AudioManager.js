@@ -43,6 +43,7 @@ export class AudioManager {
     this._bgmWasPlaying = false;
     this._masterVolume = 1.0;
     this._ambientVolume = 1.0;
+    this._pendingDisconnects = new Set();
   }
 
   /** Disconnect a chain of audio nodes after the source finishes playing. */
@@ -60,7 +61,11 @@ export class AudioManager {
       source.onended = doDisconnect;
     } else {
       // Fallback: estimate max duration and disconnect later
-      setTimeout(doDisconnect, 5000);
+      const tid = setTimeout(() => {
+        this._pendingDisconnects.delete(tid);
+        doDisconnect();
+      }, 5000);
+      this._pendingDisconnects.add(tid);
     }
   }
 
@@ -460,5 +465,7 @@ export class AudioManager {
     this.enabled = false;
     this.initialized = false;
     this._lastSfxTime.clear();
+    for (const tid of this._pendingDisconnects) clearTimeout(tid);
+    this._pendingDisconnects.clear();
   }
 }

@@ -1,4 +1,39 @@
-# 3D Billiards v1.7.22 — Latest Update
+# 3D Billiards v1.7.25 — Latest Update
+
+## What's New in v1.7.25
+
+### 🎨 UI/UX Overhaul — Menu Hierarchy, HUD Clarity & Settings Transparency
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **主菜单按钮分组** | 将 11 个扁平按钮重组为 4 个视觉区块（开始游戏 / 练习与挑战 / 资料与社交 / 系统），宽屏下 2 列网格布局，移动端自动折叠为单列 |
+| 2 | **主菜单滚动支持** | 修复短视口下菜单内容被截断无法访问的问题；容器新增 `overflow-y: auto` 与底部内边距 |
+| 3 | **主菜单 show/hide 竞态修复** | `show()` 现在会清除 pending 的 `hide` 定时器，避免快速切换时菜单闪烁后消失 |
+| 4 | **HUD 旋转指示器** | 底部 HUD 中心新增实时旋转方向显示（如「左旋 · 强」「下右旋 · 中」「无旋转」），与球杆击球点同步 |
+| 5 | **HUD 连击计数器** | 设置中开启后，连续进球时顶部显示「连击 ×N」；犯规或 Miss 后自动清零 |
+| 6 | **顶部玩家徽章同步** | 顶部 `#player1` / `#player2` 徽章现在显示实际玩家名字，减少与底部 HUD 的信息冗余 |
+| 7 | **29 项未实现设置标记为「未实现」** | 设置面板中所有占位功能（后处理、热力图、胜率预测、语音播报、单手柄/左撇子模式、语言切换等）现在显示「未实现」灰色徽章，控件不可交互且不会意外修改配置 |
+| 8 | **移动端布局安全** | 520px 以下屏幕小地图自动缩小；菜单网格强制单列；玩家徽章缩小内边距 |
+
+### 🔧 Deep Audit Bug Fixes — Memory Leaks, Crashes & Event Hygiene
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 9 | **AchievementPanel 定时器数组泄漏** | `showToast()` 将 dismiss/remove 定时器推入 `_toastTimers` 后永不清理，长游戏会话中数组无限增长。已在回调完成后从数组中过滤移除 |
+| 10 | **AudioManager 悬空 setTimeout** | `_autoDisconnect()` 的回退 `setTimeout(doDisconnect, 5000)` 未存储 ID，`dispose()` 无法取消，导致闭包与音频节点被额外持有 5 秒。已引入 `_pendingDisconnects` Set 追踪并统一清理 |
+| 11 | **Game.init() 重复调用泄漏监听器** | 同一 `Game` 实例若被 `init()` 两次，第一次的 `window` 事件监听器（trajectory、shotTrail、comboCounter、settingsChanged）会因引用被覆盖而永远无法移除。已添加 `_initialized` 标志阻止重复初始化 |
+| 12 | **Game._handleManualBallContact 未定义变量崩溃** | 手动球碰撞处理函数中引用不存在的 `ball` 和 `otherBall`（应为 `ballA`、`ballB`），挑战模式下触发碰撞时抛出 `ReferenceError`。已修正变量名 |
+| 13 | **Game.dispose() 遗漏关键引用** | 销毁时未清空 `aiPlayer`、`networkController`、`rules`，若实例被闭包意外持有会导致这些子图持续泄漏。已补充显式置空 |
+| 14 | **SettingsScreen 确认框 keydown 泄漏** | 确认对话框的 `keydown` 处理器仅存储在 DOM 元素的 `_keydownHandler` 属性上，若 DOM 被外部移除则处理器永远无法清理。已引入实例级 `_confirmHandlers` Set 双重追踪，确保 `hide()` / `destroy()` 全量移除 |
+| 15 | **UI.flashRed 游离 DOM 闭包** | 内层 `setTimeout` 闭包捕获了已被 `destroy()` 移除的 DOM 节点引用，导致节点在 300ms 内无法被 GC。已改为在回调内部重新 `getElementById` 查询 |
+| 16 | **KeyBindings 全局监听器未清理** | 模块级单例 `keyBindings` 的 `dispose()` 从未被调用，`settingsChanged` 监听器永久驻留。已在 `MenuSystem._quit()` 中补充调用 |
+| 17 | **UI.setSpin NaN 防护** | 传入非法 spin 对象（含 `NaN` 或非数字）时，`Math.abs(undefined)` 产生 `NaN`，HUD 显示异常文本「旋 · 弱」。已添加 `Number.isFinite` 校验与回退到零 |
+| 18 | **MainMenuScreen 回调校验** | `_fadeOut` 未校验 `callback` 是否为函数，传入非函数值时 400ms 后抛出 `TypeError`。已添加 `typeof` 守卫；构造函数中 `onSelectMode` 默认值为空函数防止未定义崩溃 |
+| 19 | **MainMenuScreen destroy 事件清理** | 退出按钮的 `onmouseenter/onmouseleave/onclick` 在 `destroy()` 中未清空，闭包可能短暂持有引用。已补充显式置空 |
+
+---
+
+# 3D Billiards v1.7.22
 
 ## What's New in v1.7.22
 

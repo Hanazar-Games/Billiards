@@ -19,10 +19,9 @@ export class UI {
     this._lastTimerSec = null;
     this._lastTurnTimerSec = null;
     this._lastTurnTimerWarn = 'none';
+    this._currentSpin = { x: 0, y: 0 };
 
     const uiLayer = document.getElementById('ui-layer');
-
-    // ── Top-bar group labels removed: group info now shown only in bottom HUD ──
 
     // ── Bottom HUD ──
     this.bottomHud = document.createElement('div');
@@ -44,7 +43,7 @@ export class UI {
     this._hudP1.appendChild(this._hudP1Detail);
     hudMain.appendChild(this._hudP1);
 
-    // Center: score + timer + objective
+    // Center: score + timer + objective + spin
     this._hudCenter = document.createElement('div');
     this._hudCenter.className = 'hud-center';
     this._hudScore = document.createElement('div');
@@ -56,9 +55,14 @@ export class UI {
     this._hudObjective = document.createElement('div');
     this._hudObjective.className = 'hud-objective';
     this._hudObjective.textContent = '';
+    // Spin indicator (small, below objective)
+    this._hudSpin = document.createElement('div');
+    this._hudSpin.className = 'hud-spin';
+    this._hudSpin.style.cssText = 'font-size:11px;font-weight:600;color:rgba(216,177,95,0.7);text-align:center;letter-spacing:0.5px;margin-top:2px;display:none;font-variant-numeric:tabular-nums;';
     this._hudCenter.appendChild(this._hudScore);
     this._hudCenter.appendChild(this._hudTimer);
     this._hudCenter.appendChild(this._hudObjective);
+    this._hudCenter.appendChild(this._hudSpin);
     hudMain.appendChild(this._hudCenter);
 
     // Player 2 side
@@ -293,6 +297,10 @@ export class UI {
     if (this._hudP1Name) this._hudP1Name.textContent = p1Name || '玩家 1';
     if (this._hudP2Name) this._hudP2Name.textContent = p2Name || '玩家 2';
 
+    // Also update top badges to match names for less redundancy
+    if (this.player1Badge) this.player1Badge.textContent = p1Name || '玩家 1';
+    if (this.player2Badge) this.player2Badge.textContent = p2Name || '玩家 2';
+
     const groupLabel = (g) => {
       if (!g) return '';
       return g === 'solid' ? '● 全色' : '◯ 花色';
@@ -426,7 +434,10 @@ export class UI {
       if (f) {
         f.style.opacity = '0';
         // Remove from DOM after fade-out transition completes
-        setTimeout(() => { if (f.parentNode) f.parentNode.removeChild(f); }, animMs(300));
+        setTimeout(() => {
+          const el = document.getElementById('ui-red-flash');
+          if (el && el.parentNode) el.parentNode.removeChild(el);
+        }, animMs(300));
       }
       this._flashTimer = null;
     }, animMs(350));
@@ -514,8 +525,36 @@ export class UI {
   }
 
   setShowSpinIndicator(v) {
+    if (this._hudSpin) {
+      this._hudSpin.style.display = v ? 'block' : 'none';
+    }
     const el = document.getElementById('spin-indicator');
     if (el) el.style.display = v ? 'block' : 'none';
+  }
+
+  /**
+   * Updates the spin indicator text in the bottom HUD.
+   * @param {{x:number,y:number}} spin - normalized spin offset (-1..1)
+   */
+  setSpin(spin) {
+    if (!this._hudSpin) return;
+    const s = spin || { x: 0, y: 0 };
+    const x = Number.isFinite(s.x) ? s.x : 0;
+    const y = Number.isFinite(s.y) ? s.y : 0;
+    this._currentSpin = { x, y };
+    const absX = Math.abs(x);
+    const absY = Math.abs(y);
+    if (absX < 0.05 && absY < 0.05) {
+      this._hudSpin.textContent = '无旋转';
+      this._hudSpin.style.color = 'rgba(255,255,255,0.35)';
+      return;
+    }
+    const dirH = x > 0.05 ? '右' : x < -0.05 ? '左' : '';
+    const dirV = y > 0.05 ? '下' : y < -0.05 ? '上' : '';
+    const strength = Math.max(absX, absY);
+    const level = strength > 0.7 ? '强' : strength > 0.35 ? '中' : '弱';
+    this._hudSpin.textContent = `${dirV}${dirH}旋 · ${level}`;
+    this._hudSpin.style.color = 'rgba(216,177,95,0.85)';
   }
 
   setShowCrosshair(v) {
@@ -533,7 +572,24 @@ export class UI {
   }
 
   setShowComboCounter(v) {
-    // Combo counter not yet implemented in HUD
+    if (!this._comboEl && v) {
+      this._comboEl = document.createElement('div');
+      this._comboEl.style.cssText = `
+        position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
+        font-size: 14px; font-weight: 800; color: rgba(216,177,95,0.9);
+        text-shadow: 0 2px 8px rgba(0,0,0,0.7); pointer-events: none; z-index: 10;
+        white-space: nowrap; letter-spacing: 1px;
+      `;
+      const uiLayer = document.getElementById('ui-layer');
+      if (uiLayer) uiLayer.appendChild(this._comboEl);
+    }
+    if (this._comboEl) this._comboEl.style.display = v ? 'block' : 'none';
+  }
+
+  updateComboCounter(count) {
+    if (this._comboEl && this._comboEl.style.display !== 'none') {
+      this._comboEl.textContent = count > 1 ? `连击 ×${count}` : '';
+    }
   }
 
   setStatsPanelEnabled(v) {
@@ -689,6 +745,10 @@ export class UI {
       this._fpsEl.parentNode.removeChild(this._fpsEl);
     }
     this._fpsEl = null;
+    if (this._comboEl && this._comboEl.parentNode) {
+      this._comboEl.parentNode.removeChild(this._comboEl);
+    }
+    this._comboEl = null;
     if (this._flashTimer) {
       clearTimeout(this._flashTimer);
       this._flashTimer = null;
@@ -740,6 +800,7 @@ export class UI {
     this._hudCenter = null;
     this._hudTimer = null;
     this._hudObjective = null;
+    this._hudSpin = null;
     if (this._hudNewGameBtn) this._hudNewGameBtn.onclick = null;
     this._hudScore = null;
     if (this._hudSettingsBtn) { this._hudSettingsBtn.onclick = null; }

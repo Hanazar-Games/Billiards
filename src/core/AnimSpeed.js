@@ -46,13 +46,15 @@ export function syncAnimSpeedCss() {
 
 /**
  * Auto-sync CSS variable on settings changes.
- * Call once at boot.
+ * Call once at boot. Returns an unsubscribe function for cleanup.
  */
 export function autoSyncAnimSpeed() {
   syncAnimSpeedCss();
-  window.addEventListener('settingsChanged', (e) => {
+  const handler = (e) => {
     if (e.detail?.key === 'uiAnimSpeed') {
       syncAnimSpeedCss();
     }
-  });
+  };
+  window.addEventListener('settingsChanged', handler);
+  return () => window.removeEventListener('settingsChanged', handler);
 }

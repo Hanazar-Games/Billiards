@@ -6,14 +6,14 @@ import { VERSION_TAG } from '../core/Version.js';
  *
  * Features:
  *  - Animated title with glow effect
- *  - 4 mode buttons: Free Play, Local 2P, vs AI, Settings
+ *  - Grouped mode buttons: Play, Practice, Social, System
  *  - Glassmorphism button style with hover effects
  *  - Smooth fade transitions
  *  - Back button when returning from settings
  */
 export class MainMenuScreen {
   constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onShowChallenges, onQuit, onLanMultiplayer, onMatchSetup, onShowTrainer) {
-    this.onSelectMode = onSelectMode;
+    this.onSelectMode = onSelectMode || (() => {});
     this.onSettings = onSettings;
     this.onAchievements = onAchievements;
     this.onShowReplays = onShowReplays;
@@ -30,7 +30,10 @@ export class MainMenuScreen {
 
   _buildUI() {
     const layer = document.getElementById('menu-layer');
-    if (!layer) return;
+    if (!layer) {
+      console.error('[MainMenuScreen] #menu-layer not found');
+      return;
+    }
 
     this.container = document.createElement('div');
     this.container.id = 'main-menu';
@@ -38,6 +41,8 @@ export class MainMenuScreen {
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       width: 100%; height: 100%;
+      padding: 24px 0 100px;
+      overflow-y: auto;
       transition: opacity calc(0.35s / var(--ui-anim-speed)) cubic-bezier(0.2,0.8,0.2,1), transform calc(0.35s / var(--ui-anim-speed)) cubic-bezier(0.2,0.8,0.2,1);
       position: relative;
       z-index: 1;
@@ -53,78 +58,72 @@ export class MainMenuScreen {
     const subtitle = document.createElement('div');
     subtitle.style.cssText = `
       font-size: 13px; color: rgba(244,247,244,0.58);
-      margin-bottom: 34px; letter-spacing: 3px;
+      margin-bottom: 28px; letter-spacing: 3px;
       text-transform: uppercase;
     `;
     subtitle.textContent = 'Hanazar Games';
     this.container.appendChild(subtitle);
 
-    // Buttons container
-    const btnGroup = document.createElement('div');
-    btnGroup.style.cssText = `
-      display: flex; flex-direction: column;
-      align-items: center; gap: 10px;
+    // Buttons grid (2-col on wide, 1-col on narrow)
+    const btnGrid = document.createElement('div');
+    btnGrid.className = 'menu-grid';
+    btnGrid.style.cssText = `
+      display: grid;
+      grid-template-columns: repeat(2, minmax(280px, 360px));
+      gap: 20px;
+      max-width: min(760px, 96vw);
     `;
 
-    // Free Play
-    this._addButton(btnGroup, '单人练习', '无胜负规则 · 白球自动复位 · 练习瞄准与力度', () => {
+    // ── Section: 开始游戏 ──
+    const playGroup = this._createSection(btnGrid, '🎯 开始游戏');
+    this._addButton(playGroup, '单人练习', '无胜负规则 · 白球自动复位 · 练习瞄准与力度', () => {
       this._fadeOut(() => this.onSelectMode('freeplay'));
     });
-
-    // Local 2P
-    this._addButton(btnGroup, '本地双人对战', '标准 8 球 · 分组清台 · 同屏轮流击球', () => {
+    this._addButton(playGroup, '本地双人对战', '标准 8 球 · 分组清台 · 同屏轮流击球', () => {
       this._fadeOut(() => this.onSelectMode('local2p'));
     });
-
-    // Local Match
-    this._addButton(btnGroup, '本地比赛', '自定义名字与赛制 · 8 球或 9 球 · 单局/三局/五局', () => {
+    this._addButton(playGroup, '对战 AI', '标准 8 球 · 内置电脑对手 · 难度可调', () => {
+      this._fadeOut(() => this.onSelectMode('vsai'));
+    });
+    this._addButton(playGroup, '9 球模式', '先碰最小号码球 · 合法打进 9 号球获胜', () => {
+      this._fadeOut(() => this.onSelectMode('nineball'));
+    });
+    this._addButton(playGroup, '本地比赛', '自定义名字与赛制 · 8 球或 9 球 · 单局/三局/五局', () => {
       if (this.onMatchSetup) this.onMatchSetup();
     });
 
-    // vs AI
-    this._addButton(btnGroup, '对战 AI', '标准 8 球 · 内置电脑对手 · 难度可调', () => {
-      this._fadeOut(() => this.onSelectMode('vsai'));
+    // ── Section: 练习与挑战 ──
+    const trainGroup = this._createSection(btnGrid, '📚 练习与挑战');
+    this._addButton(trainGroup, '击球训练', '从直线球到走位控制，逐步提升击球技巧', () => {
+      if (this.onShowTrainer) this.onShowTrainer();
     });
-
-    // 9-ball
-    this._addButton(btnGroup, '9 球模式', '先碰最小号码球 · 合法打进 9 号球获胜', () => {
-      this._fadeOut(() => this.onSelectMode('nineball'));
-    });
-
-    // Settings
-    this._addButton(btnGroup, '设置', '音效与显示偏好', () => {
-      if (this.onSettings) this.onSettings();
-    });
-
-    // Achievements
-    this._addButton(btnGroup, '成就', '查看解锁进度与技巧记录', () => {
-      if (this.onAchievements) this.onAchievements();
-    });
-
-    // Replays
-    this._addButton(btnGroup, '精彩回放', '浏览并播放自动保存的高分击球', () => {
-      if (this.onShowReplays) this.onShowReplays();
-    });
-
-    // Challenges
-    this._addButton(btnGroup, '挑战模式', '完成指定条件，刷新星级评价', () => {
+    this._addButton(trainGroup, '挑战模式', '完成指定条件，刷新星级评价', () => {
       if (this.onShowChallenges) this.onShowChallenges();
     });
 
-    // Shot Trainer
-    this._addButton(btnGroup, '击球训练', '从直线球到走位控制，逐步提升击球技巧', () => {
-      if (this.onShowTrainer) this.onShowTrainer();
+    // ── Section: 资料与社交 ──
+    const socialGroup = this._createSection(btnGrid, '🏆 资料与社交');
+    this._addButton(socialGroup, '成就', '查看解锁进度与技巧记录', () => {
+      if (this.onAchievements) this.onAchievements();
     });
-
-    // LAN Multiplayer
-    this._addButton(btnGroup, '局域网联机', '同一 Wi-Fi 下创建或加入房间，与好友对战', () => {
+    this._addButton(socialGroup, '精彩回放', '浏览并播放自动保存的高分击球', () => {
+      if (this.onShowReplays) this.onShowReplays();
+    });
+    this._addButton(socialGroup, '局域网联机', '同一 Wi-Fi 下创建或加入房间，与好友对战', () => {
       if (this.onLanMultiplayer) this.onLanMultiplayer();
     });
 
-    this.container.appendChild(btnGroup);
+    // ── Section: 系统 ──
+    const sysGroup = this._createSection(btnGrid, '⚙️ 系统');
+    this._addButton(sysGroup, '设置', '音效与显示偏好', () => {
+      if (this.onSettings) this.onSettings();
+    });
+
+    this.container.appendChild(btnGrid);
 
     // Quit button (bottom-right)
     const quitBtn = document.createElement('button');
+    quitBtn.type = 'button';
     quitBtn.textContent = '退出游戏';
     quitBtn.className = 'ui-action';
     quitBtn.style.cssText = `
@@ -137,13 +136,14 @@ export class MainMenuScreen {
       quitBtn.style.borderColor = 'rgba(255,255,255,0.4)';
     };
     quitBtn.onmouseleave = () => {
-      quitBtn.style.color = 'rgba(255,255,255,0.5)';
+      quitBtn.style.color = 'rgba(244,247,244,0.62)';
       quitBtn.style.borderColor = 'rgba(255,255,255,0.15)';
     };
     quitBtn.onclick = () => {
       if (this.onQuit) this.onQuit();
     };
     this.container.appendChild(quitBtn);
+    this._quitBtn = quitBtn;
 
     // Version
     const version = document.createElement('div');
@@ -157,8 +157,27 @@ export class MainMenuScreen {
     layer.appendChild(this.container);
   }
 
+  _createSection(parent, title) {
+    const section = document.createElement('div');
+    section.style.cssText = `
+      display: flex; flex-direction: column; gap: 8px;
+    `;
+    const header = document.createElement('div');
+    header.textContent = title;
+    header.style.cssText = `
+      font-size: 12px; font-weight: 700; color: rgba(216,177,95,0.75);
+      letter-spacing: 1.5px; text-transform: uppercase;
+      padding: 0 4px; margin-bottom: 2px;
+      user-select: none;
+    `;
+    section.appendChild(header);
+    parent.appendChild(section);
+    return section;
+  }
+
   _addButton(parent, label, desc, onClick) {
     const btn = document.createElement('button');
+    btn.type = 'button';
     btn.className = 'menu-btn';
 
     const titleRow = document.createElement('div');
@@ -178,7 +197,7 @@ export class MainMenuScreen {
   }
 
   _fadeOut(callback) {
-    if (!this.container) return;
+    if (!this.container || typeof callback !== 'function') return;
     this.container.style.opacity = '0';
     this.container.style.transform = 'scale(0.96)';
     if (this._fadeTimer) clearTimeout(this._fadeTimer);
@@ -189,6 +208,7 @@ export class MainMenuScreen {
 
   show() {
     if (!this.container) return;
+    if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
     this.container.style.display = 'flex';
     requestAnimationFrame(() => {
       if (!this.container) return;
@@ -210,6 +230,12 @@ export class MainMenuScreen {
   destroy() {
     if (this._fadeTimer) { clearTimeout(this._fadeTimer); this._fadeTimer = null; }
     if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
+    if (this._quitBtn) {
+      this._quitBtn.onmouseenter = null;
+      this._quitBtn.onmouseleave = null;
+      this._quitBtn.onclick = null;
+      this._quitBtn = null;
+    }
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }
