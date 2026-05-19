@@ -166,8 +166,8 @@ export class ChallengePanel {
   // ── Rendering ──
 
   _renderList() {
-    const grid = document.getElementById('challenge-grid');
-    const banners = document.getElementById('challenge-banners');
+    const grid = this.container.querySelector('#challenge-grid');
+    const banners = this.container.querySelector('#challenge-banners');
     const progressWrap = this.progressWrap;
     if (!grid || !banners || !progressWrap) return;
 

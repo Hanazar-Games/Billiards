@@ -12,6 +12,7 @@ export class ShotPlanner {
   findAllShots(balls, cueBall, pocketPositions, playerGroup, isBreak = false, targetBallId = null, enableBank = false, tableProfile = null) {
     const candidates = [];
     const r = BALL.radius;
+    if (!cueBall || !cueBall.mesh) return candidates;
     const cuePos = cueBall.mesh.position;
 
     for (const target of balls) {
@@ -52,7 +53,7 @@ export class ShotPlanner {
 
     if (enableBank) {
       const bankShots = this.findBankShots(
-        balls, cueBall, pocketPositions, playerGroup, isBreak, targetBallId
+        balls, cueBall, pocketPositions, playerGroup, isBreak, targetBallId, tableProfile
       );
       candidates.push(...bankShots);
     }
@@ -61,8 +62,9 @@ export class ShotPlanner {
     return candidates;
   }
 
-  findBankShots(balls, cueBall, pocketPositions, playerGroup, isBreak = false, targetBallId = null) {
+  findBankShots(balls, cueBall, pocketPositions, playerGroup, isBreak = false, targetBallId = null, tableProfile = null) {
     const candidates = [];
+    if (!cueBall || !cueBall.mesh) return candidates;
     const cuePos = cueBall.mesh.position;
     const cushions = ['top', 'bottom', 'left', 'right'];
 
@@ -111,6 +113,7 @@ export class ShotPlanner {
   evaluateBankShot(cuePos, targetBall, pocketPos, allBalls, pocketIndex, cushionSide, tableProfile = null) {
     const profile = tableProfile || getDefaultTableProfile();
     const r = BALL.radius;
+    if (!targetBall || !targetBall.mesh) return null;
     const targetPos = targetBall.mesh.position;
     const halfW = profile.width / 2;
     const halfD = profile.depth / 2;
@@ -224,6 +227,7 @@ export class ShotPlanner {
 
   evaluateShot(cuePos, targetBall, pocketPos, allBalls, pocketIndex, tableProfile = null) {
     const r = BALL.radius;
+    if (!targetBall || !targetBall.mesh) return null;
     const targetPos = targetBall.mesh.position;
 
     _v1.subVectors(pocketPos, targetPos);
@@ -289,7 +293,17 @@ export class ShotPlanner {
     const abz = b.z - a.z;
     const abLenSq = abx * abx + abz * abz;
 
-    if (abLenSq < 0.001) return false;
+    if (abLenSq < 0.001) {
+      // Degenerate path: check if any non-excluded ball sits at point a
+      for (const ball of allBalls) {
+        if (ball.pocketed) continue;
+        if (excludedIds.includes(ball.id)) continue;
+        const dx = ball.mesh.position.x - a.x;
+        const dz = ball.mesh.position.z - a.z;
+        if (dx * dx + dz * dz < r * r) return true;
+      }
+      return false;
+    }
 
     for (const ball of allBalls) {
       if (ball.pocketed) continue;
@@ -317,6 +331,7 @@ export class ShotPlanner {
   }
 
   findSafetyShot(balls, cueBall, pocketPositions, targetBallId = null, tableProfile = null) {
+    if (!cueBall || !cueBall.mesh) return null;
     const cuePos = cueBall.mesh.position;
     let best = null;
     let bestScore = -Infinity;

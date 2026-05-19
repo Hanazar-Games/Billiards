@@ -460,6 +460,7 @@ export class ReplayPanel {
 
   _importReplays() {
     const input = document.createElement('input');
+    input.id = 'replay-import-input';
     input.type = 'file';
     input.accept = '.json';
     input.style.display = 'none';
@@ -493,11 +494,27 @@ export class ReplayPanel {
     const progress = replayEngine.getProgress();
     const current = replayEngine.getCurrentTime().toFixed(1);
     const total = replayEngine.getDuration().toFixed(1);
+    const playText = replayEngine.playing && !replayEngine.paused ? '⏸' : '▶';
+    const speedText = replayEngine.getSpeedLabel();
+    const timeText = `${current} / ${total}s`;
+    const progressPct = `${progress * 100}%`;
 
-    this.playBtn.textContent = replayEngine.playing && !replayEngine.paused ? '⏸' : '▶';
-    this.speedBtn.textContent = replayEngine.getSpeedLabel();
-    this.timeDisplay.textContent = `${current} / ${total}s`;
-    this.progressFill.style.width = `${progress * 100}%`;
+    if (this._lastPlayText !== playText) {
+      this.playBtn.textContent = playText;
+      this._lastPlayText = playText;
+    }
+    if (this._lastSpeedText !== speedText) {
+      this.speedBtn.textContent = speedText;
+      this._lastSpeedText = speedText;
+    }
+    if (this._lastTimeText !== timeText) {
+      this.timeDisplay.textContent = timeText;
+      this._lastTimeText = timeText;
+    }
+    if (this._lastProgressPct !== progressPct) {
+      this.progressFill.style.width = progressPct;
+      this._lastProgressPct = progressPct;
+    }
 
     // Update metadata if available on the loaded replay data
     const meta = replayEngine._meta;
@@ -509,7 +526,16 @@ export class ReplayPanel {
       if (meta.collisionCount > 0) parts.push(`碰撞 ${meta.collisionCount}`);
       if (meta.cushionCount > 0) parts.push(`库边 ${meta.cushionCount}`);
       if (meta.spinUsed) parts.push('旋转');
-      this.metaDisplay.textContent = parts.join('  ·  ');
+      const metaText = parts.join('  ·  ');
+      if (this._lastMetaText !== metaText) {
+        this.metaDisplay.textContent = metaText;
+        this._lastMetaText = metaText;
+      }
+    } else if (this.metaDisplay) {
+      if (this._lastMetaText !== '') {
+        this.metaDisplay.textContent = '';
+        this._lastMetaText = '';
+      }
     }
   }
 

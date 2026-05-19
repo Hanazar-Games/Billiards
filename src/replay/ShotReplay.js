@@ -29,11 +29,16 @@ export class ShotReplay {
 
   /** Load replay data and prepare for playback. */
   load(data) {
-    if (!data || !data.frames || data.frameCount < 2) return false;
+    if (!data || !data.frames || data.frameCount < 2) {
+      this.frames = null;
+      this.frameCount = 0;
+      return false;
+    }
 
     this.frames = new Float32Array(data.frames);
     this.frameCount = data.frameCount;
-    this.frameRate = data.frameRate || 20;
+    this.frameRate = (typeof data.frameRate === 'number' && data.frameRate > 0 && isFinite(data.frameRate))
+      ? data.frameRate : 20;
     this.frameInterval = 1 / this.frameRate;
     this.currentFrame = 0;
     this.accumulator = 0;
@@ -111,7 +116,8 @@ export class ShotReplay {
 
   /** Seek to a progress ratio (0.0 - 1.0). */
   seekRatio(ratio) {
-    this.seek(ratio * (this.frameCount - 1));
+    const clamped = Math.max(0, Math.min(1, ratio));
+    this.seek(clamped * (this.frameCount - 1));
   }
 
   /** Update playback. Call every frame with dt. */

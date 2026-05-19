@@ -26,17 +26,21 @@ export class ReplayLibrary {
   _save() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.replays));
+      return true;
     } catch (e) {
       // Quota exceeded — evict lowest score replays and retry
       if (e.name === 'QuotaExceededError') {
         this._evictLowest();
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(this.replays));
+          return true;
         } catch (e2) {
           console.warn('ReplayLibrary: quota exceeded even after eviction');
+          return false;
         }
       } else {
         console.warn('ReplayLibrary: failed to save', e);
+        return false;
       }
     }
   }
@@ -71,8 +75,7 @@ export class ReplayLibrary {
       this.replays = this.replays.slice(-MAX_REPLAYS);
     }
 
-    this._save();
-    return true;
+    return this._save();
   }
 
   /** Get all replays sorted by score (highest first). */
@@ -123,15 +126,18 @@ export class ReplayLibrary {
       const data = JSON.parse(json);
       if (!Array.isArray(data)) return 0;
       let count = 0;
+      const seenIds = new Set(this.replays.map((r) => r.id));
       for (const item of data) {
-        if (item && item.frames && item.frameCount >= 2) {
-          // Ensure ID uniqueness
-          if (this.replays.some((r) => r.id === item.id)) {
-            item.id = this._generateId();
-          }
-          this.replays.push(item);
-          count++;
+        if (!item || typeof item !== 'object') continue;
+        if (!Array.isArray(item.frames) || typeof item.frameCount !== 'number' || item.frameCount < 2) continue;
+        if (typeof item.score !== 'number') continue;
+        // Ensure ID uniqueness (both existing and within this batch)
+        if (seenIds.has(item.id)) {
+          item.id = this._generateId();
         }
+        seenIds.add(item.id);
+        this.replays.push(item);
+        count++;
       }
       // Enforce limit
       if (this.replays.length > MAX_REPLAYS) {

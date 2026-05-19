@@ -912,6 +912,7 @@ export class MenuSystem {
       this.replayPanel.exitBtn.onclick = () => this._stopReplayPlayback();
       this.replayPanel.progressBar.onclick = (e) => {
         const rect = this.replayPanel.progressBar.getBoundingClientRect();
+        if (rect.width <= 0) return;
         const ratio = (e.clientX - rect.left) / rect.width;
         this.replayEngine.seekRatio(ratio);
       };

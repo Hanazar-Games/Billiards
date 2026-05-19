@@ -49,9 +49,9 @@ export class TrainerHUD {
       display: flex; align-items: center; gap: 10px;
     `;
 
-    const titleSpan = document.createElement('span');
-    titleSpan.textContent = `🎯 ${this.drill.name}`;
-    this.labelEl.appendChild(titleSpan);
+    this.titleSpan = document.createElement('span');
+    this.titleSpan.textContent = `🎯 ${this.drill.name}`;
+    this.labelEl.appendChild(this.titleSpan);
 
     // Personal best badge
     if (progress && progress.stars > 0) {
@@ -265,7 +265,7 @@ export class TrainerHUD {
   }
 
   updateLabel(text) {
-    if (this.labelEl) this.labelEl.textContent = text;
+    if (this.titleSpan) this.titleSpan.textContent = text;
   }
 
   dispose() {

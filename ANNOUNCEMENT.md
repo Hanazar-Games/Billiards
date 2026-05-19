@@ -1,3 +1,29 @@
+# 3D Billiards v1.7.22 — Latest Update
+
+## What's New in v1.7.22
+
+### 🔧 Deep Audit Bug Fixes — Challenge UI, AI, Replay & Game Stability
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **ChallengePanel ID 作用域冲突** | `_renderList()` 使用 `document.getElementById` 全局查询 `#challenge-grid` / `#challenge-banners`，若其他组件使用相同 ID 会导致渲染到错误的 DOM 子树。已改为 `this.container.querySelector` 限定作用域 |
+| 2 | **TrainerHUD 个人最佳徽章被覆盖** | `updateLabel(text)` 直接设置 `this.labelEl.textContent`，抹除了 `_buildUI()` 中附加的个人最佳徽章子元素。已改为只更新内部的 `titleSpan`，保留徽章 |
+| 3 | **ShotPlanner 缺失 mesh 空指针防护** | `findAllShots()` / `findBankShots()` / `evaluateShot()` / `evaluateBankShot()` / `findSafetyShot()` 直接访问 `cueBall.mesh.position` / `targetBall.mesh.position` 未做空值检查，异常球对象可导致崩溃。已统一添加 `if (!ball || !ball.mesh) return` 守卫 |
+| 4 | **ShotPlanner bank shot 未接收 tableProfile** | `findAllShots()` 将 `tableProfile` 参数透传给 `evaluateShot()`，但 `findBankShots()` 未接收该参数，导致 bank shot 始终使用默认桌面尺寸。已修复参数透传 |
+| 5 | **ShotPlanner isPathBlocked 退化路径漏检** | 当起点终点重合（`abLenSq < 0.001`）时直接返回 `false`，若该位置恰有其他非排除球存在则漏检。已补充退化路径下的点位置碰撞检测 |
+| 6 | **ReplayLibrary._save() 静默失败** | `_save()` 捕获异常后未返回值，`save()` 始终返回 `true`，调用方无法感知 localStorage 写入失败（如超出配额）。已改为 `_save()` 返回布尔状态，`save()` 透传该返回值 |
+| 7 | **ReplayLibrary 导入校验过弱** | `importAll()` 仅检查 `item.frames` 真值和 `frameCount >= 2`，不校验 `frames` 是否为数组、`frameCount` 是否为数字、`score` 是否存在，畸形数据可 corrupt 库。已增加严格类型校验 |
+| 8 | **ReplayLibrary 导入批次内 ID 碰撞** | 同一批次导入的两个条目若原 ID 相同，碰撞检查仅对比已有库，导致两者被赋予相同的生成 ID。已引入 `seenIds` Set 追踪本批次已分配 ID，确保批次内唯一 |
+| 9 | **ShotReplay.load() 残留旧帧** | 传入无效数据时 `load()` 直接 `return false`，未清空 `this.frames`，播放器仍持有上一局数据。已补充 `this.frames = null; this.frameCount = 0` 后再返回 |
+| 10 | **ShotReplay frameRate 非法值** | `frameRate` 直接取 `data.frameRate || 20`，接受 `0`、负数、`Infinity` 等非法值，导致 `frameInterval` 计算异常。已添加正数且有限校验，非法时回退到 20 |
+| 11 | **ShotReplay.seekRatio() 越界** | 未对输入 `ratio` 做边界校验，可传入负数或大于 1 的值导致越界寻址。已添加 `Math.max(0, Math.min(1, ratio))` 钳制 |
+| 12 | **ReplayPanel 导入 input 无 ID 泄漏** | `_importReplays()` 创建的 `<input>` 无 ID，`destroy()` 中通过 `#replay-import-input` 查询不到，无法清理 DOM。已添加 `input.id = 'replay-import-input'` |
+| 13 | **ReplayPanel updateControls 每帧 DOM 抖动** | `updateControls()` 每帧无条件重写 `textContent` / `style.width`，造成不必要的回流重绘。已引入缓存字段 `_lastPlayText` / `_lastSpeedText` / `_lastTimeText` / `_lastProgressPct` / `_lastMetaText`，仅变化时更新 |
+| 14 | **ReplayPanel 元数据残留** | `meta` 为 falsy 时未清空 `metaDisplay`，上一局元数据会持续显示。已补充 `else` 分支清空 |
+| 15 | **MenuSystem 回放进度条除零** | `progressBar.onclick` 中 `(e.clientX - rect.left) / rect.width` 在 `rect.width === 0` 时产生 `NaN`。已添加 `rect.width <= 0` 提前返回 |
+
+---
+
 # 3D Billiards v1.7.19 — Latest Update
 
 ## What's New in v1.7.19
