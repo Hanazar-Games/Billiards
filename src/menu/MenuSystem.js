@@ -626,8 +626,10 @@ export class MenuSystem {
     // Validate mode/profile combo before proceeding
     const validated = validateModeTableProfile(mode, tableProfileId);
     if (!validated.valid) {
-      console.warn('[MenuSystem] Invalid mode/profile combo (%s / %s): %s. Using fallback.',
-        mode, tableProfileId, validated.reason);
+      if (tableProfileId) {
+        console.warn('[MenuSystem] Invalid mode/profile combo (%s / %s): %s. Using fallback.',
+          mode, tableProfileId, validated.reason);
+      }
       tableProfileId = validated.tableProfileId;
     }
 

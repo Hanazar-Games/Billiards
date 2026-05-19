@@ -244,7 +244,7 @@ export class Ball {
     const dirZ = shotSpeed > 0.001 ? z / shotSpeed : 1;
 
     // Apply linear impulse at ball centre (relative to body COM)
-    this.body.applyImpulse(new CANNON.Vec3(x, y, z), this.body.position);
+    this.body.applyImpulse(new CANNON.Vec3(x, y, z), new CANNON.Vec3(0, 0, 0));
 
     // Compute spin from off-centre cue tip hit using physical torque.
     const e = cueTipOffsetX;
@@ -285,6 +285,7 @@ export class Ball {
     }
 
     this.limitSpeed();
+    this.limitAngularSpeed();
   }
 
   limitSpeed() {
@@ -297,6 +298,18 @@ export class Ball {
       v.z *= scale;
     }
     v.y = 0;
+  }
+
+  limitAngularSpeed() {
+    const av = this.body.angularVelocity;
+    const max = BALL.maxAngularSpeed || 180;
+    const speed = av.length();
+    if (speed > max) {
+      const scale = max / speed;
+      av.x *= scale;
+      av.y *= scale;
+      av.z *= scale;
+    }
   }
 
   applyLowSpeedBrake(dt) {
@@ -330,14 +343,18 @@ export class Ball {
       angularSpeed = av.length();
     }
 
-    // Cloth-friction spin decay
+    // Cloth-friction spin decay. Rolling axes (x/z) should survive much
+    // longer than side spin; otherwise balls visually slide after contact and
+    // spin shots die before they can affect the next cushion.
     if (angularSpeed > 0) {
       const isNearlyStopped = speed < BALL.stopSpeedLimit * 2.5;
-      const spinFriction = isNearlyStopped ? 3.4 : 0.72;
-      const spinFactor = Math.max(0, 1 - spinFriction * dt);
-      av.x *= spinFactor;
-      av.y *= spinFactor;
-      av.z *= spinFactor;
+      const rollFriction = isNearlyStopped ? 2.4 : BALL.rollingSpinFriction;
+      const sideFriction = isNearlyStopped ? 3.0 : BALL.sideSpinFriction;
+      const rollFactor = Math.max(0, Math.exp(-rollFriction * dt));
+      const sideFactor = Math.max(0, Math.exp(-sideFriction * dt));
+      av.x *= rollFactor;
+      av.y *= sideFactor;
+      av.z *= rollFactor;
       angularSpeed = av.length();
     }
 
@@ -375,9 +392,7 @@ export class Ball {
       av.x -= (slipZ / BALL.radius) * coupling * 2.5;
     }
 
-    // Gradual side-spin (english) decay while rolling
-    const sideDecay = Math.exp(-BALL.sideSpinDecay * dt);
-    av.y *= sideDecay;
+    this.limitAngularSpeed();
   }
 
   sync() {

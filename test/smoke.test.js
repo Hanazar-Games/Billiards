@@ -13,6 +13,7 @@
 
 import puppeteer from 'puppeteer';
 import { spawn } from 'child_process';
+import net from 'net';
 import { setTimeout as sleep } from 'timers/promises';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -21,8 +22,8 @@ import { dirname, join } from 'path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEBGL_MOCK_CODE = readFileSync(join(__dirname, 'webgl-mock.js'), 'utf-8');
 
-const DEV_PORT = 5173;
-const BASE_URL = `http://localhost:${DEV_PORT}`;
+let DEV_PORT = Number(process.env.SMOKE_PORT || 5173);
+let BASE_URL = `http://127.0.0.1:${DEV_PORT}`;
 const NAV_TIMEOUT = 30000;
 const GAME_INIT_TIMEOUT = 10000;
 const PANEL_OPEN_TIMEOUT = 3000;
@@ -35,9 +36,35 @@ const consoleWarnings = [];
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
+function isPortAvailable(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once('error', () => resolve(false));
+    server.once('listening', () => {
+      server.close(() => resolve(true));
+    });
+    server.listen(port, '127.0.0.1');
+  });
+}
+
+async function findAvailablePort(startPort) {
+  for (let port = startPort; port < startPort + 50; port++) {
+    if (await isPortAvailable(port)) return port;
+  }
+  throw new Error(`No available smoke-test port found from ${startPort}`);
+}
+
 function startDevServer() {
-  return new Promise((resolve, reject) => {
-    const proc = spawn('npm', ['run', 'dev', '--', '--port', String(DEV_PORT), '--strictPort'], {
+  return new Promise(async (resolve, reject) => {
+    try {
+      DEV_PORT = await findAvailablePort(DEV_PORT);
+      BASE_URL = `http://127.0.0.1:${DEV_PORT}`;
+    } catch (err) {
+      reject(err);
+      return;
+    }
+
+    const proc = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1', '--port', String(DEV_PORT), '--strictPort'], {
       cwd: process.cwd(),
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: true,
@@ -57,6 +84,11 @@ function startDevServer() {
 
     proc.on('error', (err) => {
       if (!resolved) reject(err);
+    });
+    proc.on('exit', (code, signal) => {
+      if (!resolved) {
+        reject(new Error(`Vite dev server exited before ready (code=${code}, signal=${signal})`));
+      }
     });
 
     setTimeout(() => {

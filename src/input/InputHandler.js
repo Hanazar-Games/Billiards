@@ -28,13 +28,11 @@ export class InputHandler {
       element.addEventListener('pointerup', this._handleMouseUp);
       element.addEventListener('pointercancel', this._handlePointerCancel);
       element.addEventListener('lostpointercapture', this._handlePointerCancel);
-      element.addEventListener('pointerleave', this._handlePointerCancel);
       if ('onpointerrawupdate' in window) {
         element.addEventListener('pointerrawupdate', this._handlePointerMove);
       }
     } else {
       element.addEventListener('mousemove', this._handleMouseMove);
-      element.addEventListener('mouseleave', this._handlePointerCancel);
     }
     element.addEventListener('mousedown', this._handleMouseDown);
     window.addEventListener('mouseup', this._handleMouseUp);
@@ -145,7 +143,6 @@ export class InputHandler {
     this.element.removeEventListener('pointerdown', this._handlePointerDown);
     this.element.removeEventListener('pointerup', this._handleMouseUp);
     this.element.removeEventListener('pointercancel', this._handlePointerCancel);
-    this.element.removeEventListener('pointerleave', this._handlePointerCancel);
     this.element.removeEventListener('lostpointercapture', this._handlePointerCancel);
     // Release active pointer capture to prevent browser keeping capture after disposal
     if (this.element.releasePointerCapture && this._capturedPointerId != null) {
@@ -158,7 +155,6 @@ export class InputHandler {
     this.element.removeEventListener('mousedown', this._handleMouseDown);
     window.removeEventListener('mouseup', this._handleMouseUp);
     window.removeEventListener('blur', this._handleBlur);
-    this.element.removeEventListener('mouseleave', this._handlePointerCancel);
     this.element.removeEventListener('contextmenu', this._handleContextMenu);
   }
 }

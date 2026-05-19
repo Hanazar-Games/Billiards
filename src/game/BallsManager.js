@@ -386,9 +386,73 @@ export class BallsManager {
     aav.y += dOmegaY;
     bav.y += dOmegaY;
 
+    // Real contacts bleed a little spin and rolling energy. Keep this small:
+    // it removes arcade-like endless side spin without killing planned english.
+    const impactT = Math.min(1, Math.abs(relNormalSpeed) / 140);
+    const rollSpinLoss = 1 - BALL.collisionSpinLoss * impactT;
+    const sideSpinLoss = 1 - BALL.collisionSpinLoss * 0.35 * impactT;
+    aav.x *= rollSpinLoss;
+    aav.z *= rollSpinLoss;
+    aav.y *= sideSpinLoss;
+    bav.x *= rollSpinLoss;
+    bav.z *= rollSpinLoss;
+    bav.y *= sideSpinLoss;
+
     a.limitSpeed();
+    a.limitAngularSpeed();
     b.limitSpeed();
+    b.limitAngularSpeed();
     return relNormalSpeed;
+  }
+
+  applyCushionSpin(ball) {
+    if (!ball || ball.pocketed) return;
+
+    const pos = ball.body.position;
+    const vel = ball.body.velocity;
+    const av = ball.body.angularVelocity;
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
+
+    let nx = 0;
+    let nz = 0;
+    const xPen = Math.abs(pos.x) / Math.max(1, halfW);
+    const zPen = Math.abs(pos.z) / Math.max(1, halfD);
+    if (xPen > zPen) {
+      nx = pos.x > 0 ? -1 : 1;
+    } else {
+      nz = pos.z > 0 ? -1 : 1;
+    }
+
+    const tx = -nz;
+    const tz = nx;
+    const velNormal = vel.x * nx + vel.z * nz;
+    const normalSpeed = Math.max(0.1, Math.abs(velNormal));
+    const tangentSpeed = vel.x * tx + vel.z * tz + av.y * BALL.radius;
+
+    const maxTangent = normalSpeed * BALL.cushionTangentialFriction;
+    const tangentImpulse = Math.max(
+      -maxTangent,
+      Math.min(maxTangent, -tangentSpeed * 0.32)
+    );
+
+    vel.x += tx * tangentImpulse;
+    vel.z += tz * tangentImpulse;
+    av.y += (5 * tangentImpulse) / (2 * BALL.radius);
+
+    // A side-spinning ball "grabs" the cushion and slightly changes the
+    // rebound tangent. Scale by impact speed so soft rail touches stay subtle.
+    const transfer = Math.min(1, normalSpeed / 90) * BALL.cushionSideSpinTransfer;
+    vel.x += tx * av.y * BALL.radius * transfer;
+    vel.z += tz * av.y * BALL.radius * transfer;
+
+    const spinLoss = 1 - Math.min(BALL.cushionSpinLoss, BALL.cushionSpinLoss * normalSpeed / 120);
+    av.x *= spinLoss;
+    av.z *= spinLoss;
+    av.y *= 1 - (1 - spinLoss) * 0.45;
+
+    ball.limitSpeed();
+    ball.limitAngularSpeed();
   }
 
   _notifyManualBallContact(a, b, relativeSpeed) {
@@ -443,6 +507,7 @@ export class BallsManager {
       av.x *= 0.75;
       av.z *= 0.75;
       // Side spin is largely preserved on cushion contact
+      this.applyCushionSpin(ball);
 
       ball.body.wakeUp();
       ball.sync();

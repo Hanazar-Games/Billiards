@@ -73,6 +73,7 @@ export class Game {
     this.aimDirection = new THREE.Vector3(0, 0, 1);
     this.lockedAimDirection = new THREE.Vector3(0, 0, 1);
     this.dragStart = null;
+    this.directPullAim = false;
     this.trajectoryEnabled = true;
     this.ballInHand = false;
     this.ballInHandValid = false;
@@ -385,6 +386,7 @@ export class Game {
           }
         } else if (otherBody.material === this.physics.cushionMaterial) {
           // Ball-cushion collision
+          this.ballsManager?.applyCushionSpin(ball);
           if (this.state === 'SHOOTING') {
             this.rules.recordCushionHit?.(ball.id);
           }
@@ -466,10 +468,22 @@ export class Game {
     this.audio.resume();
     this.updateAimDirection();
     this.lockedAimDirection.copy(this.aimDirection);
+    const cueBall = this.ballsManager?.getCueBall();
+    const startX = e?.clientX ?? this.input.mouseX;
+    const startY = e?.clientY ?? this.input.mouseY;
+    let startsNearCueBall = false;
+    if (cueBall && !cueBall.pocketed && this._canvasRect) {
+      const ballScreen = this._tmpVec3a.copy(cueBall.mesh.position).project(this.camera);
+      const ballX = (ballScreen.x * 0.5 + 0.5) * this._canvasRect.width + this._canvasRect.left;
+      const ballY = (-ballScreen.y * 0.5 + 0.5) * this._canvasRect.height + this._canvasRect.top;
+      startsNearCueBall = Math.hypot(startX - ballX, startY - ballY) <= 90;
+    }
     this.dragStart = {
-      x: e?.clientX ?? this.input.mouseX,
-      y: e?.clientY ?? this.input.mouseY
+      x: startX,
+      y: startY,
+      nearCueBall: startsNearCueBall,
     };
+    this.directPullAim = startsNearCueBall;
     this.state = 'CHARGING';
     this.charging = true;
     this.power = 0;
@@ -499,6 +513,7 @@ export class Game {
     this._shotStartTime = performance.now();
     this.charging = false;
     this.dragStart = null;
+    this.directPullAim = false;
 
     // Show spin tutorial on first real player shot (local human only)
     if (onboarding.get('gameTutorialStep') === 2 && !(this.aiEnabled && this.currentPlayer === 2)) {
@@ -544,7 +559,35 @@ export class Game {
 
     const dragX = this.input.mouseX - this.dragStart.x;
     const dragY = this.input.mouseY - this.dragStart.y;
-    const rawPull = Math.max(0, dragX * pullX + dragY * pullY);
+    const dragLen = Math.hypot(dragX, dragY);
+    let rawPull = Math.max(0, dragX * pullX + dragY * pullY);
+
+    if (this.directPullAim && dragLen > 6) {
+      const currentPoint = this.getMouseTablePoint(cueBall.mesh.position.y);
+      if (currentPoint) {
+        const directAim = this._tmpVec3d.subVectors(cueBall.mesh.position, currentPoint);
+        directAim.y = 0;
+        if (directAim.lengthSq() > (BALL.radius * 2.2) ** 2) {
+          directAim.normalize();
+          this.lockedAimDirection.copy(directAim);
+          this.aimDirection.copy(directAim);
+        }
+      }
+      rawPull = Math.max(rawPull, dragLen);
+    } else if (dragLen > 10) {
+      const startBallX = this.dragStart.x - ballX;
+      const startBallY = this.dragStart.y - ballY;
+      const nowBallX = this.input.mouseX - ballX;
+      const nowBallY = this.input.mouseY - ballY;
+      const radialPull = Math.max(
+        0,
+        Math.hypot(nowBallX, nowBallY) - Math.hypot(startBallX, startBallY)
+      );
+      const offAxisAssist = dragX * pullX + dragY * pullY > -dragLen * 0.25
+        ? dragLen * 0.55
+        : 0;
+      rawPull = Math.max(rawPull, radialPull, offAxisAssist);
+    }
     const deadzone = settings.get('dragDeadzone') ?? 4;
     const pullDistance = rawPull > deadzone ? rawPull - deadzone : 0;
     const powerSens = settings.get('shotPowerSens') || 1.0;
@@ -564,6 +607,9 @@ export class Game {
     if (!hit) return;
     const aim = this._tmpVec3d.subVectors(hit, ballPos);
     aim.y = 0;
+    if (aim.lengthSq() < (BALL.radius * 2.2) ** 2) {
+      return;
+    }
     if (aim.lengthSq() > 0) aim.normalize();
 
     if (aim.lengthSq() > 0.001) {
@@ -1150,6 +1196,7 @@ export class Game {
     this.state = 'AIM';
     this.charging = false;
     this.dragStart = null;
+    this.directPullAim = false;
     if (resetPower) {
       this.power = 0;
       this.ui.setPower(0);
