@@ -403,6 +403,12 @@ export class Game {
             this.audio.playCushionBounce(v);
           }
 
+          // Subtle cushion bounce dust for significant hits (restrained)
+          if (v > 1.2 && settings.get('particlesEnabled') !== false) {
+            this._tmpVec3d.set(ball.mesh.position.x, ball.mesh.position.y - BALL.radius * 0.5, ball.mesh.position.z);
+            this.particles.spawnCollisionSparks(this._tmpVec3d, v * 0.3);
+          }
+
           if (this.state === 'SHOOTING' && v > 0.5) {
             this.statsTracker.recordCushionCollision(this.currentPlayer);
             this.achievements.onCushionCollision();
@@ -773,7 +779,7 @@ export class Game {
     this.trajectory.setVisible(Boolean(visible && this.trajectoryEnabled && this.state === 'AIM'));
   }
 
-  updateTrajectory() {
+  updateTrajectory(dt = 0.016) {
     if (!this.trajectory || !this.trajectory.visible) return;
     if (this.state !== 'AIM') return;
 
@@ -784,7 +790,8 @@ export class Game {
       cueBall,
       this.aimDirection,
       this.ballsManager.balls,
-      this.table.getPocketPositions()
+      this.table.getPocketPositions(),
+      dt
     );
   }
 
@@ -812,7 +819,7 @@ export class Game {
       // Local immediate feedback: audio + FX (host will authoritatively resolve physics)
       this.audio.playCueHit(force);
       this.particles.spawnChalkDust(cueBall.mesh.position, this.aimDirection, force);
-      if (settings.get('particlesEnabled') !== false) {
+      if (settings.get('impactShockwaveEnabled') !== false) {
         this.shockwaves?.spawn(cueBall.mesh.position, force);
       }
       if (settings.get('cameraShake') !== false) {
@@ -854,7 +861,7 @@ export class Game {
       this.aimDirection,
       force
     );
-    if (settings.get('particlesEnabled') !== false) {
+    if (settings.get('impactShockwaveEnabled') !== false) {
       this.shockwaves?.spawn(cueBall.mesh.position, force);
     }
     if (settings.get('cameraShake') !== false) {
@@ -1031,7 +1038,7 @@ export class Game {
               if (this.challengeManager) this.challengeManager.onPocket(entry.id);
               if (this.drillManager) this.drillManager.onPocket(entry.id);
               const pBall = this.ballsManager.getBall(entry.id);
-              if (pBall && this.ballReturn && entry.id !== 0) {
+              if (pBall && this.ballReturn && entry.id !== 0 && settings.get('ballReturnAnimationEnabled') !== false) {
                 this.ballReturn.animateBallReturn(pBall.mesh, pocket);
               }
             }
@@ -1040,7 +1047,9 @@ export class Game {
                 flashed.add(entry.pocketIndex);
                 this.particles.spawnPocketFlash(pocket);
               }
-              this.particles.spawnPocketFountain(pocket, entry.id);
+              if (settings.get('pocketFountainEnabled') !== false) {
+                this.particles.spawnPocketFountain(pocket, entry.id);
+              }
               if (this.renderer?.camera && this.renderer.width > 0 && this.renderer.height > 0) {
                 const p = this._tmpVec3a.set(pocket.x, pocket.y + 15, pocket.z);
                 p.project(this.renderer.camera);
@@ -1106,7 +1115,7 @@ export class Game {
     if (this.state === 'AIM' && this.cue && this.cue.visible) {
       this.updateAimDirection();
       this.setAimTrajectoryVisible(true);
-      this.updateTrajectory();
+      this.updateTrajectory(dt);
     } else if (this.state === 'CHARGING' && this.cue && this.cue.visible) {
       this.updateDragPower();
     }
@@ -2007,6 +2016,9 @@ export class Game {
 
       // Enter to confirm shot when confirmShotOnRelease is disabled
       if (key === 'enter' && settings.get('confirmShotOnRelease') === false) {
+        // Prevent accidental shot when typing in an input/textarea
+        const tag = e.target?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
         if (this.state === 'AIM' && this.power >= 1) {
           this.state = 'SHOOTING';
           this.shoot();
@@ -2503,6 +2515,18 @@ export class Game {
         break;
       case 'particlesEnabled':
         if (this.particles) this.particles.setEnabled(value);
+        break;
+      case 'trajectoryOpacity':
+      case 'trajectoryWidth':
+      case 'trajectoryColorMode':
+      case 'trajectoryAnimationEnabled':
+        // Applied live by TrajectoryPredictor
+        break;
+      case 'minimapBallSize':
+      case 'minimapShowCueTrail':
+      case 'minimapTrailLength':
+      case 'minimapHighContrast':
+        // Applied live by Minimap
         break;
       case 'shotTrailsEnabled':
         if (this.trails) this.trails.setEnabled(value);

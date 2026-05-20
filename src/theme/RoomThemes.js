@@ -106,4 +106,8 @@ export function applyMaterialTheme(material, theme) {
     material.emissive.setHex(theme.emissive);
     material.emissiveIntensity = theme.emissiveIntensity ?? 1.0;
   }
+  if (theme.opacity != null) {
+    material.opacity = theme.opacity;
+    material.transparent = theme.opacity < 1.0;
+  }
 }

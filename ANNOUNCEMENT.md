@@ -1,4 +1,42 @@
-# 3D Billiards v1.7.26 — Latest Update
+# 3D Billiards v1.7.27 — Latest Update
+
+## What's New in v1.7.27
+
+### 🎨 Visual Enhancements — Configurable Trajectory, Minimap, FX & Cloth Textures
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **轨迹透明度/粗细可调** | 设置面板新增「轨迹透明度」（10%–100%）和「轨迹粗细」（0.5x–3.0x）滑块；`TrajectoryPredictor` 实时读取并应用到瞄准线、碰撞线和幽灵球材质 |
+| 2 | **轨迹颜色模式** | 新增「轨迹颜色」下拉选项：默认（淡青）、高对比（亮黄）、色盲友好（深蓝）；色盲模式下瞄准线为实线而非虚线，提升辨识度 |
+| 3 | **轨迹幽灵球脉冲动画** | 开启「轨迹动画」后，幽灵球透明度按正弦波脉冲呼吸（0.5 + sin×0.15），动画使用 `dt` 驱动保证帧率无关；关闭后保持恒定透明度 |
+| 4 | **FX 独立开关** | 粒子总开关保留，但冲击波、碰撞火花、袋口喷泉、球回收动画现在各有独立开关，玩家可按喜好分别启停 |
+| 5 | **小地图球大小可调** | 设置面板新增「小地图球大小」（0.5x–2.0x）滑块；Minimap 初始化时读取并支持设置变更后热更新 |
+| 6 | **小地图高对比模式** | 开启后小地图使用深绿台面 `#145233`、亮金边框 `rgba(216,177,95,0.7)`、粗黑球边、白球白色光晕，提升低视力玩家可读性 |
+| 7 | **小地图 cue trail 可控** | 新增「显示球杆轨迹」开关和「轨迹长度」（10–100）滑块，独立控制 cue ball 历史轨迹的显示与保留长度 |
+| 8 | **桌布纹理合成** | 之前 nap/pattern/wear 纹理互相覆盖导致只有最后一个生效；现在统一合成到一张 CanvasTexture `bumpMap` 中，使用 `lighter` 混合与 `NoColorSpace`， Nap + 图案 + 磨损可同时呈现 |
+| 9 | **金属饰板主题键修复** | `TableThemes.js` 中 `stretcherN` 键与 `Table.js` 查找的 `stretcherNickel` 不匹配，导致镍色金属饰板主题不生效。已统一为 `stretcherNickel` |
+| 10 | **RoomThemes 材质透明度支持** | `applyMaterialTheme()` 现在正确处理 `opacity` 和 `transparent` 字段，与 `TableThemes` 行为一致 |
+
+### 🔧 Deep Audit Bug Fixes — Audio Mute, DOM Race, NaN Guards & Physics Safety
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 11 | **AudioManager 静音失效** | 6 处音量比例使用 `|| 1.0`，导致用户设为 `0` 时被误判为 falsy 回退到 `1.0`，静音不生效。已全部改为 `?? 1.0` |
+| 12 | **AudioManager playWin 音量错误** | `playWin()` 使用 `hitFeedbackVolumeScale` 控制胜利和弦音量，已修正为使用自身的 `_sfxVolume` |
+| 13 | **UI.flashRed DOM 竞态** | `flashRed()` 内部定时器未追踪，300ms 后可能操作已被 `destroy()` 移除的 DOM 节点。已改为实例级 `_flashTimer` 并在 `destroy()` 中清理 |
+| 14 | **SettingsScreen 滑块 NaN** | 小地图透明度、球大小、轨迹透明度等 slider 的初始值在设置项缺失时产生 `NaN`，控件显示异常。已全部添加 `??` 回退 |
+| 15 | **Table.js bumpMap 颜色空间错误** | 合成后的 CanvasTexture 默认使用 SRGB 颜色空间，但 bump map 存储的是高度数据而非颜色。已显式设为 `THREE.NoColorSpace` |
+| 16 | **Trajectory 动画硬编码 dt** | `update()` 中动画增量写死 `0.016`，高帧率下脉冲过快。已改为接受 `dt` 参数，由 `Game.updateTrajectory()` 传入 |
+| 17 | **ImpactShockwave 硬编码 maxPower** | 粒子强度计算使用硬编码 `82`，与实际的 `SHOT.maxPower` 不同步。已改为从常量模块导入 |
+| 18 | **PowerLabel 硬编码 maxPower** | 同上，`PowerLabel.js` 中分级逻辑使用硬编码 `82`。已统一导入 `SHOT.maxPower` |
+| 19 | **ParticleSystem 强度上限** | `_getIntensityMult()` 缺少上限，极端/损坏值可导致渲染压力暴增。已钳制到 `[0.2, 3.0]` |
+| 20 | **BallReturn 空指针防护** | `animateBallReturn()` 在 `pBall.mesh` 为 `null` 时可能崩溃。已添加守卫 |
+| 21 | **Room 铭牌纹理未赋值** | `createRoomPlaque()` 生成 CanvasTexture 后未正确赋给 `roomPlaque.material.map`，铭牌始终显示默认材质。已修复赋值 |
+| 22 | **键盘 Enter 输入框穿透** | 游戏快捷键在 `INPUT`/`TEXTAREA` 获得焦点时仍触发击球。已添加 `event.target.tagName` 检查，输入框聚焦时忽略 Enter 击球 |
+
+---
+
+# 3D Billiards v1.7.26
 
 ## What's New in v1.7.26
 

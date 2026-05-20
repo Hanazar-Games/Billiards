@@ -7,6 +7,7 @@
  * bold orange-red blast.
  */
 import * as THREE from 'three';
+import { SHOT } from '../config.js';
 import { fxAnimMs } from '../core/AnimSpeed.js';
 
 const COLOR_LOW = new THREE.Color(0x4ecdc4);   // teal
@@ -27,7 +28,7 @@ export class ImpactShockwave {
   spawn(position, power) {
     if (!position || !position.isVector3) return;
     if (!Number.isFinite(power) || power <= 0) return;
-    const maxPower = 82; // SHOT.maxPower
+    const maxPower = SHOT.maxPower;
     const t = Math.min(power / maxPower, 1.0);
 
     // Pick colour based on power tier

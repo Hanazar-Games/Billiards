@@ -437,12 +437,14 @@ export class UI {
     }
     flash.style.opacity = '1';
     if (this._flashTimer) clearTimeout(this._flashTimer);
+    if (this._flashInnerTimer) clearTimeout(this._flashInnerTimer);
     this._flashTimer = setTimeout(() => {
       const f = document.getElementById('ui-red-flash');
       if (f) {
         f.style.opacity = '0';
         // Remove from DOM after fade-out transition completes
-        setTimeout(() => {
+        this._flashInnerTimer = setTimeout(() => {
+          this._flashInnerTimer = null;
           const el = document.getElementById('ui-red-flash');
           if (el && el.parentNode) el.parentNode.removeChild(el);
         }, animMs(300));
@@ -760,6 +762,10 @@ export class UI {
     if (this._flashTimer) {
       clearTimeout(this._flashTimer);
       this._flashTimer = null;
+    }
+    if (this._flashInnerTimer) {
+      clearTimeout(this._flashInnerTimer);
+      this._flashInnerTimer = null;
     }
     this._floatTimers.forEach(t => clearTimeout(t));
     this._floatTimers = [];

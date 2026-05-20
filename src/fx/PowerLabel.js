@@ -6,6 +6,7 @@
  * giving immediate feedback on how hard the shot was.
  */
 import { settings } from '../core/SettingsStore.js';
+import { SHOT } from '../config.js';
 
 const TIERS = [
   { threshold: 0.00, label: '轻推', color: '#4ecdc4', scale: 0.9 },
@@ -53,7 +54,7 @@ export class PowerLabel {
    * @param {number} power — shot power (0 … SHOT.maxPower)
    */
   show(power) {
-    const maxPower = 82;
+    const maxPower = SHOT.maxPower;
     const t = Math.min(power / maxPower, 1.0);
 
     // Find tier

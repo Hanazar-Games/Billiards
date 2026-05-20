@@ -18,10 +18,8 @@ const DEFAULTS = {
   pocketVolumeScale: 1.0,
   cueHitVolumeScale: 1.0,
   foulVolumeScale: 1.0,
-  uiSoundVolumeScale: 1.0,
   ambientVolumeScale: 1.0,
   hitFeedbackVolumeScale: 1.0,
-  audioDynamicRange: 'normal', // 'quiet' | 'normal' | 'cinematic'
   vibrationEnabled: false,
   lowLatencyMode: false,
 

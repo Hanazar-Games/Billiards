@@ -19,13 +19,16 @@ export class Minimap {
     this._opacity = settings.get('minimapOpacity') ?? 0.85;
     this._padding = 8;      // canvas internal padding in px
     this._pocketR = 3.5;    // pocket marker radius in px
-    this._ballR = 4.2;      // ball marker radius in px
+    this._baseBallR = 4.2;  // base ball marker radius in px
+    this._ballR = this._baseBallR * (settings.get('minimapBallSize') ?? 1.0); // scaled by minimapBallSize
+    this._showCueTrail = settings.get('minimapShowCueTrail') !== false;
+    this._maxTrail = settings.get('minimapTrailLength') || 40;
+    this._highContrast = settings.get('minimapHighContrast') === true;
     this._scale = 1;        // world → canvas scale factor
     this._ox = 0;           // canvas origin X offset
     this._oz = 0;           // canvas origin Y offset
     this._pockets = null;   // pocket positions array
     this._cueTrail = [];    // recent cue-ball positions for trail drawing
-    this._maxTrail = 40;
     this._dirty = true;     // only redraw when data changes
     this._profile = getDefaultTableProfile();
     this._resize();
@@ -35,6 +38,24 @@ export class Minimap {
       if (e.detail?.key === 'minimapSize') { this._size = e.detail.value || 140; this._resize(); }
       if (e.detail?.key === 'minimapOpacity') { this._opacity = e.detail.value ?? 0.85; this._applyStyle(); }
       if (e.detail?.key === 'minimapPosition') { this._applyStyle(); }
+      if (e.detail?.key === 'minimapBallSize') {
+        this._ballR = this._baseBallR * (e.detail.value ?? 1.0);
+        this._dirty = true;
+      }
+      if (e.detail?.key === 'minimapShowCueTrail') {
+        this._showCueTrail = e.detail.value !== false;
+        this._dirty = true;
+      }
+      if (e.detail?.key === 'minimapTrailLength') {
+        this._maxTrail = e.detail.value || 40;
+        // Trim existing trail if needed
+        while (this._cueTrail.length > this._maxTrail) this._cueTrail.shift();
+        this._dirty = true;
+      }
+      if (e.detail?.key === 'minimapHighContrast') {
+        this._highContrast = e.detail.value === true;
+        this._dirty = true;
+      }
     };
     window.addEventListener('settingsChanged', this._onSettings);
     this._onResize = () => this._resize();
@@ -123,19 +144,19 @@ export class Minimap {
     };
 
     // Felt
-    ctx.fillStyle = '#0a3824';
+    ctx.fillStyle = this._highContrast ? '#0f4a30' : '#0a3824';
     drawRoundedRect(p, p, w - p * 2, h - p * 2, 4);
     ctx.fill();
 
     // Table border (cushion edge)
-    ctx.strokeStyle = 'rgba(216,177,95,0.45)';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = this._highContrast ? 'rgba(255,220,140,0.6)' : 'rgba(216,177,95,0.45)';
+    ctx.lineWidth = this._highContrast ? 2.0 : 1.5;
     drawRoundedRect(p, p, w - p * 2, h - p * 2, 4);
     ctx.stroke();
 
     // Pockets
     if (this._pockets) {
-      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillStyle = this._highContrast ? '#000000' : 'rgba(0,0,0,0.65)';
       for (const pocket of this._pockets) {
         const cx = this._worldToCanvasX(pocket.x);
         const cy = this._worldToCanvasZ(pocket.z);
@@ -146,7 +167,7 @@ export class Minimap {
     }
 
     // Cue-ball trail
-    if (this._cueTrail.length > 1) {
+    if (this._showCueTrail && this._cueTrail.length > 1) {
       ctx.beginPath();
       for (let i = 0; i < this._cueTrail.length; i++) {
         const pt = this._cueTrail[i];
@@ -157,8 +178,8 @@ export class Minimap {
       }
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.lineWidth = 1.8;
-      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = this._highContrast ? 2.2 : 1.8;
+      ctx.strokeStyle = this._highContrast ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.35)';
       ctx.stroke();
     }
 
@@ -170,8 +191,6 @@ export class Minimap {
       this._drawBall(ctx, ball.id, cx, cy, this._ballR);
     }
 
-    // Cue aim indicator (optional — subtle direction hint)
-    // Not implemented to keep minimap clean; can be added later.
     this._dirty = false;
   }
 
@@ -179,6 +198,8 @@ export class Minimap {
     const type = getBallType(id);
     const hex = BALL_COLORS[id];
     const col = typeof hex === 'number' ? `#${hex.toString(16).padStart(6, '0')}` : '#fff';
+    const strokeCol = this._highContrast ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.25)';
+    const strokeWidth = this._highContrast ? 1.2 : 0.8;
 
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -187,36 +208,44 @@ export class Minimap {
       // Cue ball — pure white with soft shadow
       ctx.fillStyle = '#f0f0f0';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-      ctx.lineWidth = 0.8;
+      ctx.strokeStyle = strokeCol;
+      ctx.lineWidth = strokeWidth;
       ctx.stroke();
+      if (this._highContrast) {
+        // Highlight ring for cue ball in high contrast mode
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + 1.5, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+        ctx.lineWidth = 1.0;
+        ctx.stroke();
+      }
     } else if (id === 8) {
       // 8-ball — black with white circle
       ctx.fillStyle = '#111';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-      ctx.lineWidth = 0.8;
+      ctx.strokeStyle = this._highContrast ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = strokeWidth;
       ctx.stroke();
       ctx.beginPath();
       ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.fillStyle = this._highContrast ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.55)';
       ctx.fill();
     } else if (type === BALL_TYPE.STRIPE) {
       // Stripe — colored fill with white stripe bar
       ctx.fillStyle = col;
       ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-      ctx.lineWidth = 0.8;
+      ctx.strokeStyle = strokeCol;
+      ctx.lineWidth = strokeWidth;
       ctx.stroke();
       // White stripe
-      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      ctx.fillStyle = this._highContrast ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.72)';
       ctx.fillRect(cx - r, cy - r * 0.35, r * 2, r * 0.7);
     } else {
       // Solid
       ctx.fillStyle = col;
       ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-      ctx.lineWidth = 0.8;
+      ctx.strokeStyle = strokeCol;
+      ctx.lineWidth = strokeWidth;
       ctx.stroke();
     }
   }

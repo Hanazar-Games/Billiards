@@ -1063,10 +1063,11 @@ export class Table {
     const feltMat = this._materials.felt;
     if (!feltMat) return;
 
-    // Dispose old textures
+    // Dispose old textures (individual + composite)
     if (this._clothTextures.nap) { this._clothTextures.nap.dispose(); this._clothTextures.nap = null; }
     if (this._clothTextures.pattern) { this._clothTextures.pattern.dispose(); this._clothTextures.pattern = null; }
     if (this._clothTextures.wear) { this._clothTextures.wear.dispose(); this._clothTextures.wear = null; }
+    if (this._clothTextures.composite) { this._clothTextures.composite.dispose(); this._clothTextures.composite = null; }
 
     const maps = [];
 
@@ -1088,11 +1089,39 @@ export class Table {
       maps.push(wearTex);
     }
 
-    // Combine multiple textures by layering them as a simple roughness/normal trick
-    // For now, we just use the pattern as a lightmap-style overlay via bumpMap
     if (maps.length > 0) {
-      // Use the first texture as bumpMap for cloth detail
-      feltMat.bumpMap = maps[0];
+      if (maps.length === 1) {
+        feltMat.bumpMap = maps[0];
+      } else {
+        // Composite all cloth detail textures into a single canvas
+        // so they all contribute to the bump map instead of discarding extras
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#808080';
+        ctx.fillRect(0, 0, 512, 512);
+        // Average-composite bump maps by drawing at reduced opacity onto neutral grey.
+        // With N textures, each at 1/N opacity produces a balanced blend.
+        const layerAlpha = maps.length > 0 ? 1.0 / maps.length : 1.0;
+        for (const tex of maps) {
+          if (tex.image) {
+            ctx.globalAlpha = layerAlpha;
+            ctx.drawImage(tex.image, 0, 0);
+          }
+        }
+        const composite = new THREE.CanvasTexture(canvas);
+        composite.wrapS = THREE.RepeatWrapping;
+        composite.wrapT = THREE.RepeatWrapping;
+        composite.colorSpace = THREE.NoColorSpace;
+        feltMat.bumpMap = composite;
+        this._clothTextures.composite = composite;
+        // Dispose individual textures after compositing
+        for (const tex of maps) tex.dispose();
+        this._clothTextures.nap = null;
+        this._clothTextures.pattern = null;
+        this._clothTextures.wear = null;
+      }
       feltMat.bumpScale = 0.02;
     } else {
       feltMat.bumpMap = null;
@@ -1112,8 +1141,12 @@ export class Table {
       if (child.geometry) child.geometry.dispose();
       if (child.material) {
         if (Array.isArray(child.material)) {
-          child.material.forEach((m) => m.dispose());
+          child.material.forEach((m) => {
+            if (m.map) m.map.dispose();
+            m.dispose();
+          });
         } else {
+          if (child.material.map) child.material.map.dispose();
           child.material.dispose();
         }
       }

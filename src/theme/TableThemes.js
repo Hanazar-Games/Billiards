@@ -95,7 +95,7 @@ export const METAL_TRIM_THEMES = {
     leveler:     { color: _c('#c8c0b7'), roughness: 0.18, metalness: 0.85 },
     foot:        { color: _c('#0a0a0a'), roughness: 0.30, metalness: 0.55 },
     apronNickel: { color: _c('#b7aea3'), roughness: 0.20, metalness: 0.72 },
-    stretcherN:  { color: _c('#a89d92'), roughness: 0.20, metalness: 0.70 },
+    stretcherNickel: { color: _c('#a89d92'), roughness: 0.20, metalness: 0.70 },
     badge:       { color: _c('#e2d8c9'), roughness: 0.16, metalness: 0.82 },
     casting:     { color: _c('#b8b0a6'), roughness: 0.18, metalness: 0.78 },
     sight:       { color: _c('#f3e6c7'), roughness: 0.18, metalness: 0.05, emissive: _c('#1c1408'), emissiveIntensity: 0.15 },

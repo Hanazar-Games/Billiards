@@ -1,10 +1,25 @@
 import * as THREE from 'three';
 import { BALL } from '../config.js';
 import { getDefaultTableProfile } from './TableProfiles.js';
+import { settings } from '../core/SettingsStore.js';
 
-const LINE_COLOR = 0xffffff;
-const LINE_HIT_COLOR = 0x00ff88;
-const GHOST_COLOR = 0x00ff88;
+const COLOR_MODES = {
+  default: {
+    line: 0xffffff,
+    hit: 0x00ff88,
+    ghost: 0x00ff88,
+  },
+  highContrast: {
+    line: 0xffea00,
+    hit: 0xff00aa,
+    ghost: 0xff00aa,
+  },
+  colorBlind: {
+    line: 0x0088ff,
+    hit: 0xff6600,
+    ghost: 0xff6600,
+  },
+};
 
 export class TrajectoryPredictor {
   constructor(scene, tableProfile = null) {
@@ -15,24 +30,34 @@ export class TrajectoryPredictor {
     this.visible = false;
     this.group.visible = false;
 
+    this._opacity = settings.get('trajectoryOpacity') ?? 0.7;
+    this._width = settings.get('trajectoryWidth') ?? 1.0;
+    this._colorMode = settings.get('trajectoryColorMode') || 'default';
+    this._animationEnabled = settings.get('trajectoryAnimationEnabled') !== false;
+    this._animationTime = 0;
+
+    const colors = COLOR_MODES[this._colorMode] || COLOR_MODES.default;
+
     this.lineMaterial = new THREE.LineBasicMaterial({
-      color: LINE_COLOR,
+      color: colors.line,
       transparent: true,
-      opacity: 0.6,
+      opacity: this._opacity,
       depthWrite: false,
+      linewidth: this._width,
     });
 
     this.hitLineMaterial = new THREE.LineBasicMaterial({
-      color: LINE_HIT_COLOR,
+      color: colors.hit,
       transparent: true,
-      opacity: 0.5,
+      opacity: this._opacity * 0.85,
       depthWrite: false,
+      linewidth: this._width,
     });
 
     this.ghostMaterial = new THREE.MeshBasicMaterial({
-      color: GHOST_COLOR,
+      color: colors.ghost,
       transparent: true,
-      opacity: 0.35,
+      opacity: this._opacity * 0.5,
       depthWrite: false,
     });
 
@@ -42,13 +67,40 @@ export class TrajectoryPredictor {
 
     this.lines = [];
     this.activeLineCount = 0;
+
+    this._onSettings = (e) => {
+      const key = e.detail?.key;
+      if (key === 'trajectoryOpacity' || key === 'trajectoryWidth' ||
+          key === 'trajectoryColorMode' || key === 'trajectoryAnimationEnabled') {
+        this._readSettings();
+      }
+    };
+    window.addEventListener('settingsChanged', this._onSettings);
+  }
+
+  _readSettings() {
+    this._opacity = settings.get('trajectoryOpacity') ?? 0.7;
+    this._width = settings.get('trajectoryWidth') ?? 1.0;
+    this._colorMode = settings.get('trajectoryColorMode') || 'default';
+    this._animationEnabled = settings.get('trajectoryAnimationEnabled') !== false;
+
+    const colors = COLOR_MODES[this._colorMode] || COLOR_MODES.default;
+    this.lineMaterial.color.setHex(colors.line);
+    this.hitLineMaterial.color.setHex(colors.hit);
+    this.ghostMaterial.color.setHex(colors.ghost);
+
+    this.lineMaterial.opacity = this._opacity;
+    this.hitLineMaterial.opacity = this._opacity * 0.85;
+    this.ghostMaterial.opacity = this._opacity * 0.5;
+    this.lineMaterial.linewidth = this._width;
+    this.hitLineMaterial.linewidth = this._width;
   }
 
   setTableProfile(profile) {
     this.profile = profile || this.profile;
   }
 
-  update(cueBall, aimDirection, balls, pocketPositions) {
+  update(cueBall, aimDirection, balls, pocketPositions, dt = 0.016) {
     this.clearLines();
 
     if (!this.visible || !cueBall || cueBall.pocketed) {
@@ -91,6 +143,12 @@ export class TrajectoryPredictor {
 
       this.ghostBall.position.copy(ghostPos);
       this.ghostBall.visible = true;
+
+      if (this._animationEnabled) {
+        this._animationTime += dt;
+        const pulse = 0.5 + 0.15 * Math.sin(this._animationTime * 3);
+        this.ghostMaterial.opacity = Math.max(0.15, Math.min(0.8, this._opacity * pulse));
+      }
     } else {
       // No ball hit: draw line to table edge
       const edgeDist = this.rayToEdge(rayOrigin, rayDir);
@@ -201,6 +259,7 @@ export class TrajectoryPredictor {
   }
 
   dispose() {
+    window.removeEventListener('settingsChanged', this._onSettings);
     this.clearLines();
     for (const line of this.lines) {
       line.geometry.dispose();

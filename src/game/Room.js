@@ -728,9 +728,9 @@ export class Room {
     inner.position.z = 0.5;
     group.add(inner);
 
-    const textTex = this._createPlaqueTexture();
+    this._plaqueTexture = this._createPlaqueTexture();
     const textMat = new THREE.MeshStandardMaterial({
-      map: textTex,
+      map: this._plaqueTexture,
       transparent: true,
       roughness: 0.4,
       metalness: 0.6,
@@ -1137,6 +1137,10 @@ export class Room {
   }
 
   dispose() {
+    if (this._plaqueTexture) {
+      this._plaqueTexture.dispose();
+      this._plaqueTexture = null;
+    }
     if (this.meshGroup && this.meshGroup.parent) {
       this.meshGroup.parent.remove(this.meshGroup);
     }
@@ -1144,8 +1148,12 @@ export class Room {
       if (child.geometry) child.geometry.dispose();
       if (child.material) {
         if (Array.isArray(child.material)) {
-          child.material.forEach((m) => m.dispose());
+          child.material.forEach((m) => {
+            if (m.map) m.map.dispose();
+            m.dispose();
+          });
         } else {
+          if (child.material.map) child.material.map.dispose();
           child.material.dispose();
         }
       }

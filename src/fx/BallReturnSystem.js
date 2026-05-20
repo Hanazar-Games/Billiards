@@ -103,6 +103,7 @@ export class BallReturnSystem {
   /*  Spawn a return animation                                           */
   /* ------------------------------------------------------------------ */
   animateBallReturn(ballMesh, pocketPosition) {
+    if (!ballMesh) return;
     const target = this._computeTraySlot(this._nextSlot++);
 
     // Clone the ball mesh so the original can be hidden/disposed independently.

@@ -297,7 +297,7 @@ export class AudioManager {
     osc.frequency.setValueAtTime(200 + power * 3, t);
     osc.frequency.exponentialRampToValueAtTime(80, t + 0.08);
 
-    const vol = (0.15 + Math.min(power / 100, 1) * 0.25) * (settings.get('cueHitVolumeScale') || 1.0);
+    const vol = (0.15 + Math.min(power / 100, 1) * 0.25) * (settings.get('cueHitVolumeScale') ?? 1.0);
     gain.gain.setValueAtTime(vol, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
 
@@ -324,7 +324,7 @@ export class AudioManager {
     osc.frequency.setValueAtTime(600 + intensity * 400, t);
     osc.frequency.exponentialRampToValueAtTime(300, t + 0.05);
 
-    gain.gain.setValueAtTime(intensity * 0.1 * (settings.get('collisionVolumeScale') || 1.0), t);
+    gain.gain.setValueAtTime(intensity * 0.1 * (settings.get('collisionVolumeScale') ?? 1.0), t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
 
     osc.connect(gain);
@@ -358,7 +358,7 @@ export class AudioManager {
     filter.frequency.value = 800 + intensity * 1000;
 
     const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(intensity * 0.12 * (settings.get('collisionVolumeScale') || 1.0), t);
+    gain.gain.setValueAtTime(intensity * 0.12 * (settings.get('collisionVolumeScale') ?? 1.0), t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
 
     noise.connect(filter);
@@ -380,7 +380,7 @@ export class AudioManager {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(150, t);
     osc.frequency.exponentialRampToValueAtTime(40, t + 0.2);
-    gain.gain.setValueAtTime(0.2 * (settings.get('pocketVolumeScale') || 1.0), t);
+    gain.gain.setValueAtTime(0.2 * (settings.get('pocketVolumeScale') ?? 1.0), t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
     osc.connect(gain);
     gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
@@ -397,7 +397,7 @@ export class AudioManager {
     const noise = this.ctx.createBufferSource();
     noise.buffer = buffer;
     const nGain = this.ctx.createGain();
-    nGain.gain.setValueAtTime(0.08 * (settings.get('pocketVolumeScale') || 1.0), t);
+    nGain.gain.setValueAtTime(0.08 * (settings.get('pocketVolumeScale') ?? 1.0), t);
     nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
     noise.connect(nGain);
     nGain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
@@ -417,7 +417,7 @@ export class AudioManager {
       const gain = this.ctx.createGain();
       osc.type = 'sine';
       osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.18 * (settings.get('hitFeedbackVolumeScale') || 1.0), t + i * 0.08);
+      gain.gain.setValueAtTime(0.18 * this._sfxVolume, t + i * 0.08);
       gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.22);
       osc.connect(gain);
       gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
@@ -439,7 +439,7 @@ export class AudioManager {
       osc.type = 'square';
       osc.frequency.setValueAtTime(180, t + offset);
       osc.frequency.exponentialRampToValueAtTime(90, t + offset + 0.12);
-      gain.gain.setValueAtTime(0.12 * (settings.get('foulVolumeScale') || 1.0), t + offset);
+      gain.gain.setValueAtTime(0.12 * (settings.get('foulVolumeScale') ?? 1.0), t + offset);
       gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.14);
       osc.connect(gain);
       gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);

@@ -78,6 +78,12 @@ const MINIMAP_POS_OPTIONS = [
   { value: 'top-right', label: '右上' },
   { value: 'top-left', label: '左上' },
 ];
+
+const TRAJECTORY_COLOR_MODE_OPTIONS = [
+  { value: 'default', label: '默认' },
+  { value: 'highContrast', label: '高对比' },
+  { value: 'colorBlind', label: '色盲友好' },
+];
 const COLOR_BLIND_MODE_OPTIONS = [
   { value: 'off', label: '关闭' },
   { value: 'protanopia', label: '红色盲' },
@@ -251,7 +257,7 @@ export class SettingsScreen {
       this.audio.setMasterVolume(settings.get('masterVolume'));
       this.audio.setMusicVolume(settings.get('musicVolume'));
       this.audio.setSFXVolume(settings.get('sfxVolume'));
-      this.audio.setAmbientVolume(settings.get('ambientVolumeScale') * 100);
+      this.audio.setAmbientVolume((settings.get('ambientVolumeScale') ?? 1.0) * 100);
     }
     this._syncAllControls();
   }
@@ -434,12 +440,12 @@ export class SettingsScreen {
       if (this.audio) this.audio.setMusicVolume(v);
     });
 
-    this._rowSlider('环境音效', Math.round(settings.get('ambientVolumeScale') * 100), 0, 100, '%', (v) => {
+    this._rowSlider('环境音效', Math.round((settings.get('ambientVolumeScale') ?? 1.0) * 100), 0, 100, '%', (v) => {
       settings.set('ambientVolumeScale', v / 100);
       if (this.audio) this.audio.setAmbientVolume && this.audio.setAmbientVolume(v);
     });
 
-    this._rowSlider('击球反馈音', Math.round(settings.get('hitFeedbackVolumeScale') * 100), 0, 100, '%', (v) => {
+    this._rowSlider('击球反馈音', Math.round((settings.get('hitFeedbackVolumeScale') ?? 1.0) * 100), 0, 100, '%', (v) => {
       settings.set('hitFeedbackVolumeScale', v / 100);
     });
 
@@ -466,6 +472,9 @@ export class SettingsScreen {
       }),
       '联机/竞技模式可能由房主统一锁定'
     );
+    this._rowSlider('轨迹透明度', Math.round((settings.get('trajectoryOpacity') ?? 0.7) * 100), 20, 100, '%', (v) => settings.set('trajectoryOpacity', v / 100));
+    this._rowSelect('轨迹颜色模式', TRAJECTORY_COLOR_MODE_OPTIONS, settings.get('trajectoryColorMode') || 'default', (v) => settings.set('trajectoryColorMode', v));
+    this._row('轨迹动画', this._createSwitch(settings.get('trajectoryAnimationEnabled') !== false, (v) => settings.set('trajectoryAnimationEnabled', v)));
 
     this._row('粒子效果',
       this._createSwitch(settings.get('particlesEnabled'), (v) => {
@@ -535,6 +544,10 @@ export class SettingsScreen {
     this._rowSlider('粒子效果强度', Math.round((settings.get('particleIntensity') ?? 1.0) * 100), 20, 200, '%', (v) => {
       settings.set('particleIntensity', v / 100);
     });
+    this._row('碰撞火花', this._createSwitch(settings.get('collisionSparksEnabled') !== false, (v) => settings.set('collisionSparksEnabled', v)));
+    this._row('进袋喷泉', this._createSwitch(settings.get('pocketFountainEnabled') !== false, (v) => settings.set('pocketFountainEnabled', v)));
+    this._row('击球冲击波', this._createSwitch(settings.get('impactShockwaveEnabled') !== false, (v) => settings.set('impactShockwaveEnabled', v)));
+    this._row('球回移动画', this._createSwitch(settings.get('ballReturnAnimationEnabled') !== false, (v) => settings.set('ballReturnAnimationEnabled', v)));
     this._rowSlider('拖尾淡出时间', Math.round((settings.get('trailFadeDuration') ?? 5.0) * 10), 20, 100, '', (v) => {
       settings.set('trailFadeDuration', v / 10);
     }, '', (v) => (v / 10).toFixed(1) + 's');
@@ -811,10 +824,14 @@ export class SettingsScreen {
     this._sectionTitle('界面');
     this._sectionSubtitle('HUD、小地图与信息显示');
 
-    this._row('显示小地图', this._createSwitch(settings.get('minimapEnabled'), (v) => settings.set('minimapEnabled', v)), '联机/竞技模式可能由房主统一锁定');
-    this._rowSlider('小地图尺寸', settings.get('minimapSize'), 80, 260, 'px', (v) => settings.set('minimapSize', v));
-    this._rowSlider('小地图透明度', Math.round(settings.get('minimapOpacity') * 100), 20, 100, '%', (v) => settings.set('minimapOpacity', v / 100));
-    this._rowSelect('小地图位置', MINIMAP_POS_OPTIONS, settings.get('minimapPosition'), (v) => settings.set('minimapPosition', v));
+    this._row('显示小地图', this._createSwitch(settings.get('minimapEnabled') !== false, (v) => settings.set('minimapEnabled', v)), '联机/竞技模式可能由房主统一锁定');
+    this._rowSlider('小地图尺寸', settings.get('minimapSize') || 140, 80, 260, 'px', (v) => settings.set('minimapSize', v));
+    this._rowSlider('小地图透明度', Math.round((settings.get('minimapOpacity') ?? 0.85) * 100), 20, 100, '%', (v) => settings.set('minimapOpacity', v / 100));
+    this._rowSelect('小地图位置', MINIMAP_POS_OPTIONS, settings.get('minimapPosition') || 'bottom-right', (v) => settings.set('minimapPosition', v));
+    this._rowSlider('小地图球大小', Math.round((settings.get('minimapBallSize') ?? 1.0) * 100), 50, 200, '%', (v) => settings.set('minimapBallSize', v / 100));
+    this._row('小地图白球拖尾', this._createSwitch(settings.get('minimapShowCueTrail') !== false, (v) => settings.set('minimapShowCueTrail', v)));
+    this._rowSlider('小地图拖尾长度', settings.get('minimapTrailLength') || 40, 10, 100, '', (v) => settings.set('minimapTrailLength', v));
+    this._row('小地图高对比度', this._createSwitch(settings.get('minimapHighContrast') === true, (v) => settings.set('minimapHighContrast', v)), '增强球和边界可见度');
     this._row('显示球号标签', this._createSwitch(settings.get('showBallLabels'), (v) => settings.set('showBallLabels', v)));
     this._row('显示力度条', this._createSwitch(settings.get('showShotPowerPercent'), (v) => settings.set('showShotPowerPercent', v)));
     this._row('显示旋转指示', this._createSwitch(settings.get('showSpinIndicator'), (v) => settings.set('showSpinIndicator', v)));

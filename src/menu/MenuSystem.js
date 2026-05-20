@@ -820,6 +820,11 @@ export class MenuSystem {
       this.matchManager = null;
     }
 
+    // Clear challenge/trainer references to prevent stale state
+    if (this.challengeManager) { this.challengeManager = null; }
+    if (this.activeChallenge) { this.activeChallenge = null; }
+    if (this.drillManager) { this.drillManager = null; }
+
     // Clean up LAN room panel if present
     if (this.lanRoomPanel) {
       this.lanRoomPanel.destroy();
