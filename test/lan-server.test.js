@@ -37,19 +37,26 @@ function startServer() {
     proc.stdout.on('data', onReady);
     proc.stderr.on('data', onReady);
 
-    setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        resolve(); // assume it started even if we missed the log
-      }
-    }, 1500);
-
     proc.on('error', (err) => {
       if (!resolved) {
         resolved = true;
         reject(err);
       }
     });
+
+    proc.on('exit', (code, signal) => {
+      if (!resolved) {
+        resolved = true;
+        reject(new Error(`Server exited before ready (code=${code}, signal=${signal})`));
+      }
+    });
+
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        resolve(); // assume it started even if we missed the log
+      }
+    }, 1500);
   });
 }
 

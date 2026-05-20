@@ -22,7 +22,7 @@ import { ScreenShake } from '../fx/ScreenShake.js';
 import { PowerLabel } from '../fx/PowerLabel.js';
 import { BallReturnSystem } from '../fx/BallReturnSystem.js';
 import { ShotRecorder } from '../replay/ShotRecorder.js';
-import { settings } from '../core/SettingsStore.js';
+import { settings, MATCH_FAIRNESS_KEYS } from '../core/SettingsStore.js';
 import { keyBindings } from '../input/KeyBindings.js';
 import { BALL, SHOT, CAMERA } from '../config.js';
 import { getTableProfile, resolveTableProfileId, validateModeTableProfile } from './TableProfiles.js';
@@ -315,6 +315,11 @@ export class Game {
     this.inGameSettings = new SettingsScreen(() => this._onInGameSettingsClose(), document.body);
     this.inGameSettings.setAudioManager(this.audio);
     this.inGameSettings.setZIndex(100);
+    // Lock fairness settings in competitive modes
+    const fairnessKeys = Array.from(MATCH_FAIRNESS_KEYS);
+    if (this.networkRole === 'client' || this.matchManager) {
+      this.inGameSettings.setLockedKeys(fairnessKeys);
+    }
 
     // Spin indicator UI
     this._addCueTipPicker();
@@ -608,7 +613,9 @@ export class Game {
     }
     const deadzone = settings.get('dragDeadzone') ?? 4;
     const pullDistance = rawPull > deadzone ? rawPull - deadzone : 0;
-    const powerSens = settings.get('shotPowerSens') || 1.0;
+    const powerSens = (this.networkRole === 'client' && this._hostFairness)
+      ? (this._hostFairness.shotPowerSens ?? 1.0)
+      : (settings.get('shotPowerSens') || 1.0);
     this.power = Math.min(SHOT.maxPower, pullDistance * 0.42 * powerSens);
     this.ui.setPower((this.power / SHOT.maxPower) * 100);
 
@@ -1094,7 +1101,10 @@ export class Game {
     if (this.gameStartTime) {
       this.ui.updateTimer(performance.now() - this.gameStartTime);
     }
-    if (this.minimap && this.ballsManager && settings.get('minimapEnabled') !== false) {
+    const minimapActive = (this.networkRole === 'client' && this._hostFairness)
+      ? (this._hostFairness.minimapEnabled !== false)
+      : (settings.get('minimapEnabled') !== false);
+    if (this.minimap && this.ballsManager && minimapActive) {
       this.minimap.updateBallData(this.ballsManager.balls);
       this.minimap.draw();
     }
@@ -2478,11 +2488,15 @@ export class Game {
    */
   _applyHostFairness(fairness) {
     if (!fairness || typeof fairness !== 'object') return;
-    const changed = !this._hostFairness || JSON.stringify(this._hostFairness) !== JSON.stringify(fairness);
+    const changed = !this._hostFairness ||
+      this._hostFairness.trajectoryEnabled !== fairness.trajectoryEnabled ||
+      this._hostFairness.minimapEnabled !== fairness.minimapEnabled ||
+      this._hostFairness.turnTimer !== fairness.turnTimer ||
+      this._hostFairness.shotPowerSens !== fairness.shotPowerSens ||
+      this._hostFairness.showCrosshair !== fairness.showCrosshair;
     this._hostFairness = { ...fairness };
     if (changed) {
       this._applySettings();
-      this._applyHudVisibility(this._hostFairness);
     }
   }
 

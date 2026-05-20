@@ -103,7 +103,8 @@ export class LanRoomPanel {
       outline: none; text-transform: uppercase;
     `;
     this._joinInput.addEventListener('input', () => {
-      this._joinInput.value = this._joinInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      // Server omits 0, O, I, 1 from generated IDs; align client sanitization
+      this._joinInput.value = this._joinInput.value.toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g, '');
     });
     this._joinRow.appendChild(this._joinInput);
     card.appendChild(this._joinRow);
@@ -252,9 +253,14 @@ export class LanRoomPanel {
       return;
     }
     this._setButtonsDisabled(true);
-    this.client.createRoom();
-    this._setStatus('正在创建房间…');
-    this._state = 'creating';
+    try {
+      this.client.createRoom();
+      this._setStatus('正在创建房间…');
+      this._state = 'creating';
+    } catch (err) {
+      this._setStatus('创建房间失败：' + (err.message || '未知错误'), 'error');
+      this._setButtonsDisabled(false);
+    }
   }
 
   _onRoomCreated(detail) {
@@ -284,9 +290,14 @@ export class LanRoomPanel {
       return;
     }
     this._setButtonsDisabled(true);
-    this.client.joinRoom(roomId);
-    this._setStatus('正在加入房间…');
-    this._state = 'joining';
+    try {
+      this.client.joinRoom(roomId);
+      this._setStatus('正在加入房间…');
+      this._state = 'joining';
+    } catch (err) {
+      this._setStatus('加入房间失败：' + (err.message || '未知错误'), 'error');
+      this._setButtonsDisabled(false);
+    }
   }
 
   _onJoinedRoom(detail) {
@@ -309,8 +320,13 @@ export class LanRoomPanel {
   _onStartGame() {
     if (!this.client || !this.client.isHost) return;
     this._setButtonsDisabled(true);
-    const tableProfileId = this._tableSelect?.value || 'pool9ft';
-    this.client.startGame('8ball', tableProfileId);
+    try {
+      const tableProfileId = this._tableSelect?.value || 'pool9ft';
+      this.client.startGame('8ball', tableProfileId);
+    } catch (err) {
+      this._setStatus('开始游戏失败：' + (err.message || '未知错误'), 'error');
+      this._setButtonsDisabled(false);
+    }
     // Local callback is triggered by startGame event as well
   }
 

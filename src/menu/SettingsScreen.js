@@ -264,19 +264,17 @@ export class SettingsScreen {
   }
 
   setLockedKeys(keys) {
-    this._lockedKeys = new Set(keys);
+    if (keys == null) {
+      this._lockedKeys = new Set();
+    } else if (typeof keys[Symbol.iterator] === 'function') {
+      this._lockedKeys = new Set(keys);
+    } else {
+      this._lockedKeys = new Set();
+    }
   }
 
   _isLocked(key) {
     return this._lockedKeys.has(key);
-  }
-
-  _lockBadge(reason = '由房主/比赛锁定') {
-    const badge = document.createElement('span');
-    badge.textContent = '🔒';
-    badge.title = reason;
-    badge.style.cssText = 'font-size:11px;color:rgba(216,177,95,0.9);margin-left:4px;cursor:help;';
-    return badge;
   }
 
   _buildUI() {
@@ -487,7 +485,8 @@ export class SettingsScreen {
         settings.set('trajectoryEnabled', v);
         window.dispatchEvent(new CustomEvent('toggleTrajectory', { detail: v }));
       }, this._isLocked('trajectoryEnabled'), '由房主/比赛锁定'),
-      this._isLocked('trajectoryEnabled') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定'
+      this._isLocked('trajectoryEnabled') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定',
+      this._isLocked('trajectoryEnabled')
     );
     this._rowSlider('轨迹透明度', Math.round((settings.get('trajectoryOpacity') ?? 0.7) * 100), 20, 100, '%', (v) => settings.set('trajectoryOpacity', v / 100));
     this._rowSelect('轨迹颜色模式', TRAJECTORY_COLOR_MODE_OPTIONS, settings.get('trajectoryColorMode') || 'default', (v) => settings.set('trajectoryColorMode', v));
@@ -841,7 +840,7 @@ export class SettingsScreen {
     this._sectionTitle('界面');
     this._sectionSubtitle('HUD、小地图与信息显示');
 
-    this._row('显示小地图', this._createSwitch(settings.get('minimapEnabled') !== false, (v) => settings.set('minimapEnabled', v), this._isLocked('minimapEnabled'), '由房主/比赛锁定'), this._isLocked('minimapEnabled') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定');
+    this._row('显示小地图', this._createSwitch(settings.get('minimapEnabled') !== false, (v) => settings.set('minimapEnabled', v), this._isLocked('minimapEnabled'), '由房主/比赛锁定'), this._isLocked('minimapEnabled') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定', this._isLocked('minimapEnabled'));
     this._rowSlider('小地图尺寸', settings.get('minimapSize') || 140, 80, 260, 'px', (v) => settings.set('minimapSize', v));
     this._rowSlider('小地图透明度', Math.round((settings.get('minimapOpacity') ?? 0.85) * 100), 20, 100, '%', (v) => settings.set('minimapOpacity', v / 100));
     this._rowSelect('小地图位置', MINIMAP_POS_OPTIONS, settings.get('minimapPosition') || 'bottom-right', (v) => settings.set('minimapPosition', v));
@@ -857,12 +856,12 @@ export class SettingsScreen {
       settings.set('showComboCounter', v);
       if (window.dispatchEvent) window.dispatchEvent(new CustomEvent('toggleComboCounter', { detail: v }));
     }), '击球连续进球时显示');
-    this._row('显示准星', this._createSwitch(settings.get('showCrosshair'), (v) => settings.set('showCrosshair', v), this._isLocked('showCrosshair'), '由房主/比赛锁定'), this._isLocked('showCrosshair') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定');
+    this._row('显示准星', this._createSwitch(settings.get('showCrosshair'), (v) => settings.set('showCrosshair', v), this._isLocked('showCrosshair'), '由房主/比赛锁定'), this._isLocked('showCrosshair') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定', this._isLocked('showCrosshair'));
     this._row('显示击球统计', this._createSwitch(settings.get('statsPanelEnabled'), (v) => settings.set('statsPanelEnabled', v)));
     this._rowSlider('UI 缩放', Math.round(settings.get('hudScale') * 100), 50, 200, '%', (v) => settings.set('hudScale', v / 100));
     this._rowSelect('计时器位置', TIMER_POS_OPTIONS, settings.get('timerPosition'), (v) => settings.set('timerPosition', v));
     this._row('显示 FPS', this._createSwitch(settings.get('showFPS'), (v) => settings.set('showFPS', v)));
-    this._rowSelect('回合计时器', TURN_TIMER_OPTIONS, settings.get('turnTimer'), (v) => settings.set('turnTimer', v), this._isLocked('turnTimer') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定', this._isLocked('turnTimer'));
+    this._rowSelect('回合计时器', TURN_TIMER_OPTIONS, settings.get('turnTimer'), (v) => settings.set('turnTimer', v), this._isLocked('turnTimer') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定', this._isLocked('turnTimer'), '由房主/比赛锁定');
   }
 
   _buildReplayContent() {
@@ -1214,18 +1213,30 @@ export class SettingsScreen {
     this._contentArea.appendChild(el);
   }
 
-  _row(label, control, tooltip = '') {
+  _row(label, control, tooltip = '', disabled = false) {
     const row = document.createElement('div');
     row.style.cssText = `
       display: flex; justify-content: space-between; align-items: center;
       padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+      ${disabled ? 'opacity:0.45; cursor:not-allowed;' : ''}
     `;
+    if (disabled) row.title = tooltip || '由房主/比赛锁定';
     const left = document.createElement('div');
     left.style.cssText = 'display: flex; flex-direction: column; gap: 2px;';
+    const lblWrap = document.createElement('div');
+    lblWrap.style.cssText = 'display: flex; align-items: center; gap: 6px;';
     const lbl = document.createElement('span');
     lbl.textContent = label;
     lbl.style.cssText = 'font-size: 15px; font-weight: 500; color: rgba(255,255,255,0.85);';
-    left.appendChild(lbl);
+    lblWrap.appendChild(lbl);
+    if (disabled) {
+      const badge = document.createElement('span');
+      badge.textContent = '🔒';
+      badge.title = tooltip || '由房主/比赛锁定';
+      badge.style.cssText = 'font-size:11px;color:rgba(216,177,95,0.9);cursor:help;';
+      lblWrap.appendChild(badge);
+    }
+    left.appendChild(lblWrap);
     if (tooltip) {
       const tip = document.createElement('span');
       tip.textContent = tooltip;
@@ -1271,13 +1282,25 @@ export class SettingsScreen {
       display: flex; justify-content: space-between; align-items: center;
       padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
       gap: 16px;
+      ${disabled ? 'opacity:0.45; cursor:not-allowed;' : ''}
     `;
+    if (disabled) row.title = tooltip || '由房主/比赛锁定';
     const left = document.createElement('div');
     left.style.cssText = 'display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;';
+    const lblWrap = document.createElement('div');
+    lblWrap.style.cssText = 'display: flex; align-items: center; gap: 6px;';
     const lbl = document.createElement('span');
     lbl.textContent = label;
     lbl.style.cssText = 'font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.8);';
-    left.appendChild(lbl);
+    lblWrap.appendChild(lbl);
+    if (disabled) {
+      const badge = document.createElement('span');
+      badge.textContent = '🔒';
+      badge.title = tooltip || '由房主/比赛锁定';
+      badge.style.cssText = 'font-size:11px;color:rgba(216,177,95,0.9);cursor:help;';
+      lblWrap.appendChild(badge);
+    }
+    left.appendChild(lblWrap);
     if (tooltip) {
       const tip = document.createElement('span');
       tip.textContent = tooltip;
