@@ -161,15 +161,15 @@ async function main() {
   record('third player rejected', fullError.error === 'Room is full');
   third.ws.close();
 
-  // ── Test 4: startGame ──
-  console.log('\n▶ Test 4: startGame');
+  // ── Test 4: startGame with custom tableProfileId ──
+  console.log('\n▶ Test 4: startGame (tableProfileId sync)');
   clearMessages(host);
   clearMessages(guest);
-  send(host, { type: 'startGame', mode: '8ball', tableProfileId: 'pool9ft' });
+  send(host, { type: 'startGame', mode: '8ball', tableProfileId: 'chinese8' });
   const hostStart = await waitForMessage(host, 'startGame');
   const guestStart = await waitForMessage(guest, 'startGame');
-  record('host received startGame', hostStart.mode === '8ball' && hostStart.tableProfileId === 'pool9ft');
-  record('guest received startGame', guestStart.mode === '8ball' && guestStart.tableProfileId === 'pool9ft');
+  record('host received startGame with tableProfileId', hostStart.mode === '8ball' && hostStart.tableProfileId === 'chinese8');
+  record('guest received startGame with tableProfileId', guestStart.mode === '8ball' && guestStart.tableProfileId === 'chinese8');
 
   // ── Test 5: guest leaveRoom ──
   console.log('\n▶ Test 5: guest leaveRoom');
@@ -192,6 +192,37 @@ async function main() {
   host2.ws.close();
   const closed = await waitForMessage(guest2, 'roomClosed');
   record('guest received roomClosed on host disconnect', closed.reason === 'hostDisconnected');
+
+  // ── Test 7: join non-existent room ──
+  console.log('\n▶ Test 7: join non-existent room');
+  const lone = await connectClient();
+  send(lone, { type: 'joinRoom', roomId: 'FAKE99' });
+  const notFound = await waitForMessage(lone, 'error');
+  record('rejected with room not found', notFound.error === 'Room not found');
+  lone.ws.close();
+
+  // ── Test 8: join after game started ──
+  console.log('\n▶ Test 8: join after game started');
+  const host3 = await connectClient();
+  send(host3, { type: 'createRoom' });
+  const created3 = await waitForMessage(host3, 'roomCreated');
+
+  const guest3 = await connectClient();
+  send(guest3, { type: 'joinRoom', roomId: created3.roomId });
+  await waitForMessage(guest3, 'joinedRoom');
+
+  // Host starts game
+  send(host3, { type: 'startGame', mode: '9ball', tableProfileId: 'pool9ft' });
+  await waitForMessage(host3, 'startGame');
+
+  // Late joiner should be rejected
+  const late = await connectClient();
+  send(late, { type: 'joinRoom', roomId: created3.roomId });
+  const startedError = await waitForMessage(late, 'error');
+  record('rejected because game already started', startedError.error === 'Game already started');
+  late.ws.close();
+  host3.ws.close();
+  guest3.ws.close();
 
   // ── Summary ──
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

@@ -1,4 +1,29 @@
-# 3D Billiards v1.7.27 — Latest Update
+# 3D Billiards v1.7.28 — Latest Update
+
+## What's New in v1.7.28
+
+### 🔒 LAN Fairness & Host Authority — Competitive Settings Lock, Room Experience, State Sync
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **公平设置真正锁定（UI + 运行时）** | `MATCH_FAIRNESS_KEYS` 中的 5 项已实现设置（轨迹线、小地图、回合计时器、击球力度灵敏度、准星）现在在 LAN 客户端和本地比赛中被真正锁定：`SettingsScreen` 显示 `🔒` 灰度禁用控件 + tooltip「由房主/比赛锁定」；房主仍可调，客户端不可改 |
+| 2 | **公平设置 host-authority 同步** | `GameStateSerializer` 现在在状态快照中附带 `fairness` 字段（房主本地设置）；客户端收到后自动覆盖自己的对应设置，确保所有玩家使用完全相同的竞技参数；客户端本地修改被忽略，返回单机后恢复个人设置 |
+| 3 | **清理公平键列表** | 移除 5 个尚未实现的占位键（`showWinProbability`、`showOpponentTrajectory`、`skipOpponentTurn`、`autoHints`、`hintFrequency`）出 `MATCH_FAIRNESS_KEYS`，移至 `MATCH_FAIRNESS_RESERVED`；避免未实现功能意外锁定正常 UI |
+| 4 | **房间体验优化** | `LanRoomPanel` 现在对所有服务器错误提供中文说明：房间不存在、房间已满、游戏已开始、已在其他房间、服务器未启动等；连接失败和操作出错后按钮自动恢复可用，用户不会卡住 |
+| 5 | **LAN 测试增强** | 新增 4 项测试：自定义桌型（`chinese8`）在 `startGame` 中同步到客户端、加入不存在房间被拒、游戏已开始后加入被拒；总测试数从 10 项增至 14 项 |
+
+### 🔧 Version Sync, Build Hygiene & Settings Audit Update
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 6 | **统一版本号** | `package.json`、`src/core/Version.js`、`index.html`、`dist/index.html`、`README.md` 全部同步为 `v1.7.28`，消除线上/线下版本显示不一致 |
+| 7 | **清理旧 dist assets** | 移除并替换旧的 hash 化 JS 文件，确保 `dist/index.html` 不引用已不存在的 chunk |
+| 8 | **SETTINGS_AUDIT.md 更新** | 轨迹外观、小地图外观、FX 独立开关全部标记为 ✅ 已实现；公平键审查反映当前实现/保留状态；待办列表更新 |
+| 9 | **README 脚本说明更新** | 新增 `npm run preview`、`npm run test:lan`、`npm run test:smoke` 说明；版本号更新 |
+
+---
+
+# 3D Billiards v1.7.27
 
 ## What's New in v1.7.27
 

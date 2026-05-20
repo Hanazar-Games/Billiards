@@ -2,7 +2,7 @@
 
 A browser-based 3D pool game built with **Three.js** and **cannon-es** physics engine.
 
-**Current Version: v1.7.22**
+**Current Version: v1.7.28**
 
 ## 🎮 Game Modes
 
@@ -113,7 +113,10 @@ Then open `http://localhost:5173`
 
 ```bash
 npm run build          # Production build
-npm run test:rules     # Run 27 rule engine tests
+npm run preview        # Preview production build
+npm run test:rules     # Run 28 rule engine tests
+npm run test:lan       # Run 14 LAN server integration tests
+npm run test:smoke     # Run 50 browser smoke tests
 npm run host           # Start LAN room server (port 3001)
 ```
 

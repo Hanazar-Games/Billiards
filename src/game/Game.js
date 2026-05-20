@@ -99,6 +99,9 @@ export class Game {
     this._netDisconnectHandled = false;
     this._netDisconnectTimer = null;
 
+    // Host-authority fairness settings (overrides local settings in client mode)
+    this._hostFairness = null;
+
     // Local match mode
     this.matchManager = null;
 
@@ -2309,7 +2312,11 @@ export class Game {
     if (controller) {
       this._onStateSnapshot = (e) => {
         if (this.networkRole === 'client' && e.detail.snapshot) {
-          GameStateSerializer.applyGameState(this, e.detail.snapshot);
+          const snapshot = e.detail.snapshot;
+          if (snapshot.fairness) {
+            this._applyHostFairness(snapshot.fairness);
+          }
+          GameStateSerializer.applyGameState(this, snapshot);
         }
       };
       this._onNetShotInput = (e) => {
@@ -2465,19 +2472,36 @@ export class Game {
     }
   }
 
+  /**
+   * Apply host-authority fairness settings in network client mode.
+   * These override local settings so all players have the same competitive parameters.
+   */
+  _applyHostFairness(fairness) {
+    if (!fairness || typeof fairness !== 'object') return;
+    const changed = !this._hostFairness || JSON.stringify(this._hostFairness) !== JSON.stringify(fairness);
+    this._hostFairness = { ...fairness };
+    if (changed) {
+      this._applySettings();
+      this._applyHudVisibility(this._hostFairness);
+    }
+  }
+
   _applySettings() {
-    this.trajectoryEnabled = settings.get('trajectoryEnabled');
+    // In network client mode, use host's fairness settings if available
+    const fairness = this.networkRole === 'client' && this._hostFairness ? this._hostFairness : {};
+    this.trajectoryEnabled = fairness.trajectoryEnabled !== undefined ? fairness.trajectoryEnabled : settings.get('trajectoryEnabled');
     if (this.particles) this.particles.setEnabled(settings.get('particlesEnabled'));
     if (this.trails) this.trails.setEnabled(settings.get('shotTrailsEnabled'));
 
     this._applyCameraMode(settings.get('defaultCamera'));
-    if (this.minimap) this.minimap.setEnabled(settings.get('minimapEnabled') !== false);
+    const minimapEnabled = fairness.minimapEnabled !== undefined ? fairness.minimapEnabled : settings.get('minimapEnabled');
+    if (this.minimap) this.minimap.setEnabled(minimapEnabled !== false);
 
     // Apply HUD visibility settings
-    this._applyHudVisibility();
+    this._applyHudVisibility(fairness);
 
     // Apply turn timer setting
-    const turnTimer = settings.get('turnTimer');
+    const turnTimer = fairness.turnTimer !== undefined ? fairness.turnTimer : settings.get('turnTimer');
     const isStandardMode = ['local2p', 'vsai', '9ball'].includes(this.mode) || this.matchManager;
     if (isStandardMode && turnTimer !== 'off') {
       this._turnTimerMax = parseInt(turnTimer, 10) || 30;
@@ -2490,14 +2514,15 @@ export class Game {
     this._turnTimerRunning = false;
   }
 
-  _applyHudVisibility() {
+  _applyHudVisibility(fairness = {}) {
     const hudScale = settings.get('hudScale') ?? 1.0;
     this.ui.setHudScale?.(hudScale);
     this.ui.setHudOpacity?.(settings.get('hudOpacity'));
     this.ui.setShowFPS?.(settings.get('showFPS'));
     this.ui.setShowPowerBar?.(settings.get('showShotPowerPercent'));
     this.ui.setShowSpinIndicator?.(settings.get('showSpinIndicator'));
-    this.ui.setShowCrosshair?.(settings.get('showCrosshair'));
+    const showCrosshair = fairness.showCrosshair !== undefined ? fairness.showCrosshair : settings.get('showCrosshair');
+    this.ui.setShowCrosshair?.(showCrosshair);
     this.ui.setShowBallLabels?.(settings.get('showBallLabels'));
     this.ui.setShowRemainingBalls?.(settings.get('showRemainingBalls'));
     this.ui.setShowComboCounter?.(settings.get('showComboCounter'));
@@ -2508,6 +2533,11 @@ export class Game {
   }
 
   _handleSettingsChange(key, value) {
+    // In network client mode, ignore local changes to fairness keys
+    // (host settings are authoritative and applied via snapshot)
+    if (this.networkRole === 'client' && this._hostFairness && key in this._hostFairness) {
+      return;
+    }
     switch (key) {
       case 'trajectoryEnabled':
         this.trajectoryEnabled = value;

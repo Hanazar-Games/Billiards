@@ -227,6 +227,7 @@ export class SettingsScreen {
     this._saveToastTimer = null;
     this._settingsTipTimer = null;
     this._confirmHandlers = new Set();
+    this._lockedKeys = new Set();
     this._buildUI();
 
     // Debounced save toast for settings changes while modal is open
@@ -260,6 +261,22 @@ export class SettingsScreen {
       this.audio.setAmbientVolume((settings.get('ambientVolumeScale') ?? 1.0) * 100);
     }
     this._syncAllControls();
+  }
+
+  setLockedKeys(keys) {
+    this._lockedKeys = new Set(keys);
+  }
+
+  _isLocked(key) {
+    return this._lockedKeys.has(key);
+  }
+
+  _lockBadge(reason = '由房主/比赛锁定') {
+    const badge = document.createElement('span');
+    badge.textContent = '🔒';
+    badge.title = reason;
+    badge.style.cssText = 'font-size:11px;color:rgba(216,177,95,0.9);margin-left:4px;cursor:help;';
+    return badge;
   }
 
   _buildUI() {
@@ -469,8 +486,8 @@ export class SettingsScreen {
       this._createSwitch(settings.get('trajectoryEnabled'), (v) => {
         settings.set('trajectoryEnabled', v);
         window.dispatchEvent(new CustomEvent('toggleTrajectory', { detail: v }));
-      }),
-      '联机/竞技模式可能由房主统一锁定'
+      }, this._isLocked('trajectoryEnabled'), '由房主/比赛锁定'),
+      this._isLocked('trajectoryEnabled') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定'
     );
     this._rowSlider('轨迹透明度', Math.round((settings.get('trajectoryOpacity') ?? 0.7) * 100), 20, 100, '%', (v) => settings.set('trajectoryOpacity', v / 100));
     this._rowSelect('轨迹颜色模式', TRAJECTORY_COLOR_MODE_OPTIONS, settings.get('trajectoryColorMode') || 'default', (v) => settings.set('trajectoryColorMode', v));
@@ -585,7 +602,7 @@ export class SettingsScreen {
 
     // ── Shot & aim sensitivity (expandable) ──
     const shotWrap = this._createCollapsible('击球与瞄准灵敏度', true);
-    this._rowSliderIn(shotWrap, '击球力度灵敏度', Math.round(settings.get('shotPowerSens') * 100), 50, 200, '%', (v) => settings.set('shotPowerSens', v / 100), '联机/竞技模式可能由房主统一锁定');
+    this._rowSliderIn(shotWrap, '击球力度灵敏度', Math.round(settings.get('shotPowerSens') * 100), 50, 200, '%', (v) => settings.set('shotPowerSens', v / 100), this._isLocked('shotPowerSens') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定', null, this._isLocked('shotPowerSens'));
     this._rowSliderIn(shotWrap, '瞄准响应速度', Math.round(settings.get('aimSens') * 100), 50, 200, '%', (v) => settings.set('aimSens', v / 100));
     this._rowSliderIn(shotWrap, '球杆旋转步长', Math.round(settings.get('spinStepSens') * 100), 30, 200, '%', (v) => settings.set('spinStepSens', v / 100));
     this._rowSliderIn(shotWrap, '触控板灵敏度', Math.round(settings.get('trackpadSens') * 100), 30, 200, '%', (v) => settings.set('trackpadSens', v / 100));
@@ -824,7 +841,7 @@ export class SettingsScreen {
     this._sectionTitle('界面');
     this._sectionSubtitle('HUD、小地图与信息显示');
 
-    this._row('显示小地图', this._createSwitch(settings.get('minimapEnabled') !== false, (v) => settings.set('minimapEnabled', v)), '联机/竞技模式可能由房主统一锁定');
+    this._row('显示小地图', this._createSwitch(settings.get('minimapEnabled') !== false, (v) => settings.set('minimapEnabled', v), this._isLocked('minimapEnabled'), '由房主/比赛锁定'), this._isLocked('minimapEnabled') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定');
     this._rowSlider('小地图尺寸', settings.get('minimapSize') || 140, 80, 260, 'px', (v) => settings.set('minimapSize', v));
     this._rowSlider('小地图透明度', Math.round((settings.get('minimapOpacity') ?? 0.85) * 100), 20, 100, '%', (v) => settings.set('minimapOpacity', v / 100));
     this._rowSelect('小地图位置', MINIMAP_POS_OPTIONS, settings.get('minimapPosition') || 'bottom-right', (v) => settings.set('minimapPosition', v));
@@ -840,12 +857,12 @@ export class SettingsScreen {
       settings.set('showComboCounter', v);
       if (window.dispatchEvent) window.dispatchEvent(new CustomEvent('toggleComboCounter', { detail: v }));
     }), '击球连续进球时显示');
-    this._row('显示准星', this._createSwitch(settings.get('showCrosshair'), (v) => settings.set('showCrosshair', v)), '联机/竞技模式可能由房主统一锁定');
+    this._row('显示准星', this._createSwitch(settings.get('showCrosshair'), (v) => settings.set('showCrosshair', v), this._isLocked('showCrosshair'), '由房主/比赛锁定'), this._isLocked('showCrosshair') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定');
     this._row('显示击球统计', this._createSwitch(settings.get('statsPanelEnabled'), (v) => settings.set('statsPanelEnabled', v)));
     this._rowSlider('UI 缩放', Math.round(settings.get('hudScale') * 100), 50, 200, '%', (v) => settings.set('hudScale', v / 100));
     this._rowSelect('计时器位置', TIMER_POS_OPTIONS, settings.get('timerPosition'), (v) => settings.set('timerPosition', v));
     this._row('显示 FPS', this._createSwitch(settings.get('showFPS'), (v) => settings.set('showFPS', v)));
-    this._rowSelect('回合计时器', TURN_TIMER_OPTIONS, settings.get('turnTimer'), (v) => settings.set('turnTimer', v), '联机/竞技模式可能由房主统一锁定');
+    this._rowSelect('回合计时器', TURN_TIMER_OPTIONS, settings.get('turnTimer'), (v) => settings.set('turnTimer', v), this._isLocked('turnTimer') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定', this._isLocked('turnTimer'));
   }
 
   _buildReplayContent() {
@@ -1248,7 +1265,7 @@ export class SettingsScreen {
     this._contentArea.appendChild(row);
   }
 
-  _rowSliderIn(container, label, value, min, max, unit, onChange, tooltip = '', formatLabel = null) {
+  _rowSliderIn(container, label, value, min, max, unit, onChange, tooltip = '', formatLabel = null, disabled = false) {
     const row = document.createElement('div');
     row.style.cssText = `
       display: flex; justify-content: space-between; align-items: center;
@@ -1268,7 +1285,7 @@ export class SettingsScreen {
       left.appendChild(tip);
     }
     row.appendChild(left);
-    const slider = this._createSlider(value, min, max, unit, onChange, formatLabel);
+    const slider = this._createSlider(value, min, max, unit, onChange, formatLabel, disabled, tooltip || '由房主/比赛锁定');
     slider.style.flex = '1';
     slider.style.maxWidth = '260px';
     row.appendChild(slider);
@@ -1360,13 +1377,15 @@ export class SettingsScreen {
     this._contentArea.appendChild(row);
   }
 
-  _rowSelectIn(container, label, options, value, onChange) {
+  _rowSelectIn(container, label, options, value, onChange, disabled = false, disabledTitle = '') {
     const row = document.createElement('div');
     row.style.cssText = `
       display: flex; justify-content: space-between; align-items: center;
       padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
       gap: 12px;
+      ${disabled ? 'opacity:0.45; cursor:not-allowed;' : ''}
     `;
+    if (disabled && disabledTitle) row.title = disabledTitle;
     const left = document.createElement('span');
     left.textContent = label;
     left.style.cssText = 'font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.8); flex-shrink: 0;';
@@ -1380,21 +1399,25 @@ export class SettingsScreen {
       btn.textContent = opt.label;
       const active = opt.value === value;
       btn.dataset.active = active ? 'true' : '';
+      btn.disabled = disabled;
       btn.style.cssText = `
         padding: 5px 12px; border-radius: 999px;
         background: ${active ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.05)'};
         border: 1px solid ${active ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'};
         color: ${active ? '#fff' : 'rgba(255,255,255,0.55)'};
-        font-size: 12px; font-weight: 600; cursor: pointer;
+        font-size: 12px; font-weight: 600; cursor: ${disabled ? 'not-allowed' : 'pointer'};
         transition: all calc(0.2s / var(--ui-anim-speed)) ease;
       `;
-      btn.onmouseenter = () => {
-        if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.1)';
-      };
-      btn.onmouseleave = () => {
-        if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.05)';
-      };
+      if (!disabled) {
+        btn.onmouseenter = () => {
+          if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.1)';
+        };
+        btn.onmouseleave = () => {
+          if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.05)';
+        };
+      }
       const clickFn = () => {
+        if (disabled) return;
         btns.forEach(b => {
           b.dataset.active = '';
           b.style.background = 'rgba(255,255,255,0.05)';
@@ -1475,12 +1498,14 @@ export class SettingsScreen {
     container.appendChild(row);
   }
 
-  _rowSelect(label, options, value, onChange, tooltip = '') {
+  _rowSelect(label, options, value, onChange, tooltip = '', disabled = false, disabledTitle = '') {
     const row = document.createElement('div');
     row.style.cssText = `
       display: flex; justify-content: space-between; align-items: center;
       padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+      ${disabled ? 'opacity:0.45; cursor:not-allowed;' : ''}
     `;
+    if (disabled && disabledTitle) row.title = disabledTitle;
     const left = document.createElement('div');
     left.style.cssText = 'display: flex; flex-direction: column; gap: 2px;';
     const lbl = document.createElement('span');
@@ -1503,21 +1528,25 @@ export class SettingsScreen {
       btn.textContent = opt.label;
       const active = opt.value === value;
       btn.dataset.active = active ? 'true' : '';
+      btn.disabled = disabled;
       btn.style.cssText = `
         padding: 7px 16px; border-radius: 999px;
         background: ${active ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.05)'};
         border: 1px solid ${active ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'};
         color: ${active ? '#fff' : 'rgba(255,255,255,0.55)'};
-        font-size: 13px; font-weight: 600; cursor: pointer;
+        font-size: 13px; font-weight: 600; cursor: ${disabled ? 'not-allowed' : 'pointer'};
         transition: all calc(0.2s / var(--ui-anim-speed)) ease;
       `;
-      btn.onmouseenter = () => {
-        if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.1)';
-      };
-      btn.onmouseleave = () => {
-        if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.05)';
-      };
+      if (!disabled) {
+        btn.onmouseenter = () => {
+          if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.1)';
+        };
+        btn.onmouseleave = () => {
+          if (!btn.dataset.active) btn.style.background = 'rgba(255,255,255,0.05)';
+        };
+      }
       const clickFn = () => {
+        if (disabled) return;
         btns.forEach(b => {
           b.dataset.active = '';
           b.style.background = 'rgba(255,255,255,0.05)';
@@ -1688,15 +1717,18 @@ export class SettingsScreen {
 
   // ── Components ──
 
-  _createSwitch(checked, onChange) {
+  _createSwitch(checked, onChange, disabled = false, disabledTitle = '') {
     const wrap = document.createElement('label');
     wrap.style.cssText = `
       position: relative; display: inline-block;
-      width: 48px; height: 28px; cursor: pointer; flex-shrink: 0;
+      width: 48px; height: 28px; cursor: ${disabled ? 'not-allowed' : 'pointer'}; flex-shrink: 0;
+      ${disabled ? 'opacity:0.45;' : ''}
     `;
+    if (disabled && disabledTitle) wrap.title = disabledTitle;
     const input = document.createElement('input');
     input.type = 'checkbox';
     input.checked = checked;
+    input.disabled = disabled;
     input.style.cssText = 'opacity: 0; width: 0; height: 0; position: absolute;';
 
     const track = document.createElement('span');
@@ -1720,9 +1752,11 @@ export class SettingsScreen {
     };
     update();
 
-    const fn = () => { update(); onChange(input.checked); };
-    input.addEventListener('change', fn);
-    this._listeners.push({ el: input, type: 'change', fn });
+    const fn = () => { if (disabled) return; update(); onChange(input.checked); };
+    if (!disabled) {
+      input.addEventListener('change', fn);
+      this._listeners.push({ el: input, type: 'change', fn });
+    }
 
     wrap.appendChild(input);
     wrap.appendChild(track);
@@ -1730,9 +1764,10 @@ export class SettingsScreen {
     return wrap;
   }
 
-  _createSlider(value, min, max, unit, onChange, formatLabel) {
+  _createSlider(value, min, max, unit, onChange, formatLabel, disabled = false, disabledTitle = '') {
     const wrap = document.createElement('div');
-    wrap.style.cssText = 'display: flex; align-items: center; gap: 14px; width: 100%;';
+    wrap.style.cssText = `display: flex; align-items: center; gap: 14px; width: 100%;${disabled ? ' opacity:0.45; cursor:not-allowed;' : ''}`;
+    if (disabled && disabledTitle) wrap.title = disabledTitle;
 
     const trackWrap = document.createElement('div');
     trackWrap.style.cssText = 'position: relative; flex: 1; height: 20px; display: flex; align-items: center;';
@@ -1746,7 +1781,7 @@ export class SettingsScreen {
     const fill = document.createElement('div');
     fill.style.cssText = `
       height: 100%; width: 0%;
-      background: rgba(255,255,255,0.6);
+      background: ${disabled ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.6)'};
       border-radius: 999px; transition: width calc(0.08s / var(--ui-anim-speed)) ease;
     `;
     track.appendChild(fill);
@@ -1756,7 +1791,7 @@ export class SettingsScreen {
     thumb.style.cssText = `
       position: absolute; top: 50%; left: 0%;
       width: 18px; height: 18px; border-radius: 50%;
-      background: #fff;
+      background: ${disabled ? 'rgba(255,255,255,0.5)' : '#fff'};
       box-shadow: 0 2px 8px rgba(0,0,0,0.4);
       transform: translate(-50%, -50%);
       pointer-events: none; transition: left calc(0.08s / var(--ui-anim-speed)) ease;
@@ -1767,8 +1802,9 @@ export class SettingsScreen {
     input.type = 'range';
     input.min = min; input.max = max; input.step = 1;
     input.value = value;
+    input.disabled = disabled;
     input.style.cssText = `
-      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+      position: absolute; inset: 0; opacity: 0; cursor: ${disabled ? 'not-allowed' : 'pointer'};
       width: 100%; height: 100%;
     `;
 
@@ -1779,9 +1815,11 @@ export class SettingsScreen {
     };
     update();
 
-    const fn = () => { update(); onChange(parseFloat(input.value)); };
-    input.addEventListener('input', fn);
-    this._listeners.push({ el: input, type: 'input', fn });
+    const fn = () => { if (disabled) return; update(); onChange(parseFloat(input.value)); };
+    if (!disabled) {
+      input.addEventListener('input', fn);
+      this._listeners.push({ el: input, type: 'input', fn });
+    }
 
     trackWrap.appendChild(input);
 
@@ -1791,9 +1829,11 @@ export class SettingsScreen {
       font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.55);
       min-width: 44px; text-align: right; font-variant-numeric: tabular-nums;
     `;
-    const labelFn = () => { label.textContent = formatLabel ? formatLabel(input.value) : (input.value + unit); };
-    input.addEventListener('input', labelFn);
-    this._listeners.push({ el: input, type: 'input', fn: labelFn });
+    if (!disabled) {
+      const labelFn = () => { label.textContent = formatLabel ? formatLabel(input.value) : (input.value + unit); };
+      input.addEventListener('input', labelFn);
+      this._listeners.push({ el: input, type: 'input', fn: labelFn });
+    }
 
     wrap.appendChild(trackWrap);
     wrap.appendChild(label);

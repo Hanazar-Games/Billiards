@@ -317,20 +317,29 @@ export const settings = new SettingsStore();
 
 // ── Fairness helpers ──
 
-/** Settings that affect match fairness and should be host-controlled in competitive modes. */
+/** Settings that affect match fairness and should be host-controlled in competitive modes.
+ *  All keys here MUST be actually implemented in game systems.
+ */
 export const MATCH_FAIRNESS_KEYS = new Set([
   'trajectoryEnabled',
   'minimapEnabled',
   'turnTimer',
   'shotPowerSens',
+  'showCrosshair',
+  // NOTE: removed dormant keys — add back only when implemented:
+  // 'showWinProbability', 'showOpponentTrajectory', 'skipOpponentTurn',
+  // 'autoHints', 'hintFrequency'
+]);
+
+/** Reserved fairness keys for features not yet implemented.
+ *  These are NOT enforced until the corresponding game system is built.
+ */
+export const MATCH_FAIRNESS_RESERVED = new Set([
   'showWinProbability',
   'showOpponentTrajectory',
   'skipOpponentTurn',
-  'showCrosshair',
   'autoHints',
   'hintFrequency',
-  // These are visual/audio only and SHOULD NOT be in fairness keys:
-  // 'particlesEnabled', 'shotTrailsEnabled', 'cameraShake', 'soundEnabled', etc.
 ]);
 
 /** Settings that are debug/dev-only and should be hidden/protected in normal use. */

@@ -1,7 +1,7 @@
 # Settings Audit Report
 
-> Generated during v1.7.x consistency cleanup.  
-> Total settings keys in `SettingsStore.DEFAULTS`: **~170** (after removing 3 duplicates).
+> Updated for v1.7.28 — LAN fairness locks, trajectory/minimap appearance implemented.  
+> Total settings keys in `SettingsStore.DEFAULTS`: **~168** (after removing dormant keys from fairness set).
 
 ---
 
@@ -177,10 +177,10 @@
 | Key | Status | Consumer | Notes |
 |-----|--------|----------|-------|
 | `minimapPosition` | ✅ | `Minimap._applyStyle()` | |
-| `minimapBallSize` | ❌ | — | No runtime consumer |
-| `minimapShowCueTrail` | ❌ | — | No runtime consumer |
-| `minimapTrailLength` | ❌ | — | No runtime consumer |
-| `minimapHighContrast` | ❌ | — | No runtime consumer |
+| `minimapBallSize` | ✅ | `Minimap` | v1.7.27 |
+| `minimapShowCueTrail` | ✅ | `Minimap` | v1.7.27 |
+| `minimapTrailLength` | ✅ | `Minimap` | v1.7.27 |
+| `minimapHighContrast` | ✅ | `Minimap` | v1.7.27 |
 
 ---
 
@@ -188,10 +188,10 @@
 
 | Key | Status | Consumer | Notes |
 |-----|--------|----------|-------|
-| `trajectoryOpacity` | ❌ | — | No runtime consumer |
-| `trajectoryWidth` | ❌ | — | No runtime consumer |
-| `trajectoryColorMode` | ❌ | — | No runtime consumer |
-| `trajectoryAnimationEnabled` | ❌ | — | No runtime consumer |
+| `trajectoryOpacity` | ✅ | `TrajectoryPredictor` | v1.7.27 |
+| `trajectoryWidth` | ✅ | `TrajectoryPredictor` | v1.7.27 (WebGL linewidth ignored on most platforms) |
+| `trajectoryColorMode` | ✅ | `TrajectoryPredictor` | v1.7.27 (default/highContrast/colorBlind) |
+| `trajectoryAnimationEnabled` | ✅ | `TrajectoryPredictor` | v1.7.27 (ghost-ball pulse animation) |
 
 ---
 
@@ -202,10 +202,10 @@
 | `trailOpacity` | ❌ | — | No runtime consumer |
 | `trailWidth` | ❌ | — | No runtime consumer |
 | `trailColorMode` | ❌ | — | No runtime consumer |
-| `collisionSparksEnabled` | ✅ | `ParticleSystem.setEnabled()` (bulk toggle) | No individual per-effect toggle yet |
-| `pocketFountainEnabled` | ✅ | `ParticleSystem.setEnabled()` (bulk toggle) | |
-| `impactShockwaveEnabled` | ✅ | `ParticleSystem.setEnabled()` (bulk toggle) | |
-| `ballReturnAnimationEnabled` | ✅ | `BallReturnSystem` | |
+| `collisionSparksEnabled` | ✅ | `Game.shoot()` | v1.7.27 — independent of `particlesEnabled` master switch |
+| `pocketFountainEnabled` | ✅ | `Game.shoot()` | v1.7.27 — independent of `particlesEnabled` master switch |
+| `impactShockwaveEnabled` | ✅ | `Game.shoot()` | v1.7.27 — independent of `particlesEnabled` master switch |
+| `ballReturnAnimationEnabled` | ✅ | `BallReturnSystem` | v1.7.27 — independent of `particlesEnabled` master switch |
 
 ---
 
@@ -330,8 +330,8 @@
 | Appearance | 30 | 24 | 0 | 4 | 2 |
 | Camera | 13 | 8 | 0 | 5 | 0 |
 | UI/HUD | 16 | 11 | 0 | 4 | 1 |
-| Minimap | 5 | 1 | 0 | 4 | 0 |
-| Trajectory | 4 | 0 | 0 | 4 | 0 |
+| Minimap | 5 | 5 | 0 | 0 | 0 |
+| Trajectory | 4 | 4 | 0 | 0 | 0 |
 | FX/Trail | 7 | 4 | 0 | 3 | 0 |
 | Controls | 16 | 7 | 0 | 9 | 0 |
 | Replay/Stats | 11 | 1 | 0 | 10 | 0 |
@@ -359,18 +359,18 @@
 ## Remaining TODOs (Priority Order)
 
 ### High Priority — Fairness Enforcement
-- [ ] ** Competitive / LAN mode must lock `MATCH_FAIRNESS_KEYS`**. Currently SettingsScreen only shows tooltips ("联机/竞技模式可能由房主统一锁定") but does not actually grey out or reject changes.  
-  *Implementation:* `SettingsScreen` should accept a `lockedKeys` array; `MenuSystem` should pass fairness keys when in-network.
+- [x] **LAN / match mode locks `MATCH_FAIRNESS_KEYS` for clients**. `SettingsScreen` accepts `setLockedKeys()`; `MenuSystem` passes fairness keys when `networkRole === 'client'` or in local match mode. Locked controls are greyed out with `🔒` badge and tooltip "由房主/比赛锁定". Host can still change fairness settings (authoritative).
 
 ### Medium Priority — Easy Wins
 - [ ] **`zoomMinDistance` / `zoomMaxDistance`** — wire into `OrbitControls` instead of hard-coded `80` / `700`.
 - [ ] **`postProcess` + `bloom` + `chromaticAberration` + `filmGrain` + `vignette`** — either remove from UI or add a minimal `EffectComposer` pass.
 - [ ] **`language`** — either remove from UI or implement a minimal i18n dictionary switch.
 - [ ] **`vSync`** — remove from UI or implement via `requestAnimationFrame` throttling (already have `fpsLimit`).
+- [ ] **Production dist smoke test** — add a `test:dist` script that previews the built `dist/` and verifies no broken asset references.
 
 ### Low Priority — Future Features
-- [ ] **Trajectory appearance** (`trajectoryOpacity`, `trajectoryWidth`, `trajectoryColorMode`, `trajectoryAnimationEnabled`) — requires `TrajectoryPredictor` refactor.
-- [ ] **Minimap appearance** (`minimapBallSize`, `minimapShowCueTrail`, `minimapTrailLength`, `minimapHighContrast`) — requires `Minimap` enhancement.
+- [x] **Trajectory appearance** — ✅ implemented in v1.7.27.
+- [x] **Minimap appearance** — ✅ implemented in v1.7.27.
 - [ ] **Replay system** (`replayQuality`, `replaySpeed`, `replayShowHud`, etc.) — fully depends on Replay UI completion.
 - [ ] **Accessibility suite** (`colorBlindMode`, `dyslexiaFriendlyFont`, `subtitleEnabled`, `soundCueVisualHints`, `voiceAnnounce`, `focusMode`) — large feature set, safe to leave dormant.
 - [ ] **Touch controls** (`touchControlsEnabled`, `touchButtonScale`) — requires on-screen touch overlay.
@@ -380,18 +380,22 @@
 
 ## Fairness Key Review
 
-Current `MATCH_FAIRNESS_KEYS`:
+Current `MATCH_FAIRNESS_KEYS` (v1.7.28):
 ```
-trajectoryEnabled     ✅ implemented
-minimapEnabled        ✅ implemented
-turnTimer             ✅ implemented
-shotPowerSens         ✅ implemented
-showWinProbability    ❌ NOT implemented — should be removed from set until built
-showOpponentTrajectory ❌ NOT implemented — should be removed from set until built
-skipOpponentTurn      ❌ NOT implemented — should be removed from set until built
-showCrosshair         ✅ implemented
-autoHints             ❌ NOT implemented — should be removed from set until built
-hintFrequency         ❌ NOT implemented — should be removed from set until built
+trajectoryEnabled     ✅ implemented  → locked for LAN clients
+minimapEnabled        ✅ implemented  → locked for LAN clients
+turnTimer             ✅ implemented  → locked for LAN clients
+shotPowerSens         ✅ implemented  → locked for LAN clients
+showCrosshair         ✅ implemented  → locked for LAN clients
 ```
 
-**Recommendation:** Move the 5 dormant fairness keys into a `MATCH_FAIRNESS_RESERVED` array so they don't accidentally block UI controls for features that don't exist yet. Add them back to `MATCH_FAIRNESS_KEYS` only when the corresponding game system is implemented.
+Removed from `MATCH_FAIRNESS_KEYS` (moved to `MATCH_FAIRNESS_RESERVED`):
+```
+showWinProbability    ❌ NOT implemented — reserved
+showOpponentTrajectory ❌ NOT implemented — reserved
+skipOpponentTurn      ❌ NOT implemented — reserved
+autoHints             ❌ NOT implemented — reserved
+hintFrequency         ❌ NOT implemented — reserved
+```
+
+**Rule:** A key may only enter `MATCH_FAIRNESS_KEYS` after its game system is fully implemented. Reserved keys remain in `MATCH_FAIRNESS_RESERVED` until then.

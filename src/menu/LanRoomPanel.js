@@ -191,7 +191,21 @@ export class LanRoomPanel {
       this._state = 'disconnected';
     });
     this.client.addEventListener('netError', (e) => {
-      this._setStatus('错误：' + (e.detail?.error || '未知错误'), 'error');
+      const errMap = {
+        'Room not found': '房间不存在，请检查房间号是否正确',
+        'Room is full': '房间已满员（最多 2 人）',
+        'Game already started': '游戏已开始，无法加入',
+        'Already in a room': '你已在另一个房间中，请先退出',
+        'Only host can start game': '只有房主可以开始游戏',
+        'Not in a room': '你不在任何房间中',
+      };
+      const raw = e.detail?.error || '未知错误';
+      const msg = errMap[raw] || raw;
+      this._setStatus(msg, 'error');
+      this._setButtonsDisabled(false);
+      if (this._state === 'joining' || this._state === 'creating') {
+        this._state = 'idle';
+      }
     });
     this.client.addEventListener('roomCreated', (e) => {
       this._onRoomCreated(e.detail);
@@ -223,7 +237,12 @@ export class LanRoomPanel {
     try {
       await this.client.connect();
     } catch (err) {
-      this._setStatus('无法连接服务器：' + (err.message || '请确认 host 已启动'));
+      const isRefused = err.message?.includes('closed') || err.message?.includes('refused') || err.message?.includes('failed');
+      const msg = isRefused
+        ? '无法连接到局域网服务器，请确认房主已运行「npm run host」'
+        : '连接失败：' + (err.message || '请检查网络');
+      this._setStatus(msg, 'error');
+      this._setButtonsDisabled(false);
     }
   }
 

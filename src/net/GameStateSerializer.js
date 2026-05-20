@@ -1,4 +1,5 @@
 import * as CANNON from 'cannon-es';
+import { settings } from '../core/SettingsStore.js';
 
 /**
  * GameStateSerializer — Serialize and deserialize game state for network sync.
@@ -68,6 +69,13 @@ export class GameStateSerializer {
       player1Name: game.networkPlayer1Name || '玩家 1',
       player2Name: game.networkPlayer2Name || '玩家 2',
       timestamp: performance.now(),
+      fairness: game._hostFairness || {
+        trajectoryEnabled: settings.get('trajectoryEnabled'),
+        minimapEnabled: settings.get('minimapEnabled'),
+        turnTimer: settings.get('turnTimer'),
+        shotPowerSens: settings.get('shotPowerSens'),
+        showCrosshair: settings.get('showCrosshair'),
+      },
     };
   }
 

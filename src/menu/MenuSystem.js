@@ -33,6 +33,7 @@ import { LanRoomPanel } from './LanRoomPanel.js';
 import { MatchSetupPanel } from './MatchSetupPanel.js';
 import { MatchManager } from '../game/MatchManager.js';
 import { animMs } from '../core/AnimSpeed.js';
+import { MATCH_FAIRNESS_KEYS } from '../core/SettingsStore.js';
 
 
 export class MenuSystem {
@@ -188,6 +189,13 @@ export class MenuSystem {
     if (this.trainerResult) this.trainerResult.hide();
     if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
     if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
+    // Lock fairness keys for clients and local matches; host can still change them
+    const fairnessKeys = Array.from(MATCH_FAIRNESS_KEYS);
+    if (this.game?.networkRole === 'client' || this.matchManager) {
+      this.settingsScreen.setLockedKeys(fairnessKeys);
+    } else {
+      this.settingsScreen.setLockedKeys([]);
+    }
     this.settingsScreen.show();
   }
 
