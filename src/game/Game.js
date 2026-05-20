@@ -315,10 +315,11 @@ export class Game {
     this.inGameSettings = new SettingsScreen(() => this._onInGameSettingsClose(), document.body);
     this.inGameSettings.setAudioManager(this.audio);
     this.inGameSettings.setZIndex(100);
-    // Lock fairness settings in competitive modes
+    // Lock fairness settings in competitive modes (both UI and SettingsStore)
     const fairnessKeys = Array.from(MATCH_FAIRNESS_KEYS);
     if (this.networkRole === 'client' || this.matchManager) {
       this.inGameSettings.setLockedKeys(fairnessKeys);
+      settings.setLockedKeys(fairnessKeys);
     }
 
     // Spin indicator UI
@@ -331,6 +332,17 @@ export class Game {
     this._applySettings();
     this._onSettingsChanged = (e) => this._handleSettingsChange(e.detail.key, e.detail.value);
     window.addEventListener('settingsChanged', this._onSettingsChanged);
+
+    // For host: keep _hostFairness in sync with local settings so snapshots propagate changes
+    if (this.networkRole === 'host') {
+      this._hostFairness = {
+        trajectoryEnabled: settings.get('trajectoryEnabled'),
+        minimapEnabled: settings.get('minimapEnabled'),
+        turnTimer: settings.get('turnTimer'),
+        shotPowerSens: settings.get('shotPowerSens'),
+        showCrosshair: settings.get('showCrosshair'),
+      };
+    }
 
     this.setupCollisionEvents();
 
@@ -2552,6 +2564,10 @@ export class Game {
     if (this.networkRole === 'client' && this._hostFairness && key in this._hostFairness) {
       return;
     }
+    // Host: propagate fairness changes into _hostFairness so next snapshot reflects them
+    if (this.networkRole === 'host' && this._hostFairness && key in this._hostFairness) {
+      this._hostFairness[key] = value;
+    }
     switch (key) {
       case 'trajectoryEnabled':
         this.trajectoryEnabled = value;
@@ -2859,6 +2875,9 @@ export class Game {
       window.removeEventListener('settingsChanged', this._onSettingsChanged);
       this._onSettingsChanged = null;
     }
+
+    // Unlock fairness keys
+    settings.clearLockedKeys();
 
     // Remove spin keyboard listener
     if (this._onKeyDown) {

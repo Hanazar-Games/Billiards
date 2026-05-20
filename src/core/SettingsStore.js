@@ -252,7 +252,28 @@ const DEFAULTS = {
 export class SettingsStore {
   constructor() {
     this._data = { ...DEFAULTS };
+    this._lockedKeys = new Set();
     this._load();
+  }
+
+  /** Temporarily lock keys so settings.set() silently ignores them.
+   *  Used in LAN client / match mode to prevent local mutation of fairness settings. */
+  setLockedKeys(keys) {
+    if (keys == null) {
+      this._lockedKeys = new Set();
+    } else if (typeof keys[Symbol.iterator] === 'function') {
+      this._lockedKeys = new Set(keys);
+    } else {
+      this._lockedKeys = new Set();
+    }
+  }
+
+  clearLockedKeys() {
+    this._lockedKeys = new Set();
+  }
+
+  isLocked(key) {
+    return this._lockedKeys.has(key);
   }
 
   _load() {
@@ -290,6 +311,12 @@ export class SettingsStore {
   }
 
   set(key, value) {
+    if (this._lockedKeys.has(key)) {
+      if (settings.get('devMode')) {
+        console.warn('[SettingsStore] Ignored mutation of locked key:', key);
+      }
+      return;
+    }
     if (this._data[key] === value) return;
     this._data[key] = value;
     this._save();
@@ -333,14 +360,9 @@ export const MATCH_FAIRNESS_KEYS = new Set([
 
 /** Reserved fairness keys for features not yet implemented.
  *  These are NOT enforced until the corresponding game system is built.
+ *  Currently empty — all fairness keys are actively implemented.
  */
-export const MATCH_FAIRNESS_RESERVED = new Set([
-  'showWinProbability',
-  'showOpponentTrajectory',
-  'skipOpponentTurn',
-  'autoHints',
-  'hintFrequency',
-]);
+export const MATCH_FAIRNESS_RESERVED = new Set([]);
 
 /** Settings that are debug/dev-only and should be hidden/protected in normal use. */
 export const DEV_KEYS = new Set([

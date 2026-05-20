@@ -200,6 +200,21 @@ async function main() {
   const closed = await waitForMessage(guest2, 'roomClosed');
   record('guest received roomClosed on host disconnect', closed.reason === 'hostDisconnected');
 
+  // ── Test 6b: host explicit leaveRoom → roomClosed ──
+  console.log('\n▶ Test 6b: host leaveRoom');
+  const host2b = await connectClient();
+  send(host2b, { type: 'createRoom' });
+  const created2b = await waitForMessage(host2b, 'roomCreated');
+
+  const guest2b = await connectClient();
+  send(guest2b, { type: 'joinRoom', roomId: created2b.roomId });
+  await waitForMessage(guest2b, 'joinedRoom');
+
+  clearMessages(guest2b);
+  send(host2b, { type: 'leaveRoom' });
+  const closed2b = await waitForMessage(guest2b, 'roomClosed');
+  record('guest received roomClosed on host leaveRoom', closed2b.reason === 'hostLeft');
+
   // ── Test 7: join non-existent room ──
   console.log('\n▶ Test 7: join non-existent room');
   const lone = await connectClient();
@@ -230,6 +245,22 @@ async function main() {
   late.ws.close();
   host3.ws.close();
   guest3.ws.close();
+
+  // ── Test 9: guest cannot broadcast snapshot ──
+  console.log('\n▶ Test 9: guest snapshot rejected');
+  const host4 = await connectClient();
+  send(host4, { type: 'createRoom' });
+  const created4 = await waitForMessage(host4, 'roomCreated');
+
+  const guest4 = await connectClient();
+  send(guest4, { type: 'joinRoom', roomId: created4.roomId });
+  await waitForMessage(guest4, 'joinedRoom');
+
+  clearMessages(guest4);
+  send(guest4, { type: 'stateSnapshot', snapshot: {} });
+  const snapError = await waitForMessage(guest4, 'error');
+  record('guest broadcast snapshot rejected', snapError.error === 'Only host may broadcast snapshots');
+  host4.ws.close();
 
   // ── Summary ──
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

@@ -872,7 +872,7 @@ export class SettingsScreen {
     this._rowSlider('最大回放数', settings.get('replayMaxSaved'), 5, 50, '', (v) => settings.set('replayMaxSaved', v));
     this._row('显示击球数据', this._createSwitch(settings.get('showShotData'), (v) => settings.set('showShotData', v)));
     this._rowDisabled('显示热力图', this._createDisabledSwitch(settings.get('showHeatmap'), () => {}));
-    this._rowDisabled('显示胜率预测', this._createDisabledSwitch(settings.get('showWinProbability'), () => {}), '联机/竞技模式可能由房主统一锁定');
+    this._rowDisabled('显示胜率预测', this._createDisabledSwitch(settings.get('showWinProbability'), () => {}));
     this._rowDisabled('显示详细统计', this._createDisabledSwitch(settings.get('showDetailedStats'), () => {}));
     this._rowDisabled('击球历史追踪', this._createDisabledSwitch(settings.get('shotHistoryTracking'), () => {}));
     this._rowSlider('回放速度', Math.round(settings.get('replaySpeed') * 100), 25, 200, '%', (v) => settings.set('replaySpeed', v / 100));
@@ -889,8 +889,8 @@ export class SettingsScreen {
     this._row('减弱动态效果', this._createSwitch(settings.get('reducedMotion'), (v) => settings.set('reducedMotion', v)));
     this._rowDisabled('单手柄模式', this._createDisabledSwitch(settings.get('singleHandMode'), () => {}));
     this._rowDisabled('左撇子模式', this._createDisabledSwitch(settings.get('leftHandMode'), () => {}));
-    this._rowDisabled('自动提示', this._createDisabledSwitch(settings.get('autoHints'), () => {}), '联机/竞技模式可能由房主统一锁定');
-    this._rowDisabled('提示频率', this._createDisabledSwitch(false, () => {}), '联机/竞技模式可能由房主统一锁定');
+    this._rowDisabled('自动提示', this._createDisabledSwitch(settings.get('autoHints'), () => {}));
+    this._rowDisabled('提示频率', this._createDisabledSwitch(false, () => {}));
     this._row('击球确认', this._createSwitch(settings.get('confirmShotOnRelease'), (v) => settings.set('confirmShotOnRelease', v)));
     this._rowDisabled('语音播报', this._createDisabledSwitch(settings.get('voiceAnnounce'), () => {}));
     this._rowDisabled('音效可视化', this._createDisabledSwitch(settings.get('soundCueVisualHints'), () => {}));
@@ -919,8 +919,8 @@ export class SettingsScreen {
     this._sectionSubtitle('个人化的游戏行为设置');
     this._rowDisabled('快速发球', this._createDisabledSwitch(settings.get('quickBreak'), () => {}));
     this._rowDisabled('自动跳过动画', this._createDisabledSwitch(settings.get('autoSkipAnimation'), () => {}));
-    this._rowDisabled('跳过对手回合', this._createDisabledSwitch(settings.get('skipOpponentTurn'), () => {}), '联机/竞技模式可能由房主统一锁定');
-    this._rowDisabled('显示对手轨迹', this._createDisabledSwitch(settings.get('showOpponentTrajectory'), () => {}), '联机/竞技模式可能由房主统一锁定');
+    this._rowDisabled('跳过对手回合', this._createDisabledSwitch(settings.get('skipOpponentTurn'), () => {}));
+    this._rowDisabled('显示对手轨迹', this._createDisabledSwitch(settings.get('showOpponentTrajectory'), () => {}));
     this._rowSelect('默认球桌 (8球)', TABLE_PROFILE_OPTIONS, settings.get('defaultTableProfile8Ball'), (v) => settings.set('defaultTableProfile8Ball', v), '仅影响新对局的默认选择，比赛/联机中由房主锁定');
     this._rowSelect('默认球桌 (9球)', TABLE_PROFILE_OPTIONS.filter(o => o.value !== 'chinese8'), settings.get('defaultTableProfile9Ball'), (v) => settings.set('defaultTableProfile9Ball', v), '仅影响新对局的默认选择，比赛/联机中由房主锁定');
     this._rowSelect('默认球桌 (练习)', TABLE_PROFILE_OPTIONS, settings.get('defaultTableProfileFreeplay'), (v) => settings.set('defaultTableProfileFreeplay', v), '仅影响新对局的默认选择');
