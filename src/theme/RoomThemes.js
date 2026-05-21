@@ -26,16 +26,28 @@ export const WALL_THEMES = {
     wall:        { color: _c('#f5e6c8'), roughness: 0.88, metalness: 0.02 },
     ceiling:     { color: _c('#f5e6c8'), roughness: 0.90, metalness: 0.02 },
     grid:        { color: _c('#3a3530'), roughness: 0.85, metalness: 0.05 },
+    trim:        { color: _c('#e8d8c0'), roughness: 0.70, metalness: 0.05 },
+    pilaster:    { color: _c('#f0e0c8'), roughness: 0.80, metalness: 0.03 },
+    windowFrame: { color: _c('#d4c4a8'), roughness: 0.55, metalness: 0.10 },
+    posterFrame: { color: _c('#5a4a30'), roughness: 0.45, metalness: 0.15 },
   },
   neutral: {
     wall:        { color: _c('#d8d8d8'), roughness: 0.88, metalness: 0.02 },
     ceiling:     { color: _c('#d8d8d8'), roughness: 0.90, metalness: 0.02 },
     grid:        { color: _c('#5a5a5a'), roughness: 0.85, metalness: 0.05 },
+    trim:        { color: _c('#c8c8c8'), roughness: 0.70, metalness: 0.05 },
+    pilaster:    { color: _c('#d0d0d0'), roughness: 0.80, metalness: 0.03 },
+    windowFrame: { color: _c('#b8b8b8'), roughness: 0.55, metalness: 0.10 },
+    posterFrame: { color: _c('#4a4a4a'), roughness: 0.40, metalness: 0.20 },
   },
   dark: {
     wall:        { color: _c('#2a2a2a'), roughness: 0.88, metalness: 0.05 },
     ceiling:     { color: _c('#2a2a2a'), roughness: 0.90, metalness: 0.05 },
     grid:        { color: _c('#1a1a1a'), roughness: 0.85, metalness: 0.08 },
+    trim:        { color: _c('#3a3a3a'), roughness: 0.70, metalness: 0.08 },
+    pilaster:    { color: _c('#323232'), roughness: 0.80, metalness: 0.05 },
+    windowFrame: { color: _c('#444444'), roughness: 0.50, metalness: 0.15 },
+    posterFrame: { color: _c('#1e1e1e'), roughness: 0.40, metalness: 0.25 },
   },
 };
 

@@ -638,6 +638,28 @@ export class Table {
         this.meshGroup.add(link);
         this._themeMeshes.pocketNets.push(link);
       }
+
+      // Net bag bottom — tapered cone that hangs below the last ring
+      const bagMat = netMat.clone();
+      bagMat.transparent = true;
+      bagMat.opacity = 0.85;
+      const bagGeo = new THREE.CylinderGeometry(
+        pocket.radius * 0.38, pocket.radius * 0.12, 14, 24, 1, true
+      );
+      const bag = new THREE.Mesh(bagGeo, bagMat);
+      bag.position.set(pocket.x, -20, pocket.z);
+      this.meshGroup.add(bag);
+      this._themeMeshes.pocketNets.push(bag);
+
+      // Bottom ring (net收口)
+      const bottomRing = new THREE.Mesh(
+        new THREE.TorusGeometry(pocket.radius * 0.12, 0.35, 8, 20),
+        chainMat
+      );
+      bottomRing.position.set(pocket.x, -27, pocket.z);
+      bottomRing.rotation.x = Math.PI / 2;
+      this.meshGroup.add(bottomRing);
+      this._themeMeshes.pocketNets.push(bottomRing);
     }
   }
 
@@ -929,6 +951,20 @@ export class Table {
       leg.receiveShadow = true;
       this.meshGroup.add(leg);
 
+      // Vertical fluting (decorative grooves) on outer face
+      const fluteCount = 3;
+      const fluteW = 1.2;
+      const fluteDepth = 0.8;
+      for (let i = 0; i < fluteCount; i++) {
+        const fx = x + (i - 1) * 3.5;
+        const flute = new THREE.Mesh(
+          new THREE.BoxGeometry(fluteW, legH * 0.55, fluteDepth),
+          faceMat
+        );
+        flute.position.set(fx, y + 4, z + Math.sign(z) * (9.0 + fluteDepth / 2));
+        this.meshGroup.add(flute);
+      }
+
       const face = new THREE.Mesh(new THREE.BoxGeometry(11.5, legH * 0.72, 1.1), faceMat);
       face.position.set(x, y + 2, z + Math.sign(z) * 9.6);
       face.castShadow = true;
@@ -945,6 +981,57 @@ export class Table {
       leveler.castShadow = true;
       leveler.receiveShadow = true;
       this.meshGroup.add(leveler);
+    }
+
+    // Visible upper stretcher bars (side-to-side and front-to-back)
+    const stretcherMat = this._mat('legStretcher', {
+      color: 0x121010, roughness: 0.40, metalness: 0.20,
+    });
+    const stretcherNickelMat = this._mat('legStretcherNickel', {
+      color: 0xa89d92, roughness: 0.20, metalness: 0.70,
+    });
+
+    // Long side stretchers (front-to-back)
+    for (const sx of [-1, 1]) {
+      const bar = new THREE.Mesh(
+        new THREE.BoxGeometry(5, 4.5, this.profile.depth * 0.62),
+        stretcherMat
+      );
+      bar.position.set(sx * halfW, -this.profile.height - 28, 0);
+      bar.castShadow = true;
+      this.meshGroup.add(bar);
+
+      // Collar at each end
+      for (const sz of [-1, 1]) {
+        const collar = new THREE.Mesh(
+          new THREE.BoxGeometry(7.5, 1.8, 4.5),
+          stretcherNickelMat
+        );
+        collar.position.set(sx * halfW, -this.profile.height - 24, sz * this.profile.depth * 0.28);
+        collar.castShadow = true;
+        this.meshGroup.add(collar);
+      }
+    }
+
+    // Short end stretchers (left-to-right) — only connect front pair and back pair
+    for (const sz of [-1, 1]) {
+      const bar = new THREE.Mesh(
+        new THREE.BoxGeometry(this.profile.width * 0.52, 4.5, 5),
+        stretcherMat
+      );
+      bar.position.set(0, -this.profile.height - 36, sz * halfD);
+      bar.castShadow = true;
+      this.meshGroup.add(bar);
+
+      for (const sx of [-1, 1]) {
+        const collar = new THREE.Mesh(
+          new THREE.BoxGeometry(4.5, 1.8, 7.5),
+          stretcherNickelMat
+        );
+        collar.position.set(sx * this.profile.width * 0.24, -this.profile.height - 32, sz * halfD);
+        collar.castShadow = true;
+        this.meshGroup.add(collar);
+      }
     }
   }
 
@@ -989,6 +1076,8 @@ export class Table {
     applyMaterialTheme(this._materials.apron, wood.apron);
     applyMaterialTheme(this._materials.leg, wood.leg);
     applyMaterialTheme(this._materials.legFace, wood.legFace);
+    applyMaterialTheme(this._materials.legStretcher, wood.apron);
+    applyMaterialTheme(this._materials.legStretcherNickel, metal.stretcherNickel);
 
     // Apply metal trim colors
     applyMaterialTheme(this._materials.trim, metal.trim);

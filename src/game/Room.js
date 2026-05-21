@@ -34,10 +34,10 @@ export class Room {
     this.createLoungeArea();
     this.createRug();
 
-    // Stubs for future optional detail systems
-    this.createPaintings();
+    // Optional architectural detail systems
     this.createWallDetails();
     this.createWindows();
+    this.createPosters();
   }
 
   addToScene(scene) {
@@ -112,12 +112,333 @@ export class Room {
     this._addWall(hw, wallCenterY, 0, wallThick, wallTotalH, hd * 2, wallMat);
   }
 
+  // ── Wall Details (baseboard, chair rail, corner pilasters, wainscoting) ──
   createWallDetails() {
-    // Stub — reserved for future wall trim / wainscoting detail meshes
+    this._themeGroups.wallDetails = new THREE.Group();
+    this.meshGroup.add(this._themeGroups.wallDetails);
+
+    const hw = ROOM.halfWidth;
+    const hd = ROOM.halfDepth;
+    const floorY = -this.profile.height - 71;
+    const wallThick = 6;
+
+    const trimMat = this._mat('wallTrim', {
+      color: 0xe8d8c0, roughness: 0.70, metalness: 0.05,
+    });
+    const pilasterMat = this._mat('pilaster', {
+      color: 0xf0e0c8, roughness: 0.80, metalness: 0.03,
+    });
+
+    // Baseboard — runs along bottom of all four walls
+    const bbH = 4.5;
+    const bbD = 2.2;
+    const baseboards = [
+      [0, floorY + bbH / 2, -hd + wallThick / 2 + bbD / 2, hw * 2, bbH, bbD],
+      [0, floorY + bbH / 2,  hd - wallThick / 2 - bbD / 2, hw * 2, bbH, bbD],
+      [-hw + wallThick / 2 + bbD / 2, floorY + bbH / 2, 0, bbD, bbH, hd * 2],
+      [ hw - wallThick / 2 - bbD / 2, floorY + bbH / 2, 0, bbD, bbH, hd * 2],
+    ];
+    for (const [x, y, z, w, h, d] of baseboards) {
+      const bb = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), trimMat);
+      bb.position.set(x, y, z);
+      bb.castShadow = true;
+      bb.receiveShadow = true;
+      this._themeGroups.wallDetails.add(bb);
+    }
+
+    // Chair rail — horizontal band at mid-wall height
+    const crH = 3.0;
+    const crD = 1.6;
+    const crY = floorY + 48;
+    const chairRails = [
+      [0, crY, -hd + wallThick / 2 + crD / 2, hw * 2, crH, crD],
+      [0, crY,  hd - wallThick / 2 - crD / 2, hw * 2, crH, crD],
+      [-hw + wallThick / 2 + crD / 2, crY, 0, crD, crH, hd * 2],
+      [ hw - wallThick / 2 - crD / 2, crY, 0, crD, crH, hd * 2],
+    ];
+    for (const [x, y, z, w, h, d] of chairRails) {
+      const cr = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), trimMat);
+      cr.position.set(x, y, z);
+      cr.castShadow = true;
+      cr.receiveShadow = true;
+      this._themeGroups.wallDetails.add(cr);
+    }
+
+    // Crown moulding — thin strip near ceiling
+    const cmH = 2.2;
+    const cmD = 2.0;
+    const cmY = ROOM.wallHeight - cmH / 2 - 1;
+    const crowns = [
+      [0, cmY, -hd + wallThick / 2 + cmD / 2, hw * 2, cmH, cmD],
+      [0, cmY,  hd - wallThick / 2 - cmD / 2, hw * 2, cmH, cmD],
+      [-hw + wallThick / 2 + cmD / 2, cmY, 0, cmD, cmH, hd * 2],
+      [ hw - wallThick / 2 - cmD / 2, cmY, 0, cmD, cmH, hd * 2],
+    ];
+    for (const [x, y, z, w, h, d] of crowns) {
+      const cm = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), trimMat);
+      cm.position.set(x, y, z);
+      cm.castShadow = true;
+      cm.receiveShadow = true;
+      this._themeGroups.wallDetails.add(cm);
+    }
+
+    // Corner pilasters — decorative columns at each wall corner
+    const pilW = 7;
+    const pilH = crY - floorY;
+    const pilY = floorY + pilH / 2;
+    const pilInset = wallThick / 2 + pilW / 2;
+    const pilasters = [
+      [-hw + pilInset, pilY, -hd + pilInset],
+      [ hw - pilInset, pilY, -hd + pilInset],
+      [-hw + pilInset, pilY,  hd - pilInset],
+      [ hw - pilInset, pilY,  hd - pilInset],
+    ];
+    for (const [x, y, z] of pilasters) {
+      const pil = new THREE.Mesh(new THREE.BoxGeometry(pilW, pilH, pilW), pilasterMat);
+      pil.position.set(x, y, z);
+      pil.castShadow = true;
+      pil.receiveShadow = true;
+      this._themeGroups.wallDetails.add(pil);
+
+      // Capital (top cap)
+      const cap = new THREE.Mesh(
+        new THREE.BoxGeometry(pilW + 2.5, 2.5, pilW + 2.5), trimMat
+      );
+      cap.position.set(x, y + pilH / 2 + 1.25, z);
+      cap.castShadow = true;
+      this._themeGroups.wallDetails.add(cap);
+
+      // Base (bottom plinth)
+      const plinth = new THREE.Mesh(
+        new THREE.BoxGeometry(pilW + 2.0, 2.0, pilW + 2.0), trimMat
+      );
+      plinth.position.set(x, floorY + 1.0, z);
+      plinth.castShadow = true;
+      this._themeGroups.wallDetails.add(plinth);
+    }
+
+    // Wainscoting panels — recessed rectangles between baseboard and chair rail
+    const panelMat = this._mat('wainscot', {
+      color: 0xddd0bc, roughness: 0.82, metalness: 0.02,
+    });
+    const panelY = floorY + 26;
+    const panelH = 38;
+    const recess = 0.6;
+
+    // Front / back walls
+    for (const z of [-hd + wallThick / 2 + recess, hd - wallThick / 2 - recess]) {
+      for (let x = -hw + 30; x < hw - 20; x += 55) {
+        const pw = 40;
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(pw, panelH, 1.2), panelMat);
+        panel.position.set(x, panelY, z);
+        panel.receiveShadow = true;
+        this._themeGroups.wallDetails.add(panel);
+      }
+    }
+    // Left / right walls
+    for (const x of [-hw + wallThick / 2 + recess, hw - wallThick / 2 - recess]) {
+      for (let z = -hd + 30; z < hd - 20; z += 55) {
+        const pw = 40;
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(1.2, panelH, pw), panelMat);
+        panel.position.set(x, panelY, z);
+        panel.receiveShadow = true;
+        this._themeGroups.wallDetails.add(panel);
+      }
+    }
   }
 
+  // ── Windows (tall side-wall windows with frame, glass, sill, mullions) ──
   createWindows() {
-    // Stub — reserved for future window meshes
+    this._themeGroups.windows = new THREE.Group();
+    this.meshGroup.add(this._themeGroups.windows);
+
+    const hw = ROOM.halfWidth;
+    const hd = ROOM.halfDepth;
+    const wallThick = 6;
+
+    const frameMat = this._mat('windowFrame', {
+      color: 0xd4c4a8, roughness: 0.55, metalness: 0.10,
+    });
+    const glassMat = this._mat('windowGlass', {
+      color: 0xc8e0f0, roughness: 0.05, metalness: 0.15,
+      transparent: true, opacity: 0.28,
+    });
+    const sillMat = this._mat('windowSill', {
+      color: 0xccc0a8, roughness: 0.60, metalness: 0.08,
+    });
+
+    // Left and right walls, two windows each (tall, above chair rail)
+    const winW = 55;
+    const winH = 72;
+    const winY = 72;
+    const frameThick = 3.2;
+    const mullionThick = 1.8;
+
+    const windowConfigs = [
+      { x: -hw, z: -hd * 0.38, ry: 0 },   // left wall, front
+      { x: -hw, z:  hd * 0.38, ry: 0 },   // left wall, back
+      { x:  hw, z: -hd * 0.38, ry: 0 },   // right wall, front
+      { x:  hw, z:  hd * 0.38, ry: 0 },   // right wall, back
+    ];
+
+    for (const cfg of windowConfigs) {
+      const grp = new THREE.Group();
+      grp.position.set(cfg.x, winY, cfg.z);
+      // Rotate so window faces into room
+      grp.rotation.y = cfg.x < 0 ? Math.PI / 2 : -Math.PI / 2;
+
+      // Outer frame
+      const outerFrame = new THREE.Mesh(
+        new THREE.BoxGeometry(winW + frameThick * 2, winH + frameThick * 2, frameThick),
+        frameMat
+      );
+      outerFrame.castShadow = true;
+      grp.add(outerFrame);
+
+      // Inner frame (slightly recessed)
+      const innerFrame = new THREE.Mesh(
+        new THREE.BoxGeometry(winW + frameThick, winH + frameThick, frameThick * 0.6),
+        frameMat
+      );
+      innerFrame.position.z = frameThick * 0.25;
+      grp.add(innerFrame);
+
+      // Glass pane
+      const glass = new THREE.Mesh(
+        new THREE.PlaneGeometry(winW - 2, winH - 2),
+        glassMat
+      );
+      glass.position.z = frameThick * 0.35;
+      grp.add(glass);
+
+      // Horizontal mullion
+      const hMullion = new THREE.Mesh(
+        new THREE.BoxGeometry(winW + frameThick, mullionThick, frameThick * 0.7),
+        frameMat
+      );
+      grp.add(hMullion);
+
+      // Vertical mullion
+      const vMullion = new THREE.Mesh(
+        new THREE.BoxGeometry(mullionThick, winH + frameThick, frameThick * 0.7),
+        frameMat
+      );
+      grp.add(vMullion);
+
+      // Window sill (extends outward into room)
+      const sill = new THREE.Mesh(
+        new THREE.BoxGeometry(winW + frameThick * 3, 2.8, 7),
+        sillMat
+      );
+      sill.position.set(0, -winH / 2 - frameThick - 0.4, 3.5);
+      sill.castShadow = true;
+      sill.receiveShadow = true;
+      grp.add(sill);
+
+      // Window header (decorative cap above frame)
+      const header = new THREE.Mesh(
+        new THREE.BoxGeometry(winW + frameThick * 4, 3.5, 4.5),
+        sillMat
+      );
+      header.position.set(0, winH / 2 + frameThick + 2.0, 1.5);
+      header.castShadow = true;
+      grp.add(header);
+
+      this._themeGroups.windows.add(grp);
+    }
+  }
+
+  // ── Tournament posters on front/back walls ──
+  createPosters() {
+    this._themeGroups.posters = new THREE.Group();
+    this.meshGroup.add(this._themeGroups.posters);
+
+    const hw = ROOM.halfWidth;
+    const hd = ROOM.halfDepth;
+    const wallThick = 6;
+
+    const frameMat = this._mat('posterFrame', {
+      color: 0x5a4a30, roughness: 0.45, metalness: 0.15,
+    });
+
+    const posterConfigs = [
+      { x: -hw * 0.45, z: -hd + wallThick / 2 + 1.5, ry: 0, text: 'WORLD\nPOOL\nMASTERS' },
+      { x:  hw * 0.45, z: -hd + wallThick / 2 + 1.5, ry: 0, text: '9-BALL\nCHAMPIONSHIP' },
+      { x: -hw * 0.45, z:  hd - wallThick / 2 - 1.5, ry: Math.PI, text: 'SNOOKER\nCLASSIC' },
+      { x:  hw * 0.45, z:  hd - wallThick / 2 - 1.5, ry: Math.PI, text: '8-BALL\nOPEN' },
+    ];
+
+    for (const cfg of posterConfigs) {
+      const grp = new THREE.Group();
+      grp.position.set(cfg.x, 88, cfg.z);
+      grp.rotation.y = cfg.ry;
+
+      const pw = 34;
+      const ph = 48;
+      const border = 2.5;
+
+      // Frame
+      const frame = new THREE.Mesh(
+        new THREE.BoxGeometry(pw + border * 2, ph + border * 2, 2.2),
+        frameMat
+      );
+      frame.castShadow = true;
+      grp.add(frame);
+
+      // Canvas texture
+      const tex = this._createPosterTexture(cfg.text);
+      const canvasMat = new THREE.MeshStandardMaterial({
+        map: tex, roughness: 0.85, metalness: 0.0,
+      });
+      const canvasMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(pw, ph),
+        canvasMat
+      );
+      canvasMesh.position.z = 1.2;
+      grp.add(canvasMesh);
+
+      this._themeGroups.posters.add(grp);
+    }
+  }
+
+  _createPosterTexture(text) {
+    const W = 256;
+    const H = 360;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // Dark elegant background
+    ctx.fillStyle = '#1a1410';
+    ctx.fillRect(0, 0, W, H);
+
+    // Subtle border
+    ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(10, 10, W - 20, H - 20);
+
+    // Title text
+    ctx.fillStyle = '#d4af37';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const lines = text.split('\\n');
+    const lineH = 52;
+    const startY = H / 2 - (lines.length - 1) * lineH / 2;
+    ctx.font = 'bold 36px "Arial", sans-serif';
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], W / 2, startY + i * lineH);
+    }
+
+    // Decorative stripe
+    ctx.fillStyle = 'rgba(212, 175, 55, 0.2)';
+    ctx.fillRect(30, H - 70, W - 60, 4);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    if (!this._posterTextures) this._posterTextures = [];
+    this._posterTextures.push(texture);
+    return texture;
   }
 
   _addWall(x, y, z, w, h, d, material) {
@@ -1021,6 +1342,12 @@ export class Room {
     applyMaterialTheme(this._materials.wall, wall.wall);
     applyMaterialTheme(this._materials.ceiling, wall.ceiling);
     applyMaterialTheme(this._materials.grid, wall.grid);
+    applyMaterialTheme(this._materials.wallTrim, wall.trim);
+    applyMaterialTheme(this._materials.pilaster, wall.pilaster);
+    applyMaterialTheme(this._materials.windowFrame, wall.windowFrame);
+    applyMaterialTheme(this._materials.windowSill, wall.windowFrame);
+    applyMaterialTheme(this._materials.posterFrame, wall.posterFrame);
+    applyMaterialTheme(this._materials.wainscot, wall.wall);
 
     // Apply lamp materials
     applyMaterialTheme(this._materials.diffuser, lamp.diffuser);
@@ -1067,6 +1394,15 @@ export class Room {
     }
     if (this._themeGroups.floorLines) {
       this._themeGroups.floorLines.visible = settings.get('decorativePropsEnabled') !== false;
+    }
+    if (this._themeGroups.wallDetails) {
+      this._themeGroups.wallDetails.visible = settings.get('wallDecorEnabled') !== false;
+    }
+    if (this._themeGroups.windows) {
+      this._themeGroups.windows.visible = settings.get('wallDecorEnabled') !== false;
+    }
+    if (this._themeGroups.posters) {
+      this._themeGroups.posters.visible = settings.get('wallDecorEnabled') !== false;
     }
   }
 
@@ -1140,6 +1476,10 @@ export class Room {
     if (this._plaqueTexture) {
       this._plaqueTexture.dispose();
       this._plaqueTexture = null;
+    }
+    if (this._posterTextures) {
+      this._posterTextures.forEach(t => t.dispose());
+      this._posterTextures = null;
     }
     if (this.meshGroup && this.meshGroup.parent) {
       this.meshGroup.parent.remove(this.meshGroup);
