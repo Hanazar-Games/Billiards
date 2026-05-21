@@ -591,12 +591,12 @@ export class SettingsScreen {
 
     // ── Rendering ──
     this._sectionTitle('渲染', true);
-    this._rowDisabled('垂直同步', this._createDisabledSwitch(settings.get('vSync'), () => {}), '由浏览器帧率控制，暂不可调');
+    this._rowDisabled('垂直同步', this._createDisabledSwitch(settings.get('vSync'), () => {}, '由浏览器帧率控制，暂不可调'), '由浏览器帧率控制，暂不可调', '暂不可用');
     this._rowSelect('帧率限制', FPS_LIMIT_OPTIONS, settings.get('fpsLimit'), (v) => settings.set('fpsLimit', v));
-    this._rowDisabled('渲染缩放', this._createDisabledSwitch(false, () => {}), '需重启生效');
-    this._rowDisabled('视野范围 (FOV)', this._createDisabledSwitch(false, () => {}));
-    this._rowDisabled('瞄准 FOV', this._createDisabledSwitch(false, () => {}));
-    this._rowDisabled('动态 FOV', this._createDisabledSwitch(false, () => {}));
+    this._rowDisabled('渲染缩放', this._createDisabledValue(String((settings.get('renderScale') ?? 1.0).toFixed(1)) + 'x'), '修改后需刷新页面生效', '需重启');
+    this._rowDisabled('视野范围 (FOV)', this._createDisabledValue(String(settings.get('cameraFov') ?? 45) + '°'), '', '实时生效');
+    this._rowDisabled('瞄准 FOV', this._createDisabledSwitch(settings.get('fovZoomed') !== false, () => {}), '', '未实现');
+    this._rowDisabled('动态 FOV', this._createDisabledSwitch(settings.get('dynamicFov') !== false, () => {}), '', '未实现');
 
     // ── Post-processing ──
     this._sectionTitle('后处理', true);
@@ -623,7 +623,7 @@ export class SettingsScreen {
     // ── Shot & aim sensitivity (expandable) ──
     const shotWrap = this._createCollapsible('击球与瞄准灵敏度', true);
     this._rowSliderIn(shotWrap, '击球力度灵敏度', Math.round(settings.get('shotPowerSens') * 100), 50, 200, '%', (v) => settings.set('shotPowerSens', v / 100), this._isLocked('shotPowerSens') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定', null, this._isLocked('shotPowerSens'));
-    this._rowSliderIn(shotWrap, '瞄准响应速度', Math.round(settings.get('aimSens') * 100), 50, 200, '%', (v) => settings.set('aimSens', v / 100));
+    this._rowDisabledIn(shotWrap, '瞄准响应速度', this._createDisabledValue(String(Math.round(settings.get('aimSens') * 100)) + '%'), '键盘瞄准系统尚未实现');
     this._rowSliderIn(shotWrap, '球杆旋转步长', Math.round(settings.get('spinStepSens') * 100), 30, 200, '%', (v) => settings.set('spinStepSens', v / 100));
     this._rowSliderIn(shotWrap, '触控板灵敏度', Math.round(settings.get('trackpadSens') * 100), 30, 200, '%', (v) => settings.set('trackpadSens', v / 100));
 
@@ -889,21 +889,21 @@ export class SettingsScreen {
     this._sectionTitle('回放');
     this._sectionSubtitle('回放记录与数据统计');
 
-    this._row('自动保存回放', this._createSwitch(settings.get('autoSaveReplays'), (v) => settings.set('autoSaveReplays', v)));
-    this._rowSlider('最大回放数', settings.get('replayMaxSaved'), 5, 50, '', (v) => settings.set('replayMaxSaved', v));
-    this._row('显示击球数据', this._createSwitch(settings.get('showShotData'), (v) => settings.set('showShotData', v)));
-    this._rowDisabled('显示热力图', this._createDisabledSwitch(settings.get('showHeatmap'), () => {}));
-    this._rowDisabled('显示胜率预测', this._createDisabledSwitch(settings.get('showWinProbability'), () => {}));
-    this._rowDisabled('显示详细统计', this._createDisabledSwitch(settings.get('showDetailedStats'), () => {}));
-    this._rowDisabled('击球历史追踪', this._createDisabledSwitch(settings.get('shotHistoryTracking'), () => {}));
-    this._rowSlider('回放速度', Math.round(settings.get('replaySpeed') * 100), 25, 200, '%', (v) => settings.set('replaySpeed', v / 100));
+    this._rowDisabled('自动保存回放', this._createDisabledSwitch(settings.get('autoSaveReplays'), () => {}), '回放系统尚未实现');
+    this._rowDisabled('最大回放数', this._createDisabledValue(String(settings.get('replayMaxSaved')) + ' 条'), '回放系统尚未实现');
+    this._rowDisabled('显示击球数据', this._createDisabledSwitch(settings.get('showShotData'), () => {}), '数据统计面板尚未实现');
+    this._rowDisabled('显示热力图', this._createDisabledSwitch(settings.get('showHeatmap'), () => {}), '数据统计面板尚未实现');
+    this._rowDisabled('显示胜率预测', this._createDisabledSwitch(settings.get('showWinProbability'), () => {}), '数据统计面板尚未实现');
+    this._rowDisabled('显示详细统计', this._createDisabledSwitch(settings.get('showDetailedStats'), () => {}), '数据统计面板尚未实现');
+    this._rowDisabled('击球历史追踪', this._createDisabledSwitch(settings.get('shotHistoryTracking'), () => {}), '数据统计面板尚未实现');
+    this._rowDisabled('回放速度', this._createDisabledValue(String((settings.get('replaySpeed') ?? 1.0).toFixed(1)) + 'x'), '回放系统尚未实现');
   }
 
   _buildAccessibilityContent() {
     this._sectionTitle('辅助功能');
     this._sectionSubtitle('可访问性与操作辅助');
 
-    this._rowSelect('色盲模式', COLOR_BLIND_MODE_OPTIONS, settings.get('colorBlindMode'), (v) => settings.set('colorBlindMode', v));
+    this._rowDisabled('色盲模式', this._createDisabledValue(settings.get('colorBlindMode') === 'off' ? '关闭' : settings.get('colorBlindMode')), '色彩滤镜系统尚未实现');
     this._row('高对比度', this._createSwitch(settings.get('highContrastUI'), (v) => settings.set('highContrastUI', v)));
     this._row('大字体模式', this._createSwitch(settings.get('largeTextMode'), (v) => settings.set('largeTextMode', v)));
     this._rowSlider('界面透明度', Math.round(settings.get('hudOpacity') * 100), 30, 100, '%', (v) => settings.set('hudOpacity', v / 100));
@@ -1367,13 +1367,13 @@ export class SettingsScreen {
     container.appendChild(row);
   }
 
-  _createDisabledSwitch(checked, onChange) {
+  _createDisabledSwitch(checked, onChange, title = '此功能尚未实现，敬请期待') {
     // Always use a no-op callback so disabled controls cannot mutate settings,
     // even if the user bypasses the disabled state via DevTools.
     const wrap = this._createSwitch(checked, () => {});
     wrap.style.opacity = '0.45';
     wrap.style.cursor = 'not-allowed';
-    wrap.title = '此功能尚未实现，敬请期待';
+    wrap.title = title;
     const input = wrap.querySelector('input[type="checkbox"]');
     if (input) {
       input.disabled = true;
@@ -1393,7 +1393,7 @@ export class SettingsScreen {
     return el;
   }
 
-  _rowDisabled(label, control, tooltip = '') {
+  _rowDisabled(label, control, tooltip = '', badgeText = '未实现') {
     const row = document.createElement('div');
     row.style.cssText = `
       display: flex; justify-content: space-between; align-items: center;
@@ -1409,7 +1409,7 @@ export class SettingsScreen {
     lbl.style.cssText = 'font-size: 15px; font-weight: 500; color: rgba(255,255,255,0.6);';
     lblWrap.appendChild(lbl);
     const badge = document.createElement('span');
-    badge.textContent = '未实现';
+    badge.textContent = badgeText;
     badge.style.cssText = `
       font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.55);
       background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
@@ -1427,6 +1427,42 @@ export class SettingsScreen {
     row.appendChild(left);
     row.appendChild(control);
     this._contentArea.appendChild(row);
+  }
+
+  _rowDisabledIn(container, label, control, tooltip = '', badgeText = '未实现') {
+    const row = document.createElement('div');
+    row.style.cssText = `
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+      opacity: 0.5;
+    `;
+    const left = document.createElement('div');
+    left.style.cssText = 'display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;';
+    const lblWrap = document.createElement('div');
+    lblWrap.style.cssText = 'display: flex; align-items: center; gap: 6px;';
+    const lbl = document.createElement('span');
+    lbl.textContent = label;
+    lbl.style.cssText = 'font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.8);';
+    lblWrap.appendChild(lbl);
+    const badge = document.createElement('span');
+    badge.textContent = badgeText;
+    badge.style.cssText = `
+      font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.55);
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 4px; padding: 2px 7px; letter-spacing: 0.5px;
+      flex-shrink: 0;
+    `;
+    lblWrap.appendChild(badge);
+    left.appendChild(lblWrap);
+    if (tooltip) {
+      const tip = document.createElement('span');
+      tip.textContent = tooltip;
+      tip.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.35);';
+      left.appendChild(tip);
+    }
+    row.appendChild(left);
+    row.appendChild(control);
+    container.appendChild(row);
   }
 
   _rowSelectIn(container, label, options, value, onChange, disabled = false, disabledTitle = '') {

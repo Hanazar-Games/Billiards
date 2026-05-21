@@ -1,4 +1,22 @@
-# 3D Billiards v1.7.30 — Latest Update
+# 3D Billiards v1.7.31 — Latest Update
+
+## What's New in v1.7.31
+
+### ⚙️ Settings Quality Audit — Honest UI Labels & Disabled Controls
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **6 个未实现设置改为禁用状态** | `colorBlindMode`（色盲模式）、`aimSens`（瞄准响应速度）、`autoSaveReplays`（自动保存回放）、`replayMaxSaved`（最大回放数）、`showShotData`（显示击球数据）、`replaySpeed`（回放速度）此前以可交互控件呈现但无运行时消费者，现改为灰色禁用行并标注 `未实现` 徽章，避免误导用户 |
+| 2 | **3 个标签错误的禁用项修正** | `renderScale` 徽章从 `未实现` 改为 `需重启`（实际生效但需刷新页面）；`cameraFov` 徽章从 `未实现` 改为 `实时生效`（动态读取并已实现）；`vSync` 徽章从 `未实现` 改为 `暂不可用`（由浏览器控制） |
+| 3 | **`_rowDisabled` 支持自定义徽章** | 新增 `badgeText` 参数，使禁用行可以显示 `未实现`/`需重启`/`实时生效`/`暂不可用` 等多种状态 |
+| 4 | **新增 `_rowDisabledIn` 辅助方法** | 支持在可折叠分组（如 Controls → 击球与瞄准灵敏度）内部插入禁用行，保持布局一致性 |
+| 5 | **SETTINGS_AUDIT.md 全面更新** | 197 个设置键全部重新核对，准确标注消费者、UI 状态和生效时机；总有效设置 124 个、部分实现 2 个、 dormant 71 个 |
+
+---
+
+## Historical Updates
+
+### v1.7.30 — Security & Lifecycle Hardening
 
 ## What's New in v1.7.30
 
