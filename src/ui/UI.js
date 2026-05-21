@@ -115,16 +115,15 @@ export class UI {
       backdrop-filter: blur(10px); z-index: 10;
       transition: all calc(0.2s / var(--ui-anim-speed)) ease; box-shadow: 0 8px 24px rgba(0,0,0,0.22);
     `;
-    this.pauseBtn.onmouseenter = () => {
-      this.pauseBtn.style.background = 'rgba(255,255,255,0.14)';
-      this.pauseBtn.style.borderColor = 'rgba(255,255,255,0.35)';
-      this.pauseBtn.style.transform = 'translateY(-1px)';
+    const _setPauseHover = (active) => {
+      this.pauseBtn.style.background = active ? 'rgba(255,255,255,0.14)' : 'rgba(12,15,18,0.72)';
+      this.pauseBtn.style.borderColor = active ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.16)';
+      this.pauseBtn.style.transform = active ? 'translateY(-1px)' : 'translateY(0)';
     };
-    this.pauseBtn.onmouseleave = () => {
-      this.pauseBtn.style.background = 'rgba(12,15,18,0.72)';
-      this.pauseBtn.style.borderColor = 'rgba(255,255,255,0.16)';
-      this.pauseBtn.style.transform = 'translateY(0)';
-    };
+    this.pauseBtn.onmouseenter = () => _setPauseHover(true);
+    this.pauseBtn.onmouseleave = () => _setPauseHover(false);
+    this.pauseBtn.onfocus = () => _setPauseHover(true);
+    this.pauseBtn.onblur = () => _setPauseHover(false);
     if (uiLayer) uiLayer.appendChild(this.pauseBtn);
 
     // ── Pause overlay ──
@@ -162,6 +161,7 @@ export class UI {
     this._pauseActions = [];
     const addAction = (label, style, onClick) => {
       const btn = document.createElement('button');
+      btn.type = 'button';
       btn.textContent = label;
       btn.style.cssText = `
         width: 100%; padding: 14px 0;
@@ -173,16 +173,15 @@ export class UI {
         transition: all calc(0.2s / var(--ui-anim-speed)) ease;
         ${style || ''}
       `;
-      btn.onmouseenter = () => {
-        btn.style.background = 'rgba(255,255,255,0.14)';
-        btn.style.borderColor = 'var(--line-strong)';
-        btn.style.transform = 'translateY(-1px)';
+      const _setHover = (active) => {
+        btn.style.background = active ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.06)';
+        btn.style.borderColor = active ? 'var(--line-strong)' : 'var(--line)';
+        btn.style.transform = active ? 'translateY(-1px)' : 'translateY(0)';
       };
-      btn.onmouseleave = () => {
-        btn.style.background = 'rgba(255,255,255,0.06)';
-        btn.style.borderColor = 'var(--line)';
-        btn.style.transform = 'translateY(0)';
-      };
+      btn.onmouseenter = () => _setHover(true);
+      btn.onmouseleave = () => _setHover(false);
+      btn.onfocus = () => _setHover(true);
+      btn.onblur = () => _setHover(false);
       btn.onclick = onClick;
       pausePanel.appendChild(btn);
       this._pauseActions.push(btn);
@@ -355,6 +354,16 @@ export class UI {
     if (this._hudP2Name) {
       this._hudP2Name.classList.toggle('active', player === 2);
     }
+    // Subtle scale pulse on turn change for clearer feedback
+    const activeBadge = player === 1 ? this.player1Badge : this.player2Badge;
+    if (activeBadge && !document.documentElement.classList.contains('reduce-motion')) {
+      activeBadge.style.transform = 'scale(1.03)';
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (activeBadge) activeBadge.style.transform = '';
+        }, 180);
+      });
+    }
   }
 
   setPlayerGroups(p1Group, p2Group) {
@@ -439,12 +448,13 @@ export class UI {
     if (old && old.parentNode) old.parentNode.removeChild(old);
     if (this._flashTimer) clearTimeout(this._flashTimer);
     if (this._flashInnerTimer) clearTimeout(this._flashInnerTimer);
+    const reduced = document.documentElement.classList.contains('reduce-motion');
     const flash = document.createElement('div');
     flash.id = 'ui-red-flash';
     flash.style.cssText = `
       position: absolute; inset: 0; pointer-events: none; z-index: 5;
       background: radial-gradient(circle at center, rgba(185,18,63,0.18) 0%, transparent 70%);
-      opacity: 0; transition: opacity calc(0.25s / var(--ui-anim-speed)) ease;
+      opacity: 0; transition: opacity ${reduced ? '0.01ms' : 'calc(0.25s / var(--ui-anim-speed))'} ease;
     `;
     uiLayer.appendChild(flash);
     requestAnimationFrame(() => { if (flash) flash.style.opacity = '1'; });
@@ -453,9 +463,9 @@ export class UI {
       this._flashInnerTimer = setTimeout(() => {
         this._flashInnerTimer = null;
         if (flash && flash.parentNode) flash.parentNode.removeChild(flash);
-      }, animMs(300));
+      }, reduced ? 16 : animMs(300));
       this._flashTimer = null;
-    }, animMs(350));
+    }, reduced ? 16 : animMs(350));
   }
 
   showFloatingText(text, screenX, screenY, color = '#d8b15f') {
@@ -466,6 +476,7 @@ export class UI {
     const vh = window.innerHeight || 1;
     const clampedX = Math.max(0, Math.min(vw, screenX));
     const clampedY = Math.max(0, Math.min(vh, screenY));
+    const reduced = document.documentElement.classList.contains('reduce-motion');
     const el = document.createElement('div');
     el.className = 'ui-float-text';
     el.textContent = text;
@@ -475,14 +486,15 @@ export class UI {
       font-size: 18px; font-weight: 800; color: ${color};
       text-shadow: 0 2px 8px rgba(0,0,0,0.8);
       pointer-events: none; z-index: 10; white-space: nowrap;
-      animation: floatTextUp calc(1.2s / var(--ui-anim-speed)) ease-out forwards;
+      animation: floatTextUp ${reduced ? '0.01ms' : 'calc(1.2s / var(--ui-anim-speed))'} ease-out forwards;
+      opacity: ${reduced ? '0.9' : ''};
     `;
     uiLayer.appendChild(el);
     const t = setTimeout(() => {
       if (el.parentNode) el.parentNode.removeChild(el);
       const idx = this._floatTimers.indexOf(t);
       if (idx !== -1) this._floatTimers.splice(idx, 1);
-    }, animMs(1200));
+    }, reduced ? 800 : animMs(1200));
     this._floatTimers.push(t);
   }
 
@@ -638,14 +650,14 @@ export class UI {
         backdrop-filter: blur(8px); z-index: 15;
         transition: all calc(0.2s / var(--ui-anim-speed)) ease;
       `;
-      this._pushOutBtn.onmouseenter = () => {
-        this._pushOutBtn.style.background = 'rgba(212,167,44,0.32)';
-        this._pushOutBtn.style.transform = 'translateX(-50%) translateY(-1px)';
+      const _setPushHover = (active) => {
+        this._pushOutBtn.style.background = active ? 'rgba(212,167,44,0.32)' : 'rgba(212,167,44,0.18)';
+        this._pushOutBtn.style.transform = active ? 'translateX(-50%) translateY(-1px)' : 'translateX(-50%) translateY(0)';
       };
-      this._pushOutBtn.onmouseleave = () => {
-        this._pushOutBtn.style.background = 'rgba(212,167,44,0.18)';
-        this._pushOutBtn.style.transform = 'translateX(-50%) translateY(0)';
-      };
+      this._pushOutBtn.onmouseenter = () => _setPushHover(true);
+      this._pushOutBtn.onmouseleave = () => _setPushHover(false);
+      this._pushOutBtn.onfocus = () => _setPushHover(true);
+      this._pushOutBtn.onblur = () => _setPushHover(false);
       const uiLayer = document.getElementById('ui-layer');
       if (uiLayer) uiLayer.appendChild(this._pushOutBtn);
     }
@@ -684,12 +696,13 @@ export class UI {
         color: #8ce0b0; border-radius: 8px; cursor: pointer;
         transition: all calc(0.2s / var(--ui-anim-speed)) ease;
       `;
-      this._pushOutAcceptBtn.onmouseenter = () => {
-        this._pushOutAcceptBtn.style.background = 'rgba(44,167,112,0.32)';
+      const _setAcceptHover = (active) => {
+        this._pushOutAcceptBtn.style.background = active ? 'rgba(44,167,112,0.32)' : 'rgba(44,167,112,0.18)';
       };
-      this._pushOutAcceptBtn.onmouseleave = () => {
-        this._pushOutAcceptBtn.style.background = 'rgba(44,167,112,0.18)';
-      };
+      this._pushOutAcceptBtn.onmouseenter = () => _setAcceptHover(true);
+      this._pushOutAcceptBtn.onmouseleave = () => _setAcceptHover(false);
+      this._pushOutAcceptBtn.onfocus = () => _setAcceptHover(true);
+      this._pushOutAcceptBtn.onblur = () => _setAcceptHover(false);
       this._pushOutChoiceWrap.appendChild(this._pushOutAcceptBtn);
 
       this._pushOutPassBtn = document.createElement('button');
@@ -701,12 +714,13 @@ export class UI {
         color: #f0b88c; border-radius: 8px; cursor: pointer;
         transition: all calc(0.2s / var(--ui-anim-speed)) ease;
       `;
-      this._pushOutPassBtn.onmouseenter = () => {
-        this._pushOutPassBtn.style.background = 'rgba(185,96,44,0.32)';
+      const _setPassHover = (active) => {
+        this._pushOutPassBtn.style.background = active ? 'rgba(185,96,44,0.32)' : 'rgba(185,96,44,0.18)';
       };
-      this._pushOutPassBtn.onmouseleave = () => {
-        this._pushOutPassBtn.style.background = 'rgba(185,96,44,0.18)';
-      };
+      this._pushOutPassBtn.onmouseenter = () => _setPassHover(true);
+      this._pushOutPassBtn.onmouseleave = () => _setPassHover(false);
+      this._pushOutPassBtn.onfocus = () => _setPassHover(true);
+      this._pushOutPassBtn.onblur = () => _setPassHover(false);
       this._pushOutChoiceWrap.appendChild(this._pushOutPassBtn);
 
       const uiLayer = document.getElementById('ui-layer');

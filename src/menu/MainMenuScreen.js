@@ -131,14 +131,15 @@ export class MainMenuScreen {
       padding: 10px 24px; font-size: 14px; color: rgba(244,247,244,0.62);
       pointer-events: auto;
     `;
-    quitBtn.onmouseenter = () => {
-      quitBtn.style.color = '#fff';
-      quitBtn.style.borderColor = 'rgba(255,255,255,0.4)';
+    const _setQuitHover = (active) => {
+      quitBtn.style.color = active ? '#fff' : 'rgba(244,247,244,0.62)';
+      quitBtn.style.borderColor = active ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)';
+      quitBtn.style.transform = active ? 'translateY(-1px)' : 'translateY(0)';
     };
-    quitBtn.onmouseleave = () => {
-      quitBtn.style.color = 'rgba(244,247,244,0.62)';
-      quitBtn.style.borderColor = 'rgba(255,255,255,0.15)';
-    };
+    quitBtn.onmouseenter = () => _setQuitHover(true);
+    quitBtn.onmouseleave = () => _setQuitHover(false);
+    quitBtn.onfocus = () => _setQuitHover(true);
+    quitBtn.onblur = () => _setQuitHover(false);
     quitBtn.onclick = () => {
       if (this.onQuit) this.onQuit();
     };
@@ -179,6 +180,7 @@ export class MainMenuScreen {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'menu-btn';
+    btn.setAttribute('tabindex', '0');
 
     const titleRow = document.createElement('div');
     titleRow.className = 'menu-btn-title';

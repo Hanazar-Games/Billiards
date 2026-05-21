@@ -382,6 +382,7 @@ export class SettingsScreen {
 
     // Content area
     this._contentArea = document.createElement('div');
+    this._contentArea.className = 'settings-content-wrap';
     this._contentArea.style.cssText = `
       flex: 1; overflow-y: auto;
       padding: 28px 36px 40px;
@@ -396,6 +397,7 @@ export class SettingsScreen {
 
   _switchCategory(id) {
     if (!this._contentArea) return;
+    if (this._switchTimer) { clearTimeout(this._switchTimer); this._switchTimer = null; }
     // Cancel any pending keybinding listen to prevent global listener leak
     keyBindings.cancelListening();
     // Dismiss any open confirmation dialogs before switching categories
@@ -418,11 +420,30 @@ export class SettingsScreen {
     });
     this._listeners = [];
 
-    this._contentArea.innerHTML = '';
-    const builder = `_build${id[0].toUpperCase() + id.slice(1)}Content`;
-    if (typeof this[builder] === 'function') {
-      this[builder]();
+    // Lightweight fade transition: dim content, swap, restore opacity
+    const reduced = document.documentElement.classList.contains('reduce-motion');
+    if (reduced) {
+      this._contentArea.innerHTML = '';
+      const builder = `_build${id[0].toUpperCase() + id.slice(1)}Content`;
+      if (typeof this[builder] === 'function') {
+        this[builder]();
+      }
+      return;
     }
+
+    this._contentArea.classList.add('switching');
+    this._switchTimer = setTimeout(() => {
+      this._switchTimer = null;
+      this._contentArea.innerHTML = '';
+      this._contentArea.scrollTop = 0;
+      const builder = `_build${id[0].toUpperCase() + id.slice(1)}Content`;
+      if (typeof this[builder] === 'function') {
+        this[builder]();
+      }
+      requestAnimationFrame(() => {
+        this._contentArea.classList.remove('switching');
+      });
+    }, 120);
   }
 
   // ──────────────────────────
