@@ -123,7 +123,8 @@ export class GameStateSerializer {
     }
 
     // Update game state fields
-    if (snapshot.state !== undefined) {
+    const ALLOWED_STATES = new Set(['AIM','CHARGING','SHOOTING','AI_THINKING','GAME_OVER','DISPOSED']);
+    if (snapshot.state !== undefined && ALLOWED_STATES.has(snapshot.state)) {
       game.state = snapshot.state;
     }
     if (snapshot.currentPlayer !== undefined) {
@@ -169,7 +170,9 @@ export class GameStateSerializer {
     }
 
     // Update cue visibility based on state
-    if (game.state === 'AIM' || game.state === 'CHARGING') {
+    if (game.ballInHand) {
+      game.cue?.hide();
+    } else if (game.state === 'AIM' || game.state === 'CHARGING') {
       game.cue?.show();
     } else if (game.state === 'SHOOTING' || game.state === 'GAME_OVER') {
       game.cue?.hide();

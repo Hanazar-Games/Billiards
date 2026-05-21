@@ -192,11 +192,9 @@ export class MenuSystem {
     // Lock fairness keys for clients and local matches; host can still change them
     const fairnessKeys = Array.from(MATCH_FAIRNESS_KEYS);
     const role = this.game?.networkRole;
-    if (role === 'client' || this.matchManager) {
-      this.settingsScreen.setLockedKeys(fairnessKeys);
-    } else {
-      this.settingsScreen.setLockedKeys([]);
-    }
+    // Only lock when actively in a client LAN game or an ongoing match
+    const shouldLock = role === 'client' || (this.matchManager && this.state === 'PLAYING');
+    this.settingsScreen.setLockedKeys(shouldLock ? fairnessKeys : []);
     this.settingsScreen.show();
   }
 
@@ -580,7 +578,12 @@ export class MenuSystem {
   }
 
   async _startGame(mode, networkClient = null, networkRole = null, localPlayerId = 1, matchStatus = null, tableProfileId = null) {
-    if (this.state !== 'MENU' && !networkClient && !matchStatus) return;
+    const ALLOWED_START_STATES = new Set(['MENU', 'TRANSITION']);
+    if (!ALLOWED_START_STATES.has(this.state) && !networkClient && !matchStatus) return;
+    if (this.state === 'TRANSITION') {
+      // Already transitioning — queue or reject overlapping starts
+      if (!networkClient && !matchStatus) return;
+    }
     this.state = 'TRANSITION';
 
     // Dispose any existing game instance before creating a new one
@@ -820,6 +823,7 @@ export class MenuSystem {
 
     // Clear pending timeouts
     if (this._delayTimer) { clearTimeout(this._delayTimer); this._delayTimer = null; }
+    if (this._delayResolve) { this._delayResolve(); this._delayResolve = null; }
     if (this._replayCompleteTimeout) { clearTimeout(this._replayCompleteTimeout); this._replayCompleteTimeout = null; }
 
     // Stop game loop
@@ -882,6 +886,7 @@ export class MenuSystem {
   async _startReplayPlayback(replayData) {
     if (this.state !== 'MENU') return;
     this.state = 'REPLAY';
+    if (this.audio) this.audio.stopBGM(false);
 
     // Hide replay list
     if (this.replayPanel) this.replayPanel.hideList();
@@ -1090,10 +1095,12 @@ export class MenuSystem {
   }
 
   _delay(ms) {
+    if (this._delayTimer) clearTimeout(this._delayTimer);
     return new Promise((resolve) => {
-      if (this._delayTimer) clearTimeout(this._delayTimer);
+      this._delayResolve = resolve;
       this._delayTimer = setTimeout(() => {
         this._delayTimer = null;
+        this._delayResolve = null;
         resolve();
       }, ms);
     });

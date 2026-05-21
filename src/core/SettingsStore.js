@@ -261,7 +261,7 @@ export class SettingsStore {
   setLockedKeys(keys) {
     if (keys == null) {
       this._lockedKeys = new Set();
-    } else if (typeof keys[Symbol.iterator] === 'function') {
+    } else if (Array.isArray(keys) || keys instanceof Set) {
       this._lockedKeys = new Set(keys);
     } else {
       this._lockedKeys = new Set();
@@ -311,6 +311,7 @@ export class SettingsStore {
   }
 
   set(key, value) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') return;
     if (this._lockedKeys.has(key)) {
       if (this.get('devMode')) {
         console.warn('[SettingsStore] Ignored mutation of locked key:', key);

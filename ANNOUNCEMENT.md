@@ -1,4 +1,28 @@
-# 3D Billiards v1.7.29 — Latest Update
+# 3D Billiards v1.7.30 — Latest Update
+
+## What's New in v1.7.30
+
+### 🔒 Security & Lifecycle Hardening — Host Authority, Race Conditions, Prototype Pollution
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **ShotInput.js 远程输入多层验证** | 主机端现在验证 `game.state`（仅 `AIM`/`CHARGING` 允许射击）、`fromPlayer` 与当前回合匹配、`ballInHand` 状态才允许摆球、`pushOutPending` 时阻止普通击球、`requestReset` 合法化；关闭恶意/异常客户端远程操控白球、越权击球、绕过推杆选择 UI 的攻击面 |
+| 2 | **Game.js dispose() 异常安全** | `try/finally` 包裹清理逻辑，保证 `settings.clearLockedKeys()` 和 `_hostFairness = null` 即使在 DOM 清理抛出异常时仍然执行，防止「设置永久锁定」崩溃后遗症 |
+| 3 | **resetGame() 逃离 GAME_OVER** | 手动设置 `this.state = 'AIM'` 后再调用 `_enterAimState()`，使「再来一局」在 `GAME_OVER` 状态下也能正确恢复 |
+| 4 | **客户端回合过期拒绝输入** | `onMouseDown` / `shoot()` 在客户端模式下若回合计时器已过期则拒绝输入，避免与房主状态不同步 |
+| 5 | **公平设置动态差异同步** | `_applyHostFairness()` 不再硬编码 5 个字段，而是遍历 `MATCH_FAIRNESS_KEYS` 动态对比差异；公平设置变更后 `_broadcastSnapshot` 防抖 150ms，避免快速滑动设置时 spam 全量快照 |
+| 6 | **SettingsStore 原型污染防御** | `set()` 拒绝 `__proto__`/`constructor`/`prototype` 键；`setLockedKeys()` 拒绝字符串输入（可迭代陷阱）；`MATCH_FAIRNESS_KEYS` 导出为冻结 Set |
+| 7 | **SettingsScreen 竞态修复** | `show()` 清除 stale `_hideTimer` 防止提前消失；`hide()` / `destroy()` 调用 `keyBindings.cancelListening()` 停止 stray 键位捕获；Toast 并发上限 3 个 DOM 节点；导出剪贴板使用 promise 与错误提示；导入 JSON 校验必须为对象；确认框支持 Enter 键确认 |
+| 8 | **GameStateSerializer 状态白名单** | `snapshot.state` 仅接受 `['AIM','CHARGING','SHOOTING','AI_THINKING','GAME_OVER','DISPOSED']`；客户端 ball-in-hand 时强制隐藏球杆 |
+| 9 | **AudioManager 冷却修复** | `playBallCollision` / `playCushionBounce` 将 `intensity < 0.05` 前置到 `_cooldown()` 之前，防止极轻碰撞堵塞可听碰撞的冷却；`statechange` 不再对 `interrupted` 自动恢复（避免 iOS 过度激进重连）；`_autoDisconnect` 回退从 5000ms 降至 500ms |
+| 10 | **MenuSystem 重入保护** | `_startGame` 拒绝 `TRANSITION`/`PLAYING` 状态的重复调用；`_returnToMenu` 清除 `_delayTimer` 和 `_replayCompleteTimeout`；回放播放进入时停止菜单 BGM，退出后重启 |
+| 11 | **UI.js 输入消毒** | `setPower` / `updateTimer` / `setTurnTimer` 过滤 `NaN`/非有限值；懒创建的 `_fpsEl` / `_comboEl` 若 DOM append 失败会重试；`destroy()` 取消 `_pauseShowRaf` |
+| 12 | **KeyBindings Tab 键放行** | 捕获模式下不再拦截 `Tab`，键盘用户可正常退出捕获焦点 |
+| 13 | **MainMenuScreen 定时器清理** | `show()` 取消 stale `_fadeTimer`，防止快速菜单过渡后意外触发游戏开始 |
+
+---
+
+# 3D Billiards v1.7.29
 
 ## What's New in v1.7.29
 

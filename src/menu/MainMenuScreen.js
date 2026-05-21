@@ -208,6 +208,7 @@ export class MainMenuScreen {
 
   show() {
     if (!this.container) return;
+    if (this._fadeTimer) { clearTimeout(this._fadeTimer); this._fadeTimer = null; }
     if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
     if (this._showRaf) { cancelAnimationFrame(this._showRaf); this._showRaf = null; }
     this.container.style.display = 'flex';

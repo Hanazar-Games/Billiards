@@ -207,7 +207,8 @@ export class UI {
 
   setPower(pct) {
     if (this.powerFill) {
-      this.powerFill.style.width = Math.max(0, Math.min(100, pct)) + '%';
+      const valid = Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : 0;
+      this.powerFill.style.width = valid + '%';
     }
   }
 
@@ -256,7 +257,8 @@ export class UI {
 
   updateTimer(elapsedMs) {
     if (!this._hudTimer) return;
-    const totalSec = Math.floor(elapsedMs / 1000);
+    const safeMs = Number.isFinite(elapsedMs) && elapsedMs >= 0 ? elapsedMs : 0;
+    const totalSec = Math.floor(safeMs / 1000);
     if (this._lastTimerSec === totalSec) return;
     this._lastTimerSec = totalSec;
     const min = String(Math.floor(totalSec / 60)).padStart(2, '0');
@@ -272,7 +274,7 @@ export class UI {
       this._lastTurnTimerSec = null;
       return;
     }
-    const s = Math.max(0, Math.ceil(seconds));
+    const s = Math.max(0, Math.ceil(Number.isFinite(seconds) ? seconds : 0));
     // Only update DOM when the displayed second changes
     if (this._lastTurnTimerSec === s && this._lastTurnTimerWarn === (s <= 3 ? 'danger' : s <= 5 ? 'warning' : 'none')) {
       return;
@@ -755,6 +757,7 @@ export class UI {
       this._messageTimer = null;
     }
     if (this._pauseHideTimer) { clearTimeout(this._pauseHideTimer); this._pauseHideTimer = null; }
+    if (this._pauseShowRaf) { cancelAnimationFrame(this._pauseShowRaf); this._pauseShowRaf = null; }
     if (this._fpsEl && this._fpsEl.parentNode) {
       this._fpsEl.parentNode.removeChild(this._fpsEl);
     }

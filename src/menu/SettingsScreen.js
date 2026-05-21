@@ -266,7 +266,7 @@ export class SettingsScreen {
   setLockedKeys(keys) {
     if (keys == null) {
       this._lockedKeys = new Set();
-    } else if (typeof keys[Symbol.iterator] === 'function') {
+    } else if (Array.isArray(keys) || keys instanceof Set) {
       this._lockedKeys = new Set(keys);
     } else {
       this._lockedKeys = new Set();
@@ -909,6 +909,7 @@ export class SettingsScreen {
         () => {
           settings.reset();
           this._syncAllControls();
+          if (this._audioManager) this._audioManager.setMasterVolume(settings.get('masterVolume'));
           this._toast('已恢复为默认设置');
         }
       );
@@ -959,7 +960,7 @@ export class SettingsScreen {
       a.href = url;
       a.download = 'billiards-settings.json';
       a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      this._blobRevokeTimer = setTimeout(() => { URL.revokeObjectURL(url); this._blobRevokeTimer = null; }, 60000);
       this._toast('配置已下载');
     });
     exportWrap.appendChild(exportClipboardBtn);
@@ -1000,6 +1001,7 @@ export class SettingsScreen {
         });
         this._toast(`已导入 ${count} 项配置`);
         this._syncAllControls();
+        if (this._audioManager) this._audioManager.setMasterVolume(settings.get('masterVolume'));
         importText.value = '';
       } catch (e) {
         this._toast('导入失败：JSON 格式错误或包含无效数据');
@@ -1018,6 +1020,7 @@ export class SettingsScreen {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = (ev) => {
+        if (!this.container) return;
         importText.value = ev.target.result;
         this._toast('文件已读取，点击「导入配置」以应用');
       };
@@ -1885,6 +1888,9 @@ export class SettingsScreen {
   }
 
   _toast(text) {
+    // Enforce max concurrent toasts to prevent DOM buildup
+    const existing = document.querySelectorAll('[data-settings-toast="true"]');
+    if (existing.length >= 3) existing[0].remove();
     const el = document.createElement('div');
     el.dataset.settingsToast = 'true';
     el.textContent = text;
@@ -2032,6 +2038,7 @@ export class SettingsScreen {
   show() {
     if (!this.container) return;
     if (this._showRaf) { cancelAnimationFrame(this._showRaf); this._showRaf = null; }
+    if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
     this._syncAllControls();
     this.container.style.display = 'flex';
     this._showRaf = requestAnimationFrame(() => {
@@ -2054,6 +2061,7 @@ export class SettingsScreen {
   hide() {
     if (!this.container) return;
     if (this._showRaf) { cancelAnimationFrame(this._showRaf); this._showRaf = null; }
+    keyBindings.cancelListening();
     this.container.style.opacity = '0';
     if (this._hideTimer) clearTimeout(this._hideTimer);
     if (this._settingsTipTimer) { clearTimeout(this._settingsTipTimer); this._settingsTipTimer = null; }
@@ -2069,11 +2077,13 @@ export class SettingsScreen {
   }
 
   destroy() {
+    keyBindings.cancelListening();
     this._listeners.forEach(({ el, type, fn }) => {
       el.removeEventListener(type, fn);
     });
     this._listeners = [];
     if (this._toastTimers) { this._toastTimers.forEach(t => clearTimeout(t)); this._toastTimers = []; }
+    if (this._blobRevokeTimer) { clearTimeout(this._blobRevokeTimer); this._blobRevokeTimer = null; }
     if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
     if (this._saveToastTimer) { clearTimeout(this._saveToastTimer); this._saveToastTimer = null; }
     if (this._settingsTipTimer) { clearTimeout(this._settingsTipTimer); this._settingsTipTimer = null; }

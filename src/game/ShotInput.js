@@ -4,6 +4,8 @@
  * networked play where the same input must be sent over the wire.
  */
 
+import { UIText } from '../core/UIText.js';
+
 export function createShotInput(game) {
   return {
     aimDirection: {
@@ -24,6 +26,9 @@ export function createShotInput(game) {
 export function applyShotInput(game, input) {
   if (!input || typeof input !== 'object') return false;
 
+  // State guards: only accept input during valid gameplay states
+  if (game.state === 'GAME_OVER' || game.state === 'DISPOSED') return false;
+
   // Reset request
   if (input.requestReset) {
     game._onResetButtonClicked();
@@ -32,6 +37,10 @@ export function applyShotInput(game, input) {
 
   // Ball placement (free ball)
   if (input.ballPlacement) {
+    if (!game.ballInHand) {
+      game.ui?.setMessage('Invalid: not ball-in-hand', 2000);
+      return false;
+    }
     const cueBall = game.ballsManager?.getCueBall();
     if (cueBall) {
       const pos = input.ballPlacement;
@@ -42,14 +51,23 @@ export function applyShotInput(game, input) {
         cueBall.setPosition(pos.x, pos.y, pos.z);
         game._endBallInHand();
       } else {
-        game.ui.setMessage('对手自由球位置无效，已拒绝。', 2000);
+        game.ui?.setMessage('对手自由球位置无效，已拒绝。', 2000);
       }
     }
     game._broadcastSnapshot();
     return true;
   }
 
-  // Normal shot
+  // Normal shot — guard against push-out pending and wrong state
+  if (game.rules?.pushOutPending) {
+    game.ui?.setMessage(UIText.pushOutMustChoose, 2000);
+    return false;
+  }
+  if (game.state !== 'AIM' && game.state !== 'CHARGING') return false;
+
+  // Turn validation for networked games
+  if (input.fromPlayer && input.fromPlayer !== game.currentPlayer) return false;
+
   if (input.aimDirection) {
     game.aimDirection
       .set(input.aimDirection.x || 0, 0, input.aimDirection.z || 0)
@@ -64,7 +82,7 @@ export function applyShotInput(game, input) {
 
   const cueBall = game.ballsManager?.getCueBall();
   if (cueBall) {
-    game.cue.setAim(cueBall.mesh.position, game.aimDirection);
+    game.cue?.setAim(cueBall.mesh.position, game.aimDirection);
   }
   game.state = 'SHOOTING';
   game._shotStartTime = performance.now();

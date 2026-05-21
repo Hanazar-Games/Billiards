@@ -280,7 +280,9 @@ export class Game {
     }
     this._updatePlayerStats();
     this._onToggleTrajectory = (e) => {
-      this.trajectoryEnabled = Boolean(e.detail);
+      if (this.networkRole !== 'client' || !this._hostFairness) {
+        this.trajectoryEnabled = Boolean(e.detail);
+      }
       this.setAimTrajectoryVisible(this.state === 'AIM');
     };
     this._onToggleShotTrail = (e) => {
@@ -492,6 +494,11 @@ export class Game {
     if (this.state !== 'AIM') return;
     if (this.aiEnabled && this.currentPlayer === 2) return; // AI turn
     if (this.networkMode && !this.isLocalPlayerTurn()) return; // Network: not your turn
+    // Block input if turn timer has expired
+    if (this._turnTimerEnabled && this._turnTimerRemaining <= 0) {
+      this.ui.setMessage('⏰ 回合时间已到', 2000);
+      return;
+    }
     if (this.ballInHand) {
       this.confirmBallInHandPlacement();
       return;
@@ -833,6 +840,10 @@ export class Game {
 
     // Client sends shot intent to host; host executes physically
     if (this.networkMode && this.networkRole === 'client' && this.isLocalPlayerTurn()) {
+      if (this._turnTimerEnabled && this._turnTimerRemaining <= 0) {
+        this.ui.setMessage('⏰ 回合时间已到', 2000);
+        return;
+      }
       if (!this.networkController || !this.networkController.connected) {
         this.ui.setMessage(UIText.networkDisconnect, 2000);
         this._enterAimState();
@@ -1160,12 +1171,12 @@ export class Game {
     }
 
     // Host broadcasts snapshot during shooting (20–30 Hz)
-    if (!isClient && this.networkRole === 'host' && this.state === 'SHOOTING') {
+    if (!isClient && this.networkRole === 'host' && this.state === 'SHOOTING' && this.networkController) {
       const now = performance.now();
       if (now - this._lastSnapshotTime > 50) {
         this._lastSnapshotTime = now;
         const snapshot = GameStateSerializer.serializeGameState(this);
-        this.networkController?.sendStateSnapshot(snapshot);
+        this.networkController.sendStateSnapshot(snapshot);
       }
     }
 
@@ -1689,6 +1700,7 @@ export class Game {
   }
 
   resetGame() {
+    if (this.state === 'DISPOSED') return;
     if (this.ballReturn) this.ballReturn.reset();
     for (const ball of this.ballsManager.balls) {
       const listener = this._ballCollideListeners.get(ball.id);
@@ -1756,6 +1768,7 @@ export class Game {
     this._turnTimerRunning = false;
     this._turnTimerRemaining = this._turnTimerMax;
     this.currentPlayer = 1;
+    this.state = 'AIM';
     this._enterAimState({ resetPower: true, showCue: false, showTrajectory: false, updateAim: false });
     this.ballInHand = false;
     this.ballInHandValid = false;
@@ -1988,6 +2001,8 @@ export class Game {
       if (this.paused && key !== 'escape') return;
       // Ignore all game keys while in-game settings is open (except Escape which closes it)
       if (this._settingsOpen) {
+        // If a confirm dialog is open inside settings, let it handle Escape
+        if (document.querySelector('.settings-confirm-backdrop')) return;
         if (key === 'escape' && this.inGameSettings) {
           this._onInGameSettingsClose();
         }
@@ -2006,6 +2021,7 @@ export class Game {
           if (this.cue) this.cue.show();
           return;
         }
+        if (this.state === 'GAME_OVER') return;
         if (this.ballInHand) {
           this.ballInHand = false;
           this.ballInHandValid = false;
@@ -2346,6 +2362,10 @@ export class Game {
       this._onStateSnapshot = (e) => {
         if (this.networkRole === 'client' && e.detail.snapshot) {
           const snapshot = e.detail.snapshot;
+          // Reject out-of-order snapshots
+          const ts = snapshot.timestamp || 0;
+          if (ts < (this._lastAppliedSnapshotTime || 0)) return;
+          this._lastAppliedSnapshotTime = ts;
           // Apply host-authority fairness if present in snapshot; otherwise leave current fairness unchanged
           if (snapshot.fairness && typeof snapshot.fairness === 'object' && Object.keys(snapshot.fairness).length > 0) {
             this._applyHostFairness(snapshot.fairness);
@@ -2380,12 +2400,15 @@ export class Game {
       };
       this._onNetPushOutDeclare = (e) => {
         if (this.networkRole === 'host' && this.rules) {
+          if (e.detail?.fromPlayer !== this.currentPlayer) return;
+          if (!this.rules.pushOutAvailable) return;
           this.rules.declarePushOut();
           this._broadcastSnapshot();
         }
       };
       this._onNetPushOutChoice = (e) => {
         if (this.networkRole === 'host' && this.rules) {
+          if (e.detail?.fromPlayer !== this.currentPlayer) return;
           const choice = e.detail?.choice;
           if (choice === 'accept' || choice === 'pass') {
             this._applyPushOutChoice(choice);
@@ -2395,6 +2418,7 @@ export class Game {
       this._onNetRoomClosed = (e) => {
         if (!this.networkMode || this._netDisconnectHandled) return;
         this._netDisconnectHandled = true;
+        settings.clearLockedKeys();
         const reason = e.detail?.reason;
         const msg = reason === 'hostLeft' ? UIText.hostLeft
           : reason === 'hostDisconnected' ? UIText.hostDisconnected
@@ -2408,6 +2432,7 @@ export class Game {
       this._onNetDisconnected = () => {
         if (!this.networkMode || this._netDisconnectHandled) return;
         this._netDisconnectHandled = true;
+        settings.clearLockedKeys();
         this.ui.setMessage(UIText.networkDisconnect, 3000);
         this._netDisconnectTimer = setTimeout(() => {
           this._netDisconnectTimer = null;
@@ -2432,6 +2457,10 @@ export class Game {
       this.networkPlayer1Name = status.p1Name || '玩家 1';
       this.networkPlayer2Name = status.p2Name || '玩家 2';
     }
+    // Lock fairness settings when match mode is active (init already completed)
+    const fairnessKeys = Array.from(MATCH_FAIRNESS_KEYS);
+    if (this.inGameSettings) this.inGameSettings.setLockedKeys(fairnessKeys);
+    settings.setLockedKeys(fairnessKeys);
   }
 
   isLocalPlayerTurn() {
@@ -2512,20 +2541,21 @@ export class Game {
    * These override local settings so all players have the same competitive parameters.
    */
   _applyHostFairness(fairness) {
+    if (this.state === 'DISPOSED') return;
     if (!fairness || typeof fairness !== 'object') return;
     const changed = !this._hostFairness ||
-      this._hostFairness.trajectoryEnabled !== fairness.trajectoryEnabled ||
-      this._hostFairness.minimapEnabled !== fairness.minimapEnabled ||
-      this._hostFairness.turnTimer !== fairness.turnTimer ||
-      this._hostFairness.shotPowerSens !== fairness.shotPowerSens ||
-      this._hostFairness.showCrosshair !== fairness.showCrosshair;
-    this._hostFairness = { ...fairness };
+      Object.keys(fairness).some(k => this._hostFairness[k] !== fairness[k]);
+    this._hostFairness = { ...(this._hostFairness || {}), ...fairness };
     if (changed) {
       // Sync locked fairness values into SettingsStore so the settings UI shows host values
       for (const key of Object.keys(fairness)) {
-        settings.updateLockedValue(key, fairness[key]);
+        if (MATCH_FAIRNESS_KEYS.has(key)) {
+          settings.updateLockedValue(key, fairness[key]);
+        }
       }
       this._applySettings();
+      // Refresh in-game settings UI if open so host values are visible
+      if (this.inGameSettings) this.inGameSettings._syncAllControls();
     }
   }
 
@@ -2852,6 +2882,7 @@ export class Game {
   }
 
   dispose() {
+    try {
     if (this._strikeHideTimer) {
       clearTimeout(this._strikeHideTimer);
       this._strikeHideTimer = null;
@@ -2994,7 +3025,7 @@ export class Game {
       this.audio = null;
     }
 
-    // Remove network listeners
+    // Remove network listeners and close connection
     if (this.networkController) {
       if (this._onStateSnapshot) this.networkController.removeEventListener('stateSnapshot', this._onStateSnapshot);
       if (this._onNetShotInput) this.networkController.removeEventListener('shotInput', this._onNetShotInput);
@@ -3010,6 +3041,7 @@ export class Game {
       this._onNetPushOutChoice = null;
       this._onNetDisconnected = null;
       this._onNetRoomClosed = null;
+      try { this.networkController.disconnect(); } catch (e) {}
     }
 
     // Remove event listeners
@@ -3101,6 +3133,11 @@ export class Game {
     this.networkMode = null;
 
     this.state = 'DISPOSED';
+    } finally {
+      // Guarantee cleanup of competitive locks and host fairness
+      settings.clearLockedKeys();
+      this._hostFairness = null;
+    }
   }
 
   render(renderer) {

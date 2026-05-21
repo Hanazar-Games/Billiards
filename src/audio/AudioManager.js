@@ -64,7 +64,7 @@ export class AudioManager {
       const tid = setTimeout(() => {
         this._pendingDisconnects.delete(tid);
         doDisconnect();
-      }, 5000);
+      }, 500);
       this._pendingDisconnects.add(tid);
     }
   }
@@ -119,7 +119,7 @@ export class AudioManager {
 
     // Auto-recover from browser-initiated suspension / interruption
     this._stateHandler = () => {
-      if (this.ctx && (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted')) {
+      if (this.ctx && this.ctx.state === 'suspended') {
         this.resume();
       }
     };
@@ -310,11 +310,10 @@ export class AudioManager {
 
   playBallCollision(velocity = 5) {
     if (!this._canPlay()) return;
-    if (!this._cooldown('ballCollision')) return;
-    this.resume();
-
     const intensity = Math.min(velocity / 20, 1);
     if (intensity < 0.05) return;
+    if (!this._cooldown('ballCollision')) return;
+    this.resume();
 
     const t = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
@@ -336,11 +335,10 @@ export class AudioManager {
 
   playCushionBounce(velocity = 5) {
     if (!this._canPlay()) return;
-    if (!this._cooldown('cushionBounce')) return;
-    this.resume();
-
     const intensity = Math.min(velocity / 15, 1);
     if (intensity < 0.05) return;
+    if (!this._cooldown('cushionBounce')) return;
+    this.resume();
 
     const t = this.ctx.currentTime;
     const bufferSize = Math.ceil(this.ctx.sampleRate * 0.08);
