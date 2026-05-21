@@ -407,6 +407,7 @@ export class AudioManager {
 
   playWin() {
     if (!this._canPlay()) return;
+    if (!this._cooldown('win')) return;
     this.resume();
 
     // Brighter, shorter fanfare: C-E-G-C (upward arpeggio + decay)
@@ -429,6 +430,7 @@ export class AudioManager {
 
   playFoul() {
     if (!this._canPlay()) return;
+    if (!this._cooldown('foul')) return;
     this.resume();
 
     const t = this.ctx.currentTime;

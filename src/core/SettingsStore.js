@@ -312,7 +312,7 @@ export class SettingsStore {
 
   set(key, value) {
     if (this._lockedKeys.has(key)) {
-      if (settings.get('devMode')) {
+      if (this.get('devMode')) {
         console.warn('[SettingsStore] Ignored mutation of locked key:', key);
       }
       return;
@@ -328,9 +328,27 @@ export class SettingsStore {
   }
 
   reset() {
-    this._data = { ...DEFAULTS };
+    // Preserve locked keys so competitive settings aren't wiped in LAN/match mode
+    const lockedSnapshot = {};
+    for (const key of this._lockedKeys) {
+      if (key in this._data) lockedSnapshot[key] = this._data[key];
+    }
+    this._data = { ...DEFAULTS, ...lockedSnapshot };
     this._save();
-    Object.keys(DEFAULTS).forEach((key) => this._notify(key, DEFAULTS[key]));
+    Object.keys(DEFAULTS).forEach((key) => {
+      if (!this._lockedKeys.has(key)) {
+        this._notify(key, this._data[key]);
+      }
+    });
+  }
+
+  /**
+   * Update a locked key's in-memory value without triggering events or saving.
+   * Used by the network client to reflect host-authority fairness values in the UI.
+   */
+  updateLockedValue(key, value) {
+    if (!this._lockedKeys.has(key)) return;
+    this._data[key] = value;
   }
 
   resetKey(key) {

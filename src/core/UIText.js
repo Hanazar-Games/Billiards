@@ -46,7 +46,7 @@ export const UIText = {
   },
 
   foulReason(code) {
-    return this.foulReasonMap[code] || code;
+    return this.foulReasonMap[code] || '未知犯规';
   },
 
   // AI messages
@@ -123,7 +123,7 @@ export const UIText = {
   // Freeplay feedback
   freeplayFeedback: ({ power, pocketedCount, spinText, positionQuality }) => {
     const parts = [];
-    if (power) parts.push(`力度 ${power}%`);
+    if (typeof power === 'number') parts.push(`力度 ${power}%`);
     if (pocketedCount > 0) parts.push(`进 ${pocketedCount} 颗`);
     else parts.push('未进球');
     if (spinText && spinText !== '中心击球') parts.push(spinText);

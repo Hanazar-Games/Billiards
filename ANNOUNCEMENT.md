@@ -1,6 +1,6 @@
-# 3D Billiards v1.7.28 — Latest Update
+# 3D Billiards v1.7.29 — Latest Update
 
-## What's New in v1.7.28
+## What's New in v1.7.29
 
 ### 🔒 LAN Fairness & Host Authority — Competitive Settings Lock, Room Experience, State Sync
 
@@ -16,7 +16,7 @@
 
 | # | 改动 | 详情 |
 |---|------|------|
-| 6 | **统一版本号** | `package.json`、`src/core/Version.js`、`index.html`、`dist/index.html`、`README.md` 全部同步为 `v1.7.28`，消除线上/线下版本显示不一致 |
+| 6 | **统一版本号** | `package.json`、`src/core/Version.js`、`index.html`、`dist/index.html`、`README.md` 全部同步为 `v1.7.29`，消除线上/线下版本显示不一致 |
 | 7 | **清理旧 dist assets** | 移除并替换旧的 hash 化 JS 文件，确保 `dist/index.html` 不引用已不存在的 chunk |
 | 8 | **SETTINGS_AUDIT.md 更新** | 轨迹外观、小地图外观、FX 独立开关全部标记为 ✅ 已实现；公平键审查反映当前实现/保留状态；待办列表更新 |
 | 9 | **README 脚本说明更新** | 新增 `npm run preview`、`npm run test:lan`、`npm run test:smoke` 说明；版本号更新 |

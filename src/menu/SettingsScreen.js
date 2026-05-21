@@ -646,7 +646,7 @@ export class SettingsScreen {
     kbWrap.appendChild(presetWrap);
 
     // Keybindings by category
-    const displayPreset = keyBindings.getCurrentPreset().split(':')[0] || 'win';
+    const displayPreset = (keyBindings.getCurrentPreset() || '').split(':')[0] || 'win';
     ACTION_CATEGORIES.forEach(cat => {
       const catTitle = document.createElement('div');
       catTitle.textContent = cat.label;
@@ -859,9 +859,9 @@ export class SettingsScreen {
     this._row('显示准星', this._createSwitch(settings.get('showCrosshair'), (v) => settings.set('showCrosshair', v), this._isLocked('showCrosshair'), '由房主/比赛锁定'), this._isLocked('showCrosshair') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定', this._isLocked('showCrosshair'));
     this._row('显示击球统计', this._createSwitch(settings.get('statsPanelEnabled'), (v) => settings.set('statsPanelEnabled', v)));
     this._rowSlider('UI 缩放', Math.round(settings.get('hudScale') * 100), 50, 200, '%', (v) => settings.set('hudScale', v / 100));
-    this._rowSelect('计时器位置', TIMER_POS_OPTIONS, settings.get('timerPosition'), (v) => settings.set('timerPosition', v));
+    this._rowSelect('计时器位置', TIMER_POS_OPTIONS, settings.get('timerPosition') || 'top', (v) => settings.set('timerPosition', v));
     this._row('显示 FPS', this._createSwitch(settings.get('showFPS'), (v) => settings.set('showFPS', v)));
-    this._rowSelect('回合计时器', TURN_TIMER_OPTIONS, settings.get('turnTimer'), (v) => settings.set('turnTimer', v), this._isLocked('turnTimer') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定', this._isLocked('turnTimer'), '由房主/比赛锁定');
+    this._rowSelect('回合计时器', TURN_TIMER_OPTIONS, settings.get('turnTimer') || 'off', (v) => settings.set('turnTimer', v), this._isLocked('turnTimer') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定', this._isLocked('turnTimer'), '由房主/比赛锁定');
   }
 
   _buildReplayContent() {
@@ -943,8 +943,13 @@ export class SettingsScreen {
     exportWrap.style.cssText = 'display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;';
     const exportClipboardBtn = this._presetButton('复制到剪贴板', () => {
       const data = JSON.stringify(settings.getAll(), null, 2);
-      navigator.clipboard?.writeText(data);
-      this._toast('配置已复制到剪贴板');
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(data)
+          .then(() => this._toast('配置已复制到剪贴板'))
+          .catch(() => this._toast('复制失败，请手动复制'));
+      } else {
+        this._toast('当前浏览器不支持剪贴板 API');
+      }
     });
     const exportFileBtn = this._presetButton('下载文件', () => {
       const data = JSON.stringify(settings.getAll(), null, 2);
@@ -954,7 +959,7 @@ export class SettingsScreen {
       a.href = url;
       a.download = 'billiards-settings.json';
       a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
       this._toast('配置已下载');
     });
     exportWrap.appendChild(exportClipboardBtn);
@@ -1832,7 +1837,7 @@ export class SettingsScreen {
     `;
 
     const update = () => {
-      const pct = ((input.value - min) / (max - min)) * 100;
+      const pct = max === min ? 0 : ((input.value - min) / (max - min)) * 100;
       fill.style.width = `${pct}%`;
       thumb.style.left = `${pct}%`;
     };
@@ -1864,6 +1869,7 @@ export class SettingsScreen {
   }
 
   _formatKey(key) {
+    if (typeof key !== 'string') return '—';
     if (!key) return '—';
     const map = {
       escape: 'Esc',
@@ -2001,6 +2007,12 @@ export class SettingsScreen {
         close();
         if (onCancel) onCancel();
       }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        close();
+        onConfirm();
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     backdrop._keydownHandler = onKeyDown;
@@ -2019,9 +2031,11 @@ export class SettingsScreen {
 
   show() {
     if (!this.container) return;
+    if (this._showRaf) { cancelAnimationFrame(this._showRaf); this._showRaf = null; }
     this._syncAllControls();
     this.container.style.display = 'flex';
-    requestAnimationFrame(() => {
+    this._showRaf = requestAnimationFrame(() => {
+      this._showRaf = null;
       if (this.container) this.container.style.opacity = '1';
     });
     // First-time settings tip
@@ -2039,6 +2053,7 @@ export class SettingsScreen {
 
   hide() {
     if (!this.container) return;
+    if (this._showRaf) { cancelAnimationFrame(this._showRaf); this._showRaf = null; }
     this.container.style.opacity = '0';
     if (this._hideTimer) clearTimeout(this._hideTimer);
     if (this._settingsTipTimer) { clearTimeout(this._settingsTipTimer); this._settingsTipTimer = null; }

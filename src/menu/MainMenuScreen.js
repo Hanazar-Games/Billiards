@@ -209,8 +209,10 @@ export class MainMenuScreen {
   show() {
     if (!this.container) return;
     if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
+    if (this._showRaf) { cancelAnimationFrame(this._showRaf); this._showRaf = null; }
     this.container.style.display = 'flex';
-    requestAnimationFrame(() => {
+    this._showRaf = requestAnimationFrame(() => {
+      this._showRaf = null;
       if (!this.container) return;
       this.container.style.opacity = '1';
       this.container.style.transform = 'scale(1)';
@@ -219,6 +221,7 @@ export class MainMenuScreen {
 
   hide() {
     if (!this.container) return;
+    if (this._showRaf) { cancelAnimationFrame(this._showRaf); this._showRaf = null; }
     this.container.style.opacity = '0';
     this.container.style.transform = 'scale(0.96)';
     if (this._hideTimer) clearTimeout(this._hideTimer);

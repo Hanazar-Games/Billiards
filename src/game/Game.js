@@ -145,7 +145,6 @@ export class Game {
       console.warn('[Game] init() called twice on same instance');
       return;
     }
-    this._initialized = true;
     this.mode = modeConfig.mode || 'local2p';
     this.drillConfig = modeConfig.drill || null;
     this.aiEnabled = modeConfig.aiEnabled || false;
@@ -348,6 +347,7 @@ export class Game {
 
     // Show game tutorial steps for new players
     this._showGameTutorial();
+    this._initialized = true;
   }
 
   _showGameTutorial() {
@@ -402,7 +402,7 @@ export class Game {
           // Use lower ID as canonical to process each pair exactly once.
           if (ball.id < otherBall.id) {
             if (relVel > 0.5) {
-              this.audio.playBallCollision(relVel);
+              this.audio?.playBallCollision(relVel);
             }
             if (this.state === 'SHOOTING' && relVel > 1.0) {
               this.statsTracker.recordBallCollision(this.currentPlayer);
@@ -420,7 +420,7 @@ export class Game {
             this.rules?.recordCushionHit?.(ball.id);
           }
           if (v > 0.8) {
-            this.audio.playCushionBounce(v);
+            this.audio?.playCushionBounce(v);
           }
 
           // Subtle cushion bounce dust for significant hits (restrained)
@@ -484,6 +484,7 @@ export class Game {
   }
 
   onMouseDown(e) {
+    if (this.paused) return;
     // Recover from soft-locked CHARGING state (e.g. missed mouseup)
     if (this.state === 'CHARGING' && this.input && !this.input.isDown) {
       this._enterAimState();
@@ -500,7 +501,7 @@ export class Game {
       this.ui.setMessage(UIText.pushOutMustChoose, 2000);
       return;
     }
-    this.audio.resume();
+    this.audio?.resume();
     this.updateAimDirection();
     this.lockedAimDirection.copy(this.aimDirection);
     const cueBall = this.ballsManager?.getCueBall();
@@ -533,6 +534,7 @@ export class Game {
   }
 
   onMouseUp() {
+    if (this.paused) return;
     if (this.state !== 'CHARGING') return;
     if (this.power < 1) {
       this._enterAimState();
@@ -764,6 +766,7 @@ export class Game {
   }
 
   confirmBallInHandPlacement() {
+    if (this.paused) return;
     this.updateBallInHandPreview();
     if (!this.ballInHandValid) {
       const reasonMap = {
@@ -803,6 +806,7 @@ export class Game {
 
   updateTrajectory(dt = 0.016) {
     if (!this.trajectory || !this.trajectory.visible) return;
+    if (this.ballInHand) return;
     if (this.state !== 'AIM') return;
 
     const cueBall = this.ballsManager.getCueBall();
@@ -829,9 +833,14 @@ export class Game {
 
     // Client sends shot intent to host; host executes physically
     if (this.networkMode && this.networkRole === 'client' && this.isLocalPlayerTurn()) {
+      if (!this.networkController || !this.networkController.connected) {
+        this.ui.setMessage(UIText.networkDisconnect, 2000);
+        this._enterAimState();
+        return;
+      }
       const force = Math.max(this.power, SHOT.minPower);
       this._lastShotPower = this.power;
-      this.networkController?.sendShotInput(this.aimDirection, force, this.cueTipOffset);
+      this.networkController.sendShotInput(this.aimDirection, force, this.cueTipOffset);
       this.state = 'SHOOTING';
       this._shotStartTime = performance.now();
       this.charging = false;
@@ -839,7 +848,7 @@ export class Game {
       if (settings.get('hideCueOnShot') !== false && this.cue) this.cue.hide();
       this.trajectory.setVisible(false);
       // Local immediate feedback: audio + FX (host will authoritatively resolve physics)
-      this.audio.playCueHit(force);
+      this.audio?.playCueHit(force);
       this.particles.spawnChalkDust(cueBall.mesh.position, this.aimDirection, force);
       if (settings.get('impactShockwaveEnabled') !== false) {
         this.shockwaves?.spawn(cueBall.mesh.position, force);
@@ -870,7 +879,7 @@ export class Game {
       this.cueTipOffset.y
     );
 
-    this.audio.playCueHit(force);
+    this.audio?.playCueHit(force);
 
     // Stats & effects
     this.turnPocketedIds = [];
@@ -954,7 +963,7 @@ export class Game {
           requestAnimationFrame(tick);
           return;
         }
-        if (!this.cue || !this.ballsManager) {
+        if (!this.cue || !this.ballsManager || this.state === 'DISPOSED') {
           resolve();
           return;
         }
@@ -1001,7 +1010,7 @@ export class Game {
         this.power = targetPower * progress;
         if (this.ui) this.ui.setPower((this.power / SHOT.maxPower) * 100);
 
-        if (progress < 1 && this.state === 'CHARGING') {
+        if (progress < 1 && this.state === 'CHARGING' && this.state !== 'DISPOSED') {
           requestAnimationFrame(tick);
         } else {
           resolve();
@@ -1047,7 +1056,7 @@ export class Game {
         const newlyPocketed = this.ballsManager.checkPockets(pocketPositions);
 
         if (newlyPocketed.length > 0) {
-          this.audio.playPocket();
+          this.audio?.playPocket();
           const flashed = new Set();
           for (const entry of newlyPocketed) {
             const pocket = pocketPositions[entry.pocketIndex];
@@ -1224,6 +1233,7 @@ export class Game {
   }
 
   _onTurnTimerExpired() {
+    if (this.state === 'GAME_OVER' || this.state === 'DISPOSED') return;
     // Network clients should not locally resolve turn timeouts — host is authoritative
     if (this.networkMode && this.networkRole === 'client') {
       this.ui.setMessage('⏰ 回合时间到，等待房主确认…', 2000);
@@ -1235,16 +1245,12 @@ export class Game {
     const otherPlayer = this.currentPlayer === 1 ? 2 : 1;
     const cName = this.currentPlayer === 1 ? this.networkPlayer1Name : this.networkPlayer2Name;
     const oName = otherPlayer === 1 ? this.networkPlayer1Name : this.networkPlayer2Name;
-    this.ui.setMessage(UIText.turnTimeout(cName, oName), 3000);
-    this.audio.playFoul();
-    this.ui.flashRed();
     this.currentPlayer = otherPlayer;
-    if (this.state !== 'DISPOSED' && this.state !== 'GAME_OVER') {
-      this._enterAimState();
-    }
-    this.ballInHand = true;
-    this.ballInHandBehindLine = false;
     this._turnTimerRemaining = this._turnTimerMax;
+    this.ui.setMessage(UIText.turnTimeout(cName, oName), 3000);
+    this.audio?.playFoul();
+    this.ui.flashRed();
+    this.startBallInHand(UIText.turnTimeout(cName, oName), false);
     this._updatePlayerStats();
     this.ui.setPlayerTurn(this.currentPlayer);
   }
@@ -1253,6 +1259,7 @@ export class Game {
 
   /** Reset to AIM state with optional cue/trajectory visibility. */
   _enterAimState({ resetPower = true, showCue = true, showTrajectory = true, updateAim = true } = {}) {
+    if (this.state === 'GAME_OVER' || this.state === 'DISPOSED') return;
     this.state = 'AIM';
     this.charging = false;
     this.dragStart = null;
@@ -1323,6 +1330,7 @@ export class Game {
     if (!result) return;
 
     this.currentPlayer = result.nextPlayer;
+    this._turnTimerRemaining = this._turnTimerMax;
     this.ui.setPlayerTurn(this.currentPlayer);
     this.ui.hidePushOutChoice();
 
@@ -1332,11 +1340,7 @@ export class Game {
       : UIText.pushOutPassedMsg(playerName);
     this.ui.setMessage(msg, 3000);
 
-    this.state = 'AIM';
-    this.power = 0;
-    this.ui.setPower(0);
-    if (this.cue) this.cue.show();
-    this.setAimTrajectoryVisible(true);
+    this._enterAimState({ resetPower: true, showCue: true, showTrajectory: true, updateAim: false });
     this._updatePlayerStats();
 
     if (this.aiEnabled && this.currentPlayer === 2) {
@@ -1430,7 +1434,7 @@ export class Game {
         this.drillManager.onBallsStopped(cueBall);
       }
       if (this.drillManager && this.drillManager.completed) {
-        this.audio.playWin();
+        this.audio?.playWin();
         if (this.onTrainerComplete) {
           this.onTrainerComplete(this.drillManager.completed, this.drillManager.stars);
         }
@@ -1448,7 +1452,7 @@ export class Game {
     if (this.mode === 'freeplay') {
       if (cuePocketed) {
         this.ballsManager.resetCueBallIfPocketed();
-        this.audio.playFoul();
+        this.audio?.playFoul();
         this.ui.flashRed();
       }
       // Show brief shot feedback
@@ -1535,9 +1539,9 @@ export class Game {
       }
 
       if (result.winner === this.currentPlayer) {
-        this.audio.playWin();
+        this.audio?.playWin();
       } else {
-        this.audio.playFoul();
+        this.audio?.playFoul();
         this.ui.flashRed();
       }
       this._updatePlayerStats();
@@ -1546,6 +1550,7 @@ export class Game {
 
     this.ui.setMessage(result.message, 4000);
     this.currentPlayer = result.nextPlayer;
+    this._turnTimerRemaining = this._turnTimerMax;
     this.ui.setPlayerTurn(this.currentPlayer);
 
     const status = this.rules.getStatus();
@@ -1553,7 +1558,7 @@ export class Game {
     this._updatePlayerStats();
 
     if (result.foul || result.scratch) {
-      this.audio.playFoul();
+      this.audio?.playFoul();
       this.ui.flashRed();
       this.achievements.onFoul();
       if (!onboarding.get('foulExplained')) {
@@ -1729,6 +1734,7 @@ export class Game {
       clearTimeout(this._netDisconnectTimer);
       this._netDisconnectTimer = null;
     }
+    this._netDisconnectHandled = false;
     if (this._strikeHideTimer) {
       clearTimeout(this._strikeHideTimer);
       this._strikeHideTimer = null;
@@ -2041,6 +2047,7 @@ export class Game {
 
       // Enter to confirm shot when confirmShotOnRelease is disabled
       if (key === 'enter' && settings.get('confirmShotOnRelease') === false) {
+        if (this.paused) return;
         // Prevent accidental shot when typing in an input/textarea
         const tag = e.target?.tagName;
         if (tag === 'INPUT' || tag === 'TEXTAREA') return;
@@ -2315,8 +2322,12 @@ export class Game {
 
   _onResetButtonClicked() {
     if (this.networkMode && this.networkRole === 'client') {
+      if (!this.networkController || !this.networkController.connected) {
+        this.ui.setMessage(UIText.networkDisconnect, 2000);
+        return;
+      }
       // Client asks host to reset; host will broadcast the new state
-      this.networkController?.sendShotInput({ x: 0, y: 0, z: 0 }, 0, { x: 0, y: 0 }, null, true);
+      this.networkController.sendShotInput({ x: 0, y: 0, z: 0 }, 0, { x: 0, y: 0 }, null, true);
       this.ui.setMessage(UIText.resetRequested, 2000);
       return;
     }
@@ -2335,7 +2346,8 @@ export class Game {
       this._onStateSnapshot = (e) => {
         if (this.networkRole === 'client' && e.detail.snapshot) {
           const snapshot = e.detail.snapshot;
-          if (snapshot.fairness) {
+          // Apply host-authority fairness if present in snapshot; otherwise leave current fairness unchanged
+          if (snapshot.fairness && typeof snapshot.fairness === 'object' && Object.keys(snapshot.fairness).length > 0) {
             this._applyHostFairness(snapshot.fairness);
           }
           GameStateSerializer.applyGameState(this, snapshot);
@@ -2353,7 +2365,7 @@ export class Game {
           if (pocket) {
             this.particles.spawnPocketFlash(pocket);
             this.particles.spawnPocketFountain(pocket, detail.ballId);
-            this.audio.playPocket();
+            this.audio?.playPocket();
             if (this.renderer?.camera && this.renderer.width > 0 && this.renderer.height > 0) {
               const p = this._tmpVec3a.set(pocket.x, pocket.y + 15, pocket.z);
               p.project(this.renderer.camera);
@@ -2433,6 +2445,7 @@ export class Game {
   }
 
   _concede() {
+    if (this.state === 'GAME_OVER' || this.state === 'DISPOSED') return;
     if (this.mode === 'freeplay') return;
     if (this.mode === 'trainer') return;
     if (this.networkMode) {
@@ -2465,7 +2478,7 @@ export class Game {
       this.challengeManager.onGameEnd(winner);
     }
 
-    this.audio.playWin();
+    this.audio?.playWin();
     this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
     this.ui.setPlayerTurn(winner);
     this.ui.hideThreeFoulWarning();
@@ -2508,6 +2521,10 @@ export class Game {
       this._hostFairness.showCrosshair !== fairness.showCrosshair;
     this._hostFairness = { ...fairness };
     if (changed) {
+      // Sync locked fairness values into SettingsStore so the settings UI shows host values
+      for (const key of Object.keys(fairness)) {
+        settings.updateLockedValue(key, fairness[key]);
+      }
       this._applySettings();
     }
   }
@@ -2541,6 +2558,7 @@ export class Game {
   }
 
   _applyHudVisibility(fairness = {}) {
+    if (!this.ui) return;
     const hudScale = settings.get('hudScale') ?? 1.0;
     this.ui.setHudScale?.(hudScale);
     this.ui.setHudOpacity?.(settings.get('hudOpacity'));
@@ -2567,6 +2585,8 @@ export class Game {
     // Host: propagate fairness changes into _hostFairness so next snapshot reflects them
     if (this.networkRole === 'host' && this._hostFairness && key in this._hostFairness) {
       this._hostFairness[key] = value;
+      // Broadcast updated fairness to clients immediately so they stay in sync
+      this._broadcastSnapshot();
     }
     switch (key) {
       case 'trajectoryEnabled':
@@ -2967,7 +2987,7 @@ export class Game {
 
     // Stop audio (only dispose if we own the instance)
     if (this.audio) {
-      this.audio.stopBGM();
+      this.audio.stopBGM(false);
       if (this._ownsAudio) {
         this.audio.dispose();
       }
@@ -3076,6 +3096,9 @@ export class Game {
     this.rules = null;
     this._settingsOpen = false;
     this._initialized = false;
+    this._hostFairness = null;
+    this.networkRole = null;
+    this.networkMode = null;
 
     this.state = 'DISPOSED';
   }

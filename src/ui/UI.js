@@ -248,7 +248,9 @@ export class UI {
     }
     const n1 = p1Name || '玩家 1';
     const n2 = p2Name || '玩家 2';
-    this._hudScore.textContent = `${n1} ${p1Score} : ${p2Score} ${n2}  ·  第 ${currentGame}/${gamesNeeded} 局`;
+    const cg = currentGame ?? 1;
+    const gn = gamesNeeded ?? 1;
+    this._hudScore.textContent = `${n1} ${p1Score} : ${p2Score} ${n2}  ·  第 ${cg}/${gn} 局`;
     this._hudScore.style.display = 'block';
   }
 
@@ -309,28 +311,31 @@ export class UI {
     // 9-ball mode: show target ball instead of group
     const is9Ball = mode === '9ball';
 
-    if (this._hudP1Detail) {
-      const r1 = Number.isFinite(p1Remaining) ? p1Remaining : (is9Ball ? 9 : 7);
-      const group1 = is9Ball ? '' : groupLabel(p1Group);
+    const _setDetail = (el, remaining, group) => {
+      if (!el) return;
+      const r = Number.isFinite(remaining) ? remaining : (is9Ball ? 9 : 7);
+      el.textContent = '';
       if (is9Ball && targetBall) {
-        this._hudP1Detail.innerHTML = `<span class="hud-remain">目标 ${targetBall}号</span>`;
+        const span = document.createElement('span');
+        span.className = 'hud-remain';
+        span.textContent = `目标 ${targetBall}号`;
+        el.appendChild(span);
       } else {
-        this._hudP1Detail.innerHTML = group1
-          ? `<span class="hud-group">${group1}</span><span class="hud-remain">剩 ${r1}</span>`
-          : `<span class="hud-remain">剩 ${r1}</span>`;
+        const g = is9Ball ? '' : groupLabel(group);
+        if (g) {
+          const gSpan = document.createElement('span');
+          gSpan.className = 'hud-group';
+          gSpan.textContent = g;
+          el.appendChild(gSpan);
+        }
+        const rSpan = document.createElement('span');
+        rSpan.className = 'hud-remain';
+        rSpan.textContent = `剩 ${r}`;
+        el.appendChild(rSpan);
       }
-    }
-    if (this._hudP2Detail) {
-      const r2 = Number.isFinite(p2Remaining) ? p2Remaining : (is9Ball ? 9 : 7);
-      const group2 = is9Ball ? '' : groupLabel(p2Group);
-      if (is9Ball && targetBall) {
-        this._hudP2Detail.innerHTML = `<span class="hud-remain">目标 ${targetBall}号</span>`;
-      } else {
-        this._hudP2Detail.innerHTML = group2
-          ? `<span class="hud-group">${group2}</span><span class="hud-remain">剩 ${r2}</span>`
-          : `<span class="hud-remain">剩 ${r2}</span>`;
-      }
-    }
+    };
+    _setDetail(this._hudP1Detail, p1Remaining, p1Group);
+    _setDetail(this._hudP2Detail, p2Remaining, p2Group);
   }
 
   setPlayerTurn(player) {
@@ -405,14 +410,17 @@ export class UI {
   showPauseMenu() {
     if (!this.pauseOverlay) return;
     if (this._pauseHideTimer) { clearTimeout(this._pauseHideTimer); this._pauseHideTimer = null; }
+    if (this._pauseShowRaf) { cancelAnimationFrame(this._pauseShowRaf); this._pauseShowRaf = null; }
     this.pauseOverlay.style.display = 'flex';
-    requestAnimationFrame(() => {
+    this._pauseShowRaf = requestAnimationFrame(() => {
+      this._pauseShowRaf = null;
       if (this.pauseOverlay) this.pauseOverlay.style.opacity = '1';
     });
   }
 
   hidePauseMenu() {
     if (!this.pauseOverlay) return;
+    if (this._pauseShowRaf) { cancelAnimationFrame(this._pauseShowRaf); this._pauseShowRaf = null; }
     this.pauseOverlay.style.opacity = '0';
     if (this._pauseHideTimer) { clearTimeout(this._pauseHideTimer); }
     this._pauseHideTimer = setTimeout(() => {
@@ -424,31 +432,26 @@ export class UI {
   flashRed() {
     const uiLayer = document.getElementById('ui-layer');
     if (!uiLayer) return;
-    let flash = document.getElementById('ui-red-flash');
-    if (!flash) {
-      flash = document.createElement('div');
-      flash.id = 'ui-red-flash';
-      flash.style.cssText = `
-        position: absolute; inset: 0; pointer-events: none; z-index: 5;
-        background: radial-gradient(circle at center, rgba(185,18,63,0.18) 0%, transparent 70%);
-        opacity: 0; transition: opacity calc(0.25s / var(--ui-anim-speed)) ease;
-      `;
-      uiLayer.appendChild(flash);
-    }
-    flash.style.opacity = '1';
+    // Clear any existing flash to prevent overlapping timers
+    const old = document.getElementById('ui-red-flash');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
     if (this._flashTimer) clearTimeout(this._flashTimer);
     if (this._flashInnerTimer) clearTimeout(this._flashInnerTimer);
+    const flash = document.createElement('div');
+    flash.id = 'ui-red-flash';
+    flash.style.cssText = `
+      position: absolute; inset: 0; pointer-events: none; z-index: 5;
+      background: radial-gradient(circle at center, rgba(185,18,63,0.18) 0%, transparent 70%);
+      opacity: 0; transition: opacity calc(0.25s / var(--ui-anim-speed)) ease;
+    `;
+    uiLayer.appendChild(flash);
+    requestAnimationFrame(() => { if (flash) flash.style.opacity = '1'; });
     this._flashTimer = setTimeout(() => {
-      const f = document.getElementById('ui-red-flash');
-      if (f) {
-        f.style.opacity = '0';
-        // Remove from DOM after fade-out transition completes
-        this._flashInnerTimer = setTimeout(() => {
-          this._flashInnerTimer = null;
-          const el = document.getElementById('ui-red-flash');
-          if (el && el.parentNode) el.parentNode.removeChild(el);
-        }, animMs(300));
-      }
+      if (flash) flash.style.opacity = '0';
+      this._flashInnerTimer = setTimeout(() => {
+        this._flashInnerTimer = null;
+        if (flash && flash.parentNode) flash.parentNode.removeChild(flash);
+      }, animMs(300));
       this._flashTimer = null;
     }, animMs(350));
   }
@@ -456,6 +459,7 @@ export class UI {
   showFloatingText(text, screenX, screenY, color = '#d8b15f') {
     const uiLayer = document.getElementById('ui-layer');
     if (!uiLayer) return;
+    if (!Number.isFinite(screenX) || !Number.isFinite(screenY)) return;
     const vw = window.innerWidth || 1;
     const vh = window.innerHeight || 1;
     const clampedX = Math.max(0, Math.min(vw, screenX));

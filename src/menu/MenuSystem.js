@@ -191,7 +191,8 @@ export class MenuSystem {
     if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
     // Lock fairness keys for clients and local matches; host can still change them
     const fairnessKeys = Array.from(MATCH_FAIRNESS_KEYS);
-    if (this.game?.networkRole === 'client' || this.matchManager) {
+    const role = this.game?.networkRole;
+    if (role === 'client' || this.matchManager) {
       this.settingsScreen.setLockedKeys(fairnessKeys);
     } else {
       this.settingsScreen.setLockedKeys([]);
@@ -344,6 +345,8 @@ export class MenuSystem {
       await this.game.init(modeConfig);
     } catch (err) {
       console.error('Trainer game init failed:', err);
+      try { this.game.dispose(); } catch (e) {}
+      this.game = null;
       this.state = 'MENU';
       if (menuLayer) { menuLayer.style.display = 'flex'; menuLayer.style.opacity = '1'; }
       if (uiLayer) uiLayer.style.display = 'none';
@@ -354,7 +357,7 @@ export class MenuSystem {
     // Create and start game loop
     this.loop = new GameLoop({
       update: (dt) => {
-        this.physics.step(dt);
+        if (!this.game?.paused) this.physics.step(dt);
         this.game.update(dt);
       },
       render: () => {
@@ -488,6 +491,8 @@ export class MenuSystem {
       await this.game.init(modeConfig);
     } catch (err) {
       console.error('Challenge game init failed:', err);
+      try { this.game.dispose(); } catch (e) {}
+      this.game = null;
       this.state = 'MENU';
       if (menuLayer) { menuLayer.style.display = 'flex'; menuLayer.style.opacity = '1'; }
       if (uiLayer) uiLayer.style.display = 'none';
@@ -498,7 +503,7 @@ export class MenuSystem {
     // Create and start game loop
     this.loop = new GameLoop({
       update: (dt) => {
-        this.physics.step(dt);
+        if (!this.game?.paused) this.physics.step(dt);
         this.game.update(dt);
       },
       render: () => {
@@ -650,6 +655,8 @@ export class MenuSystem {
       await this.game.init(modeConfig);
     } catch (err) {
       console.error('Game init failed:', err);
+      try { this.game.dispose(); } catch (e) {}
+      this.game = null;
       this.state = 'MENU';
       if (menuLayer) { menuLayer.style.display = 'flex'; menuLayer.style.opacity = '1'; }
       if (uiLayer) uiLayer.style.display = 'none';
@@ -668,7 +675,7 @@ export class MenuSystem {
     // Create and start game loop
     this.loop = new GameLoop({
       update: (dt) => {
-        if (!this.game || this.game.networkRole !== 'client') {
+        if ((!this.game || this.game.networkRole !== 'client') && !this.game?.paused) {
           this.physics.step(dt);
         }
         this.game.update(dt);
@@ -810,6 +817,10 @@ export class MenuSystem {
   async _returnToMenu() {
     if (this.state !== 'PLAYING') return;
     this.state = 'TRANSITION';
+
+    // Clear pending timeouts
+    if (this._delayTimer) { clearTimeout(this._delayTimer); this._delayTimer = null; }
+    if (this._replayCompleteTimeout) { clearTimeout(this._replayCompleteTimeout); this._replayCompleteTimeout = null; }
 
     // Stop game loop
     if (this.loop) {
