@@ -434,6 +434,7 @@ export class SettingsScreen {
     this._contentArea.classList.add('switching');
     this._switchTimer = setTimeout(() => {
       this._switchTimer = null;
+      if (!this.container) return; // defensive: destroyed while switching
       this._contentArea.innerHTML = '';
       this._contentArea.scrollTop = 0;
       const builder = `_build${id[0].toUpperCase() + id.slice(1)}Content`;
@@ -441,7 +442,7 @@ export class SettingsScreen {
         this[builder]();
       }
       requestAnimationFrame(() => {
-        this._contentArea.classList.remove('switching');
+        if (this._contentArea) this._contentArea.classList.remove('switching');
       });
     }, 120);
   }
@@ -903,7 +904,9 @@ export class SettingsScreen {
     this._sectionTitle('辅助功能');
     this._sectionSubtitle('可访问性与操作辅助');
 
-    this._rowDisabled('色盲模式', this._createDisabledValue(settings.get('colorBlindMode') === 'off' ? '关闭' : settings.get('colorBlindMode')), '色彩滤镜系统尚未实现');
+    const cbmVal = settings.get('colorBlindMode') || 'off';
+    const cbmLabel = COLOR_BLIND_MODE_OPTIONS.find(o => o.value === cbmVal)?.label || '关闭';
+    this._rowDisabled('色盲模式', this._createDisabledValue(cbmLabel), '色彩滤镜系统尚未实现');
     this._row('高对比度', this._createSwitch(settings.get('highContrastUI'), (v) => settings.set('highContrastUI', v)));
     this._row('大字体模式', this._createSwitch(settings.get('largeTextMode'), (v) => settings.set('largeTextMode', v)));
     this._rowSlider('界面透明度', Math.round(settings.get('hudOpacity') * 100), 30, 100, '%', (v) => settings.set('hudOpacity', v / 100));
@@ -1023,7 +1026,7 @@ export class SettingsScreen {
         this._toast(`已导入 ${count} 项配置`);
         this._syncAllControls();
         if (this._audioManager) this._audioManager.setMasterVolume(settings.get('masterVolume'));
-        importText.value = '';
+        // Note: importText is gone after _syncAllControls rebuilds the DOM, so no need to clear
       } catch (e) {
         this._toast('导入失败：JSON 格式错误或包含无效数据');
       }
@@ -2135,6 +2138,8 @@ export class SettingsScreen {
 
   destroy() {
     keyBindings.cancelListening();
+    if (this._switchTimer) { clearTimeout(this._switchTimer); this._switchTimer = null; }
+    if (this._showRaf) { cancelAnimationFrame(this._showRaf); this._showRaf = null; }
     this._listeners.forEach(({ el, type, fn }) => {
       el.removeEventListener(type, fn);
     });

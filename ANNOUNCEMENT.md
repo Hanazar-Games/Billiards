@@ -1,20 +1,35 @@
-# 3D Billiards v1.7.31 — Latest Update
+# 3D Billiards v1.7.32 — Latest Update
 
-## What's New in v1.7.31
+## What's New in v1.7.32
 
-### ⚙️ Settings Quality Audit — Honest UI Labels & Disabled Controls
+### 🔍 UI/UX/SFX/BGM 深度质量检查 & Bug 修复
 
 | # | 改动 | 详情 |
 |---|------|------|
-| 1 | **6 个未实现设置改为禁用状态** | `colorBlindMode`（色盲模式）、`aimSens`（瞄准响应速度）、`autoSaveReplays`（自动保存回放）、`replayMaxSaved`（最大回放数）、`showShotData`（显示击球数据）、`replaySpeed`（回放速度）此前以可交互控件呈现但无运行时消费者，现改为灰色禁用行并标注 `未实现` 徽章，避免误导用户 |
-| 2 | **3 个标签错误的禁用项修正** | `renderScale` 徽章从 `未实现` 改为 `需重启`（实际生效但需刷新页面）；`cameraFov` 徽章从 `未实现` 改为 `实时生效`（动态读取并已实现）；`vSync` 徽章从 `未实现` 改为 `暂不可用`（由浏览器控制） |
-| 3 | **`_rowDisabled` 支持自定义徽章** | 新增 `badgeText` 参数，使禁用行可以显示 `未实现`/`需重启`/`实时生效`/`暂不可用` 等多种状态 |
-| 4 | **新增 `_rowDisabledIn` 辅助方法** | 支持在可折叠分组（如 Controls → 击球与瞄准灵敏度）内部插入禁用行，保持布局一致性 |
-| 5 | **SETTINGS_AUDIT.md 全面更新** | 197 个设置键全部重新核对，准确标注消费者、UI 状态和生效时机；总有效设置 124 个、部分实现 2 个、 dormant 71 个 |
+| 1 | **SettingsScreen.destroy() 补全 2 处缺失清理** | 新增 `clearTimeout(this._switchTimer)` 和 `cancelAnimationFrame(this._showRaf)`，修复在类别切换动画或显示动画期间销毁设置面板时，异步回调访问已销毁 DOM 的竞态崩溃 |
+| 2 | **SettingsScreen._switchCategory 增加防御检查** | setTimeout 回调内增加 `if (!this.container) return` 保护，即使清理逻辑遗漏也能安全退出 |
+| 3 | **SettingsScreen 导入配置后 DOM 引用修复** | 移除无意义的 `importText.value = ''`（`_syncAllControls()` 已重建 DOM，旧引用指向已销毁元素） |
+| 4 | **SettingsScreen 色盲模式禁用值显示优化** | `colorBlindMode` 禁用文本从英文 raw value（如 "deuteranopia"）改为中文 label（如 "绿色盲"），通过 `COLOR_BLIND_MODE_OPTIONS` 查找映射 |
+| 5 | **MenuSystem.dispose() 补全 3 处缺失清理** | 新增 `cancelAnimationFrame(this._menuLoopId)`、`clearTimeout(this._replayCompleteTimeout)`、`clearTimeout(this._delayTimer)`，修复菜单系统销毁后残留 RAF/timer 导致的内存泄漏和空引用报错 |
+| 6 | **AudioManager 监听器移除选项修复** | `_removeResilienceListeners()` 中 `removeEventListener` 补充 `{ passive: true }` 选项，与添加时的选项严格匹配，避免旧版 Safari 等浏览器无法正确移除手势恢复监听器 |
+| 7 | **UI.showFloatingText 尊重 floatingTextEnabled 设置** | 添加 `settings.get('floatingTextEnabled') === false` 短路返回，使该 dormant 设置真正生效；默认 `true` 不影响现有行为 |
+| 8 | **CSS 类清理** | 脚本扫描确认 `panel-surface`、`table-minimap` 两个未使用 CSS 类已记录（无运行时影响，留待后续清理） |
 
 ---
 
 ## Historical Updates
+
+### v1.7.31 — Settings Quality Audit
+
+#### ⚙️ Honest UI Labels & Disabled Controls
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **6 个未实现设置改为禁用状态** | `colorBlindMode`、`aimSens`、`autoSaveReplays`、`replayMaxSaved`、`showShotData`、`replaySpeed` 改为灰色禁用行并标注 `未实现` 徽章 |
+| 2 | **3 个标签错误的禁用项修正** | `renderScale` → `需重启`；`cameraFov` → `实时生效`；`vSync` → `暂不可用` |
+| 3 | **`_rowDisabled` 支持自定义徽章** | 新增 `badgeText` 参数 |
+| 4 | **新增 `_rowDisabledIn` 辅助方法** | 支持可折叠分组内插入禁用行 |
+| 5 | **SETTINGS_AUDIT.md 全面更新** | 197 个设置键全部重新核对 |
 
 ### v1.7.30 — Security & Lifecycle Hardening
 

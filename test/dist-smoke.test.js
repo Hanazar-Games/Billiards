@@ -187,9 +187,9 @@ async function main() {
 
   const versionCorrect = await page.evaluate(() => {
     const el = document.getElementById('version-tag');
-    return el && el.textContent.includes('1.7.31');
+    return el && el.textContent.includes('1.7.32');
   });
-  record('Version tag matches 1.7.31', versionCorrect);
+  record('Version tag matches 1.7.32', versionCorrect);
 
   const no404s = !consoleErrors.slice(mark).some((e) => /404|Not Found|Cannot find module|Failed to load/.test(e.message));
   record('No asset 404 errors', no404s, no404s ? '' : consoleErrors.slice(mark).map((e) => e.message).join('; '));

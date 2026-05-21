@@ -469,6 +469,7 @@ export class UI {
   }
 
   showFloatingText(text, screenX, screenY, color = '#d8b15f') {
+    if (settings.get('floatingTextEnabled') === false) return;
     const uiLayer = document.getElementById('ui-layer');
     if (!uiLayer) return;
     if (!Number.isFinite(screenX) || !Number.isFinite(screenY)) return;

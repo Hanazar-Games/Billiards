@@ -1082,6 +1082,10 @@ export class MenuSystem {
       this.audio = null;
     }
 
+    if (this._menuLoopId !== null) { cancelAnimationFrame(this._menuLoopId); this._menuLoopId = null; }
+    if (this._replayCompleteTimeout) { clearTimeout(this._replayCompleteTimeout); this._replayCompleteTimeout = null; }
+    if (this._delayTimer) { clearTimeout(this._delayTimer); this._delayTimer = null; }
+    if (this._delayResolve) { this._delayResolve(); this._delayResolve = null; }
     this.mainMenu?.destroy();
     this.settingsScreen?.destroy();
     this.mainMenu = null;

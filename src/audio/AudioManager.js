@@ -128,10 +128,10 @@ export class AudioManager {
 
   _removeResilienceListeners() {
     if (this._gestureHandler) {
-      document.removeEventListener('click', this._gestureHandler);
-      document.removeEventListener('keydown', this._gestureHandler);
-      document.removeEventListener('touchstart', this._gestureHandler);
-      document.removeEventListener('pointerdown', this._gestureHandler);
+      document.removeEventListener('click', this._gestureHandler, { passive: true });
+      document.removeEventListener('keydown', this._gestureHandler, { passive: true });
+      document.removeEventListener('touchstart', this._gestureHandler, { passive: true });
+      document.removeEventListener('pointerdown', this._gestureHandler, { passive: true });
       this._gestureHandler = null;
     }
     if (this._visibilityHandler) {
