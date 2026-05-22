@@ -17,6 +17,7 @@ import { setTimeout as sleep } from 'timers/promises';
 import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { VERSION_TAG } from '../src/core/Version.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEBGL_MOCK_CODE = readFileSync(join(__dirname, 'webgl-mock.js'), 'utf-8');
@@ -185,11 +186,11 @@ async function main() {
   });
   record('UI layer hidden', uiHidden);
 
-  const versionCorrect = await page.evaluate(() => {
+  const versionCorrect = await page.evaluate((versionTag) => {
     const el = document.getElementById('version-tag');
-    return el && el.textContent.includes('1.7.33');
-  });
-  record('Version tag matches 1.7.33', versionCorrect);
+    return el && el.textContent.includes(versionTag);
+  }, VERSION_TAG);
+  record(`Version tag matches ${VERSION_TAG}`, versionCorrect);
 
   const no404s = !consoleErrors.slice(mark).some((e) => /404|Not Found|Cannot find module|Failed to load/.test(e.message));
   record('No asset 404 errors', no404s, no404s ? '' : consoleErrors.slice(mark).map((e) => e.message).join('; '));

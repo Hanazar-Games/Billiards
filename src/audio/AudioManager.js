@@ -41,6 +41,9 @@ export class AudioManager {
     this._gestureHandler = null;
     this._stateHandler = null;
     this._bgmWasPlaying = false;
+    this._pendingBGMStart = false;
+    this._lastUserGestureAt = 0;
+    this._gestureListenerOptions = { passive: true };
     this._masterVolume = 1.0;
     this._ambientVolume = 1.0;
     this._pendingDisconnects = new Set();
@@ -97,12 +100,20 @@ export class AudioManager {
   _installResilienceListeners() {
     if (!this.ctx) return;
 
-    // Pre-emptively resume on any user gesture
-    this._gestureHandler = () => this.resume();
-    document.addEventListener('click', this._gestureHandler, { passive: true });
-    document.addEventListener('keydown', this._gestureHandler, { passive: true });
-    document.addEventListener('touchstart', this._gestureHandler, { passive: true });
-    document.addEventListener('pointerdown', this._gestureHandler, { passive: true });
+    // Pre-emptively resume on any user gesture.  BGM start requests made
+    // before the first gesture are deferred so browsers do not spam autoplay
+    // warnings by attempting resume() from a non-gesture task.
+    this._gestureHandler = () => {
+      this._lastUserGestureAt = performance.now();
+      this.resume();
+      if (this._pendingBGMStart && this.soundEnabled) {
+        this.startBGM();
+      }
+    };
+    document.addEventListener('click', this._gestureHandler, this._gestureListenerOptions);
+    document.addEventListener('keydown', this._gestureHandler, this._gestureListenerOptions);
+    document.addEventListener('touchstart', this._gestureHandler, this._gestureListenerOptions);
+    document.addEventListener('pointerdown', this._gestureHandler, this._gestureListenerOptions);
 
     // Pause BGM when tab is hidden to save battery (respect muteWhenUnfocused)
     this._visibilityHandler = () => {
@@ -117,9 +128,10 @@ export class AudioManager {
     };
     document.addEventListener('visibilitychange', this._visibilityHandler);
 
-    // Auto-recover from browser-initiated suspension / interruption
+    // Auto-recover from browser-initiated suspension only when it follows a
+    // recent user gesture; otherwise wait for the next gesture listener.
     this._stateHandler = () => {
-      if (this.ctx && this.ctx.state === 'suspended') {
+      if (this.ctx && this.ctx.state === 'suspended' && this._hasRecentGesture()) {
         this.resume();
       }
     };
@@ -128,10 +140,10 @@ export class AudioManager {
 
   _removeResilienceListeners() {
     if (this._gestureHandler) {
-      document.removeEventListener('click', this._gestureHandler, { passive: true });
-      document.removeEventListener('keydown', this._gestureHandler, { passive: true });
-      document.removeEventListener('touchstart', this._gestureHandler, { passive: true });
-      document.removeEventListener('pointerdown', this._gestureHandler, { passive: true });
+      document.removeEventListener('click', this._gestureHandler, this._gestureListenerOptions);
+      document.removeEventListener('keydown', this._gestureHandler, this._gestureListenerOptions);
+      document.removeEventListener('touchstart', this._gestureHandler, this._gestureListenerOptions);
+      document.removeEventListener('pointerdown', this._gestureHandler, this._gestureListenerOptions);
       this._gestureHandler = null;
     }
     if (this._visibilityHandler) {
@@ -193,8 +205,18 @@ export class AudioManager {
     this._bgmGain.gain.setTargetAtTime(base * ambient, this.ctx.currentTime, 0.05);
   }
 
+  _hasRecentGesture() {
+    return performance.now() - this._lastUserGestureAt < 1200;
+  }
+
   startBGM() {
     if (!this.enabled || !this.ctx || this.ctx.state === 'closed' || this.bgmNodes.length > 0 || !this.soundEnabled) return;
+    if (this.ctx.state !== 'running' && !this._hasRecentGesture()) {
+      this._pendingBGMStart = true;
+      this._bgmWasPlaying = true;
+      return;
+    }
+    this._pendingBGMStart = false;
     this.resume();
 
     const t = this.ctx.currentTime;
@@ -258,6 +280,7 @@ export class AudioManager {
       try { if (node.disconnect) node.disconnect(); } catch (e) {}
     }
     this.bgmNodes = [];
+    this._pendingBGMStart = false;
     // When called from game entry (preserveFlag=false), reset the flag so
     // visibilitychange does not accidentally restart BGM while in-game.
     if (!preserveFlag) {
@@ -465,6 +488,8 @@ export class AudioManager {
     this.enabled = false;
     this.initialized = false;
     this._lastSfxTime.clear();
+    this._pendingBGMStart = false;
+    this._lastUserGestureAt = 0;
     for (const tid of this._pendingDisconnects) clearTimeout(tid);
     this._pendingDisconnects.clear();
   }

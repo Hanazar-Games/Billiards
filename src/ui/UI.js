@@ -822,6 +822,11 @@ export class UI {
     this._aiListeners = [];
 
     if (this._pushOutBtn && this._pushOutBtn.parentNode) {
+      this._pushOutBtn.onmouseenter = null;
+      this._pushOutBtn.onmouseleave = null;
+      this._pushOutBtn.onfocus = null;
+      this._pushOutBtn.onblur = null;
+      this._pushOutBtn.onclick = null;
       this._pushOutBtn.parentNode.removeChild(this._pushOutBtn);
     }
     this._pushOutBtn = null;
@@ -893,6 +898,8 @@ export class UI {
       this._pauseActions.forEach(btn => {
         btn.onmouseenter = null;
         btn.onmouseleave = null;
+        btn.onfocus = null;
+        btn.onblur = null;
         btn.onclick = null;
       });
       this._pauseActions = [];

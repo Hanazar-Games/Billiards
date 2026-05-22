@@ -1,6 +1,25 @@
-# 3D Billiards v1.7.33 — Latest Update
+# 3D Billiards v1.7.34 — Latest Update
 
-## What's New in v1.7.33
+## What's New in v1.7.34
+
+### 🔍 Deep UI/UX/SFX/BGM & Modelling QA Fixes
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **Room lounge modelling grouped under settings** | Armchairs, side tables, table lamps and rug are now grouped under `lounge` / `rug` theme groups and respect `decorativePropsEnabled`; disabling decorative props no longer leaves the new furniture visible. |
+| 2 | **Armchair floor contact and scale corrected** | Re-applied the intended v1.7.33 chair proportions: wider 36-unit seat/back, 6×28 armrests, 1.8-radius legs and `floorY + 9.5` placement with leg centers adjusted so chairs touch the floor instead of floating. |
+| 3 | **Table metal theme key mismatch fixed** | `gold` and `blackChrome` metal presets now expose `stretcherNickel`, matching `Table.js` consumers; leg stretcher metal accents now update correctly across all table themes. |
+| 4 | **Audio autoplay warning reduction** | BGM startup is now deferred until a real user gesture when the AudioContext is suspended; `statechange` auto-resume only fires after a recent gesture, reducing browser “AudioContext not allowed to start” warnings. |
+| 5 | **Audio listener cleanup hardened** | Gesture listener options are stored and reused for add/remove, making lifecycle cleanup more robust across browser implementations. |
+| 6 | **UI destroy cleanup completed** | `UI.destroy()` now also clears push-out button hover/focus handlers and pause overlay button `onfocus`/`onblur` handlers, closing the remaining detached-DOM closure paths. |
+| 7 | **Dist smoke test version check hardened** | `test/dist-smoke.test.js` now imports `VERSION_TAG` instead of hard-coding the version string, so future release bumps cannot break the production smoke test by stale text. |
+| 8 | **Version sync** | `package.json`, `package-lock.json`, `src/core/Version.js`, `index.html`, `README.md`, and rebuilt `dist/index.html` are synced to `v1.7.34`. |
+
+---
+
+## Historical Updates
+
+### v1.7.33 — Room Furniture Proportions & UI Memory Leak Fixes
 
 ### 🛋️ Room Furniture Proportions & UI Memory Leak Fixes
 
@@ -12,8 +31,6 @@
 | 4 | **UI.js `flashRed()` RAF tracking** | Added `_flashRaf` field; canceled before creating a new flash and in `destroy()`, preventing orphaned flash nodes on rapid successive calls. |
 
 ---
-
-## Historical Updates
 
 ### v1.7.32 — UI/UX/SFX/BGM Deep Audit
 

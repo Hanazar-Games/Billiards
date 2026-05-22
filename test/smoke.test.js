@@ -377,6 +377,19 @@ async function runRoomVisibilityTest() {
     // 7. Plaque group must exist (was previously never created)
     results.hasPlaque = !!room._themeGroups.plaque;
 
+    // 8. Lounge and rug must be real decorative groups, so the visual
+    // settings toggle can hide them instead of leaving stray furniture.
+    results.hasLoungeGroup = !!room._themeGroups.lounge && room._themeGroups.lounge.children.length > 0;
+    results.hasRugGroup = !!room._themeGroups.rug && room._themeGroups.rug.children.length > 0;
+
+    const getDecorOff = (key) => key === 'decorativePropsEnabled' ? false : undefined;
+    room.applyVisualSettings({ get: getDecorOff });
+    results.decorativeGroupsHidden = !room._themeGroups.lounge.visible && !room._themeGroups.rug.visible;
+
+    const getDecorOn = (key) => key === 'decorativePropsEnabled' ? true : undefined;
+    room.applyVisualSettings({ get: getDecorOn });
+    results.decorativeGroupsVisible = room._themeGroups.lounge.visible && room._themeGroups.rug.visible;
+
     return { ok: true, results };
   });
 
@@ -393,6 +406,10 @@ async function runRoomVisibilityTest() {
     record('Structure visible when camera below', r.structureVisibleBelow);
     record('Grid visible when camera below', r.gridVisibleBelow);
     record('Plaque group created', r.hasPlaque);
+    record('Lounge decorative group created', r.hasLoungeGroup);
+    record('Rug decorative group created', r.hasRugGroup);
+    record('Decorative groups hide with setting', r.decorativeGroupsHidden);
+    record('Decorative groups restore with setting', r.decorativeGroupsVisible);
   }
 
   const errors = recentErrorsSince(mark);

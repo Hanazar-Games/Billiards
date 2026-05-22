@@ -1163,8 +1163,9 @@ export class Room {
   // Lounge area: armchairs and side tables
   createLoungeArea() {
     const hw = ROOM.halfWidth;
-    const hd = ROOM.halfDepth;
     const floorY = -this.profile.height - 71;
+    this._themeGroups.lounge = new THREE.Group();
+    this.meshGroup.add(this._themeGroups.lounge);
 
     const chairMat = this._mat('chairFabric', {
       color: 0x4a3028, roughness: 0.82, metalness: 0.0,
@@ -1177,10 +1178,10 @@ export class Room {
     });
 
     // Two armchairs on each side wall
-    this._createArmchair(-hw + 18, floorY + 18, -140, Math.PI / 2, chairMat, woodMat);
-    this._createArmchair(-hw + 18, floorY + 18,  140, Math.PI / 2, chairMat, woodMat);
-    this._createArmchair( hw - 18, floorY + 18, -140, -Math.PI / 2, chairMat, woodMat);
-    this._createArmchair( hw - 18, floorY + 18,  140, -Math.PI / 2, chairMat, woodMat);
+    this._createArmchair(-hw + 18, floorY + 9.5, -140, Math.PI / 2, chairMat, woodMat);
+    this._createArmchair(-hw + 18, floorY + 9.5,  140, Math.PI / 2, chairMat, woodMat);
+    this._createArmchair( hw - 18, floorY + 9.5, -140, -Math.PI / 2, chairMat, woodMat);
+    this._createArmchair( hw - 18, floorY + 9.5,  140, -Math.PI / 2, chairMat, woodMat);
 
     // Side tables between chairs
     this._createSideTable(-hw + 18, floorY + 12, -60, tableMat);
@@ -1203,11 +1204,11 @@ export class Room {
       const shade = new THREE.Mesh(
         new THREE.CylinderGeometry(4, 5, 5, 16), lampMat);
       shade.position.set(lx, ly, lz);
-      this.meshGroup.add(shade);
+      this._themeGroups.lounge.add(shade);
 
       const bulb = new THREE.PointLight(0xffe8c0, 0.35, 60, 1.8);
       bulb.position.set(lx, ly - 1, lz);
-      this.meshGroup.add(bulb);
+      this._themeGroups.lounge.add(bulb);
     }
   }
 
@@ -1218,41 +1219,41 @@ export class Room {
 
     // Seat — wider, deeper, thicker cushion for a sofa-like comfort
     const seat = new THREE.Mesh(
-      new THREE.BoxGeometry(28, 6, 24), fabricMat);
+      new THREE.BoxGeometry(36, 7, 28), fabricMat);
     seat.position.y = 0;
     seat.castShadow = true;
     group.add(seat);
 
     // Backrest — lower, slightly reclined profile
     const back = new THREE.Mesh(
-      new THREE.BoxGeometry(28, 16, 5), fabricMat);
-    back.position.set(0, 9.5, -11);
+      new THREE.BoxGeometry(36, 22, 6), fabricMat);
+    back.position.set(0, 8.5, -13);
     back.castShadow = true;
     group.add(back);
 
     // Armrests — wider, lower, deeper
     const armL = new THREE.Mesh(
-      new THREE.BoxGeometry(5, 8, 20), woodMat);
-    armL.position.set(-13.5, 4, 0);
+      new THREE.BoxGeometry(6, 10, 28), woodMat);
+    armL.position.set(-18, 2.5, 0);
     armL.castShadow = true;
     group.add(armL);
 
     const armR = new THREE.Mesh(
-      new THREE.BoxGeometry(5, 8, 20), woodMat);
-    armR.position.set(13.5, 4, 0);
+      new THREE.BoxGeometry(6, 10, 28), woodMat);
+    armR.position.set(18, 2.5, 0);
     armR.castShadow = true;
     group.add(armR);
 
     // Legs — slightly stouter, shorter
-    const legGeo = new THREE.CylinderGeometry(1.4, 1.0, 7, 8);
-    for (const [lx, lz] of [[-11, -10], [11, -10], [-11, 10], [11, 10]]) {
+    const legGeo = new THREE.CylinderGeometry(1.8, 1.3, 10, 8);
+    for (const [lx, lz] of [[-14, -11], [14, -11], [-14, 11], [14, 11]]) {
       const leg = new THREE.Mesh(legGeo, woodMat);
-      leg.position.set(lx, -6.5, lz);
+      leg.position.set(lx, -4.5, lz);
       leg.castShadow = true;
       group.add(leg);
     }
 
-    this.meshGroup.add(group);
+    (this._themeGroups.lounge || this.meshGroup).add(group);
   }
 
   _createSideTable(x, y, z, tableMat) {
@@ -1280,11 +1281,14 @@ export class Room {
     base.castShadow = true;
     group.add(base);
 
-    this.meshGroup.add(group);
+    (this._themeGroups.lounge || this.meshGroup).add(group);
   }
 
   // Large area rug under the table
   createRug() {
+    this._themeGroups.rug = new THREE.Group();
+    this.meshGroup.add(this._themeGroups.rug);
+
     const rugMat = this._mat('rug', {
       color: 0x2a1810, roughness: 0.95, metalness: 0.0,
     });
@@ -1292,7 +1296,7 @@ export class Room {
       new THREE.BoxGeometry(this.profile.width + 120, 1.2, this.profile.depth + 160), rugMat);
     rug.position.set(0, -this.profile.height - 70.4, 0);
     rug.receiveShadow = true;
-    this.meshGroup.add(rug);
+    this._themeGroups.rug.add(rug);
 
     // Rug border (slightly larger, thinner)
     const borderMat = this._mat('rugBorder', {
@@ -1304,7 +1308,7 @@ export class Room {
       new THREE.BoxGeometry(borderW, 0.8, borderD), borderMat);
     border.position.set(0, -this.profile.height - 70.6, 0);
     border.receiveShadow = true;
-    this.meshGroup.add(border);
+    this._themeGroups.rug.add(border);
   }
 
   applyVisualSettings(settings) {
@@ -1394,6 +1398,12 @@ export class Room {
     }
     if (this._themeGroups.floorLines) {
       this._themeGroups.floorLines.visible = settings.get('decorativePropsEnabled') !== false;
+    }
+    if (this._themeGroups.lounge) {
+      this._themeGroups.lounge.visible = settings.get('decorativePropsEnabled') !== false;
+    }
+    if (this._themeGroups.rug) {
+      this._themeGroups.rug.visible = settings.get('decorativePropsEnabled') !== false;
     }
     if (this._themeGroups.wallDetails) {
       this._themeGroups.wallDetails.visible = settings.get('wallDecorEnabled') !== false;
