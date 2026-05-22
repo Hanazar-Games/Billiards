@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Billiards v1.7.30</title>
+  <title>3D Billiards v1.7.32</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0d0e'/%3E%3Ccircle cx='32' cy='32' r='22' fill='%23f7f7f2'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%23111111'/%3E%3Ctext x='32' y='38' text-anchor='middle' font-family='Arial,sans-serif' font-size='15' font-weight='700' fill='%23ffffff'%3E8%3C/text%3E%3C/svg%3E" />
   <style>
     :root {
@@ -342,11 +342,92 @@
       from { opacity: 0; transform: translateY(10px) scale(0.985); }
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
+
+    /* ── Reduced motion support ── */
+    .reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+    .reduce-motion .menu-title { animation: none !important; }
+    .reduce-motion #turn-timer.warning,
+    .reduce-motion #turn-timer.danger { animation: none !important; }
+
+    /* ── Focus visibility for keyboard navigation ── */
+    *:focus-visible {
+      outline: 2px solid rgba(216, 177, 95, 0.65);
+      outline-offset: 2px;
+    }
+    button:focus-visible, select:focus-visible, input:focus-visible {
+      outline: 2px solid rgba(216, 177, 95, 0.75);
+      outline-offset: 2px;
+    }
+    .menu-btn:focus-visible {
+      background: rgba(20,26,30,0.86);
+      border-color: rgba(216,177,95,0.55);
+      box-shadow: 0 0 0 3px rgba(216,177,95,0.2), inset 3px 0 0 rgba(216,177,95,0.74);
+      transform: translateY(-1px);
+    }
+    .menu-btn:active { transform: translateY(0) scale(0.99); }
+    .hud-btn:focus-visible {
+      background: rgba(255,255,255,0.14);
+      color: #fff;
+      border-color: rgba(255,255,255,0.35);
+      transform: translateY(-1px);
+    }
+
+    /* ── HUD element transitions ── */
+    .hud-name {
+      transition: color calc(0.25s / var(--ui-anim-speed)) ease,
+                  text-shadow calc(0.25s / var(--ui-anim-speed)) ease;
+    }
+    .hud-detail {
+      transition: opacity calc(0.2s / var(--ui-anim-speed)) ease;
+    }
+    #power-bar-fill {
+      transition: width calc(0.1s / var(--ui-anim-speed)) ease-out;
+    }
+    .hud-spin {
+      transition: color calc(0.25s / var(--ui-anim-speed)) ease,
+                  opacity calc(0.2s / var(--ui-anim-speed)) ease;
+    }
+    .hud-objective {
+      transition: opacity calc(0.2s / var(--ui-anim-speed)) ease;
+    }
+    .hud-score {
+      transition: opacity calc(0.2s / var(--ui-anim-speed)) ease;
+    }
+
+    /* ── Settings content transition ── */
+    .settings-content-wrap {
+      transition: opacity calc(0.2s / var(--ui-anim-speed)) ease;
+    }
+    .settings-content-wrap.switching {
+      opacity: 0.35;
+    }
+
     @media (max-width: 760px) {
       #ui-layer { padding: 12px; }
       #top-bar {
         grid-template-columns: 1fr 1fr;
         gap: 10px;
+      }
+      /* Settings panel mobile adaptation */
+      #settings-screen > div {
+        width: min(860px, 96vw) !important;
+        height: min(620px, 92vh) !important;
+        border-radius: 16px !important;
+      }
+      #settings-screen > div > div:nth-child(2) > div:first-child {
+        width: 56px !important;
+        padding: 12px 6px !important;
+      }
+      #settings-screen > div > div:nth-child(2) > div:first-child span {
+        display: none !important;
+      }
+      .settings-content-wrap {
+        padding: 18px 16px 28px !important;
       }
       #message {
         grid-column: 1 / -1;
@@ -644,7 +725,7 @@
       to   { opacity: 1; transform: translateY(0) scale(1); }
     }
   </style>
-  <script type="module" crossorigin src="./assets/index-Ci9VL1xF.js"></script>
+  <script type="module" crossorigin src="./assets/index-DOB_0U_x.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/three-DnSId66O.js">
   <link rel="modulepreload" crossorigin href="./assets/physics-DAiIzLkS.js">
 </head>
@@ -684,7 +765,7 @@
       <div id="power-bar-fill"></div>
     </div>
     <div id="turn-timer">--</div>
-    <div id="version-tag">v1.7.30</div>
+    <div id="version-tag">v1.7.32</div>
   </div>
 
   <!-- Diagnostic overlay for JS errors -->
