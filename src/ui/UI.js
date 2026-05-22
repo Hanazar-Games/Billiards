@@ -14,8 +14,13 @@ export class UI {
     this._messageId = 0;
     this._aiListeners = [];
     this._flashTimer = null;
+    this._flashInnerTimer = null;
+    this._flashRaf = null;
     this._pauseHideTimer = null;
+    this._pauseShowRaf = null;
     this._floatTimers = [];
+    this._turnPulseRaf = null;
+    this._turnPulseTimer = null;
     this._lastTimerSec = null;
     this._lastTurnTimerSec = null;
     this._lastTurnTimerWarn = 'none';
@@ -124,6 +129,9 @@ export class UI {
     this.pauseBtn.onmouseleave = () => _setPauseHover(false);
     this.pauseBtn.onfocus = () => _setPauseHover(true);
     this.pauseBtn.onblur = () => _setPauseHover(false);
+    this.pauseBtn.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.pauseBtn.click(); }
+    };
     if (uiLayer) uiLayer.appendChild(this.pauseBtn);
 
     // ── Pause overlay ──
@@ -357,9 +365,13 @@ export class UI {
     // Subtle scale pulse on turn change for clearer feedback
     const activeBadge = player === 1 ? this.player1Badge : this.player2Badge;
     if (activeBadge && !document.documentElement.classList.contains('reduce-motion')) {
+      if (this._turnPulseRaf) { cancelAnimationFrame(this._turnPulseRaf); this._turnPulseRaf = null; }
+      if (this._turnPulseTimer) { clearTimeout(this._turnPulseTimer); this._turnPulseTimer = null; }
       activeBadge.style.transform = 'scale(1.03)';
-      requestAnimationFrame(() => {
-        setTimeout(() => {
+      this._turnPulseRaf = requestAnimationFrame(() => {
+        this._turnPulseRaf = null;
+        this._turnPulseTimer = setTimeout(() => {
+          this._turnPulseTimer = null;
           if (activeBadge) activeBadge.style.transform = '';
         }, 180);
       });
@@ -402,6 +414,8 @@ export class UI {
     this._pauseActions.forEach(btn => {
       btn.onmouseenter = null;
       btn.onmouseleave = null;
+      btn.onfocus = null;
+      btn.onblur = null;
       btn.onclick = null;
       btn.remove();
     });
@@ -457,7 +471,11 @@ export class UI {
       opacity: 0; transition: opacity ${reduced ? '0.01ms' : 'calc(0.25s / var(--ui-anim-speed))'} ease;
     `;
     uiLayer.appendChild(flash);
-    requestAnimationFrame(() => { if (flash) flash.style.opacity = '1'; });
+    if (this._flashRaf) { cancelAnimationFrame(this._flashRaf); this._flashRaf = null; }
+    this._flashRaf = requestAnimationFrame(() => {
+      this._flashRaf = null;
+      if (flash) flash.style.opacity = '1';
+    });
     this._flashTimer = setTimeout(() => {
       if (flash) flash.style.opacity = '0';
       this._flashInnerTimer = setTimeout(() => {
@@ -781,6 +799,7 @@ export class UI {
       this._comboEl.parentNode.removeChild(this._comboEl);
     }
     this._comboEl = null;
+    if (this._flashRaf) { cancelAnimationFrame(this._flashRaf); this._flashRaf = null; }
     if (this._flashTimer) {
       clearTimeout(this._flashTimer);
       this._flashTimer = null;
@@ -789,6 +808,8 @@ export class UI {
       clearTimeout(this._flashInnerTimer);
       this._flashInnerTimer = null;
     }
+    if (this._turnPulseRaf) { cancelAnimationFrame(this._turnPulseRaf); this._turnPulseRaf = null; }
+    if (this._turnPulseTimer) { clearTimeout(this._turnPulseTimer); this._turnPulseTimer = null; }
     this._floatTimers.forEach(t => clearTimeout(t));
     this._floatTimers = [];
     const flash = document.getElementById('ui-red-flash');
@@ -808,8 +829,22 @@ export class UI {
       this._pushOutChoiceWrap.parentNode.removeChild(this._pushOutChoiceWrap);
     }
     this._pushOutChoiceWrap = null;
-    this._pushOutAcceptBtn = null;
-    this._pushOutPassBtn = null;
+    if (this._pushOutAcceptBtn) {
+      this._pushOutAcceptBtn.onmouseenter = null;
+      this._pushOutAcceptBtn.onmouseleave = null;
+      this._pushOutAcceptBtn.onfocus = null;
+      this._pushOutAcceptBtn.onblur = null;
+      this._pushOutAcceptBtn.onclick = null;
+      this._pushOutAcceptBtn = null;
+    }
+    if (this._pushOutPassBtn) {
+      this._pushOutPassBtn.onmouseenter = null;
+      this._pushOutPassBtn.onmouseleave = null;
+      this._pushOutPassBtn.onfocus = null;
+      this._pushOutPassBtn.onblur = null;
+      this._pushOutPassBtn.onclick = null;
+      this._pushOutPassBtn = null;
+    }
     if (this._threeFoulBadge && this._threeFoulBadge.parentNode) {
       this._threeFoulBadge.parentNode.removeChild(this._threeFoulBadge);
     }
@@ -848,6 +883,9 @@ export class UI {
     if (this.pauseBtn) {
       this.pauseBtn.onmouseenter = null;
       this.pauseBtn.onmouseleave = null;
+      this.pauseBtn.onfocus = null;
+      this.pauseBtn.onblur = null;
+      this.pauseBtn.onkeydown = null;
       this.pauseBtn.onclick = null;
       if (this.pauseBtn.parentNode) this.pauseBtn.parentNode.removeChild(this.pauseBtn);
     }

@@ -1216,36 +1216,36 @@ export class Room {
     group.position.set(x, y, z);
     group.rotation.y = rotY;
 
-    // Seat
+    // Seat — wider, deeper, thicker cushion for a sofa-like comfort
     const seat = new THREE.Mesh(
-      new THREE.BoxGeometry(22, 5, 22), fabricMat);
+      new THREE.BoxGeometry(28, 6, 24), fabricMat);
     seat.position.y = 0;
     seat.castShadow = true;
     group.add(seat);
 
-    // Backrest
+    // Backrest — lower, slightly reclined profile
     const back = new THREE.Mesh(
-      new THREE.BoxGeometry(22, 22, 4), fabricMat);
-    back.position.set(0, 11, -10);
+      new THREE.BoxGeometry(28, 16, 5), fabricMat);
+    back.position.set(0, 9.5, -11);
     back.castShadow = true;
     group.add(back);
 
-    // Armrests
+    // Armrests — wider, lower, deeper
     const armL = new THREE.Mesh(
-      new THREE.BoxGeometry(4, 10, 18), woodMat);
-    armL.position.set(-11, 5, 0);
+      new THREE.BoxGeometry(5, 8, 20), woodMat);
+    armL.position.set(-13.5, 4, 0);
     armL.castShadow = true;
     group.add(armL);
 
     const armR = new THREE.Mesh(
-      new THREE.BoxGeometry(4, 10, 18), woodMat);
-    armR.position.set(11, 5, 0);
+      new THREE.BoxGeometry(5, 8, 20), woodMat);
+    armR.position.set(13.5, 4, 0);
     armR.castShadow = true;
     group.add(armR);
 
-    // Legs
-    const legGeo = new THREE.CylinderGeometry(1.2, 0.8, 8, 8);
-    for (const [lx, lz] of [[-9, -9], [9, -9], [-9, 9], [9, 9]]) {
+    // Legs — slightly stouter, shorter
+    const legGeo = new THREE.CylinderGeometry(1.4, 1.0, 7, 8);
+    for (const [lx, lz] of [[-11, -10], [11, -10], [-11, 10], [11, 10]]) {
       const leg = new THREE.Mesh(legGeo, woodMat);
       leg.position.set(lx, -6.5, lz);
       leg.castShadow = true;

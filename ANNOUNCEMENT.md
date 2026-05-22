@@ -1,8 +1,23 @@
-# 3D Billiards v1.7.32 — Latest Update
+# 3D Billiards v1.7.33 — Latest Update
 
-## What's New in v1.7.32
+## What's New in v1.7.33
 
-### 🔍 UI/UX/SFX/BGM 深度质量检查 & Bug 修复
+### 🛋️ Room Furniture Proportions & UI Memory Leak Fixes
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **Armchair proportions enlarged** | Seat 22→36, backrest 22→36, armrests 4→6 wide / 18→28 deep, legs 1.2→1.8 radius / 8→10 height, group positioned at `floorY + 9.5` (was `floorY + 18`) to eliminate 7.5-unit floating gap. Chairs now properly touch the floor and scale better against the pool table (254×127). |
+| 2 | **UI.js `destroy()` pause button focus/blur cleanup** | `pauseBtn` and all pause overlay buttons now nullify `onfocus`/`onblur` handlers, preventing detached DOM nodes retaining closure references after game exit. |
+| 3 | **UI.js `setPlayerTurn()` RAF + timeout tracking** | Added `_turnRaf` and `_turnTimeout` fields; both canceled in `destroy()`, preventing detached badge DOM retention after UI teardown. |
+| 4 | **UI.js `flashRed()` RAF tracking** | Added `_flashRaf` field; canceled before creating a new flash and in `destroy()`, preventing orphaned flash nodes on rapid successive calls. |
+
+---
+
+## Historical Updates
+
+### v1.7.32 — UI/UX/SFX/BGM Deep Audit
+
+#### 🔍 UI/UX/SFX/BGM 深度质量检查 & Bug 修复
 
 | # | 改动 | 详情 |
 |---|------|------|
@@ -14,10 +29,6 @@
 | 6 | **AudioManager 监听器移除选项修复** | `_removeResilienceListeners()` 中 `removeEventListener` 补充 `{ passive: true }` 选项，与添加时的选项严格匹配，避免旧版 Safari 等浏览器无法正确移除手势恢复监听器 |
 | 7 | **UI.showFloatingText 尊重 floatingTextEnabled 设置** | 添加 `settings.get('floatingTextEnabled') === false` 短路返回，使该 dormant 设置真正生效；默认 `true` 不影响现有行为 |
 | 8 | **CSS 类清理** | 脚本扫描确认 `panel-surface`、`table-minimap` 两个未使用 CSS 类已记录（无运行时影响，留待后续清理） |
-
----
-
-## Historical Updates
 
 ### v1.7.31 — Settings Quality Audit
 
