@@ -34,6 +34,9 @@ export class Room {
     this.createLoungeArea();
     this.createRug();
     this.createPaintings();
+    this.createCueRack();
+    this.createWallSconces();
+    this.createTableAccessories();
 
     // Optional architectural detail systems
     this.createWallDetails();
@@ -53,8 +56,8 @@ export class Room {
 
   // ── Floor ──
   createFloor() {
-    const width = this.profile.width * 4.2;
-    const depth = this.profile.depth * 4.2;
+    const width = ROOM.halfWidth * 2;
+    const depth = ROOM.halfDepth * 2;
     const geometry = new THREE.PlaneGeometry(width, depth);
     const material = this._mat('floor', {
       color: 0xe0d5c0,
@@ -131,7 +134,7 @@ export class Room {
     });
 
     // Baseboard — runs along bottom of all four walls
-    const bbH = 4.5;
+    const bbH = 7.0;
     const bbD = 2.2;
     const baseboards = [
       [0, floorY + bbH / 2, -hd + wallThick / 2 + bbD / 2, hw * 2, bbH, bbD],
@@ -403,8 +406,8 @@ export class Room {
   }
 
   _createPosterTexture(text) {
-    const W = 256;
-    const H = 360;
+    const W = 512;
+    const H = 720;
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
@@ -416,24 +419,24 @@ export class Room {
 
     // Subtle border
     ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(10, 10, W - 20, H - 20);
+    ctx.lineWidth = 8;
+    ctx.strokeRect(20, 20, W - 40, H - 40);
 
     // Title text
     ctx.fillStyle = '#d4af37';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const lines = text.split('\\n');
-    const lineH = 52;
+    const lineH = 104;
     const startY = H / 2 - (lines.length - 1) * lineH / 2;
-    ctx.font = 'bold 36px "Arial", sans-serif';
+    ctx.font = 'bold 72px "Arial", sans-serif';
     for (let i = 0; i < lines.length; i++) {
       ctx.fillText(lines[i], W / 2, startY + i * lineH);
     }
 
     // Decorative stripe
     ctx.fillStyle = 'rgba(212, 175, 55, 0.2)';
-    ctx.fillRect(30, H - 70, W - 60, 4);
+    ctx.fillRect(60, H - 140, W - 120, 8);
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -496,15 +499,37 @@ export class Room {
       this._themeGroups.ceilingGrid.add(line);
     }
 
-    // Recessed ceiling downlights
+    // Recessed ceiling downlights (fixture geometry + light)
     this._themeLights.downlights = [];
+    this._themeGroups.downlightFixtures = new THREE.Group();
+    this.meshGroup.add(this._themeGroups.downlightFixtures);
+
     const downLightPositions = [
       [-120, -240], [0, -240], [120, -240],
       [-120, -80],  [0, -80],  [120, -80],
       [-120, 80],   [0, 80],   [120, 80],
       [-120, 240],  [0, 240],  [120, 240],
     ];
+    const canMat = this._mat('downlightCan', {
+      color: 0xf0ece0, roughness: 0.45, metalness: 0.35,
+    });
+    const baffleMat = this._mat('downlightBaffle', {
+      color: 0xdddddd, roughness: 0.55, metalness: 0.25,
+    });
     for (const [x, z] of downLightPositions) {
+      // Physical can (recessed into ceiling)
+      const can = new THREE.Mesh(
+        new THREE.CylinderGeometry(5, 5, 2.5, 16), canMat);
+      can.position.set(x, ROOM.wallHeight - 1.25, z);
+      can.rotation.x = Math.PI;
+      this._themeGroups.downlightFixtures.add(can);
+      // Inner baffle ring
+      const baffle = new THREE.Mesh(
+        new THREE.CylinderGeometry(3.5, 4.2, 1.2, 16, 1, true), baffleMat);
+      baffle.position.set(x, ROOM.wallHeight - 2.2, z);
+      baffle.rotation.x = Math.PI;
+      this._themeGroups.downlightFixtures.add(baffle);
+      // Light
       const pl = new THREE.PointLight(0xfff5e0, 0.28, 280, 1.6);
       pl.position.set(x, ROOM.wallHeight - 2, z);
       this.meshGroup.add(pl);
@@ -691,148 +716,269 @@ export class Room {
   }
 
   _createLandscapeTexture(w, h, sceneType = 'mountain') {
-    const W = 512;
+    const W = 1024; // higher resolution for richer detail
     const H = Math.round(W * (h / w));
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
     const ctx = canvas.getContext('2d');
 
-    // Sky gradients per scene type
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+    // ── Sky gradients per scene type (more color stops for smoother transition) ──
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.55);
     if (sceneType === 'sunset') {
-      skyGrad.addColorStop(0, '#4a3a5a');
-      skyGrad.addColorStop(0.3, '#8a5a50');
-      skyGrad.addColorStop(0.6, '#c49060');
+      skyGrad.addColorStop(0, '#2a1a3a');
+      skyGrad.addColorStop(0.15, '#4a2a4a');
+      skyGrad.addColorStop(0.35, '#8a4a50');
+      skyGrad.addColorStop(0.55, '#c07055');
+      skyGrad.addColorStop(0.75, '#d8a070');
       skyGrad.addColorStop(1, '#e8c8a0');
     } else if (sceneType === 'lake') {
-      skyGrad.addColorStop(0, '#7a9ab0');
-      skyGrad.addColorStop(0.4, '#a0c0d0');
+      skyGrad.addColorStop(0, '#5a7a90');
+      skyGrad.addColorStop(0.2, '#7a9ab0');
+      skyGrad.addColorStop(0.45, '#a0c0d0');
       skyGrad.addColorStop(0.7, '#c8d8e0');
       skyGrad.addColorStop(1, '#e0e8e8');
     } else if (sceneType === 'forest') {
-      skyGrad.addColorStop(0, '#6a8a70');
-      skyGrad.addColorStop(0.5, '#9ab8a0');
+      skyGrad.addColorStop(0, '#4a6a50');
+      skyGrad.addColorStop(0.25, '#6a8a70');
+      skyGrad.addColorStop(0.5, '#8aaa90');
+      skyGrad.addColorStop(0.75, '#b0c8b0');
       skyGrad.addColorStop(1, '#c8d8c0');
     } else {
       // mountain
-      skyGrad.addColorStop(0, '#8aa0b8');
-      skyGrad.addColorStop(0.3, '#b0c8d8');
-      skyGrad.addColorStop(0.7, '#d0dce8');
-      skyGrad.addColorStop(1, '#e8e8e0');
+      skyGrad.addColorStop(0, '#6a8098');
+      skyGrad.addColorStop(0.2, '#8aa0b8');
+      skyGrad.addColorStop(0.4, '#a8c0d0');
+      skyGrad.addColorStop(0.65, '#c8d8e4');
+      skyGrad.addColorStop(1, '#e4e8e0');
     }
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, W, H);
 
-    // Clouds
-    ctx.filter = 'blur(8px)';
-    for (let i = 0; i < 6; i++) {
-      const cx = Math.random() * W;
-      const cy = Math.random() * H * 0.35;
-      const cr = 20 + Math.random() * 40;
-      ctx.beginPath();
-      ctx.arc(cx, cy, cr, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255,255,255,${0.15 + Math.random() * 0.2})`;
-      ctx.fill();
-    }
-    ctx.filter = 'none';
-
-    // Sun / moon
-    const sunX = sceneType === 'sunset' ? W * 0.75 : W * 0.2;
-    const sunY = H * 0.15;
-    const sunR = sceneType === 'sunset' ? 18 : 14;
-    ctx.beginPath();
-    ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
-    ctx.fillStyle = sceneType === 'sunset' ? 'rgba(255,200,120,0.7)' : 'rgba(255,250,220,0.5)';
-    ctx.fill();
-
-    // Distant mountains (layer 1)
-    ctx.fillStyle = sceneType === 'sunset' ? '#6a5a6a' : '#8a9aaa';
-    ctx.beginPath();
-    ctx.moveTo(0, H * 0.45);
-    for (let i = 0; i <= 8; i++) {
-      const px = (i / 8) * W;
-      const py = H * (0.35 + Math.sin(i * 1.3 + 0.5) * 0.08);
-      ctx.lineTo(px, py);
-    }
-    ctx.lineTo(W, H);
-    ctx.lineTo(0, H);
-    ctx.fill();
-
-    // Mid mountains (layer 2)
-    ctx.fillStyle = sceneType === 'sunset' ? '#5a4a52' : '#6a7a88';
-    ctx.beginPath();
-    ctx.moveTo(0, H * 0.6);
-    for (let i = 0; i <= 10; i++) {
-      const px = (i / 10) * W;
-      const py = H * (0.48 + Math.sin(i * 1.7 + 1.0) * 0.1 + Math.cos(i * 2.3) * 0.05);
-      ctx.lineTo(px, py);
-    }
-    ctx.lineTo(W, H);
-    ctx.lineTo(0, H);
-    ctx.fill();
-
-    // Near hills / trees (layer 3)
-    ctx.fillStyle = sceneType === 'forest' ? '#3a5a3a' : sceneType === 'sunset' ? '#4a3a40' : '#4a5a52';
-    ctx.beginPath();
-    ctx.moveTo(0, H * 0.75);
-    for (let i = 0; i <= 12; i++) {
-      const px = (i / 12) * W;
-      const py = H * (0.62 + Math.sin(i * 2.1 + 2.0) * 0.08 + Math.cos(i * 1.5) * 0.06);
-      ctx.lineTo(px, py);
-    }
-    ctx.lineTo(W, H);
-    ctx.lineTo(0, H);
-    ctx.fill();
-
-    // Lake reflection (for lake scene)
-    if (sceneType === 'lake') {
-      ctx.fillStyle = 'rgba(120, 150, 170, 0.4)';
-      ctx.fillRect(0, H * 0.72, W, H * 0.18);
-      // Reflection shimmer
-      for (let i = 0; i < 30; i++) {
-        const rx = Math.random() * W;
-        const ry = H * (0.74 + Math.random() * 0.14);
-        ctx.fillStyle = `rgba(200,220,235,${0.1 + Math.random() * 0.2})`;
-        ctx.fillRect(rx, ry, 8 + Math.random() * 20, 1);
-      }
-    }
-
-    // Forest tree silhouettes
-    if (sceneType === 'forest') {
-      ctx.fillStyle = '#2a4028';
-      for (let i = 0; i < 18; i++) {
-        const tx = Math.random() * W;
-        const tw = 6 + Math.random() * 10;
-        const th = 15 + Math.random() * 30;
+    // ── Stars (subtle, for sunset and mountain scenes) ──
+    if (sceneType !== 'forest') {
+      for (let i = 0; i < 40; i++) {
+        const sx = Math.random() * W;
+        const sy = Math.random() * H * 0.25;
+        const sr = Math.random() * 1.2;
         ctx.beginPath();
-        ctx.moveTo(tx - tw / 2, H * 0.82);
-        ctx.lineTo(tx, H * 0.82 - th);
-        ctx.lineTo(tx + tw / 2, H * 0.82);
+        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,240,${0.15 + Math.random() * 0.25})`;
         ctx.fill();
       }
     }
 
-    // Mist overlay
-    const mist = ctx.createLinearGradient(0, H * 0.4, 0, H * 0.8);
+    // ── Clouds — layered, multiple sizes, softer blur ──
+    ctx.filter = 'blur(12px)';
+    for (let layer = 0; layer < 3; layer++) {
+      const count = 5 + layer * 3;
+      const alphaBase = 0.08 + (2 - layer) * 0.04;
+      for (let i = 0; i < count; i++) {
+        const cx = Math.random() * W;
+        const cy = Math.random() * H * (0.18 + layer * 0.08);
+        const cr = 25 + Math.random() * (50 + layer * 20);
+        ctx.beginPath();
+        ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${alphaBase + Math.random() * 0.06})`;
+        ctx.fill();
+        // Slightly offset second arc for cloud puffiness
+        ctx.beginPath();
+        ctx.arc(cx + cr * 0.4, cy - cr * 0.15, cr * 0.7, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${alphaBase * 0.7})`;
+        ctx.fill();
+      }
+    }
+    ctx.filter = 'none';
+
+    // ── Sun / moon with glow halo ──
+    const sunX = sceneType === 'sunset' ? W * 0.72 : W * 0.22;
+    const sunY = H * 0.14;
+    const sunR = sceneType === 'sunset' ? 28 : 20;
+    // Outer glow
+    const glow = ctx.createRadialGradient(sunX, sunY, sunR * 0.4, sunX, sunY, sunR * 3.5);
+    glow.addColorStop(0, sceneType === 'sunset' ? 'rgba(255,160,80,0.45)' : 'rgba(255,245,200,0.35)');
+    glow.addColorStop(0.5, sceneType === 'sunset' ? 'rgba(255,120,60,0.15)' : 'rgba(255,230,180,0.12)');
+    glow.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunR * 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    // Core
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+    ctx.fillStyle = sceneType === 'sunset' ? 'rgba(255,210,140,0.9)' : 'rgba(255,250,220,0.75)';
+    ctx.fill();
+
+    // ── Layer 1: Far distant mountains (faint, atmospheric) ──
+    ctx.fillStyle = sceneType === 'sunset' ? '#7a6a7a' : sceneType === 'lake' ? '#8aa0b0' : '#9aabb8';
+    ctx.beginPath();
+    ctx.moveTo(0, H * 0.42);
+    for (let i = 0; i <= 16; i++) {
+      const px = (i / 16) * W;
+      const py = H * (0.32 + Math.sin(i * 0.9 + 1.2) * 0.06 + Math.cos(i * 1.4) * 0.04);
+      ctx.lineTo(px, py);
+    }
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.fill();
+
+    // ── Layer 2: Distant mountain range ──
+    ctx.fillStyle = sceneType === 'sunset' ? '#6a5a6a' : sceneType === 'lake' ? '#7a90a0' : '#8a9aaa';
+    ctx.beginPath();
+    ctx.moveTo(0, H * 0.48);
+    for (let i = 0; i <= 14; i++) {
+      const px = (i / 14) * W;
+      const py = H * (0.38 + Math.sin(i * 1.2 + 0.8) * 0.07 + Math.cos(i * 1.9) * 0.05);
+      ctx.lineTo(px, py);
+    }
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.fill();
+
+    // ── Layer 3: Mid-ground hills / mountains ──
+    ctx.fillStyle = sceneType === 'sunset' ? '#5a4a52' : sceneType === 'lake' ? '#6a8090' : '#6a7a88';
+    ctx.beginPath();
+    ctx.moveTo(0, H * 0.58);
+    for (let i = 0; i <= 18; i++) {
+      const px = (i / 18) * W;
+      const py = H * (0.46 + Math.sin(i * 1.5 + 1.5) * 0.09 + Math.cos(i * 2.2) * 0.06 + Math.sin(i * 3.1) * 0.03);
+      ctx.lineTo(px, py);
+    }
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.fill();
+
+    // ── Layer 4: Foreground rolling hills ──
+    ctx.fillStyle = sceneType === 'forest' ? '#3a5a3a' : sceneType === 'sunset' ? '#4a3a40' : '#4a5a52';
+    ctx.beginPath();
+    ctx.moveTo(0, H * 0.72);
+    for (let i = 0; i <= 20; i++) {
+      const px = (i / 20) * W;
+      const py = H * (0.58 + Math.sin(i * 1.8 + 2.5) * 0.08 + Math.cos(i * 2.7) * 0.05 + Math.sin(i * 4.3) * 0.04);
+      ctx.lineTo(px, py);
+    }
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.fill();
+
+    // ── Layer 5: Very near dark silhouette (trees/rocks) ──
+    ctx.fillStyle = sceneType === 'forest' ? '#1e3018' : sceneType === 'sunset' ? '#2a1e22' : '#2a3230';
+    ctx.beginPath();
+    ctx.moveTo(0, H * 0.82);
+    for (let i = 0; i <= 24; i++) {
+      const px = (i / 24) * W;
+      const base = H * (0.72 + Math.sin(i * 2.4 + 3.0) * 0.04);
+      const py = base - Math.abs(Math.sin(i * 3.7)) * H * 0.06;
+      ctx.lineTo(px, py);
+    }
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.fill();
+
+    // ── Lake reflection (for lake scene) ──
+    if (sceneType === 'lake') {
+      // Water surface gradient
+      const waterGrad = ctx.createLinearGradient(0, H * 0.68, 0, H * 0.92);
+      waterGrad.addColorStop(0, 'rgba(100, 130, 150, 0.35)');
+      waterGrad.addColorStop(0.5, 'rgba(120, 150, 170, 0.5)');
+      waterGrad.addColorStop(1, 'rgba(140, 170, 190, 0.25)');
+      ctx.fillStyle = waterGrad;
+      ctx.fillRect(0, H * 0.68, W, H * 0.24);
+      // Reflection shimmer lines
+      for (let i = 0; i < 80; i++) {
+        const rx = Math.random() * W;
+        const ry = H * (0.70 + Math.random() * 0.20);
+        const rw = 6 + Math.random() * 30;
+        ctx.fillStyle = `rgba(200,220,235,${0.08 + Math.random() * 0.18})`;
+        ctx.fillRect(rx, ry, rw, 1 + Math.random() * 2);
+      }
+      // Distant ripples
+      ctx.strokeStyle = 'rgba(180, 200, 210, 0.15)';
+      ctx.lineWidth = 0.8;
+      for (let i = 0; i < 12; i++) {
+        const cx = Math.random() * W;
+        const cy = H * (0.72 + Math.random() * 0.16);
+        const cr = 10 + Math.random() * 25;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, cr, cr * 0.25, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    // ── Forest tree silhouettes (detailed, varied) ──
+    if (sceneType === 'forest') {
+      ctx.fillStyle = '#1e3018';
+      for (let i = 0; i < 28; i++) {
+        const tx = Math.random() * W;
+        const tw = 5 + Math.random() * 12;
+        const th = 18 + Math.random() * 40;
+        // Pine tree shape
+        ctx.beginPath();
+        ctx.moveTo(tx - tw / 2, H * 0.85);
+        ctx.lineTo(tx, H * 0.85 - th);
+        ctx.lineTo(tx + tw / 2, H * 0.85);
+        ctx.fill();
+        // Second tier
+        ctx.beginPath();
+        ctx.moveTo(tx - tw * 0.35, H * 0.85 - th * 0.35);
+        ctx.lineTo(tx, H * 0.85 - th * 1.15);
+        ctx.lineTo(tx + tw * 0.35, H * 0.85 - th * 0.35);
+        ctx.fill();
+      }
+    }
+
+    // ── Mountain snow caps ──
+    if (sceneType === 'mountain') {
+      ctx.fillStyle = 'rgba(230, 240, 250, 0.55)';
+      for (let i = 0; i <= 14; i++) {
+        const px = (i / 14) * W;
+        const peakY = H * (0.38 + Math.sin(i * 1.2 + 0.8) * 0.07);
+        const capH = Math.max(0, Math.sin(i * 1.2 + 0.8)) * H * 0.035;
+        if (capH > 2) {
+          ctx.beginPath();
+          ctx.moveTo(px - 12, peakY + capH);
+          ctx.lineTo(px, peakY);
+          ctx.lineTo(px + 12, peakY + capH);
+          ctx.fill();
+        }
+      }
+    }
+
+    // ── Mist / atmospheric haze overlay ──
+    const mist = ctx.createLinearGradient(0, H * 0.35, 0, H * 0.85);
     mist.addColorStop(0, 'rgba(255,255,255,0)');
-    mist.addColorStop(0.5, 'rgba(255,255,255,0.15)');
+    mist.addColorStop(0.3, 'rgba(255,255,255,0.08)');
+    mist.addColorStop(0.6, 'rgba(255,255,255,0.18)');
     mist.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = mist;
-    ctx.fillRect(0, H * 0.4, W, H * 0.4);
+    ctx.fillRect(0, H * 0.35, W, H * 0.5);
 
-    // Birds
-    ctx.strokeStyle = 'rgba(40,40,40,0.35)';
-    ctx.lineWidth = 1.2;
-    for (let i = 0; i < 5; i++) {
-      const bx = W * (0.2 + Math.random() * 0.5);
-      const by = H * (0.15 + Math.random() * 0.15);
-      ctx.beginPath();
-      ctx.moveTo(bx - 5, by);
-      ctx.quadraticCurveTo(bx - 2, by - 3, bx, by);
-      ctx.quadraticCurveTo(bx + 2, by - 3, bx + 5, by);
-      ctx.stroke();
+    // ── Flocks of birds (more numerous, varied formations) ──
+    ctx.strokeStyle = sceneType === 'sunset' ? 'rgba(60,40,40,0.4)' : 'rgba(40,45,55,0.35)';
+    ctx.lineWidth = 1.0;
+    for (let flock = 0; flock < 4; flock++) {
+      const fx = W * (0.15 + Math.random() * 0.55);
+      const fy = H * (0.12 + Math.random() * 0.18);
+      for (let i = 0; i < 3 + Math.floor(Math.random() * 4); i++) {
+        const bx = fx + i * (8 + Math.random() * 6);
+        const by = fy + Math.sin(i * 0.8) * 4;
+        ctx.beginPath();
+        ctx.moveTo(bx - 4, by);
+        ctx.quadraticCurveTo(bx - 1.5, by - 2.5, bx, by);
+        ctx.quadraticCurveTo(bx + 1.5, by - 2.5, bx + 4, by);
+        ctx.stroke();
+      }
     }
+
+    // ── Oil-painting texture overlay (subtle canvas grain) ──
+    ctx.globalCompositeOperation = 'overlay';
+    for (let i = 0; i < 600; i++) {
+      const gx = Math.random() * W;
+      const gy = Math.random() * H;
+      ctx.fillStyle = `rgba(${120 + Math.random() * 80},${120 + Math.random() * 80},${110 + Math.random() * 90},0.04)`;
+      ctx.fillRect(gx, gy, 1 + Math.random() * 2, 1 + Math.random() * 2);
+    }
+    ctx.globalCompositeOperation = 'source-over';
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -1145,7 +1291,7 @@ export class Room {
 
     const group = new THREE.Group();
     group.position.set(0, 105, ROOM.halfDepth - 5);
-    group.rotation.y = Math.PI;
+    group.rotation.y = 0;
 
     const board = new THREE.Mesh(
       new THREE.BoxGeometry(boardW, boardH, boardD),
@@ -1299,17 +1445,19 @@ export class Room {
       color: 0x3a2820, roughness: 0.45, metalness: 0.15,
     });
 
-    // Two armchairs on each side wall (scaled to match table proportions)
-    this._createArmchair(-hw + 35, floorY + 36, -140, Math.PI / 2, chairMat, woodMat);
-    this._createArmchair(-hw + 35, floorY + 36,  140, Math.PI / 2, chairMat, woodMat);
-    this._createArmchair( hw - 35, floorY + 36, -140, -Math.PI / 2, chairMat, woodMat);
-    this._createArmchair( hw - 35, floorY + 36,  140, -Math.PI / 2, chairMat, woodMat);
+    const LS = 1.38; // lounge furniture unified scale
 
-    // Side tables between chairs
-    this._createSideTable(-hw + 35, floorY + 9, -60, tableMat);
-    this._createSideTable(-hw + 35, floorY + 9,  60, tableMat);
-    this._createSideTable( hw - 35, floorY + 9, -60, tableMat);
-    this._createSideTable( hw - 35, floorY + 9,  60, tableMat);
+    // Two armchairs on each side wall (scaled to match table proportions)
+    this._createArmchair(-hw + 56, floorY + 44, -145, Math.PI / 2, chairMat, woodMat, LS);
+    this._createArmchair(-hw + 56, floorY + 44,  145, Math.PI / 2, chairMat, woodMat, LS);
+    this._createArmchair( hw - 56, floorY + 44, -145, -Math.PI / 2, chairMat, woodMat, LS);
+    this._createArmchair( hw - 56, floorY + 44,  145, -Math.PI / 2, chairMat, woodMat, LS);
+
+    // Side tables between chairs (y set so base rests on floor)
+    this._createSideTable(-hw + 56, floorY + 10 * LS, -72, tableMat, LS);
+    this._createSideTable(-hw + 56, floorY + 10 * LS,  72, tableMat, LS);
+    this._createSideTable( hw - 56, floorY + 10 * LS, -72, tableMat, LS);
+    this._createSideTable( hw - 56, floorY + 10 * LS,  72, tableMat, LS);
 
     // Table lamp on each side table (base + stem + bell shade)
     const lampMat = this._mat('tableLamp', {
@@ -1319,25 +1467,26 @@ export class Room {
     const lampMetalMat = this._mat('lampMetal', {
       color: 0x8a7a68, roughness: 0.3, metalness: 0.7,
     });
-    const tableTopY = floorY + 22; // side-table top surface
+    // Side-table top surface (group.y + top.y + top half-height)
+    const tableTopY = floorY + 38 * LS; // ≈ floorY + 52
     const lampPositions = [
-      [-hw + 35, tableTopY, -60],
-      [-hw + 35, tableTopY,  60],
-      [ hw - 35, tableTopY, -60],
-      [ hw - 35, tableTopY,  60],
+      [-hw + 56, tableTopY, -72],
+      [-hw + 56, tableTopY,  72],
+      [ hw - 56, tableTopY, -72],
+      [ hw - 56, tableTopY,  72],
     ];
     for (const [lx, ly, lz] of lampPositions) {
       // Circular base
       const base = new THREE.Mesh(
-        new THREE.CylinderGeometry(5, 5.5, 1.5, 20), lampMetalMat);
-      base.position.set(lx, ly + 0.75, lz);
+        new THREE.CylinderGeometry(5 * LS, 5.5 * LS, 1.5 * LS, 20), lampMetalMat);
+      base.position.set(lx, ly + 0.75 * LS, lz);
       base.castShadow = true;
       this._themeGroups.lounge.add(base);
 
       // Stem
       const stem = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.7, 0.9, 14, 12), lampMetalMat);
-      stem.position.set(lx, ly + 8, lz);
+        new THREE.CylinderGeometry(0.7 * LS, 0.9 * LS, 14 * LS, 12), lampMetalMat);
+      stem.position.set(lx, ly + 8 * LS, lz);
       stem.castShadow = true;
       this._themeGroups.lounge.add(stem);
 
@@ -1345,13 +1494,13 @@ export class Room {
       const shadeProfile = [];
       for (let i = 0; i <= 14; i++) {
         const t = i / 14;
-        const r = 3.5 + Math.sin(t * Math.PI) * 5.0 + t * 2.0;
-        const y = t * 9.0;
+        const r = 3.5 * LS + Math.sin(t * Math.PI) * 5.0 * LS + t * 2.0 * LS;
+        const y = t * 9.0 * LS;
         shadeProfile.push(new THREE.Vector2(r, y));
       }
       const shadeGeo = new THREE.LatheGeometry(shadeProfile, 28);
       const shade = new THREE.Mesh(shadeGeo, lampMat);
-      shade.position.set(lx, ly + 13, lz);
+      shade.position.set(lx, ly + 13 * LS, lz);
       this._themeGroups.lounge.add(shade);
 
       // Inner bulb
@@ -1360,85 +1509,417 @@ export class Room {
         roughness: 0.1, metalness: 0.0,
       });
       const bulb = new THREE.Mesh(
-        new THREE.SphereGeometry(2.2, 12, 12), bulbMat);
-      bulb.position.set(lx, ly + 12, lz);
+        new THREE.SphereGeometry(2.2 * LS, 12, 12), bulbMat);
+      bulb.position.set(lx, ly + 12 * LS, lz);
       this._themeGroups.lounge.add(bulb);
 
       // Warm point light
-      const light = new THREE.PointLight(0xffe8c0, 0.4, 65, 1.7);
-      light.position.set(lx, ly + 11, lz);
+      const light = new THREE.PointLight(0xffe8c0, 0.4, 65 * LS, 1.7);
+      light.position.set(lx, ly + 11 * LS, lz);
       this._themeGroups.lounge.add(light);
     }
   }
 
-  _createArmchair(x, y, z, rotY, fabricMat, woodMat) {
+  // ── Cue rack with cues — classic floor-standing rack near the back wall ──
+  createCueRack() {
+    const hw = ROOM.halfWidth;
+    const hd = ROOM.halfDepth;
+    const floorY = -this.profile.height - 71;
+    const group = new THREE.Group();
+    group.position.set(hw * 0.55, floorY, -hd + 30);
+    group.rotation.y = Math.PI;
+    this.meshGroup.add(group);
+
+    const rackWood = this._mat('rackWood', {
+      color: 0x3d2817, roughness: 0.55, metalness: 0.08,
+    });
+    const rackDark = this._mat('rackDark', {
+      color: 0x2a1a0e, roughness: 0.60, metalness: 0.05,
+    });
+
+    const S = 1.38;
+
+    // Two vertical posts
+    const postGeo = new THREE.BoxGeometry(4 * S, 110 * S, 4 * S);
+    const postL = new THREE.Mesh(postGeo, rackWood);
+    postL.position.set(-18 * S, 55 * S, 0);
+    postL.castShadow = true;
+    group.add(postL);
+    const postR = new THREE.Mesh(postGeo, rackWood);
+    postR.position.set(18 * S, 55 * S, 0);
+    postR.castShadow = true;
+    group.add(postR);
+
+    // Bottom base plate
+    const baseGeo = new THREE.BoxGeometry(44 * S, 4 * S, 14 * S);
+    const base = new THREE.Mesh(baseGeo, rackWood);
+    base.position.set(0, 2 * S, 2 * S);
+    base.castShadow = true;
+    group.add(base);
+
+    // Top crossbar
+    const topGeo = new THREE.BoxGeometry(44 * S, 5 * S, 5 * S);
+    const topBar = new THREE.Mesh(topGeo, rackWood);
+    topBar.position.set(0, 108 * S, 1 * S);
+    topBar.castShadow = true;
+    group.add(topBar);
+
+    // Middle shelf
+    const shelfGeo = new THREE.BoxGeometry(40 * S, 3 * S, 10 * S);
+    const shelf = new THREE.Mesh(shelfGeo, rackDark);
+    shelf.position.set(0, 35 * S, 2 * S);
+    shelf.castShadow = true;
+    group.add(shelf);
+
+    // Top V-grooves (6 slots for cues)
+    for (let i = 0; i < 6; i++) {
+      const t = (i - 2.5) / 2.5; // -1.0 .. 1.0
+      const gx = t * 15 * S;
+      const vGeo = new THREE.BoxGeometry(3 * S, 3 * S, 4 * S);
+      const vBlock = new THREE.Mesh(vGeo, rackDark);
+      vBlock.position.set(gx, 106.5 * S, 1 * S);
+      group.add(vBlock);
+    }
+
+    // ── Cues ──
+    const cueShaftMat = this._mat('cueShaft', {
+      color: 0xd4a574, roughness: 0.35, metalness: 0.0,
+    });
+    const cueWrapMat = this._mat('cueWrap', {
+      color: 0x1a1a1a, roughness: 0.70, metalness: 0.0,
+    });
+    const cueTipMat = this._mat('cueTip', {
+      color: 0x3a2510, roughness: 0.90, metalness: 0.0,
+    });
+    const cueFerruleMat = this._mat('cueFerrule', {
+      color: 0xdddddd, roughness: 0.15, metalness: 0.6,
+    });
+
+    const cueColors = [
+      0xd4a574, 0xc49464, 0xe0b080, 0xb08050, 0xcc9a6a, 0xa07040,
+    ];
+
+    for (let i = 0; i < 6; i++) {
+      const t = (i - 2.5) / 2.5;
+      const cx = t * 15 * S;
+      const leanAngle = 0.08 + Math.abs(t) * 0.04; // slight lean outward
+      const leanDir = t >= 0 ? 1 : -1;
+
+      const cueGroup = new THREE.Group();
+      cueGroup.position.set(cx, 0, 4 * S);
+      cueGroup.rotation.z = leanAngle * leanDir;
+      cueGroup.rotation.x = -0.03;
+      group.add(cueGroup);
+
+      // Shaft (tapered cylinder)
+      const shaftLen = 92 * S;
+      const shaftGeo = new THREE.CylinderGeometry(0.55 * S, 0.85 * S, shaftLen, 10);
+      const shaftMat = this._mat(`cueShaft${i}`, {
+        color: cueColors[i], roughness: 0.35, metalness: 0.0,
+      });
+      const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+      shaft.position.y = shaftLen / 2 + 35 * S;
+      shaft.castShadow = true;
+      cueGroup.add(shaft);
+
+      // Wrap (butt grip)
+      const wrapLen = 22 * S;
+      const wrapGeo = new THREE.CylinderGeometry(0.9 * S, 1.0 * S, wrapLen, 10);
+      const wrap = new THREE.Mesh(wrapGeo, cueWrapMat);
+      wrap.position.y = wrapLen / 2 + 35 * S;
+      wrap.castShadow = true;
+      cueGroup.add(wrap);
+
+      // Butt cap
+      const buttGeo = new THREE.CylinderGeometry(1.0 * S, 1.1 * S, 2 * S, 10);
+      const butt = new THREE.Mesh(buttGeo, cueWrapMat);
+      butt.position.y = 1 * S + 35 * S;
+      cueGroup.add(butt);
+
+      // Ferrule (white ring near tip)
+      const ferruleGeo = new THREE.CylinderGeometry(0.50 * S, 0.55 * S, 1.5 * S, 10);
+      const ferrule = new THREE.Mesh(ferruleGeo, cueFerruleMat);
+      ferrule.position.y = shaftLen + 35 * S + 0.75 * S;
+      cueGroup.add(ferrule);
+
+      // Tip (leather)
+      const tipGeo = new THREE.CylinderGeometry(0.45 * S, 0.50 * S, 1.2 * S, 10);
+      const tip = new THREE.Mesh(tipGeo, cueTipMat);
+      tip.position.y = shaftLen + 35 * S + 1.5 * S + 0.6 * S;
+      cueGroup.add(tip);
+    }
+
+    // Triangle rack hanging on the side of the rack
+    this._createTriangleRack(group, -26 * S, 48 * S, 3 * S, S);
+  }
+
+  // Small helper to build a plastic triangle rack
+  _createTriangleRack(parentGroup, x, y, z, S = 1.38) {
+    const rackMat = this._mat('triangleRack', {
+      color:0xcc8855, roughness: 0.4, metalness: 0.05, transparent: true, opacity: 0.92,
+    });
+    const triGroup = new THREE.Group();
+    triGroup.position.set(x, y, z);
+    triGroup.rotation.x = -0.15;
+    parentGroup.add(triGroup);
+
+    // Three edges of the triangle (thin boxes)
+    const edgeW = 1.2 * S;
+    const edgeH = 2.2 * S;
+    const sideLen = 14 * S;
+    const height = sideLen * Math.sqrt(3) / 2;
+
+    const edgeMat = rackMat;
+
+    // Bottom edge
+    const e1 = new THREE.Mesh(new THREE.BoxGeometry(sideLen, edgeH, edgeW), edgeMat);
+    e1.position.set(0, -height / 3, 0);
+    e1.castShadow = true;
+    triGroup.add(e1);
+
+    // Left edge
+    const e2 = new THREE.Mesh(new THREE.BoxGeometry(sideLen, edgeH, edgeW), edgeMat);
+    e2.position.set(-sideLen / 4, height / 6, 0);
+    e2.rotation.z = Math.PI / 3;
+    e2.castShadow = true;
+    triGroup.add(e2);
+
+    // Right edge
+    const e3 = new THREE.Mesh(new THREE.BoxGeometry(sideLen, edgeH, edgeW), edgeMat);
+    e3.position.set(sideLen / 4, height / 6, 0);
+    e3.rotation.z = -Math.PI / 3;
+    e3.castShadow = true;
+    triGroup.add(e3);
+  }
+
+  // ── Wall sconces — brass fixtures on front and back walls ──
+  createWallSconces() {
+    const hw = ROOM.halfWidth;
+    const hd = ROOM.halfDepth;
+    const wallH = 260;
+    const group = new THREE.Group();
+    this.meshGroup.add(group);
+
+    const brassMat = this._mat('sconceBrass', {
+      color: 0xb8965a, roughness: 0.25, metalness: 0.85,
+    });
+    const glassMat = this._mat('sconceGlass', {
+      color: 0xfff8e0, emissive: 0xffe8b0, emissiveIntensity: 0.5,
+      roughness: 0.15, metalness: 0.0, transparent: true, opacity: 0.75,
+    });
+    const bulbMat = this._mat('sconceBulb', {
+      color: 0xffffee, emissive: 0xffe8aa, emissiveIntensity: 2.0,
+      roughness: 0.1, metalness: 0.0,
+    });
+
+    const S = 1.38;
+    const positions = [
+      { x: -hw + 2, y: wallH * 0.55, z: -hd * 0.6, ry: Math.PI / 2 },
+      { x: -hw + 2, y: wallH * 0.55, z:  hd * 0.6, ry: Math.PI / 2 },
+      { x:  hw - 2, y: wallH * 0.55, z: -hd * 0.6, ry: -Math.PI / 2 },
+      { x:  hw - 2, y: wallH * 0.55, z:  hd * 0.6, ry: -Math.PI / 2 },
+    ];
+
+    for (const pos of positions) {
+      const sg = new THREE.Group();
+      sg.position.set(pos.x, pos.y, pos.z);
+      sg.rotation.y = pos.ry;
+      group.add(sg);
+
+      // Wall mount plate
+      const plate = new THREE.Mesh(
+        new THREE.CylinderGeometry(5 * S, 5 * S, 1.5 * S, 16),
+        brassMat);
+      plate.rotation.x = Math.PI / 2;
+      plate.position.z = 0.75 * S;
+      plate.castShadow = true;
+      sg.add(plate);
+
+      // Arm (curved upward)
+      const armGeo = new THREE.TorusGeometry(6 * S, 0.8 * S, 8, 16, Math.PI);
+      const arm = new THREE.Mesh(armGeo, brassMat);
+      arm.position.set(0, 3 * S, 4 * S);
+      arm.rotation.y = Math.PI / 2;
+      arm.castShadow = true;
+      sg.add(arm);
+
+      // Holder cup
+      const cup = new THREE.Mesh(
+        new THREE.CylinderGeometry(4.5 * S, 3.5 * S, 4 * S, 14, 1, true),
+        brassMat);
+      cup.position.set(0, 8 * S, 8 * S);
+      cup.castShadow = true;
+      sg.add(cup);
+
+      // Glass shade (slightly larger, open bottom)
+      const shade = new THREE.Mesh(
+        new THREE.SphereGeometry(5 * S, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.65),
+        glassMat);
+      shade.position.set(0, 9 * S, 8 * S);
+      sg.add(shade);
+
+      // Bulb
+      const bulb = new THREE.Mesh(
+        new THREE.SphereGeometry(2.2 * S, 10, 10),
+        bulbMat);
+      bulb.position.set(0, 8.5 * S, 8 * S);
+      sg.add(bulb);
+
+      // Warm wall-wash light
+      const light = new THREE.PointLight(0xffe0b0, 0.35, 80 * S, 1.8);
+      light.position.set(0, 7 * S, 10 * S);
+      sg.add(light);
+    }
+  }
+
+  // ── Table accessories — chalk, drink glass, etc. on side tables ──
+  createTableAccessories() {
+    const hw = ROOM.halfWidth;
+    const floorY = -this.profile.height - 71;
+    const S = 1.38;
+    const tableTopY = floorY + 38 * S; // matches _createSideTable top surface
+
+    const chalkMat = this._mat('chalk', {
+      color: 0x0066cc, roughness: 0.85, metalness: 0.0,
+    });
+    const glassMat = this._mat('drinkGlass', {
+      color: 0xffffff, roughness: 0.05, metalness: 0.0,
+      transparent: true, opacity: 0.35,
+    });
+    const liquidMat = this._mat('drinkLiquid', {
+      color: 0xcc6633, roughness: 0.1, metalness: 0.0,
+      transparent: true, opacity: 0.75,
+    });
+    const coasterMat = this._mat('coaster', {
+      color: 0x5c4030, roughness: 0.80, metalness: 0.0,
+    });
+
+    const positions = [
+      { x: -hw + 56, z: -72 },
+      { x: -hw + 56, z:  72 },
+      { x:  hw - 56, z: -72 },
+      { x:  hw - 56, z:  72 },
+    ];
+
+    for (let idx = 0; idx < positions.length; idx++) {
+      const { x, z } = positions[idx];
+      // Offset each table slightly so items don't overlap with lamp centre
+      const offX = (x < 0 ? 4 : -4) * S;
+      const offZ = (idx < 2 ? 3 : -3) * S;
+
+      const tg = new THREE.Group();
+      tg.position.set(x + offX, tableTopY, z + offZ);
+      this.meshGroup.add(tg);
+
+      // ── Chalk cube ──
+      const chalk = new THREE.Mesh(
+        new THREE.BoxGeometry(2.8 * S, 2.2 * S, 2.8 * S),
+        chalkMat);
+      chalk.position.set(-3 * S, 1.1 * S, -2 * S);
+      chalk.rotation.y = 0.3;
+      chalk.castShadow = true;
+      tg.add(chalk);
+
+      // ── Coaster + drink glass ──
+      const coaster = new THREE.Mesh(
+        new THREE.CylinderGeometry(5 * S, 5 * S, 0.6 * S, 16),
+        coasterMat);
+      coaster.position.set(2 * S, 0.3 * S, 1.5 * S);
+      coaster.castShadow = true;
+      tg.add(coaster);
+
+      // Glass
+      const glass = new THREE.Mesh(
+        new THREE.CylinderGeometry(3.5 * S, 3.2 * S, 8 * S, 14, 1, true),
+        glassMat);
+      glass.position.set(2 * S, 4.3 * S, 1.5 * S);
+      glass.castShadow = true;
+      tg.add(glass);
+
+      // Liquid inside
+      const liquid = new THREE.Mesh(
+        new THREE.CylinderGeometry(3.0 * S, 2.9 * S, 5 * S, 14),
+        liquidMat);
+      liquid.position.set(2 * S, 3.0 * S, 1.5 * S);
+      tg.add(liquid);
+
+      // Glass bottom
+      const glassBot = new THREE.Mesh(
+        new THREE.CylinderGeometry(3.2 * S, 3.2 * S, 0.4 * S, 14),
+        glassMat);
+      glassBot.position.set(2 * S, 0.6 * S, 1.5 * S);
+      tg.add(glassBot);
+    }
+  }
+
+  _createArmchair(x, y, z, rotY, fabricMat, woodMat, S = 1.38) {
     const group = new THREE.Group();
     group.position.set(x, y, z);
     group.rotation.y = rotY;
 
     // ── Seat cushion (soft top layer) ──
     const seat = new THREE.Mesh(
-      new THREE.BoxGeometry(70, 8, 55), fabricMat);
-    seat.position.y = 1;
+      new THREE.BoxGeometry(70 * S, 8 * S, 55 * S), fabricMat);
+    seat.position.y = 1 * S;
     seat.castShadow = true;
     group.add(seat);
 
     // Seat base (firmer lower layer, slightly inset for overhang look)
     const seatBase = new THREE.Mesh(
-      new THREE.BoxGeometry(66, 4, 51), fabricMat);
-    seatBase.position.y = -3.5;
+      new THREE.BoxGeometry(66 * S, 4 * S, 51 * S), fabricMat);
+    seatBase.position.y = -3.5 * S;
     seatBase.castShadow = true;
     group.add(seatBase);
 
     // ── Backrest — gently reclined with rounded top ──
     const back = new THREE.Mesh(
-      new THREE.BoxGeometry(66, 36, 5), fabricMat);
-    back.position.set(0, 13, -26.5);
+      new THREE.BoxGeometry(66 * S, 36 * S, 5 * S), fabricMat);
+    back.position.set(0, 13 * S, -26.5 * S);
     back.rotation.x = -0.06;
     back.castShadow = true;
     group.add(back);
 
     // Backrest top roll (cylinder half gives a plush rounded edge)
-    const backTopGeo = new THREE.CylinderGeometry(4, 4, 66, 14, 1, false, 0, Math.PI);
+    const backTopGeo = new THREE.CylinderGeometry(4 * S, 4 * S, 66 * S, 14, 1, false, 0, Math.PI);
     const backTop = new THREE.Mesh(backTopGeo, fabricMat);
     backTop.rotation.z = Math.PI / 2;
     backTop.rotation.x = -0.06;
-    backTop.position.set(0, 31.5, -26.5);
+    backTop.position.set(0, 31.5 * S, -26.5 * S);
     backTop.castShadow = true;
     group.add(backTop);
 
     // ── Armrests — padded tops on wooden supports ──
     const armPadL = new THREE.Mesh(
-      new THREE.BoxGeometry(8, 3, 50), fabricMat);
-    armPadL.position.set(-34, 8, 0);
+      new THREE.BoxGeometry(8 * S, 3 * S, 50 * S), fabricMat);
+    armPadL.position.set(-34 * S, 8 * S, 0);
     armPadL.castShadow = true;
     group.add(armPadL);
 
     const armSupportL = new THREE.Mesh(
-      new THREE.BoxGeometry(5, 11, 48), woodMat);
-    armSupportL.position.set(-34, 1.5, 0);
+      new THREE.BoxGeometry(5 * S, 11 * S, 48 * S), woodMat);
+    armSupportL.position.set(-34 * S, 1.5 * S, 0);
     armSupportL.castShadow = true;
     group.add(armSupportL);
 
     const armPadR = new THREE.Mesh(
-      new THREE.BoxGeometry(8, 3, 50), fabricMat);
-    armPadR.position.set(34, 8, 0);
+      new THREE.BoxGeometry(8 * S, 3 * S, 50 * S), fabricMat);
+    armPadR.position.set(34 * S, 8 * S, 0);
     armPadR.castShadow = true;
     group.add(armPadR);
 
     const armSupportR = new THREE.Mesh(
-      new THREE.BoxGeometry(5, 11, 48), woodMat);
-    armSupportR.position.set(34, 1.5, 0);
+      new THREE.BoxGeometry(5 * S, 11 * S, 48 * S), woodMat);
+    armSupportR.position.set(34 * S, 1.5 * S, 0);
     armSupportR.castShadow = true;
     group.add(armSupportR);
 
     // ── Legs — turned wood style with decorative ball feet ──
-    const legH = 28;
-    const legGeo = new THREE.CylinderGeometry(2.5, 1.8, legH, 8);
-    const footGeo = new THREE.SphereGeometry(2.8, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-    const legY = -(8 / 2 + legH / 2) - 0.5; // seat bottom ~ -3, leg center
+    const legH = 28 * S;
+    const legGeo = new THREE.CylinderGeometry(2.5 * S, 1.8 * S, legH, 8);
+    const footGeo = new THREE.SphereGeometry(2.8 * S, 10, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
+    const legY = -(5.5 * S + legH / 2);
 
-    for (const [lx, lz] of [[-28, -20], [28, -20], [-28, 20], [28, 20]]) {
+    for (const [lx, lz] of [[-28 * S, -20 * S], [28 * S, -20 * S], [-28 * S, 20 * S], [28 * S, 20 * S]]) {
       const leg = new THREE.Mesh(legGeo, woodMat);
       leg.position.set(lx, legY, lz);
       leg.castShadow = true;
@@ -1453,28 +1934,28 @@ export class Room {
     (this._themeGroups.lounge || this.meshGroup).add(group);
   }
 
-  _createSideTable(x, y, z, tableMat) {
+  _createSideTable(x, y, z, tableMat, S = 1.38) {
     const group = new THREE.Group();
     group.position.set(x, y, z);
 
     // Table top
     const top = new THREE.Mesh(
-      new THREE.CylinderGeometry(18, 18, 2, 24), tableMat);
-    top.position.y = 12;
+      new THREE.CylinderGeometry(18 * S, 18 * S, 2 * S, 24), tableMat);
+    top.position.y = 27 * S;
     top.castShadow = true;
     group.add(top);
 
-    // Stem
+    // Stem — tall enough to reach from base to top
     const stem = new THREE.Mesh(
-      new THREE.CylinderGeometry(2.5, 3.0, 18, 12), tableMat);
-    stem.position.y = 2;
+      new THREE.CylinderGeometry(2.5 * S, 3.0 * S, 30 * S, 12), tableMat);
+    stem.position.y = 11 * S;
     stem.castShadow = true;
     group.add(stem);
 
-    // Base
+    // Base — rests on floor (group.y is set so base bottom ≈ floorY)
     const base = new THREE.Mesh(
-      new THREE.CylinderGeometry(12, 13, 2, 24), tableMat);
-    base.position.y = -8;
+      new THREE.CylinderGeometry(12 * S, 13 * S, 6 * S, 24), tableMat);
+    base.position.y = -7 * S;
     base.castShadow = true;
     group.add(base);
 
@@ -1486,26 +1967,325 @@ export class Room {
     this._themeGroups.rug = new THREE.Group();
     this.meshGroup.add(this._themeGroups.rug);
 
+    const rugW = this.profile.width + 140;
+    const rugD = this.profile.depth + 180;
+    const floorY = -this.profile.height - 71;
+    // Rug sits flush on floor: bottom at floorY, thickness 1.2
+    const rugY = floorY + 0.6;
+
+    // ── Procedural rug texture with medallion, borders and corner motifs ──
+    const rugTex = this._createRugTexture();
     const rugMat = this._mat('rug', {
-      color: 0x2a1810, roughness: 0.95, metalness: 0.0,
+      map: rugTex,
+      color: 0xffffff,
+      roughness: 0.95,
+      metalness: 0.0,
     });
     const rug = new THREE.Mesh(
-      new THREE.BoxGeometry(this.profile.width + 120, 1.2, this.profile.depth + 160), rugMat);
-    rug.position.set(0, -this.profile.height - 70.4, 0);
+      new THREE.BoxGeometry(rugW, 0.3, rugD), rugMat);
+    rug.position.set(0, rugY, 0);
     rug.receiveShadow = true;
     this._themeGroups.rug.add(rug);
 
-    // Rug border (slightly larger, thinner)
-    const borderMat = this._mat('rugBorder', {
+    // ── Physical border layers (stacked on floor, none penetrate below) ──
+    const outerBorderMat = this._mat('rugBorderOuter', {
+      color: 0x3a2018, roughness: 0.92, metalness: 0.0,
+    });
+    const midBorderMat = this._mat('rugBorderMid', {
+      color: 0x5a3a28, roughness: 0.88, metalness: 0.0,
+    });
+    const innerBorderMat = this._mat('rugBorderInner', {
       color: 0x4a3020, roughness: 0.90, metalness: 0.0,
     });
-    const borderW = this.profile.width + 132;
-    const borderD = this.profile.depth + 172;
-    const border = new THREE.Mesh(
-      new THREE.BoxGeometry(borderW, 0.8, borderD), borderMat);
-    border.position.set(0, -this.profile.height - 70.6, 0);
-    border.receiveShadow = true;
-    this._themeGroups.rug.add(border);
+    const accentMat = this._mat('rugAccent', {
+      color: 0x7a5a30, roughness: 0.85, metalness: 0.05,
+    });
+
+    // All borders sit on floor (bottom = floorY + 0.05 to avoid z-fighting)
+    const baseY = floorY + 0.05;
+
+    // Outer wide border
+    const outerW = rugW + 10;
+    const outerD = rugD + 10;
+    const outerBorder = new THREE.Mesh(
+      new THREE.BoxGeometry(outerW, 0.7, outerD), outerBorderMat);
+    outerBorder.position.set(0, baseY + 0.35, 0);
+    outerBorder.receiveShadow = true;
+    this._themeGroups.rug.add(outerBorder);
+
+    // Mid decorative band (inset from outer edge)
+    const midW = rugW + 4;
+    const midD = rugD + 4;
+    const midBorder = new THREE.Mesh(
+      new THREE.BoxGeometry(midW, 0.9, midD), midBorderMat);
+    midBorder.position.set(0, baseY + 0.45, 0);
+    midBorder.receiveShadow = true;
+    this._themeGroups.rug.add(midBorder);
+
+    // Inner thin border line
+    const innerW = rugW - 12;
+    const innerD = rugD - 12;
+    const innerBorder = new THREE.Mesh(
+      new THREE.BoxGeometry(innerW, 0.85, innerD), innerBorderMat);
+    innerBorder.position.set(0, baseY + 0.425, 0);
+    innerBorder.receiveShadow = true;
+    this._themeGroups.rug.add(innerBorder);
+
+    // Accent lines (thin raised strips along edges)
+    const lineThick = 1.2;
+    const lineW = rugW - 22;
+    const lineD = rugD - 22;
+    const accentLines = [
+      [0, rugY - 0.15, -lineD / 2, lineW, 0.5, lineThick],
+      [0, rugY - 0.15,  lineD / 2, lineW, 0.5, lineThick],
+      [-lineW / 2, rugY - 0.15, 0, lineThick, 0.5, lineD],
+      [ lineW / 2, rugY - 0.15, 0, lineThick, 0.5, lineD],
+    ];
+    for (const [x, y, z, w, h, d] of accentLines) {
+      const line = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), accentMat);
+      line.position.set(x, y, z);
+      line.receiveShadow = true;
+      this._themeGroups.rug.add(line);
+    }
+  }
+
+  /**
+   * Generate a rich traditional carpet texture with medallion center,
+   * multiple border bands, corner motifs and geometric filler patterns.
+   */
+  _createRugTexture() {
+    const W = 1024;
+    const H = 1024;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // Palette
+    const base = '#2a1810';
+    const borderDark = '#3a2018';
+    const borderMid = '#5a3a28';
+    const borderLight = '#7a5a30';
+    const accent = '#a08050';
+    const highlight = '#c8a860';
+
+    // ── Base fill ──
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Helper: draw a decorative border band ──
+    const drawBorderBand = (inset, width, color, patternSize) => {
+      const x1 = inset;
+      const y1 = inset;
+      const x2 = W - inset;
+      const y2 = H - inset;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+      // Small repeating diamonds along the border
+      ctx.fillStyle = color;
+      const step = patternSize;
+      for (let x = x1; x <= x2; x += step) {
+        ctx.beginPath();
+        ctx.moveTo(x, y1);
+        ctx.lineTo(x + step * 0.25, y1 - width * 0.4);
+        ctx.lineTo(x + step * 0.5, y1);
+        ctx.lineTo(x + step * 0.25, y1 + width * 0.4);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x, y2);
+        ctx.lineTo(x + step * 0.25, y2 + width * 0.4);
+        ctx.lineTo(x + step * 0.5, y2);
+        ctx.lineTo(x + step * 0.25, y2 - width * 0.4);
+        ctx.fill();
+      }
+      for (let y = y1; y <= y2; y += step) {
+        ctx.beginPath();
+        ctx.moveTo(x1, y);
+        ctx.lineTo(x1 - width * 0.4, y + step * 0.25);
+        ctx.lineTo(x1, y + step * 0.5);
+        ctx.lineTo(x1 + width * 0.4, y + step * 0.25);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x2, y);
+        ctx.lineTo(x2 + width * 0.4, y + step * 0.25);
+        ctx.lineTo(x2, y + step * 0.5);
+        ctx.lineTo(x2 - width * 0.4, y + step * 0.25);
+        ctx.fill();
+      }
+    };
+
+    // ── Multiple border bands ──
+    drawBorderBand(8, 14, borderDark, 28);
+    drawBorderBand(26, 10, borderMid, 20);
+    drawBorderBand(40, 6, borderLight, 16);
+    drawBorderBand(50, 3, accent, 12);
+
+    // ── Inner field (slightly lighter base) ──
+    const innerInset = 70;
+    ctx.fillStyle = '#2e1c14';
+    ctx.fillRect(innerInset, innerInset, W - innerInset * 2, H - innerInset * 2);
+
+    // ── Central medallion (octagonal star) ──
+    const cx = W / 2;
+    const cy = H / 2;
+    const medallionR = 140;
+
+    // Medallion outer ring
+    ctx.fillStyle = borderDark;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 - Math.PI / 8;
+      const px = cx + Math.cos(angle) * medallionR;
+      const py = cy + Math.sin(angle) * medallionR;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Medallion mid ring
+    ctx.fillStyle = borderMid;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 - Math.PI / 8;
+      const px = cx + Math.cos(angle) * (medallionR * 0.78);
+      const py = cy + Math.sin(angle) * (medallionR * 0.78);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Medallion inner star
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    for (let i = 0; i < 16; i++) {
+      const angle = (i / 16) * Math.PI * 2 - Math.PI / 16;
+      const r = i % 2 === 0 ? medallionR * 0.55 : medallionR * 0.28;
+      const px = cx + Math.cos(angle) * r;
+      const py = cy + Math.sin(angle) * r;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Medallion center gem
+    ctx.fillStyle = highlight;
+    ctx.beginPath();
+    ctx.arc(cx, cy, medallionR * 0.14, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ── Corner motifs (quarter-medallion fans) ──
+    const cornerSize = 70;
+    const corners = [
+      [innerInset + 10, innerInset + 10],
+      [W - innerInset - 10, innerInset + 10],
+      [innerInset + 10, H - innerInset - 10],
+      [W - innerInset - 10, H - innerInset - 10],
+    ];
+    for (const [cpx, cpy] of corners) {
+      ctx.fillStyle = borderMid;
+      ctx.beginPath();
+      ctx.arc(cpx, cpy, cornerSize, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = accent;
+      ctx.beginPath();
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        const r = i % 2 === 0 ? cornerSize * 0.65 : cornerSize * 0.35;
+        const px = cpx + Math.cos(angle) * r;
+        const py = cpy + Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = highlight;
+      ctx.beginPath();
+      ctx.arc(cpx, cpy, cornerSize * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ── Filler geometric pattern (diamond lattice) ──
+    ctx.strokeStyle = 'rgba(160, 128, 80, 0.12)';
+    ctx.lineWidth = 1.2;
+    const diamondStep = 32;
+    for (let x = innerInset + 20; x < W - innerInset - 20; x += diamondStep) {
+      for (let y = innerInset + 20; y < H - innerInset - 20; y += diamondStep) {
+        // Skip area near medallion center
+        const dx = x - cx;
+        const dy = y - cy;
+        if (dx * dx + dy * dy < medallionR * medallionR * 1.5) continue;
+        // Skip near corners
+        let nearCorner = false;
+        for (const [cpx, cpy] of corners) {
+          const cdx = x - cpx;
+          const cdy = y - cpy;
+          if (cdx * cdx + cdy * cdy < cornerSize * cornerSize * 1.8) {
+            nearCorner = true; break;
+          }
+        }
+        if (nearCorner) continue;
+
+        ctx.beginPath();
+        ctx.moveTo(x, y - diamondStep * 0.35);
+        ctx.lineTo(x + diamondStep * 0.35, y);
+        ctx.lineTo(x, y + diamondStep * 0.35);
+        ctx.lineTo(x - diamondStep * 0.35, y);
+        ctx.closePath();
+        ctx.stroke();
+      }
+    }
+
+    // ── Small rosette accents scattered in the field ──
+    ctx.fillStyle = 'rgba(180, 150, 90, 0.15)';
+    for (let i = 0; i < 24; i++) {
+      const rx = innerInset + 40 + Math.random() * (W - innerInset * 2 - 80);
+      const ry = innerInset + 40 + Math.random() * (H - innerInset * 2 - 80);
+      // Skip near center and corners
+      const dx = rx - cx;
+      const dy = ry - cy;
+      if (dx * dx + dy * dy < medallionR * medallionR * 1.8) continue;
+      let nearCorner = false;
+      for (const [cpx, cpy] of corners) {
+        const cdx = rx - cpx;
+        const cdy = ry - cpy;
+        if (cdx * cdx + cdy * cdy < cornerSize * cornerSize * 2.2) {
+          nearCorner = true; break;
+        }
+      }
+      if (nearCorner) continue;
+
+      for (let p = 0; p < 6; p++) {
+        const angle = (p / 6) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(rx + Math.cos(angle) * 5, ry + Math.sin(angle) * 5, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // ── Subtle wear / age overlay ──
+    ctx.globalCompositeOperation = 'multiply';
+    for (let i = 0; i < 200; i++) {
+      const wx = Math.random() * W;
+      const wy = Math.random() * H;
+      const wr = 5 + Math.random() * 20;
+      const grad = ctx.createRadialGradient(wx, wy, 0, wx, wy, wr);
+      grad.addColorStop(0, 'rgba(60,40,30,0.08)');
+      grad.addColorStop(1, 'rgba(60,40,30,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(wx, wy, wr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 8;
+    if (!this._rugTextures) this._rugTextures = [];
+    this._rugTextures.push(texture);
+    return texture;
   }
 
   applyVisualSettings(settings) {
@@ -1683,32 +2463,29 @@ export class Room {
   }
 
   dispose() {
-    if (this._plaqueTexture) {
-      this._plaqueTexture.dispose();
-      this._plaqueTexture = null;
-    }
-    if (this._posterTextures) {
-      this._posterTextures.forEach(t => t.dispose());
-      this._posterTextures = null;
-    }
-    if (this._landscapeTextures) {
-      this._landscapeTextures.forEach(t => t.dispose());
-      this._landscapeTextures = null;
-    }
+    // Textures are disposed through the mesh traverse below;
+    // clearing the arrays here prevents double-dispose.
+    this._plaqueTexture = null;
+    this._posterTextures = null;
+    this._landscapeTextures = null;
+    this._rugTextures = null;
     if (this.meshGroup && this.meshGroup.parent) {
       this.meshGroup.parent.remove(this.meshGroup);
     }
     this.meshGroup.traverse((child) => {
       if (child.geometry) child.geometry.dispose();
       if (child.material) {
+        const disposeMat = (m) => {
+          if (m.map) {
+            m.map.dispose();
+            m.map = null;
+          }
+          m.dispose();
+        };
         if (Array.isArray(child.material)) {
-          child.material.forEach((m) => {
-            if (m.map) m.map.dispose();
-            m.dispose();
-          });
+          child.material.forEach(disposeMat);
         } else {
-          if (child.material.map) child.material.map.dispose();
-          child.material.dispose();
+          disposeMat(child.material);
         }
       }
     });

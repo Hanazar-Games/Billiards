@@ -297,7 +297,7 @@ export class Game {
     if (this.mode === 'trainer') {
       this.ui.showResetButton(() => this._resetTrainerDrill(), UIText.trainerResetLabel);
     } else {
-      this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
+      this.ui.hideResetButton();
     }
 
     // Back-to-menu button
@@ -1801,8 +1801,6 @@ export class Game {
     this.ui.hideResetButton();
     if (this.mode === 'trainer') {
       this.ui.showResetButton(() => this._resetTrainerDrill(), UIText.trainerResetLabel);
-    } else {
-      this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
     }
     this.ui.setMatchInfo(this._getObjectiveText());
     this._updatePlayerStats();
@@ -1813,34 +1811,8 @@ export class Game {
   }
 
   _addBackToMenuButton() {
-    const uiLayer = document.getElementById('ui-layer');
-    if (!uiLayer || uiLayer.querySelector('#back-to-menu')) return;
-
-    const btn = document.createElement('button');
-    btn.id = 'back-to-menu';
-    btn.textContent = UIText.backToMenu;
-    btn.style.cssText = `
-      position: absolute; top: 18px; left: 24px;
-      padding: 10px 17px; font-size: 13px; font-weight: 750;
-      background: rgba(12,14,17,0.6); color: #fff;
-      border: 1px solid rgba(255,255,255,0.18);
-      border-radius: 8px; cursor: pointer; pointer-events: auto;
-      backdrop-filter: blur(10px); transition: all calc(0.2s / var(--ui-anim-speed));
-      box-shadow: 0 10px 28px rgba(0,0,0,0.26);
-      z-index: 15;
-    `;
-    btn.onmouseenter = () => {
-      btn.style.background = 'rgba(255,255,255,0.2)';
-      btn.style.borderColor = 'rgba(255,255,255,0.5)';
-    };
-    btn.onmouseleave = () => {
-      btn.style.background = 'rgba(255,255,255,0.1)';
-      btn.style.borderColor = 'rgba(255,255,255,0.25)';
-    };
-    btn.onclick = () => {
-      if (this.onReturnToMenu) this.onReturnToMenu();
-    };
-    uiLayer.appendChild(btn);
+    // Back-to-menu button is now part of the bottom HUD in UI.js
+    // This method is kept for backward compatibility but does nothing.
   }
 
   _addCueTipPicker() {
@@ -2508,7 +2480,9 @@ export class Game {
     }
 
     this.audio?.playWin();
-    this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
+    if (!this.matchManager) {
+      this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
+    }
     this.ui.setPlayerTurn(winner);
     this.ui.hideThreeFoulWarning();
     this.ui.hidePushOutButton();
@@ -2895,15 +2869,6 @@ export class Game {
     if (this._updateCanvasRect) {
       window.removeEventListener('resize', this._updateCanvasRect);
       this._updateCanvasRect = null;
-    }
-
-    // Remove back-to-menu button
-    const backBtn = document.getElementById('back-to-menu');
-    if (backBtn) {
-      backBtn.onclick = null;
-      backBtn.onmouseenter = null;
-      backBtn.onmouseleave = null;
-      if (backBtn.parentNode) backBtn.parentNode.removeChild(backBtn);
     }
 
     // Remove cue tip picker and its listeners

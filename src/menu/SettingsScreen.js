@@ -933,7 +933,13 @@ export class SettingsScreen {
         () => {
           settings.reset();
           this._syncAllControls();
-          if (this._audioManager) this._audioManager.setMasterVolume(settings.get('masterVolume'));
+          if (this.audio) {
+            this.audio.toggleSound(settings.get('soundEnabled'));
+            this.audio.setMasterVolume(settings.get('masterVolume'));
+            this.audio.setSFXVolume(settings.get('sfxVolume'));
+            this.audio.setMusicVolume(settings.get('musicVolume'));
+            if (this.audio.setAmbientVolume) this.audio.setAmbientVolume((settings.get('ambientVolumeScale') ?? 1.0) * 100);
+          }
           this._toast('已恢复为默认设置');
         }
       );
@@ -1025,7 +1031,13 @@ export class SettingsScreen {
         });
         this._toast(`已导入 ${count} 项配置`);
         this._syncAllControls();
-        if (this._audioManager) this._audioManager.setMasterVolume(settings.get('masterVolume'));
+        if (this.audio) {
+          this.audio.toggleSound(settings.get('soundEnabled'));
+          this.audio.setMasterVolume(settings.get('masterVolume'));
+          this.audio.setSFXVolume(settings.get('sfxVolume'));
+          this.audio.setMusicVolume(settings.get('musicVolume'));
+          if (this.audio.setAmbientVolume) this.audio.setAmbientVolume((settings.get('ambientVolumeScale') ?? 1.0) * 100);
+        }
         // Note: importText is gone after _syncAllControls rebuilds the DOM, so no need to clear
       } catch (e) {
         this._toast('导入失败：JSON 格式错误或包含无效数据');

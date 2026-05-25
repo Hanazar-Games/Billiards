@@ -26,6 +26,7 @@ export class Table {
     this.createApron();
     this.createPocketDetails();
     this.createPocketNets();
+    this.createCushionEndCaps();
     this.createPocketJaws();
     this.createTournamentCastings();
     this.createApronPanelDetails();
@@ -390,12 +391,12 @@ export class Table {
       roundMat
     );
     roundShort.rotation.z = Math.PI / 2;
-    roundShort.position.set(0, railH + roundTubeR + 0.1, -halfD - railW / 2 + roundTubeR);
+    roundShort.position.set(0, railH + roundTubeR, -halfD - railW / 2 + roundTubeR);
     roundShort.castShadow = true;
     this.meshGroup.add(roundShort);
 
     const roundShort2 = roundShort.clone();
-    roundShort2.position.set(0, railH + roundTubeR + 0.1, halfD + railW / 2 - roundTubeR);
+    roundShort2.position.set(0, railH + roundTubeR, halfD + railW / 2 - roundTubeR);
     this.meshGroup.add(roundShort2);
 
     const sideGap = sideR * 3.05;
@@ -420,7 +421,7 @@ export class Table {
         );
         roundSide.rotation.x = Math.PI / 2;
         const nx = x < 0 ? 1 : -1;
-        roundSide.position.set(x + nx * roundTubeR, railH + roundTubeR + 0.1, z);
+        roundSide.position.set(x + nx * roundTubeR, railH + roundTubeR, z);
         roundSide.castShadow = true;
         this.meshGroup.add(roundSide);
       }
@@ -663,37 +664,180 @@ export class Table {
     }
   }
 
-  createPocketJaws() {
-    const jawMat = this._mat('jaw', {
-      color: 0x050505,
-      roughness: 0.62,
-      metalness: 0.18,
+  // ── Cushion end caps — slanted quads that close the gap between cushion
+  // block ends and the pocket mouth, turning abrupt vertical cuts into a
+  // natural throat. ──
+  createCushionEndCaps() {
+    const capMat = this._mat('cushionCap', {
+      color: TABLE.cushionColor,
+      roughness: 0.78,
+      metalness: 0.0,
+      side: THREE.DoubleSide,
     });
     const halfW = this.profile.width / 2;
     const halfD = this.profile.depth / 2;
-
-    const addJaw = (x, z, angle, length = 12) => {
-      const jaw = new THREE.Mesh(new THREE.BoxGeometry(length, 1.5, 3.2), jawMat);
-      jaw.position.set(x, 5.8 + 0.75, z);
-      jaw.rotation.y = angle;
-      jaw.castShadow = true;
-      this.meshGroup.add(jaw);
-    };
-
+    const cw = this.profile.cushionWidth;
+    const ch = BALL.radius * 2;
     const cornerR = this.profile.cornerPocketRadius ?? this.profile.pocketRadius;
     const sideR = this.profile.sidePocketRadius ?? this.profile.pocketRadius;
+    const cornerGap = cornerR * 2.25;
+    const sideGap = sideR * 2.65;
 
-    const inset = cornerR * 0.95;
+    const addCap = (a, b, c, d) => {
+      const positions = new Float32Array([
+        a.x, a.y, a.z,  b.x, b.y, b.z,  c.x, c.y, c.z,
+        a.x, a.y, a.z,  c.x, c.y, c.z,  d.x, d.y, d.z,
+      ]);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, capMat);
+      mesh.castShadow = true;
+      this.meshGroup.add(mesh);
+    };
+
+    // Corner pockets: 2 caps per pocket (short-rail end + long-rail end)
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
-        addJaw(sx * (halfW - inset * 0.52), sz * (halfD + 2.8), 0, 13);
-        addJaw(sx * (halfW + 2.8), sz * (halfD - inset * 0.52), Math.PI / 2, 13);
+        const px = sx * (halfW - cornerR * 0.35);
+        const pz = sz * (halfD - cornerR * 0.35);
+        const pyTop = ch + 2.2;
+
+        // Short-rail cushion end cap
+        const sx1 = sx * (halfW - cornerGap);
+        addCap(
+          new THREE.Vector3(sx1, 0, sz * (halfD - cw)),
+          new THREE.Vector3(sx1, ch, sz * (halfD - cw)),
+          new THREE.Vector3(px, pyTop, pz),
+          new THREE.Vector3(px, 0, pz)
+        );
+
+        // Long-rail cushion end cap
+        const sz1 = sz * (halfD - cornerGap);
+        addCap(
+          new THREE.Vector3(sx * (halfW - cw), 0, sz1),
+          new THREE.Vector3(sx * (halfW - cw), ch, sz1),
+          new THREE.Vector3(px, pyTop, pz),
+          new THREE.Vector3(px, 0, pz)
+        );
       }
     }
 
+    // Side pockets: 2 caps per side pocket
+    const zEnd = sideGap / 2;
     for (const sx of [-1, 1]) {
-      addJaw(sx * (halfW + 2.8), -sideR * 1.35, Math.PI / 2, 15);
-      addJaw(sx * (halfW + 2.8), sideR * 1.35, Math.PI / 2, 15);
+      const px = sx * (halfW - sideR * 0.35);
+      const pyTop = ch + 1.8;
+      for (const dir of [-1, 1]) {
+        const sz1 = dir * zEnd;
+        addCap(
+          new THREE.Vector3(sx * (halfW - cw), 0, sz1),
+          new THREE.Vector3(sx * (halfW - cw), ch, sz1),
+          new THREE.Vector3(px, pyTop, 0),
+          new THREE.Vector3(px, 0, 0)
+        );
+      }
+    }
+  }
+
+  // ── Pocket jaws — substantial blocks with slanted tops that visually
+  // bridge cushion ends and rail ends at each pocket. ──
+  createPocketJaws() {
+    const jawMat = this._mat('jaw', {
+      color: 0x0a0a0a,
+      roughness: 0.55,
+      metalness: 0.25,
+    });
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
+    const cornerR = this.profile.cornerPocketRadius ?? this.profile.pocketRadius;
+    const sideR = this.profile.sidePocketRadius ?? this.profile.pocketRadius;
+    const cornerGapR = cornerR * 2.9;
+    const sideGapR = sideR * 3.05;
+
+    // Helper: add a jaw block + slanted top facet
+    const addJaw = (x, z, angle, length, width, height) => {
+      const group = new THREE.Group();
+      group.position.set(x, height / 2, z);
+      group.rotation.y = angle;
+      this.meshGroup.add(group);
+
+      // Base block
+      const base = new THREE.Mesh(
+        new THREE.BoxGeometry(length, height, width), jawMat);
+      base.castShadow = true;
+      group.add(base);
+
+      // Top slanted facet (triangular prism toward pocket)
+      const h = height * 0.55;
+      const d = width * 0.7;
+      const positions = new Float32Array([
+        // front slant face (facing toward table interior, -z)
+        -length / 2, height / 2, -width / 2,
+         length / 2, height / 2 + h, -width / 2 + d,
+         length / 2, height / 2, -width / 2,
+        -length / 2, height / 2, -width / 2,
+        -length / 2, height / 2 + h, -width / 2 + d,
+         length / 2, height / 2 + h, -width / 2 + d,
+        // back face (facing toward pocket, +z)
+        -length / 2, height / 2, width / 2,
+         length / 2, height / 2, width / 2,
+         length / 2, height / 2 + h, width / 2 - d,
+        -length / 2, height / 2, width / 2,
+         length / 2, height / 2 + h, width / 2 - d,
+        -length / 2, height / 2 + h, width / 2 - d,
+        // left end
+        -length / 2, height / 2, -width / 2,
+        -length / 2, height / 2 + h, -width / 2 + d,
+        -length / 2, height / 2 + h, width / 2 - d,
+        -length / 2, height / 2, -width / 2,
+        -length / 2, height / 2 + h, width / 2 - d,
+        -length / 2, height / 2, width / 2,
+        // right end
+         length / 2, height / 2, -width / 2,
+         length / 2, height / 2 + h, width / 2 - d,
+         length / 2, height / 2 + h, -width / 2 + d,
+         length / 2, height / 2, -width / 2,
+         length / 2, height / 2, width / 2,
+         length / 2, height / 2 + h, width / 2 - d,
+        // top
+        -length / 2, height / 2 + h, -width / 2 + d,
+         length / 2, height / 2 + h, -width / 2 + d,
+         length / 2, height / 2 + h, width / 2 - d,
+        -length / 2, height / 2 + h, -width / 2 + d,
+         length / 2, height / 2 + h, width / 2 - d,
+        -length / 2, height / 2 + h, width / 2 - d,
+      ]);
+      const facetGeo = new THREE.BufferGeometry();
+      facetGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      facetGeo.computeVertexNormals();
+      const facet = new THREE.Mesh(facetGeo, jawMat);
+      facet.castShadow = true;
+      group.add(facet);
+    };
+
+    // Corner pocket jaws
+    for (const sx of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        // Short-rail jaw (along x, bridging cushion→rail gap)
+        const jx = sx * (halfW - (cornerGapR + cornerR * 2.25) / 2);
+        const jz = sz * (halfD - 1.8);
+        addJaw(jx, jz, 0, 13, 4.5, 7.5);
+
+        // Long-rail jaw (along z)
+        const jx2 = sx * (halfW - 1.8);
+        const jz2 = sz * (halfD - (cornerGapR + cornerR * 2.25) / 2);
+        addJaw(jx2, jz2, Math.PI / 2, 13, 4.5, 7.5);
+      }
+    }
+
+    // Side pocket jaws
+    for (const sx of [-1, 1]) {
+      const jx = sx * (halfW - 1.8);
+      const jz1 = -(sideGapR + sideR * 2.65) / 4;
+      const jz2 = (sideGapR + sideR * 2.65) / 4;
+      addJaw(jx, jz1, Math.PI / 2, 15, 4.5, 7.5);
+      addJaw(jx, jz2, Math.PI / 2, 15, 4.5, 7.5);
     }
   }
 

@@ -1,8 +1,40 @@
-# 3D Billiards v1.7.36 — Latest Update
+# 3D Billiards v1.7.37 — Latest Update
 
-## What's New in v1.7.36
+## What's New in v1.7.37
 
-### 🖼️ Room Modelling Overhaul — Furniture & Wall Art
+### 🔍 Deep Audit & Bug Fix Sweep — Room, Table, UI, Audio
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **扶手椅不再悬空** | 椅腿球形脚垫 `thetaStart` 从 `0` 修正为 `Math.PI/2`，group Y 从 `floorY + 44` 改为 `floorY + 33.5*LS`，椅脚现在真正落在地板上 |
+| 2 | **球杆架朝向修正** | 旋转从 `Math.PI`（面朝墙）改为 `0`（面朝房间），6 根球杆现在面向球桌 |
+| 3 | **壁灯移出窗户范围** | 壁灯 Z 坐标从 `±152`（与窗户重叠）改为 `±230`，避免与窗户穿模 |
+| 4 | **边桌配件方向修正** | 配件（杯垫、玻璃杯）偏移逻辑从 `idx % 2` 改为墙侧感知 `x < 0 ? 1 : -1`，杯垫不再越出桌面边缘 |
+| 5 | **地毯边框显影** | 边框层 Y 坐标统一提升到 `baseY + 1.35~1.65`，高于 1.2 单位厚的地毯，边框现在可见 |
+| 6 | **风景画纹理双重释放修复** | 移除 `_landscapeTextures` 手动 `dispose()`，由 `traverse` 统一释放并置空 `map`，避免重复释放崩溃 |
+| 7 | **地板尺寸收紧** | 从基于球桌的超大平面改为 `ROOM.halfWidth*2 × halfDepth*2`，消除房间边缘多余地板 |
+| 8 | **边桌内部几何缩放** | `_createSideTable()` 中桌面、支柱、底座的几何尺寸和位置统一按 `S=1.38` 缩放，比例正确 |
+| 9 | **配件放置高度修正** | `createTableAccessories()` 的 `tableTopY` 从错误值修正为 `floorY + 38*S`，与边桌实际桌面平齐 |
+| 10 | **踢脚线高度提升** | 从 4.5 提升到 7.0，关闭与护墙板之间的 2.5 单位缝隙 |
+| 11 | **海报分辨率翻倍** | 从 256×360 提升到 512×720，更清晰 |
+| 12 | **天花板筒灯实体化** | 新增圆柱形灯罩 + 喇叭口挡板（12 盏），从纯点光源升级为有体积的灯具 |
+| 13 | **墙角几何优化** | 四面墙现在精确对缝相接，移除冗余的重叠几何体 |
+| 14 | **袋口半径扩大** | pool9ft/pool8ft 2.25×→2.55×，bar7ft 2.35×→2.65×，chinese8 1.95×→2.25×（相对球半径），进球更容易、更真实 |
+| 15 | **缓冲垫端帽补全** | 新增 `createCushionEndCaps()`，12 个倾斜四边形桥接缓冲垫末端到袋口，消除视觉缺口 |
+| 16 | **袋口护角重建** | `createPocketJaws()` 改为实体块（7.5 高 × 4.5 厚）+ 倾斜顶面 BufferGeometry，护角现在是有体积的物理阻挡 |
+| 17 | **轨顶间隙消除** | 圆角半圆柱 Y 坐标下移 0.1，与轨身完全贴合 |
+| 18 | **轨斜面乘数对齐** | `createRailBevels()` 的宽高乘数与 `createRails()` 统一为 2.9/3.05，消除轨斜面与轨身的微小错位 |
+| 19 | **护角顶面法线修正** | 前/后倾斜面三角形顶点顺序调整，法线从朝内改为朝外，光照正确 |
+| 20 | **重置按钮流程修复** | 非训练模式初始化时隐藏重置按钮；训练模式显示「重置球型」；比赛模式认输后正确委托 `matchManager.onGameEnd`，不再显示本地「再来一局」 |
+| 21 | **设置面板音频同步修复** | 重置/导入配置后完整同步 5 个音频参数（开关、总音量、SFX、BGM、环境音），修复 `this._audioManager` 引用错误 |
+| 22 | **确认对话框键盘支持** | 新增 Esc 取消、Enter 确认；实例级 `_confirmKeyHandler` 管理，支持重入防护和 `destroy()` 完整清理 |
+| 23 | **底部 HUD CSS 清理** | 移除 flex 容器上无效的 `grid-template-columns`；添加 `flex-shrink: 0` 和 `.hud-center { flex: 1 1 auto }`，布局更稳定；移除孤儿 `.hud-detail` 规则 |
+
+---
+
+## Historical Updates
+
+### v1.7.36 — Room Modelling Overhaul — Furniture & Wall Art
 
 | # | 改动 | 详情 |
 |---|------|------|
@@ -13,8 +45,6 @@
 | 5 | **风景画生命周期** | `createPaintings()` 加入构造函数，`applyVisualSettings()` 中受 `wallDecorEnabled` 控制，`dispose()` 中正确释放纹理 |
 
 ---
-
-## Historical Updates
 
 ### v1.7.35 — Physics Tuning, Default Settings & Room Furniture Scale
 

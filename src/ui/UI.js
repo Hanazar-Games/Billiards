@@ -24,31 +24,52 @@ export class UI {
     this._lastTimerSec = null;
     this._lastTurnTimerSec = null;
     this._lastTurnTimerWarn = 'none';
+    this._confirmOverlay = null;
+    this._confirmKeyHandler = null;
     this._currentSpin = { x: 0, y: 0 };
 
     const uiLayer = document.getElementById('ui-layer');
 
-    // ── Bottom HUD ──
+    // ── Inject player details into top badges ──
+    this._player1Name = null;
+    this._player2Name = null;
+    this._player1Detail = null;
+    this._player2Detail = null;
+    if (this.player1Badge) {
+      const layout = this._installPlayerBadgeLayout(this.player1Badge, '玩家 1');
+      this._player1Name = layout.name;
+      this._player1Detail = layout.detail;
+    }
+    if (this.player2Badge) {
+      const layout = this._installPlayerBadgeLayout(this.player2Badge, '玩家 2');
+      this._player2Name = layout.name;
+      this._player2Detail = layout.detail;
+    }
+
+    // ── Bottom HUD (single bar at very bottom) ──
     this.bottomHud = document.createElement('div');
     this.bottomHud.id = 'bottom-hud';
 
-    // Main info row
     const hudMain = document.createElement('div');
     hudMain.id = 'bottom-hud-main';
 
-    // Player 1 side
-    this._hudP1 = document.createElement('div');
-    this._hudP1.className = 'hud-side hud-left';
-    this._hudP1Name = document.createElement('div');
-    this._hudP1Name.className = 'hud-name active';
-    this._hudP1Name.textContent = '玩家 1';
-    this._hudP1Detail = document.createElement('div');
-    this._hudP1Detail.className = 'hud-detail';
-    this._hudP1.appendChild(this._hudP1Name);
-    this._hudP1.appendChild(this._hudP1Detail);
-    hudMain.appendChild(this._hudP1);
+    // Left actions: back-to-menu + concede
+    const hudLeft = document.createElement('div');
+    hudLeft.className = 'hud-actions-left';
 
-    // Center: score + timer + objective + spin
+    this._hudBackBtn = document.createElement('button');
+    this._hudBackBtn.className = 'hud-btn';
+    this._hudBackBtn.textContent = '← 返回菜单';
+    hudLeft.appendChild(this._hudBackBtn);
+
+    this._hudConcedeBtn = document.createElement('button');
+    this._hudConcedeBtn.className = 'hud-btn hud-btn-danger';
+    this._hudConcedeBtn.textContent = '认输';
+    hudLeft.appendChild(this._hudConcedeBtn);
+
+    hudMain.appendChild(hudLeft);
+
+    // Center: timer + objective + spin
     this._hudCenter = document.createElement('div');
     this._hudCenter.className = 'hud-center';
     this._hudScore = document.createElement('div');
@@ -60,7 +81,6 @@ export class UI {
     this._hudObjective = document.createElement('div');
     this._hudObjective.className = 'hud-objective';
     this._hudObjective.textContent = '';
-    // Spin indicator (small, below objective)
     this._hudSpin = document.createElement('div');
     this._hudSpin.className = 'hud-spin';
     this._hudSpin.style.cssText = 'font-size:11px;font-weight:600;color:rgba(216,177,95,0.7);text-align:center;letter-spacing:0.5px;margin-top:2px;display:none;font-variant-numeric:tabular-nums;';
@@ -70,41 +90,23 @@ export class UI {
     this._hudCenter.appendChild(this._hudSpin);
     hudMain.appendChild(this._hudCenter);
 
-    // Player 2 side
-    this._hudP2 = document.createElement('div');
-    this._hudP2.className = 'hud-side hud-right';
-    this._hudP2Name = document.createElement('div');
-    this._hudP2Name.className = 'hud-name';
-    this._hudP2Name.textContent = '玩家 2';
-    this._hudP2Detail = document.createElement('div');
-    this._hudP2Detail.className = 'hud-detail';
-    this._hudP2.appendChild(this._hudP2Name);
-    this._hudP2.appendChild(this._hudP2Detail);
-    hudMain.appendChild(this._hudP2);
-
-    this.bottomHud.appendChild(hudMain);
-
-    // Action buttons row
-    const hudActions = document.createElement('div');
-    hudActions.id = 'bottom-hud-actions';
+    // Right actions: new game + settings
+    const hudRight = document.createElement('div');
+    hudRight.className = 'hud-actions-right';
 
     this._hudNewGameBtn = document.createElement('button');
     this._hudNewGameBtn.className = 'hud-btn';
     this._hudNewGameBtn.textContent = '再来一局';
     this._hudNewGameBtn.style.display = 'none';
-    hudActions.appendChild(this._hudNewGameBtn);
-
-    this._hudConcedeBtn = document.createElement('button');
-    this._hudConcedeBtn.className = 'hud-btn hud-btn-danger';
-    this._hudConcedeBtn.textContent = '认输';
-    hudActions.appendChild(this._hudConcedeBtn);
+    hudRight.appendChild(this._hudNewGameBtn);
 
     this._hudSettingsBtn = document.createElement('button');
     this._hudSettingsBtn.className = 'hud-btn';
     this._hudSettingsBtn.textContent = '⚙️ 设置';
-    hudActions.appendChild(this._hudSettingsBtn);
+    hudRight.appendChild(this._hudSettingsBtn);
 
-    this.bottomHud.appendChild(hudActions);
+    hudMain.appendChild(hudRight);
+    this.bottomHud.appendChild(hudMain);
 
     if (uiLayer) uiLayer.appendChild(this.bottomHud);
 
@@ -207,6 +209,30 @@ export class UI {
     this._aiListeners.push({ el, type, fn });
   }
 
+  _installPlayerBadgeLayout(badge, fallbackName) {
+    const existingName = badge.querySelector('[data-ui-player-name]')?.textContent?.trim();
+    const textName = Array.from(badge.childNodes)
+      .filter((node) => node.nodeType === Node.TEXT_NODE)
+      .map((node) => node.textContent.trim())
+      .find(Boolean);
+    const nameText = existingName || textName || fallbackName;
+
+    badge.textContent = '';
+
+    const name = document.createElement('div');
+    name.className = 'player-name';
+    name.dataset.uiPlayerName = 'true';
+    name.textContent = nameText;
+    badge.appendChild(name);
+
+    const detail = document.createElement('div');
+    detail.className = 'player-detail';
+    detail.dataset.uiPlayerDetail = 'true';
+    badge.appendChild(detail);
+
+    return { name, detail };
+  }
+
   // Kept for backward-compat; top-bar AI controls removed — settings overlay handles these now
   setupAIControls(onAIToggle, onDiffChange, onSoundToggle) {
     // No-op: controls moved to in-game settings panel
@@ -305,19 +331,14 @@ export class UI {
   }
 
   setPlayerStats({ p1Name, p1Group, p1Remaining, p2Name, p2Group, p2Remaining, mode, targetBall }) {
-    if (this._hudP1Name) this._hudP1Name.textContent = p1Name || '玩家 1';
-    if (this._hudP2Name) this._hudP2Name.textContent = p2Name || '玩家 2';
-
-    // Also update top badges to match names for less redundancy
-    if (this.player1Badge) this.player1Badge.textContent = p1Name || '玩家 1';
-    if (this.player2Badge) this.player2Badge.textContent = p2Name || '玩家 2';
+    if (this._player1Name) this._player1Name.textContent = p1Name || '玩家 1';
+    if (this._player2Name) this._player2Name.textContent = p2Name || '玩家 2';
 
     const groupLabel = (g) => {
       if (!g) return '';
       return g === 'solid' ? '● 全色' : '◯ 花色';
     };
 
-    // 9-ball mode: show target ball instead of group
     const is9Ball = mode === '9ball';
 
     const _setDetail = (el, remaining, group) => {
@@ -343,8 +364,8 @@ export class UI {
         el.appendChild(rSpan);
       }
     };
-    _setDetail(this._hudP1Detail, p1Remaining, p1Group);
-    _setDetail(this._hudP2Detail, p2Remaining, p2Group);
+    _setDetail(this._player1Detail, p1Remaining, p1Group);
+    _setDetail(this._player2Detail, p2Remaining, p2Group);
   }
 
   setPlayerTurn(player) {
@@ -355,12 +376,6 @@ export class UI {
     } else {
       this.player1Badge.classList.remove('active');
       this.player2Badge.classList.add('active');
-    }
-    if (this._hudP1Name) {
-      this._hudP1Name.classList.toggle('active', player === 1);
-    }
-    if (this._hudP2Name) {
-      this._hudP2Name.classList.toggle('active', player === 2);
     }
     // Subtle scale pulse on turn change for clearer feedback
     const activeBadge = player === 1 ? this.player1Badge : this.player2Badge;
@@ -411,6 +426,9 @@ export class UI {
     if (this._hudSettingsBtn) {
       this._hudSettingsBtn.onclick = onSettings;
     }
+    if (this._hudBackBtn) {
+      this._hudBackBtn.onclick = () => this._showConfirmDialog('确认返回主菜单？当前进度将丢失。', onQuit);
+    }
     this._pauseActions.forEach(btn => {
       btn.onmouseenter = null;
       btn.onmouseleave = null;
@@ -423,13 +441,108 @@ export class UI {
 
     this._addPauseAction('继续游戏', '', onResume);
     this._addPauseAction('设置', '', onSettings);
-    this._addPauseAction('返回主菜单', 'color: #ff8a9a; border-color: rgba(185,18,63,0.35);', onQuit);
+    this._addPauseAction('返回主菜单', 'color: #ff8a9a; border-color: rgba(185,18,63,0.35);', () => this._showConfirmDialog('确认返回主菜单？当前进度将丢失。', onQuit));
   }
 
   setupConcede(onConcede) {
     if (this._hudConcedeBtn) {
       this._hudConcedeBtn.onclick = onConcede;
     }
+  }
+
+  _showConfirmDialog(message, onConfirm) {
+    // Remove any existing confirm dialog and its listener
+    if (this._confirmKeyHandler) {
+      document.removeEventListener('keydown', this._confirmKeyHandler);
+      this._confirmKeyHandler = null;
+    }
+    const existing = document.getElementById('ui-confirm-dialog');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'ui-confirm-dialog';
+    overlay.style.cssText = `
+      position: fixed; inset: 0; z-index: 60;
+      background: rgba(5,7,8,0.72);
+      backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity calc(0.25s / var(--ui-anim-speed)) ease;
+    `;
+
+    const panel = document.createElement('div');
+    panel.style.cssText = `
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 28px 32px;
+      min-width: 280px;
+      max-width: 90vw;
+      display: flex; flex-direction: column;
+      gap: 18px; align-items: center;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    `;
+
+    const msg = document.createElement('div');
+    msg.textContent = message;
+    msg.style.cssText = 'font-size: 15px; font-weight: 650; color: var(--text); text-align: center; line-height: 1.45;';
+    panel.appendChild(msg);
+
+    const btns = document.createElement('div');
+    btns.style.cssText = 'display: flex; gap: 12px; width: 100%;';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.textContent = '取消';
+    cancelBtn.style.cssText = `
+      flex: 1; padding: 12px 0;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--line);
+      border-radius: 8px; color: var(--text);
+      font-size: 14px; font-weight: 750; cursor: pointer;
+      transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+    `;
+    cancelBtn.onmouseenter = () => { cancelBtn.style.background = 'rgba(255,255,255,0.14)'; };
+    cancelBtn.onmouseleave = () => { cancelBtn.style.background = 'rgba(255,255,255,0.06)'; };
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.type = 'button';
+    confirmBtn.textContent = '确认';
+    confirmBtn.style.cssText = `
+      flex: 1; padding: 12px 0;
+      background: rgba(185,18,63,0.22);
+      border: 1px solid rgba(185,18,63,0.45);
+      border-radius: 8px; color: #ff8a9a;
+      font-size: 14px; font-weight: 750; cursor: pointer;
+      transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+    `;
+    confirmBtn.onmouseenter = () => { confirmBtn.style.background = 'rgba(185,18,63,0.35)'; };
+    confirmBtn.onmouseleave = () => { confirmBtn.style.background = 'rgba(185,18,63,0.22)'; };
+
+    const close = () => {
+      overlay.style.opacity = '0';
+      document.removeEventListener('keydown', this._confirmKeyHandler);
+      this._confirmKeyHandler = null;
+      setTimeout(() => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, animMs(250));
+    };
+
+    cancelBtn.onclick = close;
+    confirmBtn.onclick = () => { close(); if (onConfirm) onConfirm(); };
+    overlay.onclick = (e) => { if (e.target === overlay) close(); };
+
+    this._confirmKeyHandler = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); close(); }
+      else if (e.key === 'Enter') { e.preventDefault(); close(); if (onConfirm) onConfirm(); }
+    };
+    document.addEventListener('keydown', this._confirmKeyHandler);
+
+    btns.appendChild(cancelBtn);
+    btns.appendChild(confirmBtn);
+    panel.appendChild(btns);
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+    this._confirmOverlay = overlay;
+
+    requestAnimationFrame(() => { overlay.style.opacity = '1'; });
   }
 
   showPauseMenu() {
@@ -857,6 +970,27 @@ export class UI {
 
     document.documentElement.style.setProperty("--ball-labels-visible", "0");
     document.documentElement.classList.remove("high-contrast", "large-text", "reduce-motion");
+    const confirmOverlay = this._confirmOverlay || document.getElementById('ui-confirm-dialog');
+    if (confirmOverlay && confirmOverlay.parentNode) {
+      confirmOverlay.onclick = null;
+      confirmOverlay.querySelectorAll('button').forEach(btn => {
+        btn.onmouseenter = null;
+        btn.onmouseleave = null;
+        btn.onclick = null;
+      });
+      confirmOverlay.parentNode.removeChild(confirmOverlay);
+    }
+    if (this._confirmKeyHandler) {
+      document.removeEventListener('keydown', this._confirmKeyHandler);
+      this._confirmKeyHandler = null;
+    }
+    this._confirmOverlay = null;
+    if (this.player1Badge) this.player1Badge.textContent = this._player1Name?.textContent || '玩家 1';
+    if (this.player2Badge) this.player2Badge.textContent = this._player2Name?.textContent || '玩家 2';
+    this._player1Name = null;
+    this._player2Name = null;
+    this._player1Detail = null;
+    this._player2Detail = null;
     this.player1Badge = null;
     this.player2Badge = null;
     this.message = null;
@@ -867,12 +1001,6 @@ export class UI {
       this.bottomHud.parentNode.removeChild(this.bottomHud);
     }
     this.bottomHud = null;
-    this._hudP1 = null;
-    this._hudP1Name = null;
-    this._hudP1Detail = null;
-    this._hudP2 = null;
-    this._hudP2Name = null;
-    this._hudP2Detail = null;
     this._hudCenter = null;
     this._hudTimer = null;
     this._hudObjective = null;
@@ -881,9 +1009,11 @@ export class UI {
     this._hudScore = null;
     if (this._hudSettingsBtn) { this._hudSettingsBtn.onclick = null; }
     if (this._hudConcedeBtn) { this._hudConcedeBtn.onclick = null; }
+    if (this._hudBackBtn) { this._hudBackBtn.onclick = null; }
     this._hudNewGameBtn = null;
     this._hudConcedeBtn = null;
     this._hudSettingsBtn = null;
+    this._hudBackBtn = null;
 
     if (this.pauseBtn) {
       this.pauseBtn.onmouseenter = null;
