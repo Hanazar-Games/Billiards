@@ -1,8 +1,24 @@
-# 3D Billiards v1.7.35 — Latest Update
+# 3D Billiards v1.7.36 — Latest Update
 
-## What's New in v1.7.35
+## What's New in v1.7.36
 
-### 🎱 Physics Tuning, Default Settings & Room Furniture Scale
+### 🖼️ Room Modelling Overhaul — Furniture & Wall Art
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **扶手椅建模重构** | 座面改为双层（软垫 8 + 底座 4），靠背加圆柱形顶部包边并微向后倾 3.4°，扶手改为「软垫顶 + 木质支撑」结构，椅腿加粗并新增球形脚垫 (SphereGeometry 半球) |
+| 2 | **台灯建模重构** | 从简单圆柱灯罩改为完整台灯：圆形金属底座、细长灯杆、钟形 LatheGeometry 灯罩、内部灯泡球体，暖色点光源 |
+| 3 | **花盆建模优化** | 添加装饰性底足环 (potFoot)、加厚卷边盆沿 (TorusGeometry r=1.0)，盆体比例更优雅 |
+| 4 | **墙上风景画** | 新增 4 幅程序化山水画（CanvasTexture 512px）：前墙「mountain」、后墙「lake」、左墙「forest」、右墙「sunset」；每幅画有独立配色（天空渐变、远山层次、云雾、飞鸟） |
+| 5 | **风景画生命周期** | `createPaintings()` 加入构造函数，`applyVisualSettings()` 中受 `wallDecorEnabled` 控制，`dispose()` 中正确释放纹理 |
+
+---
+
+## Historical Updates
+
+### v1.7.35 — Physics Tuning, Default Settings & Room Furniture Scale
+
+#### 🎱 Physics Tuning, Default Settings & Room Furniture Scale
 
 | # | 改动 | 详情 |
 |---|------|------|
@@ -15,8 +31,6 @@
 | 7 | **花盆植物整体放大** | `createPlant` 末尾统一缩放 `PLANT_SCALE = 1.6`，盆径从 28→44.8，与房间比例协调 |
 
 ---
-
-## Historical Updates
 
 ### v1.7.34 — Deep UI/UX/SFX/BGM & Modelling QA Fixes
 
