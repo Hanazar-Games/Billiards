@@ -24,7 +24,7 @@ const DEFAULTS = {
   lowLatencyMode: false,
 
   // ── Graphics & Performance ──
-  trajectoryEnabled: true,
+  trajectoryEnabled: false,
   particlesEnabled: true,
   shotTrailsEnabled: true,
   quality: 'high', // 'low' | 'medium' | 'high'
@@ -129,7 +129,7 @@ const DEFAULTS = {
   showBallLabels: false,
   showRemainingBalls: true,
   showComboCounter: true,
-  showCrosshair: true,
+  showCrosshair: false,
   timerPosition: 'top', // 'top' | 'bottom' | 'center'
   reducedMotion: false,
   highContrastUI: false,

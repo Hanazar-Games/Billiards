@@ -1,8 +1,26 @@
-# 3D Billiards v1.7.34 — Latest Update
+# 3D Billiards v1.7.35 — Latest Update
 
-## What's New in v1.7.34
+## What's New in v1.7.35
 
-### 🔍 Deep UI/UX/SFX/BGM & Modelling QA Fixes
+### 🎱 Physics Tuning, Default Settings & Room Furniture Scale
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **球低速阻尼提高** | `BALL.damping` 0.004→0.012，`angularDamping` 0.008→0.02，`slowBrakeStrength` 0.08→0.15；球在低速时更快停下，滚动距离更符合真实台球手感 |
+| 2 | **默认关闭轨迹预测线** | `trajectoryEnabled` 默认 `true`→`false`，新玩家默认看不到辅助轨迹，需要手动在设置中开启 |
+| 3 | **默认关闭准星** | `showCrosshair` 默认 `true`→`false`，与轨迹线保持一致，回归更纯粹的瞄准体验 |
+| 4 | **扶手椅比例再放大** | 座面 36→70×55，靠背 36→70×35，扶手 6→10×18，椅腿 1.8→2.5 半径 / 10→30 高；group 定位 `floorY + 36`，座高约 42cm，与台球桌（75cm 高）比例协调；离墙偏移 18→35 防止穿模 |
+| 5 | **边桌比例放大** | 桌面直径 20→36，柱高 10→18，底座直径 12→13→26；group 定位 `floorY + 9`，桌面高约 22cm，与扶手椅高度匹配 |
+| 6 | **台灯比例放大** | 灯罩直径 4/5→7/8，高度 5→7；位置跟随边桌调整为 `floorY + 26` |
+| 7 | **花盆植物整体放大** | `createPlant` 末尾统一缩放 `PLANT_SCALE = 1.6`，盆径从 28→44.8，与房间比例协调 |
+
+---
+
+## Historical Updates
+
+### v1.7.34 — Deep UI/UX/SFX/BGM & Modelling QA Fixes
+
+#### 🔍 Deep UI/UX/SFX/BGM & Modelling QA Fixes
 
 | # | 改动 | 详情 |
 |---|------|------|

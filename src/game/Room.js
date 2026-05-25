@@ -996,6 +996,10 @@ export class Room {
       group.add(cluster);
     }
 
+    // Scale up to realistic size relative to the pool table
+    const PLANT_SCALE = 1.6;
+    group.scale.set(PLANT_SCALE, PLANT_SCALE, PLANT_SCALE);
+
     this._themeGroups.plants.add(group);
   }
 
@@ -1177,32 +1181,32 @@ export class Room {
       color: 0x3a2820, roughness: 0.45, metalness: 0.15,
     });
 
-    // Two armchairs on each side wall
-    this._createArmchair(-hw + 18, floorY + 9.5, -140, Math.PI / 2, chairMat, woodMat);
-    this._createArmchair(-hw + 18, floorY + 9.5,  140, Math.PI / 2, chairMat, woodMat);
-    this._createArmchair( hw - 18, floorY + 9.5, -140, -Math.PI / 2, chairMat, woodMat);
-    this._createArmchair( hw - 18, floorY + 9.5,  140, -Math.PI / 2, chairMat, woodMat);
+    // Two armchairs on each side wall (scaled to match table proportions)
+    this._createArmchair(-hw + 35, floorY + 36, -140, Math.PI / 2, chairMat, woodMat);
+    this._createArmchair(-hw + 35, floorY + 36,  140, Math.PI / 2, chairMat, woodMat);
+    this._createArmchair( hw - 35, floorY + 36, -140, -Math.PI / 2, chairMat, woodMat);
+    this._createArmchair( hw - 35, floorY + 36,  140, -Math.PI / 2, chairMat, woodMat);
 
     // Side tables between chairs
-    this._createSideTable(-hw + 18, floorY + 12, -60, tableMat);
-    this._createSideTable(-hw + 18, floorY + 12,  60, tableMat);
-    this._createSideTable( hw - 18, floorY + 12, -60, tableMat);
-    this._createSideTable( hw - 18, floorY + 12,  60, tableMat);
+    this._createSideTable(-hw + 35, floorY + 9, -60, tableMat);
+    this._createSideTable(-hw + 35, floorY + 9,  60, tableMat);
+    this._createSideTable( hw - 35, floorY + 9, -60, tableMat);
+    this._createSideTable( hw - 35, floorY + 9,  60, tableMat);
 
-    // Small lamp on each side table
+    // Table lamp on each side table
     const lampMat = this._mat('tableLamp', {
       color: 0xfff5e0, emissive: 0xffe4b0, emissiveIntensity: 0.6,
       roughness: 0.25, metalness: 0.1, transparent: true, opacity: 0.95,
     });
     const lampPositions = [
-      [-hw + 18, floorY + 28, -60],
-      [-hw + 18, floorY + 28,  60],
-      [ hw - 18, floorY + 28, -60],
-      [ hw - 18, floorY + 28,  60],
+      [-hw + 35, floorY + 26, -60],
+      [-hw + 35, floorY + 26,  60],
+      [ hw - 35, floorY + 26, -60],
+      [ hw - 35, floorY + 26,  60],
     ];
     for (const [lx, ly, lz] of lampPositions) {
       const shade = new THREE.Mesh(
-        new THREE.CylinderGeometry(4, 5, 5, 16), lampMat);
+        new THREE.CylinderGeometry(7, 8, 7, 16), lampMat);
       shade.position.set(lx, ly, lz);
       this._themeGroups.lounge.add(shade);
 
@@ -1217,38 +1221,40 @@ export class Room {
     group.position.set(x, y, z);
     group.rotation.y = rotY;
 
-    // Seat — wider, deeper, thicker cushion for a sofa-like comfort
+    // Seat — scaled to realistic proportions vs the pool table (254 x 127)
     const seat = new THREE.Mesh(
-      new THREE.BoxGeometry(36, 7, 28), fabricMat);
+      new THREE.BoxGeometry(70, 12, 55), fabricMat);
     seat.position.y = 0;
     seat.castShadow = true;
     group.add(seat);
 
-    // Backrest — lower, slightly reclined profile
+    // Backrest
     const back = new THREE.Mesh(
-      new THREE.BoxGeometry(36, 22, 6), fabricMat);
-    back.position.set(0, 8.5, -13);
+      new THREE.BoxGeometry(70, 35, 8), fabricMat);
+    back.position.set(0, 14, -28);
     back.castShadow = true;
     group.add(back);
 
-    // Armrests — wider, lower, deeper
+    // Armrests
     const armL = new THREE.Mesh(
-      new THREE.BoxGeometry(6, 10, 28), woodMat);
-    armL.position.set(-18, 2.5, 0);
+      new THREE.BoxGeometry(10, 18, 55), woodMat);
+    armL.position.set(-35, 5, 0);
     armL.castShadow = true;
     group.add(armL);
 
     const armR = new THREE.Mesh(
-      new THREE.BoxGeometry(6, 10, 28), woodMat);
-    armR.position.set(18, 2.5, 0);
+      new THREE.BoxGeometry(10, 18, 55), woodMat);
+    armR.position.set(35, 5, 0);
     armR.castShadow = true;
     group.add(armR);
 
-    // Legs — slightly stouter, shorter
-    const legGeo = new THREE.CylinderGeometry(1.8, 1.3, 10, 8);
-    for (const [lx, lz] of [[-14, -11], [14, -11], [-14, 11], [14, 11]]) {
+    // Legs — tall enough to bring seat to proper height
+    const legH = 30;
+    const legGeo = new THREE.CylinderGeometry(2.5, 2.0, legH, 8);
+    const legY = -(12 / 2 + legH / 2); // = -21
+    for (const [lx, lz] of [[-28, -22], [28, -22], [-28, 22], [28, 22]]) {
       const leg = new THREE.Mesh(legGeo, woodMat);
-      leg.position.set(lx, -4.5, lz);
+      leg.position.set(lx, legY, lz);
       leg.castShadow = true;
       group.add(leg);
     }
@@ -1262,22 +1268,22 @@ export class Room {
 
     // Table top
     const top = new THREE.Mesh(
-      new THREE.CylinderGeometry(10, 10, 1.5, 24), tableMat);
-    top.position.y = 6;
+      new THREE.CylinderGeometry(18, 18, 2, 24), tableMat);
+    top.position.y = 12;
     top.castShadow = true;
     group.add(top);
 
     // Stem
     const stem = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.5, 2.0, 10, 12), tableMat);
-    stem.position.y = 0.5;
+      new THREE.CylinderGeometry(2.5, 3.0, 18, 12), tableMat);
+    stem.position.y = 2;
     stem.castShadow = true;
     group.add(stem);
 
     // Base
     const base = new THREE.Mesh(
-      new THREE.CylinderGeometry(6, 7, 1.2, 24), tableMat);
-    base.position.y = -4.5;
+      new THREE.CylinderGeometry(12, 13, 2, 24), tableMat);
+    base.position.y = -8;
     base.castShadow = true;
     group.add(base);
 
