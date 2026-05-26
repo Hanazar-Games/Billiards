@@ -2480,7 +2480,9 @@ export class Game {
     }
 
     this.audio?.playWin();
-    if (!this.matchManager) {
+    if (this.matchManager) {
+      this.matchManager.onGameEnd(winner);
+    } else {
       this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
     }
     this.ui.setPlayerTurn(winner);
@@ -2696,8 +2698,6 @@ export class Game {
       case 'language':
         // Language switch requires page reload or full text refresh
         break;
-      case 'lightingIntensity':
-      case 'ambientIntensity':
       case 'fogEnabled':
       case 'toneMappingExposure':
       case 'cameraDamping':
@@ -2754,6 +2754,7 @@ export class Game {
       case 'lightingStyle':
       case 'lightingIntensity':
       case 'ambientIntensity':
+      case 'roomLightingQuality':
         if (this.room) this.room.applyVisualSettings(settings);
         break;
       case 'ballReflection':
@@ -2786,12 +2787,6 @@ export class Game {
       case 'focusMode':
       case 'focusOpacity':
       case 'colorBlindMode':
-      case 'highContrastUI':
-      case 'largeTextMode':
-      case 'reducedMotion':
-      case 'hudOpacity':
-        // Accessibility / HUD params are read live by UI layer
-        break;
       case 'autoSkipAnimation':
       case 'skipOpponentTurn':
       case 'showOpponentTrajectory':

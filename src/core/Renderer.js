@@ -139,12 +139,14 @@ export class Renderer {
   }
 
   setupLights() {
-    // Ambient
-    this._ambientLight = new THREE.AmbientLight(0xfff8f0, 0.40);
+    // Ambient — lowered so table lamps feel like the primary source
+    this._ambientLight = new THREE.AmbientLight(0xfff8f0, 0.32);
     this.scene.add(this._ambientLight);
 
-    // Main overhead lamp, aimed at the table.
-    this._mainLight = new THREE.DirectionalLight(0xfff5e0, 1.45);
+    // Main overhead lamp (simulates window spill / room bounce).
+    // Intentionally weaker than the table spots so the pool-table
+    // lamps read as the dominant light source.
+    this._mainLight = new THREE.DirectionalLight(0xfff5e0, 0.85);
     this._mainLight.position.set(60, 520, 90);
     this._mainLight.castShadow = true;
     this._mainLight.shadow.mapSize.width = 2048;
@@ -159,12 +161,12 @@ export class Renderer {
     this.scene.add(this._mainLight);
 
     // Fill light (cool blue from opposite side)
-    this._fillLight = new THREE.DirectionalLight(0xc8d8f0, 0.22);
+    this._fillLight = new THREE.DirectionalLight(0xc8d8f0, 0.15);
     this._fillLight.position.set(-250, 200, -200);
     this.scene.add(this._fillLight);
 
     // Rim light (warm, from behind table)
-    this._rimLight = new THREE.DirectionalLight(0xffe8c8, 0.32);
+    this._rimLight = new THREE.DirectionalLight(0xffe8c8, 0.20);
     this._rimLight.position.set(0, 150, -400);
     this.scene.add(this._rimLight);
   }

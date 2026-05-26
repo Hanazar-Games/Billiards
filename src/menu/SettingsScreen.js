@@ -44,33 +44,12 @@ const CUE_THEME_OPTIONS = [
   { value: 'green',   label: '翡翠' },
   { value: 'gold',    label: '鎏金' },
 ];
-const TABLE_THEME_OPTIONS = [
-  { value: 'classic', label: '经典绿' },
-  { value: 'blue', label: '皇家蓝' },
-  { value: 'red', label: '中国红' },
-  { value: 'black', label: '暗夜黑' },
-  { value: 'wood', label: '原木色' },
-];
 const BALL_STYLE_OPTIONS = [
   { value: 'standard', label: '标准' },
   { value: 'glossy', label: '高光' },
   { value: 'matte', label: '哑光' },
   { value: 'neon', label: '霓虹' },
   { value: 'retro', label: '复古' },
-];
-const LIGHTING_STYLE_OPTIONS = [
-  { value: 'warm', label: '暖光' },
-  { value: 'cool', label: '冷光' },
-  { value: 'neutral', label: '自然' },
-  { value: 'dramatic', label: '戏剧' },
-  { value: 'studio', label: '摄影棚' },
-];
-const ROOM_STYLE_OPTIONS = [
-  { value: 'classic', label: '经典俱乐部' },
-  { value: 'modern', label: '现代简约' },
-  { value: 'pub', label: '英式酒馆' },
-  { value: 'neon', label: '霓虹夜店' },
-  { value: 'outdoor', label: '露天露台' },
 ];
 const MINIMAP_POS_OPTIONS = [
   { value: 'bottom-right', label: '右下' },
@@ -188,6 +167,12 @@ const WALL_THEME_OPTIONS = [
   { value: 'neutral', label: '中性' },
   { value: 'dark', label: '暗色' },
 ];
+const ROOM_LIGHTING_QUALITY_OPTIONS = [
+  { value: 'low', label: '低（仅台球灯）' },
+  { value: 'medium', label: '中（简化辅助灯）' },
+  { value: 'high', label: '高（完整照明）' },
+];
+
 const LAMP_STYLE_OPTIONS = [
   { value: 'classic', label: '经典' },
   { value: 'modern', label: '现代' },
@@ -402,7 +387,10 @@ export class SettingsScreen {
     keyBindings.cancelListening();
     // Dismiss any open confirmation dialogs before switching categories
     document.querySelectorAll('.settings-confirm-backdrop').forEach(el => {
-      if (el._keydownHandler) window.removeEventListener('keydown', el._keydownHandler);
+      if (el._keydownHandler) {
+        window.removeEventListener('keydown', el._keydownHandler);
+        this._confirmHandlers.delete(el._keydownHandler);
+      }
       if (el.parentNode) el.parentNode.removeChild(el);
     });
     this._currentCategory = id;
@@ -831,6 +819,7 @@ export class SettingsScreen {
 
     // ── Lighting ──
     const lightWrap = this._createCollapsible('灯光', true);
+    this._rowSelectIn(lightWrap, '房间灯光质量', ROOM_LIGHTING_QUALITY_OPTIONS, settings.get('roomLightingQuality'), (v) => settings.set('roomLightingQuality', v));
     this._rowSelectIn(lightWrap, '灯具风格', LAMP_STYLE_OPTIONS, settings.get('lampStyle'), (v) => settings.set('lampStyle', v));
     this._rowSelectIn(lightWrap, '环境光色调', AMBIENT_LIGHT_OPTIONS, settings.get('ambientLightTheme'), (v) => settings.set('ambientLightTheme', v));
     this._rowSliderIn(lightWrap, '桌面灯光强度', Math.round((settings.get('tableLightIntensity') ?? 1.0) * 100), 20, 200, '%', (v) => settings.set('tableLightIntensity', v / 100));

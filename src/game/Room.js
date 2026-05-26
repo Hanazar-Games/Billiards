@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { BALL, ROOM } from '../config.js';
 import { getDefaultTableProfile } from './TableProfiles.js';
+import { settings } from '../core/SettingsStore.js';
 import {
   ROOM_THEMES, FLOOR_THEMES, WALL_THEMES, LAMP_STYLE_THEMES, AMBIENT_LIGHT_THEMES,
   applyMaterialTheme,
@@ -18,7 +19,8 @@ export class Room {
     this._tmpToLamp2 = new THREE.Vector3();
     this._materials = {};
     this._themeGroups = {};
-    this._themeLights = {};
+    this._themeLights = { downlights: [], wallSconces: [], tableLamps: [] };
+    this._lightingQualityMult = 1.0;
 
     // Core architectural structure
     this.createFloor();
@@ -549,6 +551,7 @@ export class Room {
       opacity: 1.0,
       depthWrite: false,
     });
+    glowMat._baseEmissiveIntensity = 1.2;
 
     // Structural elements (crossbar, rods, chains) are grouped so they can be
     // hidden when the camera is above them, preventing obstruction of the
@@ -566,6 +569,7 @@ export class Room {
       opacity: 1.0,
       depthWrite: false,
     });
+    crossbarMat._baseEmissiveIntensity = 0.25;
     const crossbar = new THREE.Mesh(new THREE.BoxGeometry(4, 3, this.profile.depth * 0.68), crossbarMat);
     crossbar.position.set(0, railY + 14, 0);
     this._themeGroups.tableLightStructure.add(crossbar);
@@ -634,11 +638,12 @@ export class Room {
         roughness: 0.1, metalness: 0.0,
         transparent: true, opacity: 0.9,
       });
+      bulbMat._baseEmissiveIntensity = 2.0;
       const bulb = new THREE.Mesh(new THREE.SphereGeometry(3.5, 16, 16), bulbMat);
       bulb.position.set(0, railY - 10, z);
       this.meshGroup.add(bulb);
 
-      // Spot light
+      // Spot light — brighter so the table lamps read as the primary source
       const spot = new THREE.SpotLight(0xffe4b0, 1.25, 420, Math.PI / 4.8, 0.55, 1.4);
       spot.position.set(0, railY - 10, z);
       spot.target.position.set(0, 0, z * 0.18);
@@ -1448,10 +1453,12 @@ export class Room {
     const LS = 1.38; // lounge furniture unified scale
 
     // Two armchairs on each side wall (scaled to match table proportions)
-    this._createArmchair(-hw + 56, floorY + 44, -145, Math.PI / 2, chairMat, woodMat, LS);
-    this._createArmchair(-hw + 56, floorY + 44,  145, Math.PI / 2, chairMat, woodMat, LS);
-    this._createArmchair( hw - 56, floorY + 44, -145, -Math.PI / 2, chairMat, woodMat, LS);
-    this._createArmchair( hw - 56, floorY + 44,  145, -Math.PI / 2, chairMat, woodMat, LS);
+    // y = floorY + 36.5*LS so that the ball feet rest just above the floor
+    const chairY = floorY + 36.5 * LS;
+    this._createArmchair(-hw + 56, chairY, -145, Math.PI / 2, chairMat, woodMat, LS);
+    this._createArmchair(-hw + 56, chairY,  145, Math.PI / 2, chairMat, woodMat, LS);
+    this._createArmchair( hw - 56, chairY, -145, -Math.PI / 2, chairMat, woodMat, LS);
+    this._createArmchair( hw - 56, chairY,  145, -Math.PI / 2, chairMat, woodMat, LS);
 
     // Side tables between chairs (y set so base rests on floor)
     this._createSideTable(-hw + 56, floorY + 10 * LS, -72, tableMat, LS);
@@ -1464,6 +1471,7 @@ export class Room {
       color: 0xfff5e0, emissive: 0xffe4b0, emissiveIntensity: 0.6,
       roughness: 0.25, metalness: 0.1, transparent: true, opacity: 0.95,
     });
+    lampMat._baseEmissiveIntensity = 0.6;
     const lampMetalMat = this._mat('lampMetal', {
       color: 0x8a7a68, roughness: 0.3, metalness: 0.7,
     });
@@ -1508,6 +1516,7 @@ export class Room {
         color: 0xffffee, emissive: 0xffe8aa, emissiveIntensity: 1.8,
         roughness: 0.1, metalness: 0.0,
       });
+      bulbMat._baseEmissiveIntensity = 1.8;
       const bulb = new THREE.Mesh(
         new THREE.SphereGeometry(2.2 * LS, 12, 12), bulbMat);
       bulb.position.set(lx, ly + 12 * LS, lz);
@@ -1517,6 +1526,7 @@ export class Room {
       const light = new THREE.PointLight(0xffe8c0, 0.4, 65 * LS, 1.7);
       light.position.set(lx, ly + 11 * LS, lz);
       this._themeGroups.lounge.add(light);
+      this._themeLights.tableLamps.push(light);
     }
   }
 
@@ -1526,8 +1536,9 @@ export class Room {
     const hd = ROOM.halfDepth;
     const floorY = -this.profile.height - 71;
     const group = new THREE.Group();
+    this._themeGroups.cueRack = group;
     group.position.set(hw * 0.55, floorY, -hd + 30);
-    group.rotation.y = Math.PI;
+    group.rotation.y = 0;
     this.meshGroup.add(group);
 
     const rackWood = this._mat('rackWood', {
@@ -1696,9 +1707,12 @@ export class Room {
   createWallSconces() {
     const hw = ROOM.halfWidth;
     const hd = ROOM.halfDepth;
-    const wallH = 260;
+    const floorY = -this.profile.height - 71;
+    const wallH = ROOM.wallHeight - floorY;
     const group = new THREE.Group();
+    this._themeGroups.wallSconces = group;
     this.meshGroup.add(group);
+    this._themeLights.wallSconces = [];
 
     const brassMat = this._mat('sconceBrass', {
       color: 0xb8965a, roughness: 0.25, metalness: 0.85,
@@ -1707,10 +1721,12 @@ export class Room {
       color: 0xfff8e0, emissive: 0xffe8b0, emissiveIntensity: 0.5,
       roughness: 0.15, metalness: 0.0, transparent: true, opacity: 0.75,
     });
+    glassMat._baseEmissiveIntensity = 0.5;
     const bulbMat = this._mat('sconceBulb', {
       color: 0xffffee, emissive: 0xffe8aa, emissiveIntensity: 2.0,
       roughness: 0.1, metalness: 0.0,
     });
+    bulbMat._baseEmissiveIntensity = 2.0;
 
     const S = 1.38;
     const positions = [
@@ -1769,6 +1785,7 @@ export class Room {
       const light = new THREE.PointLight(0xffe0b0, 0.35, 80 * S, 1.8);
       light.position.set(0, 7 * S, 10 * S);
       sg.add(light);
+      this._themeLights.wallSconces.push(light);
     }
   }
 
@@ -1778,6 +1795,9 @@ export class Room {
     const floorY = -this.profile.height - 71;
     const S = 1.38;
     const tableTopY = floorY + 38 * S; // matches _createSideTable top surface
+
+    this._themeGroups.tableAccessories = new THREE.Group();
+    this.meshGroup.add(this._themeGroups.tableAccessories);
 
     const chalkMat = this._mat('chalk', {
       color: 0x0066cc, roughness: 0.85, metalness: 0.0,
@@ -1809,7 +1829,7 @@ export class Room {
 
       const tg = new THREE.Group();
       tg.position.set(x + offX, tableTopY, z + offZ);
-      this.meshGroup.add(tg);
+      this._themeGroups.tableAccessories.add(tg);
 
       // ── Chalk cube ──
       const chalk = new THREE.Mesh(
@@ -2343,14 +2363,13 @@ export class Room {
       }
     }
 
-    // Update downlight colors & intensities
-    if (this._themeLights.downlights) {
-      for (const pl of this._themeLights.downlights) {
-        if (pl) {
-          pl.color.setHex(lamp.pointColor);
-          pl.intensity = lamp.pointIntensity * lightIntensityMult;
-        }
-      }
+    // Cache base emissive intensities from the lamp theme so
+    // updateCameraVisibility can scale them correctly.
+    if (this._materials.diffuser) {
+      this._materials.diffuser._baseEmissiveIntensity = lamp.diffuser.emissiveIntensity ?? 1.2;
+    }
+    if (this._materials.crossbar) {
+      this._materials.crossbar._baseEmissiveIntensity = lamp.crossbar.emissiveIntensity ?? 0.25;
     }
 
     // Ambient light updates dispatched to Renderer
@@ -2394,6 +2413,66 @@ export class Room {
     if (this._themeGroups.paintings) {
       this._themeGroups.paintings.visible = settings.get('wallDecorEnabled') !== false;
     }
+    if (this._themeGroups.cueRack) {
+      this._themeGroups.cueRack.visible = settings.get('decorativePropsEnabled') !== false;
+    }
+    if (this._themeGroups.wallSconces) {
+      this._themeGroups.wallSconces.visible = settings.get('wallDecorEnabled') !== false;
+    }
+    if (this._themeGroups.tableAccessories) {
+      this._themeGroups.tableAccessories.visible = settings.get('decorativePropsEnabled') !== false;
+    }
+
+    // ── Room lighting quality — scale or disable secondary lights ──
+    const roomLightQuality = settings.get('roomLightingQuality') || 'high';
+    const qDown = roomLightQuality === 'high' ? 1.0 : (roomLightQuality === 'medium' ? 0.5 : 0.0);
+    const qSconce = roomLightQuality === 'high' ? 1.0 : (roomLightQuality === 'medium' ? 0.5 : 0.0);
+    const qLamp = roomLightQuality === 'high' ? 1.0 : (roomLightQuality === 'medium' ? 0.5 : 0.0);
+    this._lightingQualityMult = qDown; // used by updateCameraVisibility for emissive scaling
+
+    // Downlights (ceiling) — scale the themed pointIntensity, not a hardcoded value
+    if (this._themeLights.downlights) {
+      for (const pl of this._themeLights.downlights) {
+        if (pl) {
+          pl.color.setHex(lamp.pointColor);
+          pl.intensity = lamp.pointIntensity * lightIntensityMult * qDown;
+        }
+      }
+    }
+    // Wall sconces — scale the themed pointIntensity consistently
+    if (this._themeLights.wallSconces) {
+      for (const pl of this._themeLights.wallSconces) {
+        if (pl) {
+          pl.color.setHex(lamp.pointColor);
+          pl.intensity = lamp.pointIntensity * lightIntensityMult * qSconce;
+        }
+      }
+    }
+    // Table lamps (lounge side tables)
+    if (this._themeLights.tableLamps) {
+      for (const pl of this._themeLights.tableLamps) {
+        if (pl) {
+          pl.color.setHex(lamp.pointColor);
+          pl.intensity = lamp.pointIntensity * lightIntensityMult * qLamp;
+        }
+      }
+    }
+
+    // Scale emissive intensity on all lamp-related materials so that
+    // meshes don't visibly glow when their actual lights are turned off.
+    const scaleEmissive = (matKey) => {
+      const mat = this._materials[matKey];
+      if (mat && mat._baseEmissiveIntensity != null) {
+        mat.emissiveIntensity = mat._baseEmissiveIntensity * this._lightingQualityMult;
+      }
+    };
+    scaleEmissive('diffuser');
+    scaleEmissive('crossbar');
+    scaleEmissive('bulb');
+    scaleEmissive('lampBulb');
+    scaleEmissive('tableLamp');
+    scaleEmissive('sconceBulb');
+    scaleEmissive('sconceGlass');
   }
 
   updateCameraVisibility(camera) {
@@ -2402,8 +2481,10 @@ export class Room {
 
     // ── Ceiling grid: hide when camera is above the ceiling so the default
     // and top-down views remain unobstructed.
+    // Also respect the user's ceilingGridEnabled setting.
     if (this._themeGroups.ceilingGrid) {
-      this._themeGroups.ceilingGrid.visible = camY < ROOM.wallHeight - 2;
+      const userEnabled = settings.get('ceilingGridEnabled') !== false;
+      this._themeGroups.ceilingGrid.visible = userEnabled && camY < ROOM.wallHeight - 2;
     }
 
     // ── Table light structure (crossbar, rods, chains): hide when camera is
@@ -2422,20 +2503,21 @@ export class Room {
     toTable.normalize();
 
     for (const diffuser of this._lampDiffusers) {
+      const mat = diffuser.material;
       const toLamp = this._tmpToLamp.subVectors(diffuser.position, camPos);
       const distToLamp = toLamp.length();
       toLamp.normalize();
       const alignment = toLamp.dot(toTable);
 
+      const baseEmissive = mat._baseEmissiveIntensity ?? 1.2;
+      const qMult = this._lightingQualityMult ?? 1.0;
       let targetOpacity = 1.0;
-      let targetEmissive = 1.2;
+      let targetEmissive = baseEmissive * qMult;
       if (distToLamp < distToTable && alignment > 0.78) {
         const fade = Math.max(0, (alignment - 0.78) / (1.0 - 0.78));
         targetOpacity = 1.0 - fade * 0.96;
-        targetEmissive = 1.2 * (1.0 - fade * 0.92);
+        targetEmissive = baseEmissive * (1.0 - fade * 0.92) * qMult;
       }
-
-      const mat = diffuser.material;
       if (Math.abs(mat.opacity - targetOpacity) > 0.01) {
         mat.opacity += (targetOpacity - mat.opacity) * 0.15;
       }
@@ -2489,5 +2571,16 @@ export class Room {
         }
       }
     });
+    // Release all instance references so GC can reclaim the meshes
+    this._materials = {};
+    this._themeGroups = {};
+    this._themeLights = {};
+    this._lampLights = [];
+    this._lampDiffusers = [];
+    this._lampCrossbarMat = null;
+    this._tmpToTable = null;
+    this._tmpToLamp = null;
+    this._tmpToLamp2 = null;
+    this._lightingQualityMult = 1.0;
   }
 }

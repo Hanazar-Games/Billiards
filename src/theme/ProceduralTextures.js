@@ -28,7 +28,7 @@ export function createClothNapTexture(width = 512, height = 512, strength = 0.35
     const x = Math.random() * width;
     const y = Math.random() * height;
     const len = 4 + Math.random() * 12;
-    const angle = (Math.random() - 0.5) * 0.05; // nearly horizontal
+    const angle = (Math.random() - 0.5) * 0.12; // slight directional bias
     ctx.strokeStyle = `rgba(255,255,255,${alpha * (0.5 + Math.random() * 0.5)})`;
     ctx.lineWidth = 0.5 + Math.random();
     ctx.beginPath();

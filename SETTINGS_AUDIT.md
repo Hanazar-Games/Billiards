@@ -66,7 +66,7 @@ The settings panel now displays a small badge next to every disabled or special-
 | `toneMappingExposure` | ✅ | `Renderer._onSettingsChanged` | |
 | `fogEnabled` | ✅ | `Renderer._onSettingsChanged` | |
 | `fpsLimit` | ✅ | `GameLoop` | |
-| `roomLightingQuality` | ❌ | — | Dormant; not exposed in UI |
+| `roomLightingQuality` | ✅ | `Room.applyVisualSettings()` | Scales secondary light intensity & emissive glow |
 | `reflectionQuality` | ❌ | — | Dormant; not exposed in UI |
 | `backgroundAnimationEnabled` | ❌ | — | Dormant; not exposed in UI |
 | `vSync` | ❌ | — | UI disabled with badge `暂不可用`; browser controls vsync |
