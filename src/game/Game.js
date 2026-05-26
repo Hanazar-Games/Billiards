@@ -1556,6 +1556,8 @@ export class Game {
         this.ui.flashRed();
       }
       this._updatePlayerStats();
+      // Host broadcasts final state so clients see the game-over screen
+      this._broadcastSnapshot();
       return;
     }
 
@@ -2796,6 +2798,9 @@ export class Game {
         break;
       case 'confirmShotOnRelease':
         // Read live by InputHandler
+        break;
+      default:
+        // Unknown setting key — silently ignore (common for forward-compatibility)
         break;
     }
   }

@@ -172,25 +172,28 @@ export class AudioManager {
   }
 
   setMasterVolume(vol) {
-    if (!this._masterGain || !this.ctx || this.ctx.state === 'closed') return;
+    if (!Number.isFinite(vol) || !this._masterGain || !this.ctx || this.ctx.state === 'closed') return;
     const v = Math.max(0, Math.min(1, vol / 100));
     this._masterVolume = v;
     this._masterGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
   }
 
   setMusicVolume(vol) {
+    if (!Number.isFinite(vol)) return;
     this._musicVolume = Math.max(0, Math.min(1, vol / 100));
     if (!this.ctx || this.ctx.state === 'closed') return;
     this._updateBGMVolume();
   }
 
   setSFXVolume(vol) {
+    if (!Number.isFinite(vol)) return;
     this._sfxVolume = Math.max(0, Math.min(1, vol / 100));
     if (!this._sfxGain || !this.ctx || this.ctx.state === 'closed') return;
     this._sfxGain.gain.setTargetAtTime(this._sfxVolume, this.ctx.currentTime, 0.05);
   }
 
   setAmbientVolume(vol) {
+    if (!Number.isFinite(vol)) return;
     const v = Math.max(0, Math.min(1, vol / 100));
     // Store the setting even if audio context isn't ready yet
     this._ambientVolume = v;

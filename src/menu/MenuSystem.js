@@ -434,6 +434,11 @@ export class MenuSystem {
     }
 
     this.drillManager = null;
+
+    // Restart menu BGM
+    if (this.audio && this.audio.soundEnabled) {
+      this.audio.startBGM();
+    }
   }
 
   async _startChallenge(challenge) {
@@ -1034,6 +1039,11 @@ export class MenuSystem {
     this.mainMenu.show();
     this.state = 'MENU';
     this._startMenuLoop();
+
+    // Restart menu BGM
+    if (this.audio && this.audio.soundEnabled) {
+      this.audio.startBGM();
+    }
   }
 
   _quit() {
@@ -1100,6 +1110,7 @@ export class MenuSystem {
 
   _delay(ms) {
     if (this._delayTimer) clearTimeout(this._delayTimer);
+    if (this._delayResolve) { this._delayResolve(); this._delayResolve = null; }
     return new Promise((resolve) => {
       this._delayResolve = resolve;
       this._delayTimer = setTimeout(() => {

@@ -1357,6 +1357,8 @@ export class Table {
       dullReflective(this._materials.badge);
       dullReflective(this._materials.casting);
       dullReflective(this._materials.sight);
+      dullReflective(this._materials.jaw);
+      dullReflective(this._materials.cushionCap);
     }
 
     // Show/hide cloth nap
@@ -1471,11 +1473,11 @@ export class Table {
       if (child.material) {
         if (Array.isArray(child.material)) {
           child.material.forEach((m) => {
-            if (m.map) m.map.dispose();
+            if (m.map) { m.map.dispose(); m.map = null; }
             m.dispose();
           });
         } else {
-          if (child.material.map) child.material.map.dispose();
+          if (child.material.map) { child.material.map.dispose(); child.material.map = null; }
           child.material.dispose();
         }
       }
@@ -1490,5 +1492,11 @@ export class Table {
       }
     }
     this.bodies = [];
+    this.pocketPositions = null;
+    this.profile = null;
+    this.physics = null;
+    this.meshGroup = null;
+    this._materials = {};
+    this._themeMeshes = {};
   }
 }

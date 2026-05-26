@@ -2428,7 +2428,9 @@ export class Room {
     const qDown = roomLightQuality === 'high' ? 1.0 : (roomLightQuality === 'medium' ? 0.5 : 0.0);
     const qSconce = roomLightQuality === 'high' ? 1.0 : (roomLightQuality === 'medium' ? 0.5 : 0.0);
     const qLamp = roomLightQuality === 'high' ? 1.0 : (roomLightQuality === 'medium' ? 0.5 : 0.0);
-    this._lightingQualityMult = qDown; // used by updateCameraVisibility for emissive scaling
+    this._lightingQualityMult = qDown;   // table lamp diffusers + bulbs
+    this._sconceQualityMult = qSconce;   // wall sconce glass + bulbs
+    this._tableLampQualityMult = qLamp;  // lounge table-lamp shades + bulbs
 
     // Downlights (ceiling) — scale the themed pointIntensity, not a hardcoded value
     if (this._themeLights.downlights) {
@@ -2460,19 +2462,19 @@ export class Room {
 
     // Scale emissive intensity on all lamp-related materials so that
     // meshes don't visibly glow when their actual lights are turned off.
-    const scaleEmissive = (matKey) => {
+    const scaleEmissive = (matKey, mult) => {
       const mat = this._materials[matKey];
       if (mat && mat._baseEmissiveIntensity != null) {
-        mat.emissiveIntensity = mat._baseEmissiveIntensity * this._lightingQualityMult;
+        mat.emissiveIntensity = mat._baseEmissiveIntensity * mult;
       }
     };
-    scaleEmissive('diffuser');
-    scaleEmissive('crossbar');
-    scaleEmissive('bulb');
-    scaleEmissive('lampBulb');
-    scaleEmissive('tableLamp');
-    scaleEmissive('sconceBulb');
-    scaleEmissive('sconceGlass');
+    scaleEmissive('diffuser', this._lightingQualityMult);
+    scaleEmissive('crossbar', this._lightingQualityMult);
+    scaleEmissive('bulb', this._lightingQualityMult);
+    scaleEmissive('lampBulb', this._tableLampQualityMult);
+    scaleEmissive('tableLamp', this._tableLampQualityMult);
+    scaleEmissive('sconceBulb', this._sconceQualityMult);
+    scaleEmissive('sconceGlass', this._sconceQualityMult);
   }
 
   updateCameraVisibility(camera) {
@@ -2502,22 +2504,27 @@ export class Room {
     const distToTable = toTable.length();
     toTable.normalize();
 
+    // All diffusers share the same material (glowMat), so we compute the
+    // strongest fade across all of them and apply it once. Otherwise each
+    // loop iteration would overwrite the previous diffuser's fade.
+    let maxFade = 0;
     for (const diffuser of this._lampDiffusers) {
-      const mat = diffuser.material;
       const toLamp = this._tmpToLamp.subVectors(diffuser.position, camPos);
       const distToLamp = toLamp.length();
       toLamp.normalize();
       const alignment = toLamp.dot(toTable);
-
-      const baseEmissive = mat._baseEmissiveIntensity ?? 1.2;
-      const qMult = this._lightingQualityMult ?? 1.0;
-      let targetOpacity = 1.0;
-      let targetEmissive = baseEmissive * qMult;
       if (distToLamp < distToTable && alignment > 0.78) {
         const fade = Math.max(0, (alignment - 0.78) / (1.0 - 0.78));
-        targetOpacity = 1.0 - fade * 0.96;
-        targetEmissive = baseEmissive * (1.0 - fade * 0.92) * qMult;
+        if (fade > maxFade) maxFade = fade;
       }
+    }
+
+    const mat = this._lampDiffusers[0]?.material;
+    if (mat) {
+      const baseEmissive = mat._baseEmissiveIntensity ?? 1.2;
+      const qMult = this._lightingQualityMult ?? 1.0;
+      const targetOpacity = 1.0 - maxFade * 0.96;
+      const targetEmissive = baseEmissive * (1.0 - maxFade * 0.92) * qMult;
       if (Math.abs(mat.opacity - targetOpacity) > 0.01) {
         mat.opacity += (targetOpacity - mat.opacity) * 0.15;
       }
@@ -2582,5 +2589,7 @@ export class Room {
     this._tmpToLamp = null;
     this._tmpToLamp2 = null;
     this._lightingQualityMult = 1.0;
+    this._sconceQualityMult = 1.0;
+    this._tableLampQualityMult = 1.0;
   }
 }

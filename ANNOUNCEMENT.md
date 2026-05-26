@@ -1,29 +1,42 @@
-# 3D Billiards v1.7.38 — Latest Update
+# 3D Billiards v1.7.39 — Latest Update
 
-## What's New in v1.7.38
+## What's New in v1.7.39
 
-### 🔍 Global Deep Audit — Lighting, Match, Texture, UI, Settings
+### 🔍 Second-Round Global Deep Audit — Cross-Module & Lifecycle Fixes
 
 | # | 改动 | 详情 |
 |---|------|------|
-| 1 | **房间灯光质量实时生效** | 新增 `roomLightingQuality` 设置（高/中/低），控制天花板筒灯、壁灯、边桌台灯的亮度倍数；设置面板「外观 → 灯光」中可直接切换，实时生效 |
-| 2 | **灯光质量与自发光同步** | 当灯光质量设为「低」时，不仅关闭辅助点光源，同时按比例压低灯罩、灯泡、横杆等所有自发光材质的 `emissiveIntensity`，避免「灯亮着却不发光」的视觉矛盾 |
-| 3 | **主题灯光值不被硬编码覆盖** | `applyVisualSettings()` 中 downlights/sconces/tableLamps 的亮度现在基于 `lamp.pointIntensity` 主题值缩放，不再被写死的 0.28/0.35/0.4 覆盖；切换灯具风格时亮度正确变化 |
-| 4 | **壁灯中等质量一致缩放** | 中等质量下壁灯从 `0.0` 改为 `0.5`，与筒灯、边桌台灯保持一致 |
-| 5 | **天花板网格尊重用户设置** | `updateCameraVisibility()` 之前每帧强制覆盖 `ceilingGrid.visible`，现在会读取 `ceilingGridEnabled` 设置；用户关闭网格后即使相机在天花板下方也不会重新显示 |
-| 6 | **认输后比赛引擎通知修复** | `_concede()` 之前隐藏了重置按钮但从未调用 `matchManager.onGameEnd(winner)`，导致比赛卡住；现在认输后会正确通知比赛引擎结束当前局 |
-| 7 | **设置变更处理去重** | `_handleSettingsChange` 中 `lightingIntensity`/`ambientIntensity` 同时出现在 Renderer 处理块和 Room 处理块，导致 Room 永远不会收到更新；已从前一个块移除，亮度/环境光变更现在会同步刷新房间灯光 |
-| 8 | **台呢纹理释放顺序修复** | `_updateClothTextures()` 在 `dispose()` 旧纹理前先 `feltMat.bumpMap = null`，避免 Three.js 在材质仍引用纹理时触发已释放纹理的访问 |
-| 9 | **袋底网袋材质主题化** | 网袋底部锥形 mesh 使用 `netMat.clone()` 创建，之前从未跟随皮革主题更新；现在通过 `bagMats` 数组追踪所有克隆材质，并在 `applyVisualSettings()` 中统一应用 `leather.net` 主题 |
-| 10 | **护角与缓冲垫端帽主题化** | `jaw` 和 `cushionCap` 材质之前从未在 `applyVisualSettings()` 中更新；现在分别跟随 `wood.rail` 和 `felt.cushion` 主题变化 |
-| 11 | **桌面聚光灯初始强度匹配主题** | `createTableLights()` 中 spot 初始强度从 `1.70` 改为 `1.25`，与 `LAMP_STYLE_THEMES.classic.spotIntensity` 默认值一致 |
-| 12 | **Room.js 析构完整性** | `dispose()` 新增 `_tmpToTable`/`_tmpToLamp`/`_tmpToLamp2`/`_lightingQualityMult` 的置空，以及 `_themeLights` 的清空 |
-| 13 | **SettingsScreen 死代码清理** | 移除未使用的 `TABLE_THEME_OPTIONS`、`LIGHTING_STYLE_OPTIONS`、`ROOM_STYLE_OPTIONS` 常量；`_switchCategory()` 在移除确认对话框时同步 `delete` `_confirmHandlers` 中的对应引用 |
-| 14 | **SETTINGS_AUDIT.md 更新** | `roomLightingQuality` 从 ❌「Dormant; not exposed in UI」更正为 ✅「Scales secondary light intensity & emissive glow」 |
+| 1 | **LAN 游戏结束状态广播修复** | `resolveTurn()` 中 `result.gameOver` 路径直接 `return` 但未调用 `_broadcastSnapshot()`，导致 LAN 主机在正常游戏结束时（如打进黑八/九号球）不向客户端广播最终状态；现在在返回前广播最终快照 |
+| 2 | **灯罩自发光 fade 修复** | `updateCameraVisibility()` 循环遍历 3 个共享同一 `glowMat` 的 diffuser，每个迭代覆盖前一个的 `opacity`/`emissiveIntensity`；改为先计算最大 fade，再统一应用一次，相机 fade 现在正确 |
+| 3 | **不同灯种的 emissive 独立缩放** | `_lightingQualityMult` 原为单一值（= downlight 倍数），但 sconce/table-lamp 的 emissive 也用它缩放；新增 `_sconceQualityMult` 和 `_tableLampQualityMult`，为每种灯保留独立倍数空间 |
+| 4 | **Table.js dispose 完整性** | 新增 `_materials`/`_themeMeshes`/`pocketPositions`/`profile`/`physics`/`meshGroup` 的置空；dispose traverse 后 `child.material.map = null`（与 Room.js 模式一致）；`dullReflective` 新增 `jaw` 和 `cushionCap` |
+| 5 | **训练/挑战/回放返回菜单时 BGM 重启** | `_stopTrainer()`、`_stopChallenge()`、`_stopReplayPlayback()` 返回菜单后没有重启 BGM；现在与 `_returnToMenu()` 保持一致 |
+| 6 | **`_delay()` hanging promise 修复** | 连续调用 `_delay()` 时，第一次的 Promise 因旧 timeout 被 clear 而永远 unresolved；现在覆盖前会先 `resolve()` 旧 promise |
+| 7 | **AudioManager 音量 NaN 防护** | `setMasterVolume`/`setMusicVolume`/`setSFXVolume`/`setAmbientVolume` 新增 `Number.isFinite(vol)` 前置校验，防止 slider 异常值导致音频节点崩溃 |
+| 8 | **`_handleSettingsChange` 默认分支** | switch 语句新增 `default` case，静默忽略未知设置键（便于向前兼容），避免静默 fall-through 导致的行为不确定 |
 
 ---
 
 ## Historical Updates
+
+### v1.7.38 — Global Deep Audit — Lighting, Match, Texture, UI, Settings
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **房间灯光质量实时生效** | 新增 `roomLightingQuality` 设置（高/中/低），控制天花板筒灯、壁灯、边桌台灯的亮度倍数 |
+| 2 | **灯光质量与自发光同步** | 当灯光质量设为「低」时，按比例压低所有自发光材质，避免「灯亮着却不发光」 |
+| 3 | **主题灯光值不被硬编码覆盖** | downlights/sconces/tableLamps 亮度基于 `lamp.pointIntensity` 主题值缩放 |
+| 4 | **壁灯中等质量一致缩放** | 中等质量下壁灯从 `0.0` 改为 `0.5` |
+| 5 | **天花板网格尊重用户设置** | `updateCameraVisibility()` 不再每帧强制覆盖 |
+| 6 | **认输后比赛引擎通知修复** | `_concede()` 调用 `matchManager.onGameEnd(winner)` |
+| 7 | **设置变更处理去重** | `lightingIntensity`/`ambientIntensity` 从 Renderer 块移除，Room 能正确收到更新 |
+| 8 | **台呢纹理释放顺序修复** | `bumpMap = null` 先于 `dispose()` |
+| 9 | **袋底网袋材质主题化** | `bagMats` 数组追踪克隆材质 |
+| 10 | **护角与缓冲垫端帽主题化** | `jaw` → `wood.rail`，`cushionCap` → `felt.cushion` |
+| 11 | **桌面聚光灯初始强度匹配主题** | `1.70` → `1.25` |
+| 12 | **Room.js 析构完整性** | 新增 temp vectors / `_lightingQualityMult` 置空 |
+| 13 | **SettingsScreen 死代码清理** | 移除未使用常量，同步清理 `_confirmHandlers` |
+| 14 | **SETTINGS_AUDIT.md 更新** | `roomLightingQuality` 标记为 active |
 
 ### v1.7.37 — Deep Audit & Bug Fix Sweep — Room, Table, UI, Audio
 
