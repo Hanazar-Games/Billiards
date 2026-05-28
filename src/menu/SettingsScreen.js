@@ -869,6 +869,7 @@ export class SettingsScreen {
     }), '击球连续进球时显示');
     this._row('显示准星', this._createSwitch(settings.get('showCrosshair'), (v) => settings.set('showCrosshair', v), this._isLocked('showCrosshair'), '由房主/比赛锁定'), this._isLocked('showCrosshair') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定', this._isLocked('showCrosshair'));
     this._row('显示击球统计', this._createSwitch(settings.get('statsPanelEnabled'), (v) => settings.set('statsPanelEnabled', v)));
+    this._row('紧凑 HUD', this._createSwitch(settings.get('compactHud'), (v) => settings.set('compactHud', v)), '压缩底部 HUD 高度和按钮尺寸');
     this._rowSlider('UI 缩放', Math.round(settings.get('hudScale') * 100), 50, 200, '%', (v) => settings.set('hudScale', v / 100));
     this._rowSelect('计时器位置', TIMER_POS_OPTIONS, settings.get('timerPosition') || 'top', (v) => settings.set('timerPosition', v));
     this._row('显示 FPS', this._createSwitch(settings.get('showFPS'), (v) => settings.set('showFPS', v)));

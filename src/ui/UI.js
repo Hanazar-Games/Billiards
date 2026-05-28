@@ -59,12 +59,16 @@ export class UI {
 
     this._hudBackBtn = document.createElement('button');
     this._hudBackBtn.className = 'hud-btn';
-    this._hudBackBtn.textContent = '← 返回菜单';
+    this._hudBackBtn.dataset.fullLabel = '← 返回菜单';
+    this._hudBackBtn.dataset.shortLabel = '←';
+    this._hudBackBtn.textContent = this._hudBackBtn.dataset.fullLabel;
     hudLeft.appendChild(this._hudBackBtn);
 
     this._hudConcedeBtn = document.createElement('button');
     this._hudConcedeBtn.className = 'hud-btn hud-btn-danger';
-    this._hudConcedeBtn.textContent = '认输';
+    this._hudConcedeBtn.dataset.fullLabel = '认输';
+    this._hudConcedeBtn.dataset.shortLabel = '认输';
+    this._hudConcedeBtn.textContent = this._hudConcedeBtn.dataset.fullLabel;
     hudLeft.appendChild(this._hudConcedeBtn);
 
     hudMain.appendChild(hudLeft);
@@ -96,14 +100,36 @@ export class UI {
 
     this._hudNewGameBtn = document.createElement('button');
     this._hudNewGameBtn.className = 'hud-btn';
-    this._hudNewGameBtn.textContent = '再来一局';
+    this._hudNewGameBtn.dataset.fullLabel = '再来一局';
+    this._hudNewGameBtn.dataset.shortLabel = '再来';
+    this._hudNewGameBtn.textContent = this._hudNewGameBtn.dataset.fullLabel;
     this._hudNewGameBtn.style.display = 'none';
     hudRight.appendChild(this._hudNewGameBtn);
 
     this._hudSettingsBtn = document.createElement('button');
     this._hudSettingsBtn.className = 'hud-btn';
-    this._hudSettingsBtn.textContent = '⚙️ 设置';
+    this._hudSettingsBtn.dataset.fullLabel = '⚙️ 设置';
+    this._hudSettingsBtn.dataset.shortLabel = '⚙️';
+    this._hudSettingsBtn.textContent = this._hudSettingsBtn.dataset.fullLabel;
     hudRight.appendChild(this._hudSettingsBtn);
+
+    // Responsive button labels: narrow viewports → short text
+    this._compactHudEnabled = false;
+    this._updateButtonLabels = () => {
+      const narrow = window.innerWidth < 640;
+      const useShort = narrow || this._compactHudEnabled;
+      const pick = (btn) => {
+        if (!btn) return;
+        const label = useShort ? (btn.dataset.shortLabel || btn.dataset.fullLabel) : btn.dataset.fullLabel;
+        if (label && btn.textContent !== label) btn.textContent = label;
+      };
+      pick(this._hudBackBtn);
+      pick(this._hudConcedeBtn);
+      pick(this._hudNewGameBtn);
+      pick(this._hudSettingsBtn);
+    };
+    window.addEventListener('resize', this._updateButtonLabels);
+    this._updateButtonLabels();
 
     hudMain.appendChild(hudRight);
     this.bottomHud.appendChild(hudMain);
@@ -623,6 +649,12 @@ export class UI {
     document.documentElement.classList.toggle('large-text', Boolean(v));
   }
 
+  setCompactHud(v) {
+    this._compactHudEnabled = Boolean(v);
+    document.documentElement.classList.toggle('compact-hud', this._compactHudEnabled);
+    this._updateButtonLabels?.();
+  }
+
   setReducedMotion(v) {
     document.documentElement.classList.toggle('reduce-motion', Boolean(v));
   }
@@ -985,6 +1017,10 @@ export class UI {
     this._hudConcedeBtn = null;
     this._hudSettingsBtn = null;
     this._hudBackBtn = null;
+    if (this._updateButtonLabels) {
+      window.removeEventListener('resize', this._updateButtonLabels);
+      this._updateButtonLabels = null;
+    }
 
     if (this.pauseOverlay) {
       this._pauseActions.forEach(btn => {

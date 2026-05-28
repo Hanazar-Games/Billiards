@@ -121,6 +121,17 @@
       display: flex;
       flex-direction: column;
       gap: 1px;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .hud-actions-left, .hud-actions-right {
+      flex-shrink: 0;
+    }
+    .hud-objective, .hud-spin {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .hud-timer {
       font-size: 20px; font-weight: 800;
@@ -266,6 +277,37 @@
         font-size: 10px;
       }
     }
+    /* Compact HUD mode */
+    .compact-hud #bottom-hud-main {
+      padding: 4px 12px;
+      gap: 10px;
+    }
+    .compact-hud .hud-btn {
+      padding: 4px 8px;
+      font-size: 10px;
+    }
+    .compact-hud .hud-timer {
+      font-size: 16px;
+    }
+    .compact-hud .hud-objective {
+      font-size: 10px;
+    }
+
+    /* Large text mode */
+    .large-text #bottom-hud-main {
+      padding: 10px 16px;
+    }
+    .large-text .hud-btn {
+      padding: 7px 12px;
+      font-size: 13px;
+    }
+    .large-text .hud-timer {
+      font-size: 22px;
+    }
+    .large-text .hud-objective {
+      font-size: 12px;
+    }
+
     #version-tag {
       position: absolute;
       bottom: 10px;

@@ -2581,6 +2581,7 @@ export class Game {
     this.ui.setStatsPanelEnabled?.(settings.get('statsPanelEnabled'));
     this.ui.setHighContrastUI?.(settings.get('highContrastUI'));
     this.ui.setLargeTextMode?.(settings.get('largeTextMode'));
+    this.ui.setCompactHud?.(settings.get('compactHud'));
     this.ui.setReducedMotion?.(settings.get('reducedMotion'));
   }
 
@@ -2669,6 +2670,7 @@ export class Game {
       case 'statsPanelEnabled':
       case 'highContrastUI':
       case 'largeTextMode':
+      case 'compactHud':
       case 'reducedMotion':
         this._applyHudVisibility();
         break;
