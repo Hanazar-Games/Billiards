@@ -5,6 +5,8 @@
  * and see live match stats updated every turn.
  */
 import { uiLayout } from '../ui/UILayout.js';
+import { settings } from '../core/SettingsStore.js';
+
 export class StatsPanel {
   constructor() {
     this.visible = false;
@@ -49,7 +51,7 @@ export class StatsPanel {
     this.toggleBtn.onclick = () => this.toggle();
     uiLayer.appendChild(this.toggleBtn);
 
-    // Panel container
+    // Panel container (live stats, bottom-right)
     this.panel = document.createElement('div');
     this.panel.style.cssText = `
       position: absolute;
@@ -119,6 +121,7 @@ export class StatsPanel {
     this.lastStats = null;
     if (this.content) this._renderEmpty();
     if (this.visible) this.hide();
+    this._hideGameOver();
   }
 
   /**
@@ -204,59 +207,153 @@ export class StatsPanel {
 
   /** Show end-of-game summary with highlighted winner. */
   showGameOver(summary, aiEnabled) {
-    if (!this.content) return;
     if (!summary || !summary.player1 || !summary.player2 || !summary.match) {
       console.warn('StatsPanel.showGameOver: invalid summary', summary);
       return;
     }
     this.lastStats = summary;
-    if (!this.visible) {
-      this.toggle();
-    } else {
-      // Already visible — refresh content without toggling
-      this.panel.style.maxHeight = '520px';
-      this.panel.style.opacity = '1';
+
+    const enabled = settings.get('statsPanelEnabled') !== false;
+    if (!enabled) {
+      this._showCompactVictory(summary, aiEnabled);
+      return;
     }
 
+    this._showFullGameOver(summary, aiEnabled);
+  }
+
+  _showCompactVictory(summary, aiEnabled) {
+    const winnerName = summary.winner === 1 ? '玩家 1' : (aiEnabled ? 'AI' : '玩家 2');
+    const overlay = this._ensureGameOverOverlay();
+    overlay.innerHTML = `
+      <div style="
+        background: var(--panel-strong, rgba(14,17,21,0.88));
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 14px;
+        padding: 28px 36px;
+        min-width: 260px;
+        max-width: 90vw;
+        text-align: center;
+        box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+        animation: panelIn calc(0.4s / var(--ui-anim-speed)) var(--ease) both;
+      ">
+        <div style="font-weight:bold;font-size:18px;color:#ffd700;margin-bottom:6px;">🏆 ${winnerName} 获胜！</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.5);">对局时长 ${this._fmtTime(summary.duration)}</div>
+      </div>
+    `;
+    overlay.style.display = 'flex';
+    requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+  }
+
+  _showFullGameOver(summary, aiEnabled) {
     const p1 = summary.player1;
     const p2 = summary.player2;
     const winnerName = summary.winner === 1 ? '玩家 1' : (aiEnabled ? 'AI' : '玩家 2');
+    const p2Name = aiEnabled ? 'AI' : '玩家 2';
 
-    this.content.innerHTML = `
-      <div style="text-align:center;margin-bottom:12px;">
-        <div style="font-weight:bold;font-size:16px;color:#ffd700;">🏆 ${winnerName} 获胜！</div>
-        <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px;">
-          对局时长 ${this._fmtTime(summary.duration)}
-        </div>
-      </div>
+    const fmt1 = (n) => (Number.isFinite(n) && n > 0 ? n.toFixed(1) : '0.0');
+    const fmtInt = (n) => (Number.isFinite(n) ? Math.round(n) : '0');
+    const fmtPct = (n) => (Number.isFinite(n) && n > 0 ? Math.round(n) + '%' : '0%');
 
-      <div style="display:flex;gap:6px;margin-bottom:12px;">
-        <div style="flex:1;background:rgba(220,20,60,0.3);padding:10px;border-radius:8px;">
-          <div style="font-weight:bold;text-align:center;margin-bottom:6px;">玩家 1</div>
-          ${this._renderFinalPlayer(p1)}
+    const overlay = this._ensureGameOverOverlay();
+    overlay.innerHTML = `
+      <div style="
+        background: var(--panel-strong, rgba(14,17,21,0.88));
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 16px;
+        padding: 28px 32px;
+        width: min(480px, 92vw);
+        max-height: 85vh;
+        overflow: auto;
+        box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+        animation: panelIn calc(0.4s / var(--ui-anim-speed)) var(--ease) both;
+        color: #fff;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 13px;
+        user-select: none;
+        pointer-events: auto;
+      ">
+        <div style="text-align:center;margin-bottom:16px;">
+          <div style="font-weight:bold;font-size:20px;color:#ffd700;">🏆 ${winnerName} 获胜！</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px;">
+            对局时长 ${this._fmtTime(summary.duration)} · 总出杆 ${summary.totalTurns}
+          </div>
         </div>
-        <div style="flex:1;background:rgba(30,144,255,0.3);padding:10px;border-radius:8px;">
-          <div style="font-weight:bold;text-align:center;margin-bottom:6px;">${aiEnabled ? 'AI' : '玩家 2'}</div>
-          ${this._renderFinalPlayer(p2)}
-        </div>
-      </div>
 
-      <div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.4);">
-        总出杆：${summary.totalTurns} · 碰撞：${summary.match.totalBallCollisions + summary.match.totalCushionCollisions}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+          <div style="background:rgba(220,20,60,0.22);padding:12px;border-radius:10px;">
+            <div style="font-weight:bold;text-align:center;margin-bottom:8px;font-size:14px;">玩家 1</div>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:12px;line-height:1.7;">
+              <span style="color:rgba(255,255,255,0.55);">出杆</span><span style="text-align:right;">${fmtInt(p1.shots)}</span>
+              <span style="color:rgba(255,255,255,0.55);">进球</span><span style="text-align:right;">${fmtInt(p1.ballsPocketed)}</span>
+              <span style="color:rgba(255,255,255,0.55);">犯规</span><span style="text-align:right;">${fmtInt(p1.fouls)}</span>
+              <span style="color:rgba(255,255,255,0.55);">平均力度</span><span style="text-align:right;">${fmt1(p1.avgPower)}</span>
+              <span style="color:rgba(255,255,255,0.55);">最大力度</span><span style="text-align:right;">${fmtInt(p1.maxPower)}</span>
+              <span style="color:rgba(255,255,255,0.55);">进球率</span><span style="text-align:right;">${fmtPct(p1.pocketRate)}</span>
+            </div>
+          </div>
+          <div style="background:rgba(30,144,255,0.22);padding:12px;border-radius:10px;">
+            <div style="font-weight:bold;text-align:center;margin-bottom:8px;font-size:14px;">${p2Name}</div>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:12px;line-height:1.7;">
+              <span style="color:rgba(255,255,255,0.55);">出杆</span><span style="text-align:right;">${fmtInt(p2.shots)}</span>
+              <span style="color:rgba(255,255,255,0.55);">进球</span><span style="text-align:right;">${fmtInt(p2.ballsPocketed)}</span>
+              <span style="color:rgba(255,255,255,0.55);">犯规</span><span style="text-align:right;">${fmtInt(p2.fouls)}</span>
+              <span style="color:rgba(255,255,255,0.55);">平均力度</span><span style="text-align:right;">${fmt1(p2.avgPower)}</span>
+              <span style="color:rgba(255,255,255,0.55);">最大力度</span><span style="text-align:right;">${fmtInt(p2.maxPower)}</span>
+              <span style="color:rgba(255,255,255,0.55);">进球率</span><span style="text-align:right;">${fmtPct(p2.pocketRate)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.35);padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);">
+          碰撞 ${summary.match.totalBallCollisions + summary.match.totalCushionCollisions} · 最高连击 ${Math.max(p1.maxConsecutivePockets, p2.maxConsecutivePockets)}
+        </div>
       </div>
     `;
+    overlay.style.display = 'flex';
+    requestAnimationFrame(() => { overlay.style.opacity = '1'; });
   }
 
-  _renderFinalPlayer(p) {
-    return `
-      <div style="font-size:11px;line-height:1.6;">
-        <div style="display:flex;justify-content:space-between;"><span>出杆</span><span>${Math.round(p.shots)}</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>进球</span><span>${Math.round(p.ballsPocketed)}</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>犯规</span><span>${Math.round(p.fouls)}</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>平均力度</span><span>${p.avgPower}</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>最大力度</span><span>${Math.round(p.maxPower)}</span></div>
-      </div>
+  _ensureGameOverOverlay() {
+    if (this._gameOverOverlay) return this._gameOverOverlay;
+    const uiLayer = document.getElementById('ui-layer');
+    if (!uiLayer) return null;
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      z-index: 55;
+      background: rgba(5,7,8,0.65);
+      backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity calc(0.3s / var(--ui-anim-speed)) ease;
+      padding: 20px;
     `;
+    overlay.onclick = (e) => {
+      if (e.target === overlay) this._hideGameOver();
+    };
+    uiLayer.appendChild(overlay);
+    this._gameOverOverlay = overlay;
+
+    // ESC to close
+    this._gameOverKeyHandler = (e) => {
+      if (e.key === 'Escape') this._hideGameOver();
+    };
+    document.addEventListener('keydown', this._gameOverKeyHandler);
+
+    return overlay;
+  }
+
+  _hideGameOver() {
+    if (!this._gameOverOverlay) return;
+    this._gameOverOverlay.style.opacity = '0';
+    setTimeout(() => {
+      if (this._gameOverOverlay) this._gameOverOverlay.style.display = 'none';
+    }, 300);
   }
 
   _fmtTime(seconds) {
@@ -280,5 +377,14 @@ export class StatsPanel {
     this.toggleBtn = null;
     this.panel = null;
     this.content = null;
+    this._hideGameOver();
+    if (this._gameOverOverlay && this._gameOverOverlay.parentNode) {
+      this._gameOverOverlay.parentNode.removeChild(this._gameOverOverlay);
+    }
+    this._gameOverOverlay = null;
+    if (this._gameOverKeyHandler) {
+      document.removeEventListener('keydown', this._gameOverKeyHandler);
+      this._gameOverKeyHandler = null;
+    }
   }
 }
