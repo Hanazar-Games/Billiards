@@ -114,8 +114,8 @@
       gap: 8px;
       pointer-events: auto;
     }
-    .hud-group { color: rgba(255,255,255,0.55); }
-    .hud-remain { font-variant-numeric: tabular-nums; }
+    .hud-group { color: rgba(255,255,255,0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hud-remain { font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .hud-center {
       text-align: center;
       display: flex;
@@ -154,6 +154,13 @@
       gap: 8px;
       align-items: center;
       letter-spacing: 0.3px;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .player-detail span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .player-detail .hud-group { color: rgba(255,255,255,0.65); }
     .player-detail .hud-remain { font-variant-numeric: tabular-nums; }
@@ -213,10 +220,12 @@
       text-align: center;
       transition: all calc(0.3s / var(--ui-anim-speed)) ease;
       min-width: 118px;
+      max-width: 100%;
       border: 1px solid var(--line);
       box-shadow: 0 10px 28px rgba(0,0,0,0.25);
       backdrop-filter: blur(8px);
       animation: uiFloatIn calc(420ms / var(--ui-anim-speed)) var(--ease) both;
+      overflow: hidden;
     }
     #player1 { background: linear-gradient(135deg, rgba(140, 110, 40, 0.72), rgba(90, 70, 25, 0.68)); border-color: rgba(216,177,95,0.25); justify-self: start; }
     #player2 { background: linear-gradient(135deg, rgba(35, 90, 140, 0.72), rgba(20, 55, 95, 0.68)); border-color: rgba(90,165,230,0.25); justify-self: end; }

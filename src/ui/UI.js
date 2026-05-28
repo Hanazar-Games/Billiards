@@ -110,32 +110,6 @@ export class UI {
 
     if (uiLayer) uiLayer.appendChild(this.bottomHud);
 
-    // ── Pause button (top-right gear) ──
-    this.pauseBtn = document.createElement('button');
-    this.pauseBtn.textContent = '⚙️';
-    this.pauseBtn.style.cssText = `
-      position: absolute; top: 18px; right: 24px;
-      width: 40px; height: 40px; border-radius: 8px;
-      background: rgba(12,15,18,0.72); border: 1px solid rgba(255,255,255,0.16);
-      color: #fff; font-size: 18px; cursor: pointer; pointer-events: auto;
-      display: flex; align-items: center; justify-content: center;
-      backdrop-filter: blur(10px); z-index: 10;
-      transition: all calc(0.2s / var(--ui-anim-speed)) ease; box-shadow: 0 8px 24px rgba(0,0,0,0.22);
-    `;
-    const _setPauseHover = (active) => {
-      this.pauseBtn.style.background = active ? 'rgba(255,255,255,0.14)' : 'rgba(12,15,18,0.72)';
-      this.pauseBtn.style.borderColor = active ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.16)';
-      this.pauseBtn.style.transform = active ? 'translateY(-1px)' : 'translateY(0)';
-    };
-    this.pauseBtn.onmouseenter = () => _setPauseHover(true);
-    this.pauseBtn.onmouseleave = () => _setPauseHover(false);
-    this.pauseBtn.onfocus = () => _setPauseHover(true);
-    this.pauseBtn.onblur = () => _setPauseHover(false);
-    this.pauseBtn.onkeydown = (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.pauseBtn.click(); }
-    };
-    if (uiLayer) uiLayer.appendChild(this.pauseBtn);
-
     // ── Pause overlay ──
     this.pauseOverlay = document.createElement('div');
     this.pauseOverlay.style.cssText = `
@@ -420,9 +394,6 @@ export class UI {
   }
 
   setupPauseControls(onPauseClick, onResume, onSettings, onQuit) {
-    if (this.pauseBtn) {
-      this.pauseBtn.onclick = onPauseClick;
-    }
     if (this._hudSettingsBtn) {
       this._hudSettingsBtn.onclick = onSettings;
     }
@@ -1015,15 +986,6 @@ export class UI {
     this._hudSettingsBtn = null;
     this._hudBackBtn = null;
 
-    if (this.pauseBtn) {
-      this.pauseBtn.onmouseenter = null;
-      this.pauseBtn.onmouseleave = null;
-      this.pauseBtn.onfocus = null;
-      this.pauseBtn.onblur = null;
-      this.pauseBtn.onkeydown = null;
-      this.pauseBtn.onclick = null;
-      if (this.pauseBtn.parentNode) this.pauseBtn.parentNode.removeChild(this.pauseBtn);
-    }
     if (this.pauseOverlay) {
       this._pauseActions.forEach(btn => {
         btn.onmouseenter = null;
@@ -1035,7 +997,6 @@ export class UI {
       this._pauseActions = [];
       if (this.pauseOverlay.parentNode) this.pauseOverlay.parentNode.removeChild(this.pauseOverlay);
     }
-    this.pauseBtn = null;
     this.pauseOverlay = null;
     this._addPauseAction = null;
 
