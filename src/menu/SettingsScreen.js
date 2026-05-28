@@ -242,7 +242,9 @@ export class SettingsScreen {
       this.audio.setMasterVolume(settings.get('masterVolume'));
       this.audio.setMusicVolume(settings.get('musicVolume'));
       this.audio.setSFXVolume(settings.get('sfxVolume'));
-      this.audio.setAmbientVolume((settings.get('ambientVolumeScale') ?? 1.0) * 100);
+      if (this.audio.setAmbientVolume) {
+        this.audio.setAmbientVolume((settings.get('ambientVolumeScale') ?? 1.0) * 100);
+      }
     }
     this._syncAllControls();
   }
@@ -381,6 +383,7 @@ export class SettingsScreen {
 
   _switchCategory(id) {
     if (!this._contentArea) return;
+    if (id === this._currentCategory) return;
     if (this._switchTimer) { clearTimeout(this._switchTimer); this._switchTimer = null; }
     // Cancel any pending keybinding listen to prevent global listener leak
     keyBindings.cancelListening();
@@ -2100,7 +2103,8 @@ export class SettingsScreen {
     if (!this.container) return;
     if (this._showRaf) { cancelAnimationFrame(this._showRaf); this._showRaf = null; }
     if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
-    this._syncAllControls();
+    const wasHidden = this.container.style.display === 'none';
+    if (wasHidden) this._syncAllControls();
     this.container.style.display = 'flex';
     this._showRaf = requestAnimationFrame(() => {
       this._showRaf = null;

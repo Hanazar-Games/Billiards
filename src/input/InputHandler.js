@@ -58,12 +58,12 @@ export class InputHandler {
     if (this.isDown) {
       this.isDown = false;
       this._capturedPointerId = null;
-      if (this.onMouseUp) this.onMouseUp();
+      if (this.onMouseUp) this.onMouseUp({ type: 'blur', button: 0 });
     }
     if (this.rightDown) {
       this.rightDown = false;
       this._capturedPointerId = null;
-      if (this.onRightMouseUp) this.onRightMouseUp();
+      if (this.onRightMouseUp) this.onRightMouseUp({ type: 'blur', button: 2 });
     }
   }
 
@@ -138,6 +138,7 @@ export class InputHandler {
   }
 
   dispose() {
+    if (!this.element) return;
     this.element.removeEventListener('mousemove', this._handleMouseMove);
     this.element.removeEventListener('pointermove', this._handlePointerMove);
     this.element.removeEventListener('pointerdown', this._handlePointerDown);
@@ -156,5 +157,7 @@ export class InputHandler {
     window.removeEventListener('mouseup', this._handleMouseUp);
     window.removeEventListener('blur', this._handleBlur);
     this.element.removeEventListener('contextmenu', this._handleContextMenu);
+    this.onMouseMove = this.onMouseDown = this.onMouseUp =
+      this.onRightMouseDown = this.onRightMouseUp = null;
   }
 }

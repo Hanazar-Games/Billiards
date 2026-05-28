@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { SHOT } from '../config.js';
 import { fxAnimMs } from '../core/AnimSpeed.js';
+import { settings } from '../core/SettingsStore.js';
 
 const COLOR_LOW = new THREE.Color(0x4ecdc4);   // teal
 const COLOR_MID = new THREE.Color(0xffd93d);   // yellow
@@ -26,6 +27,8 @@ export class ImpactShockwave {
    * @param {number} power — shot power (0 … SHOT.maxPower)
    */
   spawn(position, power) {
+    if (settings.get('reducedMotion')) return;
+    if (!this.scene) return;
     if (!position || !position.isVector3) return;
     if (!Number.isFinite(power) || power <= 0) return;
     const maxPower = SHOT.maxPower;

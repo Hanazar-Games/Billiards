@@ -58,6 +58,7 @@ export class UI {
     hudLeft.className = 'hud-actions-left';
 
     this._hudBackBtn = document.createElement('button');
+    this._hudBackBtn.id = 'back-to-menu';
     this._hudBackBtn.className = 'hud-btn';
     this._hudBackBtn.dataset.fullLabel = '← 返回菜单';
     this._hudBackBtn.dataset.shortLabel = '←';

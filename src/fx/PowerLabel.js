@@ -8,6 +8,7 @@
 import { settings } from '../core/SettingsStore.js';
 import { SHOT } from '../config.js';
 
+
 const TIERS = [
   { threshold: 0.00, label: '轻推', color: '#4ecdc4', scale: 0.9 },
   { threshold: 0.22, label: '中力', color: '#a8e063', scale: 1.0 },
@@ -54,7 +55,8 @@ export class PowerLabel {
    * @param {number} power — shot power (0 … SHOT.maxPower)
    */
   show(power) {
-    const maxPower = SHOT.maxPower;
+    if (settings.get('reducedMotion')) return;
+    const maxPower = SHOT.maxPower || 110;
     const t = Math.min(power / maxPower, 1.0);
 
     // Find tier
@@ -67,6 +69,7 @@ export class PowerLabel {
     }
 
     this._ensureElement();
+    if (!this.el) return;
     this.el.textContent = tier.label;
     this.el.style.color = tier.color;
 
@@ -117,8 +120,8 @@ export class PowerLabel {
       cancelAnimationFrame(this._animId);
       this._animId = null;
     }
-    if (this.el && this.el.parentNode) {
-      this.el.parentNode.removeChild(this.el);
+    if (this.el) {
+      if (this.el.parentNode) this.el.parentNode.removeChild(this.el);
       this.el = null;
     }
   }

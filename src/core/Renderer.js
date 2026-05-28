@@ -120,6 +120,7 @@ export class Renderer {
       }
       if (key === 'renderScale') {
         const scale = Math.max(0.5, Math.min(2.0, Number(value) || 1.0));
+        this._renderScale = scale;
         this.renderer.setSize(this.width * scale, this.height * scale, false);
       }
     };
@@ -176,7 +177,8 @@ export class Renderer {
     this.height = this.container.clientHeight;
     this.camera.aspect = this.width / this.height;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(this.width, this.height);
+    const s = this._renderScale || 1.0;
+    this.renderer.setSize(this.width * s, this.height * s, false);
   }
 
   setCameraControlActive(active) {

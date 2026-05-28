@@ -71,7 +71,7 @@ export const UIText = {
   opponentInvalidPlacement: '对手自由球位置无效，已拒绝。',
 
   // Push-out
-  pushOutButton: 'Push-out',
+  pushOutButton: '击球权转移',
   pushOutTooltip: 'Push-out：将击球权交给对手，对手可选择接受或让回',
   pushOutPrompt: '对手打出了 Push-out，请选择：',
   pushOutAccept: '接受',

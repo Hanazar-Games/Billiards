@@ -36,6 +36,7 @@ export class ParticleSystem {
 
   setEnabled(v) {
     this.enabled = v;
+    if (!v) this.clear();
   }
 
   /**
@@ -45,7 +46,7 @@ export class ParticleSystem {
    * @param {number} power - shot power (0-100)
    */
   _getIntensityMult() {
-    return Math.min(3.0, Math.max(0.2, settings.get('particleIntensity') ?? 1.0));
+    return Math.min(3.0, Math.max(0, settings.get('particleIntensity') ?? 1.0));
   }
 
   spawnChalkDust(position, direction, power) {

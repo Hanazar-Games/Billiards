@@ -199,6 +199,7 @@ export class MenuSystem {
   }
 
   _showMainMenu() {
+    if (this.state === 'DESTROYED') return;
     this.state = 'MENU';
     this.settingsScreen.hide();
     if (this.replayPanel) { this.replayPanel.destroy(); this.replayPanel = null; }
@@ -287,7 +288,8 @@ export class MenuSystem {
   }
 
   async _startTrainer(drill) {
-    if (this.state !== 'MENU' && this.state !== 'TRANSITION') return;
+    if (this.state === 'TRANSITION') return;
+    if (this.state !== 'MENU') return;
     this.state = 'TRANSITION';
 
     // Dispose any existing game instance before creating a new one
@@ -345,6 +347,8 @@ export class MenuSystem {
       console.error('Trainer game init failed:', err);
       try { this.game.dispose(); } catch (e) {}
       this.game = null;
+      this.drillManager = null;
+      this.activeDrill = null;
       this.state = 'MENU';
       if (menuLayer) { menuLayer.style.display = 'flex'; menuLayer.style.opacity = '1'; }
       if (uiLayer) uiLayer.style.display = 'none';
@@ -442,8 +446,19 @@ export class MenuSystem {
   }
 
   async _startChallenge(challenge) {
-    if (this.state !== 'MENU' && this.state !== 'TRANSITION') return;
+    if (this.state === 'TRANSITION') return;
+    if (this.state !== 'MENU') return;
     this.state = 'TRANSITION';
+
+    // Dispose any existing game instance before creating a new one
+    if (this.game) {
+      try { this.game.dispose(); } catch (e) { console.warn('Old game dispose error:', e); }
+      this.game = null;
+    }
+    if (this.loop) {
+      this.loop.stop();
+      this.loop = null;
+    }
 
     if (this.challengePanel) this.challengePanel.hide();
     if (this.challengeResult) this.challengeResult.hide();
@@ -496,6 +511,8 @@ export class MenuSystem {
       console.error('Challenge game init failed:', err);
       try { this.game.dispose(); } catch (e) {}
       this.game = null;
+      this.challengeManager = null;
+      this.activeChallenge = null;
       this.state = 'MENU';
       if (menuLayer) { menuLayer.style.display = 'flex'; menuLayer.style.opacity = '1'; }
       if (uiLayer) uiLayer.style.display = 'none';
@@ -763,6 +780,7 @@ export class MenuSystem {
 
   _onMatchGameEnd(gameWinner) {
     if (!this.matchManager) return;
+    if (!this.game) return;
     this.matchManager.recordWinner(gameWinner);
     const status = this.matchManager.getStatus();
 
@@ -852,6 +870,7 @@ export class MenuSystem {
     if (this.challengeManager) { this.challengeManager = null; }
     if (this.activeChallenge) { this.activeChallenge = null; }
     if (this.drillManager) { this.drillManager = null; }
+    if (this.activeDrill) { this.activeDrill = null; }
 
     // Clean up LAN room panel if present
     if (this.lanRoomPanel) {
@@ -876,6 +895,7 @@ export class MenuSystem {
 
     // Show main menu
     if (this.challengeResult) { this.challengeResult.destroy(); this.challengeResult = null; }
+    if (this.trainerResult) { this.trainerResult.destroy(); this.trainerResult = null; }
     this.mainMenu.show();
     this.state = 'MENU';
 
@@ -1076,7 +1096,7 @@ export class MenuSystem {
     try { if (this.trainerPanel) { this.trainerPanel.destroy(); this.trainerPanel = null; } } catch (e) {}
     try { if (this.trainerResult) { this.trainerResult.destroy(); this.trainerResult = null; } } catch (e) {}
     try { if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; } } catch (e) {}
-    try { keyBindings.dispose(); } catch (e) {}
+
 
     // Clean up shared core
     this.renderer.dispose();
@@ -1109,15 +1129,6 @@ export class MenuSystem {
   }
 
   _delay(ms) {
-    if (this._delayTimer) clearTimeout(this._delayTimer);
-    if (this._delayResolve) { this._delayResolve(); this._delayResolve = null; }
-    return new Promise((resolve) => {
-      this._delayResolve = resolve;
-      this._delayTimer = setTimeout(() => {
-        this._delayTimer = null;
-        this._delayResolve = null;
-        resolve();
-      }, ms);
-    });
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

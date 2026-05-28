@@ -34,6 +34,9 @@ export class ScreenShake {
    * @param {THREE.Vector3} direction — shot direction (normalized)
    */
   trigger(power, direction) {
+    if (settings.get('reducedMotion')) return;
+    if (!this.camera) return;
+    if (!direction || direction.lengthSq() < 0.001) return;
     const maxPower = SHOT.maxPower || 110;
     const t = Math.min(power / maxPower, 1.0);
 
@@ -106,6 +109,7 @@ export class ScreenShake {
    * so the shake doesn't fight the new placement.
    */
   cancel() {
+    if (!this.camera) return;
     if (this.active) {
       this.active = false;
       this.camera.position.sub(this._currentOffset);
@@ -113,6 +117,7 @@ export class ScreenShake {
     }
   }
   dispose() {
+    this.cancel();
     this.camera = null;
   }
 }
