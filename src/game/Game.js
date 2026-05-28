@@ -56,6 +56,7 @@ export class Game {
     this.achievements = null;
     this.statsTracker = new StatsTracker();
     this.statsPanel = new StatsPanel();
+    this.ui.bindStatsPanel?.(this.statsPanel);
     this.particles = new ParticleSystem(this.scene);
     this.trails = new ShotTrailSystem(this.scene);
     this.shockwaves = new ImpactShockwave(this.scene);
@@ -2583,6 +2584,7 @@ export class Game {
     this.ui.setLargeTextMode?.(settings.get('largeTextMode'));
     this.ui.setCompactHud?.(settings.get('compactHud'));
     this.ui.setReducedMotion?.(settings.get('reducedMotion'));
+    this.ui.setTimerPosition?.(settings.get('timerPosition') || 'top');
   }
 
   _handleSettingsChange(key, value) {

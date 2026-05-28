@@ -691,8 +691,6 @@ export class UI {
     if (this._hudSpin) {
       this._hudSpin.style.display = v ? 'block' : 'none';
     }
-    const el = document.getElementById('spin-indicator');
-    if (el) el.style.display = v ? 'block' : 'none';
   }
 
   /**
@@ -721,7 +719,25 @@ export class UI {
   }
 
   setShowCrosshair(v) {
-    const el = document.getElementById('crosshair');
+    let el = document.getElementById('crosshair');
+    if (!el && v) {
+      el = document.createElement('div');
+      el.id = 'crosshair';
+      el.style.cssText = `
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 24px; height: 24px; pointer-events: none; z-index: 9;
+        border: 2px solid rgba(255,255,255,0.7); border-radius: 50%;
+        box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 0 8px rgba(255,255,255,0.3);
+      `;
+      const h = document.createElement('div');
+      h.style.cssText = 'position:absolute;top:50%;left:0;width:100%;height:2px;background:rgba(255,255,255,0.7);transform:translateY(-50%);';
+      el.appendChild(h);
+      const vline = document.createElement('div');
+      vline.style.cssText = 'position:absolute;left:50%;top:0;height:100%;width:2px;background:rgba(255,255,255,0.7);transform:translateX(-50%);';
+      el.appendChild(vline);
+      const uiLayer = document.getElementById('ui-layer');
+      if (uiLayer) uiLayer.appendChild(el);
+    }
     if (el) el.style.display = v ? 'block' : 'none';
   }
 
@@ -756,7 +772,14 @@ export class UI {
   }
 
   setStatsPanelEnabled(v) {
-    // Stats panel visibility is controlled by StatsPanel class
+    // Forward to StatsPanel if available
+    if (this._statsPanelRef) {
+      this._statsPanelRef.setEnabled(v);
+    }
+  }
+
+  bindStatsPanel(statsPanel) {
+    this._statsPanelRef = statsPanel;
   }
 
   setTimerPosition(pos) {
@@ -971,8 +994,11 @@ export class UI {
     }
     this._threeFoulBadge = null;
 
+    const crosshair = document.getElementById('crosshair');
+    if (crosshair && crosshair.parentNode) crosshair.parentNode.removeChild(crosshair);
     document.documentElement.style.setProperty("--ball-labels-visible", "0");
-    document.documentElement.classList.remove("high-contrast", "large-text", "reduce-motion");
+    document.documentElement.classList.remove("high-contrast", "large-text", "reduce-motion", "compact-hud");
+    this._statsPanelRef = null;
     const confirmOverlay = this._confirmOverlay || document.getElementById('ui-confirm-dialog');
     if (confirmOverlay && confirmOverlay.parentNode) {
       confirmOverlay.onclick = null;

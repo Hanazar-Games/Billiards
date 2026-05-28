@@ -92,6 +92,11 @@ export class StatsPanel {
     `;
   }
 
+  setEnabled(v) {
+    if (this.toggleBtn) this.toggleBtn.style.display = v ? 'block' : 'none';
+    if (!v && this.visible) this.hide();
+  }
+
   toggle() {
     if (!this.panel || !this.toggleBtn) return;
     this.visible = !this.visible;
