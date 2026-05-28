@@ -1,8 +1,23 @@
-# 3D Billiards v1.7.39 — Latest Update
+# 3D Billiards v1.7.40 — Latest Update
 
-## What's New in v1.7.39
+## What's New in v1.7.40
 
-### 🔍 Second-Round Global Deep Audit — Cross-Module & Lifecycle Fixes
+### 🔍 Third-Round Global Deep Audit — UI/UX/SFX/BGM Bug Fix Sweep
+
+| # | 改动 | 详情 |
+|---|------|------|
+| 1 | **计时器位置设置真正生效** | `UI.setTimerPosition()` 原先只改动底部 HUD 的比赛用时标签（`_hudTimer`），完全没有触及 `#turn-timer`（回合倒计时）；现已重写为通过 `.top`/`.bottom` CSS 类实际移动 `#turn-timer`，并移除无意义的 `'center'` 选项 |
+| 2 | **`timerPosition` 默认改为 `'bottom'`** | 与 `index.html` 中 `#turn-timer` 的默认 `bottom` 定位保持一致，避免首次进入游戏时出现设置值与视觉位置不符 |
+| 3 | **移除 `showBallLabels` 死代码** | 该设置通过 CSS 变量 `--ball-labels-visible` 控制 `.ball-label` 透明度，但 3D 场景中从未创建过 `.ball-label` 元素，属于无操作；已移除 `UI.setShowBallLabels()`、`index.html` 中对应 CSS 规则、`Game._applyHudVisibility()` 中的调用，并在设置面板中改为禁用状态并标注「尚未实现」 |
+| 4 | **回合超时消息被覆盖修复** | `_onTurnTimerExpired()` 中先调用 `ui.setMessage()` 显示超时提示，紧接着 `startBallInHand()` 又调用 `setMessage()` 把提示覆盖为「自由球」；现已移除前面的冗余 `setMessage()`，玩家现在能正确看到超时提示 |
+| 5 | **胜利音效音量双重衰减修复** | `AudioManager.playWin()` 在单个音符的 gain node 上额外乘了 `this._sfxVolume`，而整条链路已经经过 `_sfxGain`（同样受 `_sfxVolume` 控制），导致胜利音效比其他 SFX 安静得多；已移除单音符层的额外乘数 |
+| 6 | **`_handleSettingsChange` 清理 `showBallLabels` 分支** | 从批量 HUD 更新 switch 中移除已废弃的 `showBallLabels` case，保持代码整洁 |
+
+---
+
+## Historical Updates
+
+### v1.7.39 — Second-Round Global Deep Audit — Cross-Module & Lifecycle Fixes
 
 | # | 改动 | 详情 |
 |---|------|------|
@@ -14,10 +29,6 @@
 | 6 | **`_delay()` hanging promise 修复** | 连续调用 `_delay()` 时，第一次的 Promise 因旧 timeout 被 clear 而永远 unresolved；现在覆盖前会先 `resolve()` 旧 promise |
 | 7 | **AudioManager 音量 NaN 防护** | `setMasterVolume`/`setMusicVolume`/`setSFXVolume`/`setAmbientVolume` 新增 `Number.isFinite(vol)` 前置校验，防止 slider 异常值导致音频节点崩溃 |
 | 8 | **`_handleSettingsChange` 默认分支** | switch 语句新增 `default` case，静默忽略未知设置键（便于向前兼容），避免静默 fall-through 导致的行为不确定 |
-
----
-
-## Historical Updates
 
 ### v1.7.38 — Global Deep Audit — Lighting, Match, Texture, UI, Settings
 

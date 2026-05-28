@@ -1259,7 +1259,6 @@ export class Game {
     const oName = otherPlayer === 1 ? this.networkPlayer1Name : this.networkPlayer2Name;
     this.currentPlayer = otherPlayer;
     this._turnTimerRemaining = this._turnTimerMax;
-    this.ui.setMessage(UIText.turnTimeout(cName, oName), 3000);
     this.audio?.playFoul();
     this.ui.flashRed();
     this.startBallInHand(UIText.turnTimeout(cName, oName), false);
@@ -2576,7 +2575,6 @@ export class Game {
     this.ui.setShowSpinIndicator?.(settings.get('showSpinIndicator'));
     const showCrosshair = fairness.showCrosshair !== undefined ? fairness.showCrosshair : settings.get('showCrosshair');
     this.ui.setShowCrosshair?.(showCrosshair);
-    this.ui.setShowBallLabels?.(settings.get('showBallLabels'));
     this.ui.setShowRemainingBalls?.(settings.get('showRemainingBalls'));
     this.ui.setShowComboCounter?.(settings.get('showComboCounter'));
     this.ui.setStatsPanelEnabled?.(settings.get('statsPanelEnabled'));
@@ -2584,7 +2582,7 @@ export class Game {
     this.ui.setLargeTextMode?.(settings.get('largeTextMode'));
     this.ui.setCompactHud?.(settings.get('compactHud'));
     this.ui.setReducedMotion?.(settings.get('reducedMotion'));
-    this.ui.setTimerPosition?.(settings.get('timerPosition') || 'top');
+    this.ui.setTimerPosition?.(settings.get('timerPosition') || 'bottom');
   }
 
   _handleSettingsChange(key, value) {
@@ -2666,7 +2664,6 @@ export class Game {
       case 'showShotPowerPercent':
       case 'showSpinIndicator':
       case 'showCrosshair':
-      case 'showBallLabels':
       case 'showRemainingBalls':
       case 'showComboCounter':
       case 'statsPanelEnabled':

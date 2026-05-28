@@ -130,7 +130,7 @@ const DEFAULTS = {
   showRemainingBalls: true,
   showComboCounter: true,
   showCrosshair: false,
-  timerPosition: 'top', // 'top' | 'bottom' | 'center'
+  timerPosition: 'bottom', // 'top' | 'bottom'
   reducedMotion: false,
   highContrastUI: false,
   pauseBlurEnabled: true,

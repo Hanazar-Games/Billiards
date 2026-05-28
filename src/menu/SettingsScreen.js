@@ -72,7 +72,6 @@ const COLOR_BLIND_MODE_OPTIONS = [
 const TIMER_POS_OPTIONS = [
   { value: 'top', label: '顶部' },
   { value: 'bottom', label: '底部' },
-  { value: 'center', label: '中央' },
 ];
 const TURN_TIMER_OPTIONS = [
   { value: 'off', label: '关闭' },
@@ -859,7 +858,7 @@ export class SettingsScreen {
     this._row('小地图白球拖尾', this._createSwitch(settings.get('minimapShowCueTrail') !== false, (v) => settings.set('minimapShowCueTrail', v)));
     this._rowSlider('小地图拖尾长度', settings.get('minimapTrailLength') || 40, 10, 100, '', (v) => settings.set('minimapTrailLength', v));
     this._row('小地图高对比度', this._createSwitch(settings.get('minimapHighContrast') === true, (v) => settings.set('minimapHighContrast', v)), '增强球和边界可见度');
-    this._row('显示球号标签', this._createSwitch(settings.get('showBallLabels'), (v) => settings.set('showBallLabels', v)));
+    this._rowDisabled('显示球号标签', this._createDisabledSwitch(settings.get('showBallLabels'), () => {}), '3D 场景中尚未实现球号标签显示');
     this._row('显示力度条', this._createSwitch(settings.get('showShotPowerPercent'), (v) => settings.set('showShotPowerPercent', v)));
     this._row('显示旋转指示', this._createSwitch(settings.get('showSpinIndicator'), (v) => settings.set('showSpinIndicator', v)));
     this._row('显示剩余球数', this._createSwitch(settings.get('showRemainingBalls'), (v) => settings.set('showRemainingBalls', v)));

@@ -442,7 +442,7 @@ export class AudioManager {
       const gain = this.ctx.createGain();
       osc.type = 'sine';
       osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.18 * this._sfxVolume, t + i * 0.08);
+      gain.gain.setValueAtTime(0.18, t + i * 0.08);
       gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.22);
       osc.connect(gain);
       gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);

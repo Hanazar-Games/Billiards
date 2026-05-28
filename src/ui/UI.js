@@ -741,11 +741,6 @@ export class UI {
     if (el) el.style.display = v ? 'block' : 'none';
   }
 
-  setShowBallLabels(v) {
-    // Ball labels are rendered by the 3D scene; toggled via global CSS or scene flag
-    document.documentElement.style.setProperty('--ball-labels-visible', v ? '1' : '0');
-  }
-
   setShowRemainingBalls(v) {
     if (this._hudObjective) this._hudObjective.style.display = v ? 'block' : 'none';
   }
@@ -783,13 +778,11 @@ export class UI {
   }
 
   setTimerPosition(pos) {
-    if (!this._hudTimer) return;
-    this._hudTimer.style.position = 'relative';
-    this._hudTimer.style.top = this._hudTimer.style.bottom = 'auto';
-    if (pos === 'top') {
-      this._hudTimer.style.marginBottom = '4px';
-    } else if (pos === 'bottom') {
-      this._hudTimer.style.marginTop = '4px';
+    const el = this.turnTimerEl;
+    if (!el) return;
+    el.classList.remove('top', 'bottom');
+    if (pos === 'top' || pos === 'bottom') {
+      el.classList.add(pos);
     }
   }
 
@@ -996,7 +989,6 @@ export class UI {
 
     const crosshair = document.getElementById('crosshair');
     if (crosshair && crosshair.parentNode) crosshair.parentNode.removeChild(crosshair);
-    document.documentElement.style.setProperty("--ball-labels-visible", "0");
     document.documentElement.classList.remove("high-contrast", "large-text", "reduce-motion", "compact-hud");
     this._statsPanelRef = null;
     const confirmOverlay = this._confirmOverlay || document.getElementById('ui-confirm-dialog');
