@@ -21,6 +21,11 @@
       --blue: #1877c9;
       --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
       --ui-anim-speed: 1;
+      /* HUD safe areas — updated dynamically by UILayout */
+      --hud-bottom-safe: 52px;
+      --hud-right-safe: 0px;
+      --hud-left-safe: 0px;
+      --hud-top-safe: 0px;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #app {
@@ -48,7 +53,7 @@
     }
     #power-bar-container {
       position: absolute;
-      bottom: 108px;
+      bottom: calc(var(--hud-bottom-safe) + 56px);
       left: 50%;
       transform: translateX(-50%);
       width: min(520px, 55vw);
@@ -63,7 +68,7 @@
     }
     #turn-timer {
       position: absolute;
-      bottom: 134px;
+      bottom: calc(var(--hud-bottom-safe) + 82px);
       left: 50%;
       transform: translateX(-50%);
       font-size: 15px;
@@ -456,9 +461,9 @@
       }
       #power-bar-container {
         width: calc(100vw - 96px);
-        bottom: 118px;
+        bottom: calc(var(--hud-bottom-safe) + 66px);
       }
-      #turn-timer { bottom: 144px; font-size: 13px; }
+      #turn-timer { bottom: calc(var(--hud-bottom-safe) + 92px); font-size: 13px; }
       #bottom-hud-main {
         gap: 8px;
         padding: 8px 12px 4px;
@@ -467,13 +472,13 @@
       .hud-objective { font-size: 10px; }
       .hud-btn { padding: 5px 10px; font-size: 11px; }
       #cue-tip-picker {
-        bottom: 140px !important;
+        bottom: calc(var(--hud-bottom-safe) + 88px) !important;
         left: 12px !important;
         transform: scale(0.85);
         transform-origin: bottom left;
       }
       .table-minimap {
-        bottom: 110px !important;
+        bottom: calc(var(--hud-bottom-safe) + 58px) !important;
         right: 10px !important;
         opacity: 0.75 !important;
       }
@@ -498,14 +503,14 @@
         overflow: hidden;
       }
       .hud-timer { font-size: 14px; }
-      #power-bar-container { width: calc(100vw - 64px); bottom: 108px; }
-      #turn-timer { bottom: 132px; }
+      #power-bar-container { width: calc(100vw - 64px); bottom: calc(var(--hud-bottom-safe) + 56px); }
+      #turn-timer { bottom: calc(var(--hud-bottom-safe) + 80px); }
       #cue-tip-picker {
-        bottom: 128px !important;
+        bottom: calc(var(--hud-bottom-safe) + 76px) !important;
         transform: scale(0.72);
       }
       .table-minimap {
-        bottom: 100px !important;
+        bottom: calc(var(--hud-bottom-safe) + 48px) !important;
         width: 100px !important; height: 56px !important;
       }
       .player-badge { font-size: 11px; padding: 6px 8px; border-radius: 6px; }
@@ -638,6 +643,22 @@
       0%   { opacity: 1; transform: translate(-50%, -50%) translateY(0) scale(1); }
       40%  { opacity: 1; transform: translate(-50%, -50%) translateY(-18px) scale(1.1); }
       100% { opacity: 0; transform: translate(-50%, -50%) translateY(-44px) scale(0.85); }
+    }
+
+    /* Table minimap base styles */
+    .table-minimap {
+      position: absolute;
+      z-index: 8;
+      pointer-events: none;
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.08);
+      transition: opacity calc(0.3s / var(--ui-anim-speed)) ease,
+                  right calc(0.35s / var(--ui-anim-speed)) var(--ease),
+                  left calc(0.35s / var(--ui-anim-speed)) var(--ease),
+                  bottom calc(0.35s / var(--ui-anim-speed)) var(--ease),
+                  top calc(0.35s / var(--ui-anim-speed)) var(--ease),
+                  width calc(0.35s / var(--ui-anim-speed)) var(--ease),
+                  height calc(0.35s / var(--ui-anim-speed)) var(--ease);
     }
 
     /* Ball labels visibility toggle (controlled by --ball-labels-visible) */

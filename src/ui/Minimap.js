@@ -1,6 +1,7 @@
 import { BALL, BALL_COLORS, getBallType, BALL_TYPE } from '../config.js';
 import { getDefaultTableProfile } from '../game/TableProfiles.js';
 import { settings } from '../core/SettingsStore.js';
+import { uiLayout } from './UILayout.js';
 
 /**
  * Table Minimap — A lightweight 2D top-down radar of all balls.
@@ -60,6 +61,8 @@ export class Minimap {
     window.addEventListener('settingsChanged', this._onSettings);
     this._onResize = () => this._resize();
     window.addEventListener('resize', this._onResize);
+    this._onLayoutChange = () => this._applyStyle();
+    window.addEventListener('hudLayoutChanged', this._onLayoutChange);
   }
 
   setTableProfile(profile) {
@@ -284,7 +287,17 @@ export class Minimap {
 
   _applyStyle() {
     const s = this.canvas.style;
-    const pos = settings.get('minimapPosition') || 'bottom-right';
+    let pos = settings.get('minimapPosition') || 'bottom-right';
+
+    // If a right-side panel is open and we'd overlap, flip to the opposite side
+    const rightSafe = uiLayout.getSafe('right');
+    const leftSafe = uiLayout.getSafe('left');
+    if (rightSafe > 80 && pos.includes('right')) {
+      pos = pos.replace('right', 'left');
+    } else if (leftSafe > 80 && pos.includes('left')) {
+      pos = pos.replace('left', 'right');
+    }
+
     s.position = 'absolute';
     s.zIndex = '8';
     s.pointerEvents = 'none';
@@ -295,10 +308,11 @@ export class Minimap {
     // Reset all position props
     s.top = s.bottom = s.left = s.right = 'auto';
     const [v, h] = pos.split('-');
-    if (v === 'top') s.top = '14px';
-    else s.bottom = '14px';
-    if (h === 'left') s.left = '14px';
-    else s.right = '14px';
+    const baseOffset = 14;
+    if (v === 'top') s.top = `${baseOffset}px`;
+    else s.bottom = `${baseOffset}px`;
+    if (h === 'left') s.left = `${baseOffset}px`;
+    else s.right = `${baseOffset}px`;
   }
 
   mount(parent) {
@@ -316,6 +330,7 @@ export class Minimap {
   dispose() {
     window.removeEventListener('settingsChanged', this._onSettings);
     if (this._onResize) window.removeEventListener('resize', this._onResize);
+    if (this._onLayoutChange) window.removeEventListener('hudLayoutChanged', this._onLayoutChange);
     this.unmount();
     this.canvas = null;
     this.ctx = null;

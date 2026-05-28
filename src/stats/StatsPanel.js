@@ -4,6 +4,7 @@
  * Lives in the bottom-right corner. Click the small button to expand
  * and see live match stats updated every turn.
  */
+import { uiLayout } from '../ui/UILayout.js';
 export class StatsPanel {
   constructor() {
     this.visible = false;
@@ -21,8 +22,8 @@ export class StatsPanel {
     this.toggleBtn.title = '对局统计';
     this.toggleBtn.style.cssText = `
       position: absolute;
-      bottom: 90px;
-      right: 12px;
+      bottom: calc(var(--hud-bottom-safe) + 38px);
+      right: calc(var(--hud-right-safe) + 12px);
       width: 36px;
       height: 36px;
       font-size: 18px;
@@ -34,7 +35,7 @@ export class StatsPanel {
       cursor: pointer;
       pointer-events: auto;
       backdrop-filter: blur(4px);
-      transition: background calc(0.2s / var(--ui-anim-speed)), transform 0.2s;
+      transition: background calc(0.2s / var(--ui-anim-speed)), transform 0.2s, right calc(0.35s / var(--ui-anim-speed)) var(--ease);
       z-index: 10;
     `;
     this.toggleBtn.onmouseenter = () => {
@@ -52,8 +53,8 @@ export class StatsPanel {
     this.panel = document.createElement('div');
     this.panel.style.cssText = `
       position: absolute;
-      bottom: 132px;
-      right: 12px;
+      bottom: calc(var(--hud-bottom-safe) + 80px);
+      right: calc(var(--hud-right-safe) + 12px);
       width: 260px;
       max-height: 0;
       overflow: hidden;
@@ -62,7 +63,7 @@ export class StatsPanel {
       border-radius: 12px;
       backdrop-filter: blur(10px);
       pointer-events: auto;
-      transition: max-height calc(0.35s / var(--ui-anim-speed)) ease, opacity 0.25s ease;
+      transition: max-height calc(0.35s / var(--ui-anim-speed)) ease, opacity 0.25s ease, right calc(0.35s / var(--ui-anim-speed)) var(--ease);
       opacity: 0;
       padding: 0 14px;
       color: #fff;
@@ -97,17 +98,21 @@ export class StatsPanel {
       this.panel.style.opacity = '1';
       this.panel.style.padding = '0 14px';
       this.toggleBtn.style.background = 'rgba(255,255,255,0.25)';
+      // Claim right safe zone so minimap and other HUD elements can avoid us
+      uiLayout.claim('statsPanel', 'right', 280);
     } else {
       this.panel.style.maxHeight = '0';
       this.panel.style.opacity = '0';
       this.panel.style.padding = '0 14px';
       this.toggleBtn.style.background = 'rgba(0,0,0,0.5)';
+      uiLayout.release('statsPanel');
     }
   }
 
   hide() {
     if (!this.panel) return;
     if (this.visible) this.toggle();
+    uiLayout.release('statsPanel');
   }
 
   reset() {
@@ -262,6 +267,7 @@ export class StatsPanel {
   }
 
   destroy() {
+    uiLayout.release('statsPanel');
     if (this.toggleBtn && this.toggleBtn.parentNode) {
       this.toggleBtn.onmouseenter = null;
       this.toggleBtn.onmouseleave = null;

@@ -91,7 +91,7 @@ export class TrainerHUD {
     this.hintBtnEl = document.createElement('button');
     this.hintBtnEl.textContent = '💡 提示: 关';
     this.hintBtnEl.style.cssText = `
-      position: absolute; bottom: 38px; right: 60px;
+      position: absolute; bottom: calc(var(--hud-bottom-safe) + 4px); right: 60px;
       padding: 10px 18px;
       background: rgba(12,14,17,0.6);
       border: 1px solid rgba(255,255,255,0.15);
@@ -115,7 +115,7 @@ export class TrainerHUD {
     this.resetBtnEl = document.createElement('button');
     this.resetBtnEl.textContent = '↺ 重置球型';
     this.resetBtnEl.style.cssText = `
-      position: absolute; bottom: 38px; left: 50%; transform: translateX(-50%);
+      position: absolute; bottom: calc(var(--hud-bottom-safe) + 4px); left: 50%; transform: translateX(-50%);
       padding: 10px 18px;
       background: rgba(12,14,17,0.6);
       border: 1px solid rgba(255,255,255,0.15);

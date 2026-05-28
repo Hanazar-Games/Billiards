@@ -775,7 +775,7 @@ export class UI {
       this._pushOutBtn.className = 'hud-btn hud-btn-accent';
       this._pushOutBtn.textContent = UIText.pushOutButton;
       this._pushOutBtn.style.cssText = `
-        position: absolute; bottom: 96px; left: 50%; transform: translateX(-50%);
+        position: absolute; bottom: calc(var(--hud-bottom-safe) + 44px); left: 50%; transform: translateX(-50%);
         padding: 10px 22px; font-size: 15px; font-weight: 800;
         background: rgba(212,167,44,0.18); border: 1px solid rgba(212,167,44,0.55);
         color: #f0d78c; border-radius: 10px; cursor: pointer; pointer-events: auto;
@@ -808,7 +808,7 @@ export class UI {
     if (!this._pushOutChoiceWrap) {
       this._pushOutChoiceWrap = document.createElement('div');
       this._pushOutChoiceWrap.style.cssText = `
-        position: absolute; bottom: 96px; left: 50%; transform: translateX(-50%);
+        position: absolute; bottom: calc(var(--hud-bottom-safe) + 44px); left: 50%; transform: translateX(-50%);
         display: flex; gap: 10px; align-items: center; z-index: 15;
         background: rgba(8,10,12,0.78); border: 1px solid rgba(255,255,255,0.12);
         border-radius: 12px; padding: 10px 16px; backdrop-filter: blur(10px);
