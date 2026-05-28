@@ -1,4 +1,4 @@
-import{V as s,j as y,y as k,u as v,x as u,t as f,n as b,h as x}from"./three-CsPdlfT-.js";import{D as C,r as _,B as g}from"./index-BUtoiTsX.js";import"./physics-DAiIzLkS.js";class I{constructor(t,e,i){this.scene=t,this.drill=e,this.profile=i,this.hintsEnabled=!1,this.hintMeshes=[],this.zoneMesh=null,this.labelEl=null,this.hintBtnEl=null,this.resetBtnEl=null,this._buildUI()}_buildUI(){const t=document.getElementById("ui-layer");if(!t)return;const e=C.getProgress(this.drill.id);if(this.labelEl=document.createElement("div"),this.labelEl.style.cssText=`
+import{V as s,j as y,y as k,u as v,x as u,t as f,n as b,h as x}from"./three-CsPdlfT-.js";import{D as C,r as _,B as g}from"./index-oWlqN8A-.js";import"./physics-DAiIzLkS.js";class I{constructor(t,e,i){this.scene=t,this.drill=e,this.profile=i,this.hintsEnabled=!1,this.hintMeshes=[],this.zoneMesh=null,this.labelEl=null,this.hintBtnEl=null,this.resetBtnEl=null,this._buildUI()}_buildUI(){const t=document.getElementById("ui-layer");if(!t)return;const e=C.getProgress(this.drill.id);if(this.labelEl=document.createElement("div"),this.labelEl.style.cssText=`
       position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
       padding: 8px 20px;
       background: rgba(12,14,17,0.7);
@@ -26,7 +26,7 @@ import{V as s,j as y,y as k,u as v,x as u,t as f,n as b,h as x}from"./three-CsPd
         z-index: 15;
         white-space: nowrap;
       `,this.powerPill.textContent=`💪 建议力度: ${this.drill.hintPower}%`,t.appendChild(this.powerPill)),this.hintBtnEl=document.createElement("button"),this.hintBtnEl.textContent="💡 提示: 关",this.hintBtnEl.style.cssText=`
-      position: absolute; bottom: 38px; right: 60px;
+      position: absolute; bottom: calc(var(--hud-bottom-safe) + 4px); right: 60px;
       padding: 10px 18px;
       background: rgba(12,14,17,0.6);
       border: 1px solid rgba(255,255,255,0.15);
@@ -37,7 +37,7 @@ import{V as s,j as y,y as k,u as v,x as u,t as f,n as b,h as x}from"./three-CsPd
       cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed));
       z-index: 15;
     `,this.hintBtnEl.onmouseenter=()=>{this.hintBtnEl.style.background="rgba(255,255,255,0.2)"},this.hintBtnEl.onmouseleave=()=>{this.hintBtnEl.style.background="rgba(12,14,17,0.6)"},this.hintBtnEl.onclick=()=>this.toggleHints(),t.appendChild(this.hintBtnEl),this.resetBtnEl=document.createElement("button"),this.resetBtnEl.textContent="↺ 重置球型",this.resetBtnEl.style.cssText=`
-      position: absolute; bottom: 38px; left: 50%; transform: translateX(-50%);
+      position: absolute; bottom: calc(var(--hud-bottom-safe) + 4px); left: 50%; transform: translateX(-50%);
       padding: 10px 18px;
       background: rgba(12,14,17,0.6);
       border: 1px solid rgba(255,255,255,0.15);
