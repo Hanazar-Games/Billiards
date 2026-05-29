@@ -20,6 +20,8 @@ export class LanRoomPanel {
     this.container = null;
     this._state = 'idle'; // idle | connecting | creating | joined | ready | disconnected
     this._fadeTimer = null;
+    this._clientListeners = [];
+    this._joinInputHandler = null;
   }
 
   show() {
@@ -102,10 +104,11 @@ export class LanRoomPanel {
       border: 1px solid rgba(255,255,255,0.15); border-radius: 8px;
       outline: none; text-transform: uppercase;
     `;
-    this._joinInput.addEventListener('input', () => {
+    this._joinInputHandler = () => {
       // Server omits 0, O, I, 1 from generated IDs; align client sanitization
       this._joinInput.value = this._joinInput.value.toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g, '');
-    });
+    };
+    this._joinInput.addEventListener('input', this._joinInputHandler);
     this._joinRow.appendChild(this._joinInput);
     card.appendChild(this._joinRow);
 
@@ -183,15 +186,19 @@ export class LanRoomPanel {
   async _connect() {
     this._setStatus('正在连接服务器…');
     this.client = new NetworkClient();
-    this.client.addEventListener('connected', () => {
+    const addClientListener = (event, handler) => {
+      this.client.addEventListener(event, handler);
+      this._clientListeners.push({ event, handler });
+    };
+    addClientListener('connected', () => {
       this._setStatus('已连接服务器', 'connected');
       this._state = 'idle';
     });
-    this.client.addEventListener('disconnected', () => {
+    addClientListener('disconnected', () => {
       this._setStatus('连接已断开', 'disconnected');
       this._state = 'disconnected';
     });
-    this.client.addEventListener('netError', (e) => {
+    addClientListener('netError', (e) => {
       const errMap = {
         'Room not found': '房间不存在，请检查房间号是否正确',
         'Room is full': '房间已满员（最多 2 人）',
@@ -208,26 +215,26 @@ export class LanRoomPanel {
         this._state = 'idle';
       }
     });
-    this.client.addEventListener('roomCreated', (e) => {
+    addClientListener('roomCreated', (e) => {
       this._onRoomCreated(e.detail);
     });
-    this.client.addEventListener('joinedRoom', (e) => {
+    addClientListener('joinedRoom', (e) => {
       this._onJoinedRoom(e.detail);
     });
-    this.client.addEventListener('playerJoined', (e) => {
+    addClientListener('playerJoined', (e) => {
       this._updatePlayerList(e.detail.playerList);
       const currentCount = e.detail.playerList?.length || 1;
       const maxCount = e.detail.maxPlayers || 2;
       this._setStatus(`玩家 ${e.detail.nickname || e.detail.playerId} 加入房间 (${currentCount}/${maxCount})`, 'connected');
     });
-    this.client.addEventListener('playerLeft', (e) => {
+    addClientListener('playerLeft', (e) => {
       this._updatePlayerList(this.client.playerList || []);
       this._setStatus(`玩家 ${e.detail.playerId} 离开房间`, 'warning');
     });
-    this.client.addEventListener('startGame', (e) => {
+    addClientListener('startGame', (e) => {
       this._onRemoteStartGame(e.detail);
     });
-    this.client.addEventListener('roomClosed', (e) => {
+    addClientListener('roomClosed', (e) => {
       const reason = e.detail?.reason;
       const msg = reason === 'hostLeft' ? '房主已离开，房间关闭'
         : reason === 'hostDisconnected' ? '房主连接断开，房间关闭'
@@ -390,10 +397,6 @@ export class LanRoomPanel {
   }
 
   hide(skipCallback = false) {
-    if (this.client) {
-      this.client.leaveRoom();
-      this.client = null;
-    }
     if (!this.container) return;
     this.container.style.opacity = '0';
     if (this._fadeTimer) clearTimeout(this._fadeTimer);
@@ -402,15 +405,34 @@ export class LanRoomPanel {
         this.container.parentNode.removeChild(this.container);
       }
       this.container = null;
+      if (this.client) {
+        this._removeClientListeners();
+        this.client.leaveRoom();
+        this.client = null;
+      }
       if (!skipCallback && this.onCancel) this.onCancel();
     }, animMs(400));
+  }
+
+  _removeClientListeners() {
+    if (this.client) {
+      for (const { event, handler } of this._clientListeners) {
+        this.client.removeEventListener(event, handler);
+      }
+    }
+    this._clientListeners = [];
   }
 
   destroy() {
     if (this._fadeTimer) { clearTimeout(this._fadeTimer); this._fadeTimer = null; }
     if (this.client) {
+      this._removeClientListeners();
       this.client.leaveRoom();
       this.client = null;
+    }
+    if (this._joinInput && this._joinInputHandler) {
+      this._joinInput.removeEventListener('input', this._joinInputHandler);
+      this._joinInputHandler = null;
     }
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);

@@ -431,11 +431,13 @@ export class ChallengeManager {
       existing.prevStars = existing.stars || 0;
       existing.stars = Math.max(existing.stars || 0, stars);
       existing.attempts = (existing.attempts || 0) + 1;
-      if (isNewRecord && stars > 0) {
+      if (this.completed && stars > 0) {
         existing.completions = (existing.completions || 0) + 1;
       }
       data[this.challenge.id] = existing;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      // Keep in-memory best in sync so getResultStats() reports accurate prevStars
+      this.best = existing;
     } catch (e) {
       // ignore quota errors
     }

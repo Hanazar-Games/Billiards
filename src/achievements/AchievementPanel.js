@@ -17,6 +17,8 @@ export class AchievementPanel {
     this.toastContainer = null;
     this.wallContainer = null;
     this._toastTimers = [];
+    this._toastShowRaf = null;
+    this._ownsToastContainer = false;
     this._buildToast();
   }
 
@@ -24,8 +26,12 @@ export class AchievementPanel {
 
   _buildToast() {
     // Singleton: reuse existing toast container if present
-    this.toastContainer = document.getElementById('achievement-toast-container');
-    if (this.toastContainer) return;
+    const existing = document.getElementById('achievement-toast-container');
+    if (existing) {
+      this.toastContainer = existing;
+      this._ownsToastContainer = false;
+      return;
+    }
 
     this.toastContainer = document.createElement('div');
     this.toastContainer.id = 'achievement-toast-container';
@@ -35,9 +41,11 @@ export class AchievementPanel {
       z-index: 100; pointer-events: none;
     `;
     document.body.appendChild(this.toastContainer);
+    this._ownsToastContainer = true;
   }
 
   showToast(id) {
+    if (!this.toastContainer) return;
     const ach = ACHIEVEMENTS.find((a) => a.id === id);
     if (!ach) return;
 
@@ -82,11 +90,12 @@ export class AchievementPanel {
     textBlock.appendChild(descRow);
 
     toast.appendChild(textBlock);
-    if (!this.toastContainer) return;
     this.toastContainer.appendChild(toast);
 
     // Animate in
-    requestAnimationFrame(() => {
+    if (this._toastShowRaf) cancelAnimationFrame(this._toastShowRaf);
+    this._toastShowRaf = requestAnimationFrame(() => {
+      this._toastShowRaf = null;
       toast.style.transform = 'translateX(0)';
       toast.style.opacity = '1';
     });
@@ -296,11 +305,21 @@ export class AchievementPanel {
   destroy() {
     for (const t of this._toastTimers) clearTimeout(t);
     this._toastTimers = [];
-    if (this.toastContainer && this.toastContainer.parentNode) {
+    if (this._toastShowRaf) { cancelAnimationFrame(this._toastShowRaf); this._toastShowRaf = null; }
+    if (this.toastContainer && this.toastContainer.parentNode && this._ownsToastContainer) {
       this.toastContainer.parentNode.removeChild(this.toastContainer);
     }
     if (this.wallContainer && this.wallContainer.parentNode) {
       this.wallContainer.parentNode.removeChild(this.wallContainer);
+    }
+    // Null inline handlers on wall tabs to prevent detached DOM retention
+    const tabs = document.getElementById('ach-tabs');
+    if (tabs) {
+      tabs.querySelectorAll('button').forEach((btn) => {
+        btn.onmouseenter = null;
+        btn.onmouseleave = null;
+        btn.onclick = null;
+      });
     }
     this.toastContainer = null;
     this.wallContainer = null;

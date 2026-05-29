@@ -25,6 +25,7 @@ export class MainMenuScreen {
     this.container = null;
     this._fadeTimer = null;
     this._hideTimer = null;
+    this._showRaf = null;
     this._buildUI();
   }
 
@@ -236,9 +237,12 @@ export class MainMenuScreen {
   destroy() {
     if (this._fadeTimer) { clearTimeout(this._fadeTimer); this._fadeTimer = null; }
     if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
+    if (this._showRaf) { cancelAnimationFrame(this._showRaf); this._showRaf = null; }
     if (this._quitBtn) {
       this._quitBtn.onmouseenter = null;
       this._quitBtn.onmouseleave = null;
+      this._quitBtn.onfocus = null;
+      this._quitBtn.onblur = null;
       this._quitBtn.onclick = null;
       this._quitBtn = null;
     }
@@ -246,5 +250,14 @@ export class MainMenuScreen {
       this.container.parentNode.removeChild(this.container);
     }
     this.container = null;
+    this.onSelectMode = null;
+    this.onSettings = null;
+    this.onAchievements = null;
+    this.onShowReplays = null;
+    this.onShowChallenges = null;
+    this.onQuit = null;
+    this.onLanMultiplayer = null;
+    this.onMatchSetup = null;
+    this.onShowTrainer = null;
   }
 }

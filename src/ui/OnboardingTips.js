@@ -79,8 +79,16 @@ export class OnboardingTips {
   destroy() {
     this.hide();
     if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
-    if (this._card && this._card.parentNode) {
-      this._card.parentNode.removeChild(this._card);
+    if (this._card) {
+      const gotIt = this._card.querySelector('button');
+      if (gotIt) {
+        gotIt.onmouseenter = null;
+        gotIt.onmouseleave = null;
+        gotIt.onclick = null;
+      }
+      if (this._card.parentNode) {
+        this._card.parentNode.removeChild(this._card);
+      }
     }
     this._card = null;
   }
