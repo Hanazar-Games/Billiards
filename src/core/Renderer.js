@@ -175,6 +175,7 @@ export class Renderer {
   onResize() {
     this.width = this.container.clientWidth;
     this.height = this.container.clientHeight;
+    if (this.width <= 0 || this.height <= 0) return;
     this.camera.aspect = this.width / this.height;
     this.camera.updateProjectionMatrix();
     const s = this._renderScale || 1.0;
@@ -430,6 +431,12 @@ export class Renderer {
     window.removeEventListener('roomThemeChanged', this._onRoomThemeChanged);
     if (this.controls) {
       this.controls.dispose();
+    }
+    // Release any active pointer capture to prevent stuck pointers
+    if (this.renderer && this.renderer.domElement) {
+      try {
+        this.renderer.domElement.releasePointerCapture && this.renderer.domElement.releasePointerCapture(1);
+      } catch (e) {}
     }
     this.renderer.dispose();
     if (this.renderer.domElement.parentNode === this.container) {

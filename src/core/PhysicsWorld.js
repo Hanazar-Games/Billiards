@@ -90,6 +90,20 @@ export class PhysicsWorld {
   }
 
   removeBody(body) {
-    this.world.removeBody(body);
+    if (!body) return;
+    try { this.world.removeBody(body); } catch (e) {}
+  }
+
+  dispose() {
+    this.removeTableBody();
+    // cannon-es does not expose a dispose() on World, but we clear bodies
+    // and null out references so GC can collect everything.
+    for (const b of [...this.world.bodies]) {
+      try { this.world.removeBody(b); } catch (e) {}
+    }
+    this.world = null;
+    this.ballMaterial = null;
+    this.cushionMaterial = null;
+    this.tableMaterial = null;
   }
 }

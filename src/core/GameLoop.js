@@ -52,6 +52,7 @@ export class GameLoop {
       if (elapsed < this._fpsLimitMs) {
         const delay = this._fpsLimitMs - elapsed;
         this.id = setTimeout(() => {
+          if (!this.running) return;
           this.id = requestAnimationFrame(this.tick);
         }, delay);
         return;

@@ -170,7 +170,8 @@ export class NetworkClient extends EventTarget {
   }
 
   joinRoom(roomId, nickname = '') {
-    return this._send({ type: 'joinRoom', roomId: roomId.toUpperCase().trim(), nickname });
+    if (!roomId) return false;
+    return this._send({ type: 'joinRoom', roomId: String(roomId).toUpperCase().trim(), nickname });
   }
 
   leaveRoom() {

@@ -74,6 +74,9 @@ export class AchievementSystem {
 
   /** Call when a ball is pocketed during a shot */
   onPocket(ballId, pocketPos, mode) {
+    // Cue ball scratch should not count as a valid pocket
+    if (ballId === 0) return;
+
     this.shotPocketedIds.push(ballId);
     this.store.incrementStat('totalPockets', 1);
 
@@ -148,6 +151,13 @@ export class AchievementSystem {
         this._wasBehind = true;
       }
     }
+  }
+
+  /** Call when a new game starts (resets per-game state) */
+  onGameStart() {
+    this._wasBehind = false;
+    this._pocketsP1 = 0;
+    this._pocketsP2 = 0;
   }
 
   /** Call when a match ends */

@@ -161,10 +161,16 @@ export class Cue {
   }
 
   dispose() {
+    if (!this.mesh) return;
+    if (this.mesh.parent) {
+      this.mesh.parent.remove(this.mesh);
+    }
     this.mesh.traverse((child) => {
       if (child.geometry) child.geometry.dispose();
       if (child.material) child.material.dispose();
     });
+    this.mesh = null;
+    this._materials = null;
   }
 
   setTableProfile(profile) {

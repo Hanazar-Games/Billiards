@@ -249,9 +249,21 @@ const DEFAULTS = {
   },
 };
 
+function _deepClone(obj) {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (obj instanceof Date) return new Date(obj);
+  if (Array.isArray(obj)) return obj.map(_deepClone);
+  const cloned = {};
+  for (const key of Object.keys(obj)) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+    cloned[key] = _deepClone(obj[key]);
+  }
+  return cloned;
+}
+
 export class SettingsStore {
   constructor() {
-    this._data = { ...DEFAULTS };
+    this._data = _deepClone(DEFAULTS);
     this._lockedKeys = new Set();
     this._load();
   }
@@ -282,13 +294,26 @@ export class SettingsStore {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          this._data = { ...DEFAULTS, ...parsed };
-        } else {
-          this._data = { ...DEFAULTS };
+          this._data = _deepClone(DEFAULTS);
+          for (const key of Object.keys(parsed)) {
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+            if (key in DEFAULTS) {
+              const defVal = DEFAULTS[key];
+              const val = parsed[key];
+              // Basic type validation: only overwrite if types match or both are objects
+              if (typeof defVal === typeof val || (typeof defVal === 'object' && typeof val === 'object')) {
+                this._data[key] = _deepClone(val);
+              }
+            } else {
+              // Allow unknown keys (forward compatibility) but still clone
+              this._data[key] = _deepClone(val);
+            }
+          }
         }
       }
     } catch (e) {
       console.warn('Settings load failed, using defaults');
+      this._data = _deepClone(DEFAULTS);
     }
   }
 
@@ -334,7 +359,7 @@ export class SettingsStore {
     for (const key of this._lockedKeys) {
       if (key in this._data) lockedSnapshot[key] = this._data[key];
     }
-    this._data = { ...DEFAULTS, ...lockedSnapshot };
+    this._data = { ..._deepClone(DEFAULTS), ...lockedSnapshot };
     this._save();
     Object.keys(DEFAULTS).forEach((key) => {
       if (!this._lockedKeys.has(key)) {

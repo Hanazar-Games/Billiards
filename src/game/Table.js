@@ -1465,7 +1465,8 @@ export class Table {
   }
 
   dispose() {
-    if (this.meshGroup && this.meshGroup.parent) {
+    if (!this.meshGroup) return; // guard against second call
+    if (this.meshGroup.parent) {
       this.meshGroup.parent.remove(this.meshGroup);
     }
     this.meshGroup.traverse((child) => {
@@ -1490,6 +1491,7 @@ export class Table {
       for (const body of this.bodies) {
         this.physics.removeBody(body);
       }
+      this.physics.removeTableBody();
     }
     this.bodies = [];
     this.pocketPositions = null;

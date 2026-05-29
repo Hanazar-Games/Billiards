@@ -16,13 +16,18 @@ export class BallsManager {
   addToScene(scene) {
     for (const ball of this.balls) {
       if (ball.pocketed) continue;
-      scene.add(ball.mesh);
+      if (ball.mesh.parent !== scene) {
+        scene.add(ball.mesh);
+      }
       ball.setPhysicsMaterial(this.physics.ballMaterial);
-      this.physics.addBody(ball.body);
+      if (!ball.body.world) {
+        this.physics.addBody(ball.body);
+      }
     }
   }
 
   createBalls() {
+    if (this.balls.length > 0) return; // prevent double-create
     for (let i = 0; i <= 15; i++) {
       const type = getBallType(i);
       const ball = new Ball(i, BALL_COLORS[i], type);
@@ -616,7 +621,9 @@ export class BallsManager {
 
     cue.reset(finalX, r, z);
     // Re-add to physics world if it was removed during pocketing
-    this.physics.addBody(cue.body);
+    if (!cue.body.world) {
+      this.physics.addBody(cue.body);
+    }
     return { x: finalX, z };
   }
 }

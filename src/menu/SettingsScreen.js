@@ -1015,8 +1015,9 @@ export class SettingsScreen {
         const data = JSON.parse(raw);
         if (typeof data !== 'object' || data === null) throw new Error('格式错误');
         let count = 0;
+        const allKeys = Object.keys(settings.getAll());
         Object.keys(data).forEach((key) => {
-          if (key in settings.getAll()) {
+          if (allKeys.includes(key)) {
             settings.set(key, data[key]);
             count++;
           }
@@ -1987,7 +1988,9 @@ export class SettingsScreen {
   }
 
   _syncAllControls() {
-    this._switchCategory(this._currentCategory);
+    const cat = this._currentCategory;
+    this._currentCategory = ''; // force rebuild
+    this._switchCategory(cat);
   }
 
   /**
@@ -2071,6 +2074,7 @@ export class SettingsScreen {
     };
 
     const onKeyDown = (e) => {
+      e.stopPropagation();
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopImmediatePropagation();

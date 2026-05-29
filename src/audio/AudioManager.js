@@ -185,20 +185,19 @@ export class AudioManager {
     this._updateBGMVolume();
   }
 
+  setAmbientVolume(vol) {
+    if (!Number.isFinite(vol)) return;
+    const v = Math.max(0, Math.min(1, vol / 100));
+    this._ambientVolume = v;
+    if (!this.ctx || this.ctx.state === 'closed') return;
+    this._updateBGMVolume();
+  }
+
   setSFXVolume(vol) {
     if (!Number.isFinite(vol)) return;
     this._sfxVolume = Math.max(0, Math.min(1, vol / 100));
     if (!this._sfxGain || !this.ctx || this.ctx.state === 'closed') return;
     this._sfxGain.gain.setTargetAtTime(this._sfxVolume, this.ctx.currentTime, 0.05);
-  }
-
-  setAmbientVolume(vol) {
-    if (!Number.isFinite(vol)) return;
-    const v = Math.max(0, Math.min(1, vol / 100));
-    // Store the setting even if audio context isn't ready yet
-    this._ambientVolume = v;
-    if (!this._bgmGain || !this.ctx || this.ctx.state === 'closed') return;
-    this._updateBGMVolume();
   }
 
   _updateBGMVolume() {
@@ -277,7 +276,13 @@ export class AudioManager {
   }
 
   stopBGM(preserveFlag = true) {
-    const t = this.ctx ? this.ctx.currentTime : 0;
+    if (!this.ctx || this.ctx.state === 'closed') {
+      this.bgmNodes = [];
+      this._pendingBGMStart = false;
+      if (!preserveFlag) this._bgmWasPlaying = false;
+      return;
+    }
+    const t = this.ctx.currentTime;
     for (const node of this.bgmNodes) {
       try { if (node.stop) node.stop(t); } catch (e) {}
       try { if (node.disconnect) node.disconnect(); } catch (e) {}

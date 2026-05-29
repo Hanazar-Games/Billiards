@@ -108,6 +108,7 @@ export class ShotReplay {
   /** Seek to a specific frame. */
   seek(frame) {
     this.currentFrame = Math.max(0, Math.min(this.frameCount - 1, Math.round(frame)));
+    this.accumulator = this.currentFrame * (this.frameInterval || (1 / 60));
     this._applyFrame(this.currentFrame);
     if (this.onProgress) {
       this.onProgress(this.currentFrame, this.frameCount);

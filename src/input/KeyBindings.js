@@ -181,6 +181,7 @@ export class KeyBindings {
   }
 
   dispose() {
+    this.cancelListening();
     if (this._onSettingsChanged) {
       window.removeEventListener('settingsChanged', this._onSettingsChanged);
       this._onSettingsChanged = null;
