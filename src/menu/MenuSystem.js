@@ -34,6 +34,7 @@ import { MatchSetupPanel } from './MatchSetupPanel.js';
 import { MatchManager } from '../game/MatchManager.js';
 import { animMs } from '../core/AnimSpeed.js';
 import { MATCH_FAIRNESS_KEYS } from '../core/SettingsStore.js';
+import { SpectatorMode } from '../spectator/SpectatorMode.js';
 
 
 export class MenuSystem {
@@ -48,6 +49,9 @@ export class MenuSystem {
     // Game instance (recreated per session)
     this.game = null;
     this.loop = null;
+
+    // Spectator mode overlay (AI vs AI broadcast)
+    this.spectator = null;
 
     // Menu screens
     this.mainMenu = null;
@@ -697,6 +701,12 @@ export class MenuSystem {
     // Set up game-over callback
     this.game.onReturnToMenu = () => this._returnToMenu();
 
+    // Start spectator mode overlay if needed
+    if (mode === 'spectator') {
+      this.spectator = new SpectatorMode(this.renderer, this.game);
+      this.spectator.start();
+    }
+
     // Create and start game loop
     this.loop = new GameLoop({
       update: (dt) => {
@@ -704,6 +714,7 @@ export class MenuSystem {
           this.physics.step(dt);
         }
         this.game.update(dt);
+        if (this.spectator) this.spectator.update(dt);
       },
       render: () => {
         if (this.game) this.game.render(this.renderer);
@@ -830,6 +841,8 @@ export class MenuSystem {
           return { mode: 'vsai', aiEnabled: true, aiDifficulty: 'normal' };
         case 'nineball':
           return { mode: '9ball', aiEnabled: false };
+        case 'spectator':
+          return { mode: 'spectator', aiEnabled: true, aiDifficulty: 'normal', bothAI: true };
         default:
           return { mode: 'local2p', aiEnabled: false };
       }
@@ -859,6 +872,12 @@ export class MenuSystem {
     if (this.game) {
       this.game.dispose();
       this.game = null;
+    }
+
+    // Dispose spectator mode
+    if (this.spectator) {
+      this.spectator.dispose();
+      this.spectator = null;
     }
 
     // Clear match engine when leaving match mode

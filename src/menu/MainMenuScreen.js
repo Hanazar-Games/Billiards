@@ -92,6 +92,9 @@ export class MainMenuScreen {
     this._addButton(playGroup, '本地比赛', '自定义名字与赛制 · 8 球或 9 球 · 单局/三局/五局', () => {
       if (this.onMatchSetup) this.onMatchSetup();
     });
+    this._addButton(playGroup, 'AI 对战观赛', '两台电脑自动对弈 · 转播视角 · 实时解说', () => {
+      this._fadeOut(() => this.onSelectMode('spectator'));
+    });
 
     // ── Section: 练习与挑战 ──
     const trainGroup = this._createSection(btnGrid, '📚 练习与挑战');

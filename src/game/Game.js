@@ -149,6 +149,7 @@ export class Game {
     this.mode = modeConfig.mode || 'local2p';
     this.drillConfig = modeConfig.drill || null;
     this.aiEnabled = modeConfig.aiEnabled || false;
+    this.bothAI = modeConfig.bothAI || false;
 
     // Resolve table profile (match setting, locked for the whole game)
     const validated = validateModeTableProfile(this.mode, modeConfig.tableProfileId);
@@ -160,7 +161,13 @@ export class Game {
     this.tableProfile = getTableProfile(this.tableProfileId);
     this.ballReturn = new BallReturnSystem(this.scene, this.tableProfile);
     if (modeConfig.aiDifficulty) {
-      this.aiPlayer = new AIPlayer(modeConfig.aiDifficulty);
+      if (this.bothAI) {
+        this.aiPlayer1 = new AIPlayer(modeConfig.aiDifficulty);
+        this.aiPlayer2 = new AIPlayer(modeConfig.aiDifficulty);
+        this.aiEnabled = true;
+      } else {
+        this.aiPlayer = new AIPlayer(modeConfig.aiDifficulty);
+      }
     }
 
     // Create rules engine based on game mode
@@ -351,6 +358,15 @@ export class Game {
     // Show game tutorial steps for new players
     this._showGameTutorial();
     this._initialized = true;
+
+    // In spectator mode, auto-start AI turn if it's AI's turn at game start
+    if (this.bothAI && this._shouldTriggerAI() && this.state === 'AIM') {
+      setTimeout(() => {
+        if (this.state === 'AIM' && this._shouldTriggerAI()) {
+          this.startAITurn();
+        }
+      }, 600);
+    }
   }
 
   _showGameTutorial() {
@@ -472,6 +488,7 @@ export class Game {
   }
 
   onMouseMove() {
+    if (this.bothAI) return; // spectator mode: no human input
     // Freeze aim while in camera-control mode
     if (this.renderer._shiftCameraControl) return;
     if (this.ballInHand && this.state === 'AIM') {
@@ -488,6 +505,8 @@ export class Game {
 
   onMouseDown(e) {
     if (this.paused) return;
+    // In spectator mode, ignore all human input
+    if (this.bothAI) return;
     // Recover from soft-locked CHARGING state (e.g. missed mouseup)
     if (this.state === 'CHARGING' && this.input && !this.input.isDown) {
       this._enterAimState();
@@ -543,6 +562,7 @@ export class Game {
 
   onMouseUp() {
     if (this.paused) return;
+    if (this.bothAI) return; // spectator mode: no human input
     if (this.state !== 'CHARGING') return;
     if (this.power < 1) {
       this._enterAimState();
@@ -646,6 +666,7 @@ export class Game {
   }
 
   updateAimDirection() {
+    if (this.bothAI) return; // spectator mode: AI controls aim
     const cueBall = this.ballsManager.getCueBall();
     if (!cueBall || cueBall.pocketed) return;
 
@@ -933,6 +954,12 @@ export class Game {
     }
   }
 
+  _shouldTriggerAI() {
+    if (!this.aiEnabled) return false;
+    if (this.bothAI) return true;
+    return this.currentPlayer === 2;
+  }
+
   async startAITurn() {
     if (this.state === 'AI_THINKING') return;
     this.state = 'AI_THINKING';
@@ -940,9 +967,14 @@ export class Game {
     this.trajectory.setVisible(false);
     if (this.cue) this.cue.hide();
 
+    // Select the correct AI instance
+    const ai = this.bothAI
+      ? (this.currentPlayer === 1 ? this.aiPlayer1 : this.aiPlayer2)
+      : this.aiPlayer;
+
     let decision = null;
     try {
-      decision = await this.aiPlayer.takeTurn(this);
+      decision = await ai.takeTurn(this);
     } catch (err) {
       console.error('AI turn failed', err);
       if (this.state === 'AI_THINKING') {
@@ -1354,7 +1386,7 @@ export class Game {
     this._enterAimState({ resetPower: true, showCue: true, showTrajectory: true, updateAim: false });
     this._updatePlayerStats();
 
-    if (this.aiEnabled && this.currentPlayer === 2) {
+    if (this._shouldTriggerAI()) {
       this.startAITurn();
     }
 
@@ -1609,7 +1641,7 @@ export class Game {
     }
 
     // Push-out pending: AI auto-accepts; human sees choice UI in update loop
-    if (result.pushOutPending && this.aiEnabled && this.currentPlayer === 2) {
+    if (result.pushOutPending && this.aiEnabled && (this.bothAI || this.currentPlayer === 2)) {
       this._applyPushOutChoice('accept');
       return;
     }
@@ -1649,14 +1681,20 @@ export class Game {
     }
 
     if (result.ballInHand) {
-      this.startBallInHand(result.message, result.ballInHandBehindLine);
+      if (this.bothAI) {
+        // In spectator mode, skip ball-in-hand UI and auto-place for AI
+        this.ballInHand = false;
+        this.ballInHandBehindLine = false;
+      } else {
+        this.startBallInHand(result.message, result.ballInHandBehindLine);
+      }
     }
 
     // Update live stats panel
     this.statsPanel.update(this.statsTracker.getLiveStats());
 
     // Trigger AI if needed
-    if (this.aiEnabled && this.currentPlayer === 2) {
+    if (this._shouldTriggerAI()) {
       if (this.ballInHand) {
         this.ballInHand = false;
         const cue = this.ballsManager.getCueBall();
@@ -1808,6 +1846,15 @@ export class Game {
     this._updatePlayerStats();
     if (this.cue) this.cue.show();
     this.setAimTrajectoryVisible(true);
+
+    // In spectator mode, auto-start AI turn after reset
+    if (this.bothAI && this._shouldTriggerAI() && this.state === 'AIM') {
+      setTimeout(() => {
+        if (this.state === 'AIM' && this._shouldTriggerAI()) {
+          this.startAITurn();
+        }
+      }, 600);
+    }
 
     this._broadcastSnapshot();
   }
@@ -1970,7 +2017,17 @@ export class Game {
 
   _setupSpinControls() {
     this._onKeyDown = (e) => {
+      // In spectator mode, only allow Escape and camera controls
       const key = e.key.toLowerCase();
+      if (this.bothAI) {
+        if (key === 'escape') {
+          // Allow returning to menu
+        } else if (['1', '2', '3'].includes(key)) {
+          // Allow camera switching
+        } else {
+          return;
+        }
+      }
       // Ignore all game keys while paused (except Escape which toggles pause)
       if (this.paused && key !== 'escape') return;
       // Ignore all game keys while in-game settings is open (except Escape which closes it)
@@ -3090,6 +3147,8 @@ export class Game {
     this.camera = null;
     this.matchManager = null;
     this.aiPlayer = null;
+    this.aiPlayer1 = null;
+    this.aiPlayer2 = null;
     this.networkController = null;
     this.rules = null;
     this._settingsOpen = false;
