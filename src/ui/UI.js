@@ -60,6 +60,7 @@ export class UI {
     this._hudBackBtn = document.createElement('button');
     this._hudBackBtn.id = 'back-to-menu';
     this._hudBackBtn.className = 'hud-btn';
+    this._hudBackBtn.setAttribute('aria-label', '返回主菜单');
     this._hudBackBtn.dataset.fullLabel = '← 返回菜单';
     this._hudBackBtn.dataset.shortLabel = '←';
     this._hudBackBtn.textContent = this._hudBackBtn.dataset.fullLabel;
@@ -67,6 +68,7 @@ export class UI {
 
     this._hudConcedeBtn = document.createElement('button');
     this._hudConcedeBtn.className = 'hud-btn hud-btn-danger';
+    this._hudConcedeBtn.setAttribute('aria-label', '认输并结束当前对局');
     this._hudConcedeBtn.dataset.fullLabel = '认输';
     this._hudConcedeBtn.dataset.shortLabel = '认输';
     this._hudConcedeBtn.textContent = this._hudConcedeBtn.dataset.fullLabel;
@@ -101,6 +103,7 @@ export class UI {
 
     this._hudNewGameBtn = document.createElement('button');
     this._hudNewGameBtn.className = 'hud-btn';
+    this._hudNewGameBtn.setAttribute('aria-label', '重新开始一局');
     this._hudNewGameBtn.dataset.fullLabel = '再来一局';
     this._hudNewGameBtn.dataset.shortLabel = '再来';
     this._hudNewGameBtn.textContent = this._hudNewGameBtn.dataset.fullLabel;
@@ -109,6 +112,7 @@ export class UI {
 
     this._hudSettingsBtn = document.createElement('button');
     this._hudSettingsBtn.className = 'hud-btn';
+    this._hudSettingsBtn.setAttribute('aria-label', '打开游戏设置');
     this._hudSettingsBtn.dataset.fullLabel = '⚙️ 设置';
     this._hudSettingsBtn.dataset.shortLabel = '⚙️';
     this._hudSettingsBtn.textContent = this._hudSettingsBtn.dataset.fullLabel;

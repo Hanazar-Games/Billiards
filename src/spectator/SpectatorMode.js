@@ -99,6 +99,10 @@ export class SpectatorMode {
     // Hide bottom HUD
     const bottomHud = document.getElementById('bottom-hud');
     if (bottomHud) bottomHud.style.display = 'none';
+
+    // Hide minimap canvas
+    const minimap = document.querySelector('.table-minimap');
+    if (minimap) minimap.style.display = 'none';
   }
 
   _restoreDefaultHUD() {
@@ -112,6 +116,10 @@ export class SpectatorMode {
     if (versionTag) versionTag.style.display = '';
     const bottomHud = document.getElementById('bottom-hud');
     if (bottomHud) bottomHud.style.display = '';
+
+    // Restore minimap canvas
+    const minimap = document.querySelector('.table-minimap');
+    if (minimap) minimap.style.display = '';
   }
 
   update(dt) {
@@ -163,6 +171,7 @@ export class SpectatorMode {
     if (state === 'SHOOTING' && last !== 'SHOOTING') {
       this._totalShots++;
       this.ui.setShotCount(this._totalShots);
+      this._lastPocketCount = game.turnPocketedIds?.length || 0;
       this.commentary.onAimStart();
       this.camera.setPhase('shooting');
 
@@ -172,15 +181,14 @@ export class SpectatorMode {
       }
     }
 
-    // Detect transition to resolving (balls moving)
-    if (state === 'RESOLVING' && last !== 'RESOLVING') {
-      this.camera.setPhase('resolving');
-      this._lastPocketCount = game.turnPocketedIds?.length || 0;
+    // Detect turn end (balls stopped, resolveTurn called)
+    if (state === 'AIM' && last === 'SHOOTING') {
+      this._handleTurnEnd(game);
+      this.camera.setPhase('idle');
     }
 
-    // Detect return to AIM (turn ended)
-    if (state === 'AIM' && last !== 'AIM' && last !== null) {
-      this._handleTurnEnd(game);
+    // Detect return to AIM from other states (turn change without shooting, e.g. foul/auto)
+    if (state === 'AIM' && last !== 'AIM' && last !== null && last !== 'SHOOTING') {
       this.camera.setPhase('idle');
     }
 

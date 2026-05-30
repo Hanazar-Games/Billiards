@@ -33,13 +33,14 @@ export class BroadcastUI {
     this.container.style.cssText = `
       position: absolute; inset: 0;
       pointer-events: none;
-      z-index: 15;
+      z-index: 18;
       font-family: 'Segoe UI', system-ui, sans-serif;
       display: none;
     `;
 
     // ── Top Bar ──
     this._topBar = document.createElement('div');
+    this._topBar.id = 'broadcast-top-bar';
     this._topBar.style.cssText = `
       position: absolute; top: 0; left: 0; right: 0;
       display: flex; align-items: stretch; justify-content: center;
@@ -54,9 +55,10 @@ export class BroadcastUI {
 
     // Center info (match type / frame)
     this._centerBox = document.createElement('div');
+    this._centerBox.id = 'broadcast-center-info';
     this._centerBox.style.cssText = `
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 0 24px; min-width: 120px;
+      padding: 0 16px; min-width: 90px; flex-shrink: 0;
     `;
     this._matchTypeEl = document.createElement('div');
     this._matchTypeEl.style.cssText = `font-size: 11px; font-weight: 700; color: rgba(216,177,95,0.9); letter-spacing: 2px; text-transform: uppercase;`;
@@ -84,6 +86,7 @@ export class BroadcastUI {
 
     // ── Bottom Right: Commentary ──
     this._commentaryBox = document.createElement('div');
+    this._commentaryBox.id = 'broadcast-commentary-box';
     this._commentaryBox.style.cssText = `
       position: absolute; bottom: 18px; right: 18px;
       width: min(380px, 32vw);
@@ -140,7 +143,7 @@ export class BroadcastUI {
     `;
     this.container.appendChild(this._eventBadge);
 
-    // Inject blink keyframe if not present
+    // Inject blink keyframe + responsive media queries if not present
     if (!document.getElementById('broadcast-blink-style')) {
       const style = document.createElement('style');
       style.id = 'broadcast-blink-style';
@@ -148,6 +151,16 @@ export class BroadcastUI {
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
         .broadcast-p1-active .broadcast-player-left { border-color: rgba(216,177,95,0.7); background: rgba(140,110,40,0.45); }
         .broadcast-p2-active .broadcast-player-right { border-color: rgba(90,165,230,0.7); background: rgba(35,90,140,0.45); }
+        @media (max-width: 760px) {
+          #broadcast-commentary-box { width: min(320px, 46vw) !important; padding: 10px 12px !important; bottom: 12px !important; right: 12px !important; }
+          #broadcast-top-bar { height: 44px !important; }
+          .broadcast-player-left, .broadcast-player-right { padding: 6px 10px !important; gap: 8px !important; }
+          #broadcast-center-info { padding: 0 8px !important; min-width: 70px !important; }
+        }
+        @media (max-width: 520px) {
+          #broadcast-commentary-box { width: calc(100vw - 140px) !important; bottom: 10px !important; right: 10px !important; }
+          #broadcast-top-bar { height: 40px !important; }
+        }
       `;
       document.head.appendChild(style);
     }
@@ -168,9 +181,10 @@ export class BroadcastUI {
     `;
 
     const nameEl = document.createElement('div');
+    nameEl.className = `broadcast-player-name-${side}`;
     nameEl.style.cssText = `
       font-size: 15px; font-weight: 700; color: rgba(244,247,244,0.92);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: min(160px, 22vw);
     `;
     nameEl.textContent = isLeft ? 'AI Alpha' : 'AI Beta';
 

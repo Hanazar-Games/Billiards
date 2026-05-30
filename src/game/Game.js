@@ -963,7 +963,11 @@ export class Game {
   async startAITurn() {
     if (this.state === 'AI_THINKING') return;
     this.state = 'AI_THINKING';
-    this.ui.setMessage(UIText.aiThinking);
+    // In spectator mode, preserve the turn result message instead of overwriting it;
+    // the broadcast commentary system will show AI thinking status separately.
+    if (!this.bothAI) {
+      this.ui.setMessage(UIText.aiThinking);
+    }
     this.trajectory.setVisible(false);
     if (this.cue) this.cue.hide();
 
@@ -1130,9 +1134,12 @@ export class Game {
                 p.project(this.renderer.camera);
                 const sx = (p.x * 0.5 + 0.5) * this.renderer.width;
                 const sy = (-p.y * 0.5 + 0.5) * this.renderer.height;
-                const txt = entry.id === 8 ? '🎱 8号球!' : (entry.id === 0 ? '⚠️ 白球' : `+${entry.id}`);
-                const col = entry.id === 0 ? '#ff6b6b' : (entry.id === 8 ? '#fff' : '#d8b15f');
-                this.ui.showFloatingText(txt, sx, sy, col);
+                // Skip floating text in spectator mode (broadcast overlay provides its own feedback)
+                if (!this.bothAI) {
+                  const txt = entry.id === 8 ? '🎱 8号球!' : (entry.id === 0 ? '⚠️ 白球' : `+${entry.id}`);
+                  const col = entry.id === 0 ? '#ff6b6b' : (entry.id === 8 ? '#fff' : '#d8b15f');
+                  this.ui.showFloatingText(txt, sx, sy, col);
+                }
               }
               // Broadcast pocket FX to clients so they see the same visual feedback
               if (this.networkRole === 'host' && this.networkController) {
@@ -2141,6 +2148,7 @@ export class Game {
   }
 
   _resetCameraFree() {
+    if (this.bothAI) return; // spectator mode: CameraDirector controls the camera
     this.screenShake?.cancel();
     const cam = this.camera;
     cam.position.set(...CAMERA.defaultPos);
@@ -2154,6 +2162,7 @@ export class Game {
   }
 
   _resetCameraTop() {
+    if (this.bothAI) return; // spectator mode: CameraDirector controls the camera
     this.screenShake?.cancel();
     const cam = this.camera;
     const topDown = settings.get('topDownAngle');
@@ -2422,9 +2431,11 @@ export class Game {
               p.project(this.renderer.camera);
               const sx = (p.x * 0.5 + 0.5) * this.renderer.width;
               const sy = (-p.y * 0.5 + 0.5) * this.renderer.height;
-              const txt = detail.ballId === 8 ? '🎱 8号球!' : (detail.ballId === 0 ? '⚠️ 白球' : `+${detail.ballId}`);
-              const col = detail.ballId === 0 ? '#ff6b6b' : (detail.ballId === 8 ? '#fff' : '#d8b15f');
-              this.ui.showFloatingText(txt, sx, sy, col);
+              if (!this.bothAI) {
+                const txt = detail.ballId === 8 ? '🎱 8号球!' : (detail.ballId === 0 ? '⚠️ 白球' : `+${detail.ballId}`);
+                const col = detail.ballId === 0 ? '#ff6b6b' : (detail.ballId === 8 ? '#fff' : '#d8b15f');
+                this.ui.showFloatingText(txt, sx, sy, col);
+              }
             }
           }
         }
