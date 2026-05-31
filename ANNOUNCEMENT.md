@@ -1,4 +1,40 @@
-# 3D Billiards v1.8.4 — Latest Update
+# 3D Billiards v1.8.5 — Latest Update
+
+## What's New in v1.8.5
+
+### 🔧 Global Bug/UIUX/SFX/BGM Deep Audit
+
+**🔴 Critical — Release & Test Consistency (2 项)**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 1 | `package.json`、`README.md`、`index.html` 仍停在旧版本号，和核心版本/公告不一致 | 统一升级到 `v1.8.5`，并通过构建同步 `dist` |
+| 2 | `test/analyzer.test.js` 存在但未接入 npm 测试脚本 | 新增 `test:analyzer`，主测试链纳入击球分析器回归测试 |
+
+**🟠 High — Replay & Analyzer Robustness (5 项)**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 3 | `ReplayLibrary` fallback 默认上限仍是 30，与设置默认 `replayMaxSaved: 50` 不一致 | fallback 和面板兜底统一改为 50 |
+| 4 | `ReplayPanel` 对 `meta.duration` 只判空，异常数据可能触发 `.toFixed()` 崩溃 | 改为 `Number.isFinite()` 防御 |
+| 5 | `ShotAnalyzer` 仍维护本地球数/帧宽常量，可能和 `ShotRecorder` 漂移 | 统一复用 `BALL_COUNT` / `FLOATS_PER_FRAME`，并校验帧数据长度 |
+| 6 | `ShotAnalyzerPanel.show()` 遇到无效回放时可能保留旧分析/旧图状态 | 无效数据时清理图表、隐藏面板并清空缓存 |
+| 7 | `ShotAnalyzerPanel` 元数据时长对 `NaN` 防御不足 | 改为有限数字校验后再格式化 |
+
+**🟡 Medium — UI/Spectator Lifecycle (6 项)**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 8 | `StatsPanel` 结算层隐藏 timeout 未统一追踪，销毁时可能留下延迟回调 | 新增 `_gameOverHideTimer` 生命周期清理 |
+| 9 | `SpectatorMode` 隐藏默认 HUD 后用空字符串恢复 display，可能破坏原始显示状态 | 记录每个 HUD 元素原 display，并按原值恢复 |
+| 10 | `CommentarySystem` 打字机效果不尊重 `reducedMotion` / `uiAnimSpeed` | reduced motion 下即时显示，普通模式按 UI 动画速度缩放 |
+| 11 | `TrajectoryGraph` 零尺寸 resize 和播放结束 RAF 有轻微生命周期风险 | 增加尺寸守卫，播放结束后不再多排一帧 |
+| 12 | 双 AI/观战自动开杆 timer 在初始化和重置快速交错时可能残留旧 timer | 创建新 timer 前先清旧 timer，回调执行后清空引用 |
+| 13 | `SpectatorMode.dispose()` 在 active 状态下会经过 `stop()` 后再次销毁 UI | 区分 active/inactive dispose 路径，避免重复销毁观战 UI |
+
+---
+
+# 3D Billiards v1.8.4 — Previous Update
 
 ## What's New in v1.8.4
 

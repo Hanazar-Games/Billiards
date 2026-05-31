@@ -230,6 +230,7 @@ export class StatsPanel {
   _showCompactVictory(summary, aiEnabled) {
     const winnerName = summary.winner === 1 ? '玩家 1' : (aiEnabled ? 'AI' : '玩家 2');
     const overlay = this._ensureGameOverOverlay();
+    if (this._gameOverHideTimer) { clearTimeout(this._gameOverHideTimer); this._gameOverHideTimer = null; }
     overlay.innerHTML = `
       <div style="
         background: var(--panel-strong, rgba(14,17,21,0.88));
@@ -261,6 +262,7 @@ export class StatsPanel {
     const fmtPct = (n) => (Number.isFinite(n) && n > 0 ? Math.round(n) + '%' : '0%');
 
     const overlay = this._ensureGameOverOverlay();
+    if (this._gameOverHideTimer) { clearTimeout(this._gameOverHideTimer); this._gameOverHideTimer = null; }
     overlay.innerHTML = `
       <div style="
         background: var(--panel-strong, rgba(14,17,21,0.88));
@@ -356,8 +358,10 @@ export class StatsPanel {
   _hideGameOver() {
     if (!this._gameOverOverlay) return;
     this._gameOverOverlay.style.opacity = '0';
-    setTimeout(() => {
+    if (this._gameOverHideTimer) clearTimeout(this._gameOverHideTimer);
+    this._gameOverHideTimer = setTimeout(() => {
       if (this._gameOverOverlay) this._gameOverOverlay.style.display = 'none';
+      this._gameOverHideTimer = null;
     }, 300);
   }
 
@@ -383,6 +387,10 @@ export class StatsPanel {
     this.panel = null;
     this.content = null;
     this._hideGameOver();
+    if (this._gameOverHideTimer) {
+      clearTimeout(this._gameOverHideTimer);
+      this._gameOverHideTimer = null;
+    }
     if (this._gameOverOverlay && this._gameOverOverlay.parentNode) {
       this._gameOverOverlay.parentNode.removeChild(this._gameOverOverlay);
     }

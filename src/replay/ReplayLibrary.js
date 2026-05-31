@@ -2,12 +2,12 @@
  * ReplayLibrary — Persistent storage for recorded shot replays.
  *
  * Uses localStorage with automatic eviction when quota is exceeded.
- * Stores up to replayMaxSaved replays (default 30), evicting lowest-score replays first.
+ * Stores up to replayMaxSaved replays (default 50), evicting lowest-score replays first.
  */
 import { settings } from '../core/SettingsStore.js';
 
 const STORAGE_KEY = 'billiards_replays_v1';
-const DEFAULT_MAX_REPLAYS = 30;
+const DEFAULT_MAX_REPLAYS = 50;
 const MIN_SCORE_TO_SAVE = 25; // only save shots with score >= 25
 
 function _getMaxReplays() {

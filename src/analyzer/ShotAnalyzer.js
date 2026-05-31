@@ -9,10 +9,7 @@
  *   - Improvement suggestions
  */
 
-import { POCKETED_SENTINEL } from '../replay/ShotRecorder.js';
-
-const BALL_COUNT = 16;
-const FLOATS_PER_FRAME = BALL_COUNT * 2;
+import { POCKETED_SENTINEL, BALL_COUNT, FLOATS_PER_FRAME } from '../replay/ShotRecorder.js';
 
 /** Compute angle between two 2D vectors (in degrees). */
 function angleBetween(ax, az, bx, bz) {
@@ -29,6 +26,10 @@ function dist(x1, z1, x2, z2) {
   const dx = x1 - x2;
   const dz = z1 - z2;
   return Math.sqrt(dx * dx + dz * dz);
+}
+
+function isPocketedSentinel(x, z) {
+  return x === POCKETED_SENTINEL && z === POCKETED_SENTINEL;
 }
 
 export class ShotAnalyzer {
@@ -49,6 +50,9 @@ export class ShotAnalyzer {
 
     const frames = new Float32Array(replayData.frames);
     const frameCount = replayData.frameCount;
+    if (frames.length < frameCount * FLOATS_PER_FRAME) {
+      return null;
+    }
     const frameRate = replayData.frameRate || 60;
     const meta = replayData.metadata || {};
     const pocketPositions = options.pocketPositions || [];
@@ -86,7 +90,7 @@ export class ShotAnalyzer {
         const base = f * FLOATS_PER_FRAME + b * 2;
         const x = frames[base];
         const z = frames[base + 1];
-        if (x === POCKETED_SENTINEL && z === POCKETED_SENTINEL) {
+        if (isPocketedSentinel(x, z)) {
           if (!wasPocketed && path.length > 0) {
             // Mark pocket frame
             path[path.length - 1].pocketed = true;
@@ -143,12 +147,12 @@ export class ShotAnalyzer {
       for (let a = 0; a < BALL_COUNT; a++) {
         const ax = frames[base + a * 2];
         const az = frames[base + a * 2 + 1];
-        if (ax === POCKETED_SENTINEL) continue;
+        if (isPocketedSentinel(ax, az)) continue;
 
         for (let b = a + 1; b < BALL_COUNT; b++) {
           const bx = frames[base + b * 2];
           const bz = frames[base + b * 2 + 1];
-          if (bx === POCKETED_SENTINEL) continue;
+          if (isPocketedSentinel(bx, bz)) continue;
 
           const d = dist(ax, az, bx, bz);
           if (d < threshold) {
@@ -168,7 +172,7 @@ export class ShotAnalyzer {
 
               // Defensive: skip if prev frame has sentinel (shouldn't happen with
               // current ShotRecorder, but guards against corrupted/malformed data)
-              if (aPrevX === POCKETED_SENTINEL || bPrevX === POCKETED_SENTINEL) continue;
+              if (isPocketedSentinel(aPrevX, aPrevZ) || isPocketedSentinel(bPrevX, bPrevZ)) continue;
 
               const aVx = ax - aPrevX;
               const aVz = az - aPrevZ;

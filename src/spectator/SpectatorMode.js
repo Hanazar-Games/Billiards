@@ -32,6 +32,7 @@ export class SpectatorMode {
 
     this._onGameEvent = this._onGameEvent.bind(this);
     this._tmpPocketed = [];
+    this._hiddenHudDisplays = new Map();
   }
 
   start() {
@@ -86,40 +87,25 @@ export class SpectatorMode {
   }
 
   _hideDefaultHUD() {
-    // Hide the default top bar player badges and message
-    const topBar = document.getElementById('top-bar');
-    if (topBar) topBar.style.display = 'none';
-    const powerBar = document.getElementById('power-bar-container');
-    if (powerBar) powerBar.style.display = 'none';
-    const turnTimer = document.getElementById('turn-timer');
-    if (turnTimer) turnTimer.style.display = 'none';
-    const versionTag = document.getElementById('version-tag');
-    if (versionTag) versionTag.style.display = 'none';
+    const hide = (el) => {
+      if (!el || this._hiddenHudDisplays.has(el)) return;
+      this._hiddenHudDisplays.set(el, el.style.display);
+      el.style.display = 'none';
+    };
 
-    // Hide bottom HUD
-    const bottomHud = document.getElementById('bottom-hud');
-    if (bottomHud) bottomHud.style.display = 'none';
-
-    // Hide minimap canvas
-    const minimap = document.querySelector('.table-minimap');
-    if (minimap) minimap.style.display = 'none';
+    hide(document.getElementById('top-bar'));
+    hide(document.getElementById('power-bar-container'));
+    hide(document.getElementById('turn-timer'));
+    hide(document.getElementById('version-tag'));
+    hide(document.getElementById('bottom-hud'));
+    hide(document.querySelector('.table-minimap'));
   }
 
   _restoreDefaultHUD() {
-    const topBar = document.getElementById('top-bar');
-    if (topBar) topBar.style.display = '';
-    const powerBar = document.getElementById('power-bar-container');
-    if (powerBar) powerBar.style.display = '';
-    const turnTimer = document.getElementById('turn-timer');
-    if (turnTimer) turnTimer.style.display = '';
-    const versionTag = document.getElementById('version-tag');
-    if (versionTag) versionTag.style.display = '';
-    const bottomHud = document.getElementById('bottom-hud');
-    if (bottomHud) bottomHud.style.display = '';
-
-    // Restore minimap canvas
-    const minimap = document.querySelector('.table-minimap');
-    if (minimap) minimap.style.display = '';
+    for (const [el, display] of this._hiddenHudDisplays.entries()) {
+      if (el && el.style) el.style.display = display;
+    }
+    this._hiddenHudDisplays.clear();
   }
 
   update(dt) {
@@ -323,11 +309,16 @@ export class SpectatorMode {
   }
 
   dispose() {
+    const wasActive = this.active;
     this.stop();
     this.camera.dispose();
     this.commentary.dispose();
-    this.ui.destroy();
+    if (!wasActive) {
+      this._restoreDefaultHUD();
+      this.ui.destroy();
+    }
     this.game = null;
     this.renderer = null;
+    this._hiddenHudDisplays.clear();
   }
 }

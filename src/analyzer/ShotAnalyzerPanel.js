@@ -156,13 +156,18 @@ export class ShotAnalyzerPanel {
    * @param {Object} tableInfo — { width, depth, ballRadius, pocketPositions }
    */
   show(replayData, tableInfo = {}) {
-    this._lastReplayData = replayData;
     this._tableInfo = tableInfo;
-    this.analysis = ShotAnalyzer.analyze(replayData, tableInfo);
-    if (!this.analysis) {
+    const analysis = ShotAnalyzer.analyze(replayData, tableInfo);
+    if (!analysis) {
+      this._lastReplayData = null;
+      this.analysis = null;
+      this._cleanupGraph();
+      this.hide();
       console.warn('ShotAnalyzerPanel: no analysis data');
       return;
     }
+    this._lastReplayData = replayData;
+    this.analysis = analysis;
 
     // Update header
     const score = this.analysis.score;
@@ -290,7 +295,7 @@ export class ShotAnalyzerPanel {
     const metaItems = [
       { label: '力度', value: `${meta.power}%` },
       { label: '旋转', value: meta.spinUsed ? '使用 ✓' : '未使用' },
-      { label: '时长', value: `${(meta.duration || 0).toFixed(1)}s` },
+      { label: '时长', value: `${Number.isFinite(meta.duration) ? meta.duration.toFixed(1) : '0.0'}s` },
       { label: '进球', value: String(meta.pocketedIds.filter(id => id !== 0).length) },
       { label: '碰撞', value: String(meta.collisionCount) },
       { label: '库边', value: String(meta.cushionCount) },
@@ -397,13 +402,7 @@ export class ShotAnalyzerPanel {
       pockets: this.analysis.pockets,
     };
 
-    // We need to attach the replay data. The analysis doesn't carry the raw frames,
-    // so we need to pass them through. Let's store them on load.
-    // For now, we reconstruct from the paths... actually no, let's just
-    // add a method to ShotAnalyzer to carry raw data, or we store it here.
-
-    // NOTE: The analysis doesn't have the raw frames. We need to store the replayData
-    // when show() is called. Let's fix that.
+    // Load raw frames captured by show(); analysis only contains derived paths.
     if (this._lastReplayData) {
       this.graph.load(this._lastReplayData, tableInfo);
       this.graph.render(0);

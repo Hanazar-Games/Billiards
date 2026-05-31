@@ -1,4 +1,4 @@
-import { animMs } from '../core/AnimSpeed.js';
+import { settings } from '../core/SettingsStore.js';
 
 /**
  * CommentarySystem — Real-time text commentary for Spectator Mode.
@@ -329,16 +329,26 @@ export class CommentarySystem {
   update(dt) {
     if (!this._currentLine) return;
 
+    if (settings.get('reducedMotion')) {
+      this._displayedText = this._currentLine;
+      this._charIndex = this._currentLine.length;
+      this._typeTimer += dt * 1000;
+      if (this._typeTimer > 2500) this._startNextLine();
+      return;
+    }
+
     this._typeTimer += dt * 1000;
-    while (this._typeTimer >= this._typeInterval && this._charIndex < this._currentLine.length) {
-      this._typeTimer -= this._typeInterval;
+    const speed = Math.max(0.5, Math.min(1.5, settings.get('uiAnimSpeed') ?? 1));
+    const interval = this._typeInterval / speed;
+    while (this._typeTimer >= interval && this._charIndex < this._currentLine.length) {
+      this._typeTimer -= interval;
       this._displayedText += this._currentLine[this._charIndex];
       this._charIndex++;
     }
 
     // Auto-advance to next line after a pause
     if (this._charIndex >= this._currentLine.length) {
-      if (this._typeTimer > 2500) {
+      if (this._typeTimer > 2500 / speed) {
         this._startNextLine();
       }
     }

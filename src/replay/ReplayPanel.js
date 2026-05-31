@@ -143,7 +143,7 @@ export class ReplayPanel {
     const replays = this.library.getAll();
 
     if (countLabel) {
-      const max = this.library?.getMaxReplays?.() ?? 30;
+      const max = this.library?.getMaxReplays?.() ?? 50;
       countLabel.textContent = `${replays.length} / ${max} 已保存`;
     }
 
@@ -186,7 +186,7 @@ export class ReplayPanel {
       const meta = replay.metadata || {};
       const modeLabel = meta.mode === '9ball' ? '9球' : (meta.mode === 'freeplay' ? '练习' : '8球');
       const spinLabel = meta.spinUsed ? '旋转 ✓' : '旋转 ✗';
-      const duration = meta.duration != null ? meta.duration.toFixed(1) + '秒' : 'N/A';
+      const duration = Number.isFinite(meta.duration) ? meta.duration.toFixed(1) + '秒' : 'N/A';
       const pockets = (meta.pocketedIds || []).filter((id) => id !== 0).length;
       const collisions = meta.collisionCount || 0;
       const cushions = meta.cushionCount || 0;
@@ -499,7 +499,10 @@ export class ReplayPanel {
     };
     document.body.appendChild(input);
     input.click();
-    this._importTimeout = setTimeout(() => { if (input.parentNode) input.parentNode.removeChild(input); }, 5000);
+    this._importTimeout = setTimeout(() => {
+      if (input.parentNode) input.parentNode.removeChild(input);
+      this._importTimeout = null;
+    }, 5000);
   }
 
   showControls() {

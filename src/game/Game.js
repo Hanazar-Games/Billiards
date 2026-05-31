@@ -363,7 +363,9 @@ export class Game {
 
     // In spectator mode, auto-start AI turn if it's AI's turn at game start
     if (this.bothAI && this._shouldTriggerAI() && this.state === 'AIM') {
+      if (this._spectatorAutoStartTimer) clearTimeout(this._spectatorAutoStartTimer);
       this._spectatorAutoStartTimer = setTimeout(() => {
+        this._spectatorAutoStartTimer = null;
         if (this.state === 'AIM' && this._shouldTriggerAI()) {
           this.startAITurn();
         }
@@ -1897,7 +1899,9 @@ export class Game {
 
     // In spectator mode, auto-start AI turn after reset
     if (this.bothAI && this._shouldTriggerAI() && this.state === 'AIM') {
+      if (this._spectatorAutoStartTimer) clearTimeout(this._spectatorAutoStartTimer);
       this._spectatorAutoStartTimer = setTimeout(() => {
+        this._spectatorAutoStartTimer = null;
         if (this.state === 'AIM' && this._shouldTriggerAI()) {
           this.startAITurn();
         }

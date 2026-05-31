@@ -379,6 +379,7 @@ export class TrajectoryGraph {
   }
 
   resize(width, height) {
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
     const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
     this.canvas.width = width * dpr;
     this.canvas.height = height * dpr;
@@ -399,7 +400,7 @@ export class TrajectoryGraph {
       const dt = Math.min((now - lastTime) / 1000, 0.05);
       lastTime = now;
       this.update(dt);
-      this._animId = requestAnimationFrame(loop);
+      this._animId = this.playing ? requestAnimationFrame(loop) : null;
     };
     this._animId = requestAnimationFrame(loop);
   }
