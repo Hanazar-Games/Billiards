@@ -1,4 +1,26 @@
-# 3D Billiards v1.8.2 — Latest Update
+# 3D Billiards v1.8.3 — Latest Update
+
+## What's New in v1.8.3
+
+### 🔧 Bug Fixes & Polish (Self-Audit Round)
+
+**🟠 High — UX & Defensive Improvements (4 项)**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 1 | `ShotAnalyzerPanel` 轨迹图播放速度始终从 1.0x 开始，忽略设置中的「回放速度」 | 初始化时读取 `settings.get('replaySpeed')`，与设置面板同步 |
+| 2 | `ShotAnalyzerPanel` 元数据「时长」可能显示 `NaN` | 改为 `(meta.duration \|\| 0).toFixed(1)` 防御性处理 |
+| 3 | `ShotAnalyzer` 碰撞检测计算入射角时未防御前一帧的哨兵值 | 新增 `aPrevX === POCKETED_SENTINEL` 检查，跳过异常数据 |
+| 4 | `ReplayLibrary` 注释仍写「最多保存 30 条」 | 更新为「最多保存 replayMaxSaved 条（默认 30）」 |
+
+**🟡 Medium — 代码清理 (2 项)**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 5 | `TrajectoryGraph` 定义了未使用的 `BALL_STRIPE_COLORS` 数组 | 删除死代码 |
+| 6 | `ShotAnalyzerPanel` 存在未使用的 `_listeners` 数组 | 替换为注释说明，避免维护者困惑 |
+
+---
 
 ## What's New in v1.8.2
 

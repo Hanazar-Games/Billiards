@@ -9,6 +9,7 @@
 
 import { ShotAnalyzer } from './ShotAnalyzer.js';
 import { TrajectoryGraph } from './TrajectoryGraph.js';
+import { settings } from '../core/SettingsStore.js';
 
 const TAB_NAMES = ['概览', '轨迹图', '碰撞详情'];
 
@@ -25,7 +26,8 @@ export class ShotAnalyzerPanel {
     this.analysis = null;
     this.graph = null;
     this._currentTab = 0;
-    this._listeners = [];
+    // NOTE: All event handlers are inline (onclick/onmouseenter) on DOM elements
+    // that are removed via innerHTML = '' on tab switches, so no manual tracking needed.
     this._build();
   }
 
@@ -287,7 +289,7 @@ export class ShotAnalyzerPanel {
     const metaItems = [
       { label: '力度', value: `${meta.power}%` },
       { label: '旋转', value: meta.spinUsed ? '使用 ✓' : '未使用' },
-      { label: '时长', value: `${meta.duration.toFixed(1)}s` },
+      { label: '时长', value: `${(meta.duration || 0).toFixed(1)}s` },
       { label: '进球', value: String(meta.pocketedIds.filter(id => id !== 0).length) },
       { label: '碰撞', value: String(meta.collisionCount) },
       { label: '库边', value: String(meta.cushionCount) },
@@ -408,7 +410,11 @@ export class ShotAnalyzerPanel {
 
     // Controls logic
     const speeds = [0.25, 0.5, 1.0, 2.0];
-    let speedIdx = 2;
+    const defaultSpeed = settings.get('replaySpeed') ?? 1.0;
+    let speedIdx = speeds.indexOf(defaultSpeed);
+    if (speedIdx === -1) speedIdx = 2;
+    speedBtn.textContent = speeds[speedIdx] + 'x';
+    if (this.graph) this.graph.setPlaybackSpeed(speeds[speedIdx]);
     playBtn.onclick = () => {
       if (this.graph.playing) {
         this.graph.pause();

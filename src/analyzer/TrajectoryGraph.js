@@ -24,13 +24,6 @@ const BALL_COLORS = [
   '#e67e22', '#27ae60', '#922b21', // 1-15
 ];
 
-const BALL_STRIPE_COLORS = [
-  null, null, '#ffffff', '#ffffff', '#ffffff',
-  '#ffffff', '#ffffff', '#ffffff', '#ffffff',
-  '#ffffff', '#ffffff', '#ffffff', '#ffffff',
-  '#ffffff', '#ffffff', '#ffffff',
-];
-
 export class TrajectoryGraph {
   constructor(canvas) {
     this.canvas = canvas;

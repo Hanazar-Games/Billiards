@@ -2,7 +2,7 @@
  * ReplayLibrary — Persistent storage for recorded shot replays.
  *
  * Uses localStorage with automatic eviction when quota is exceeded.
- * Stores up to 30 replays, evicting lowest-score replays first.
+ * Stores up to replayMaxSaved replays (default 30), evicting lowest-score replays first.
  */
 import { settings } from '../core/SettingsStore.js';
 

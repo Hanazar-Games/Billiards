@@ -165,6 +165,10 @@ export class ShotAnalyzer {
               const bPrevX = frames[prevBase + b * 2];
               const bPrevZ = frames[prevBase + b * 2 + 1];
 
+              // Defensive: skip if prev frame has sentinel (shouldn't happen with
+              // current ShotRecorder, but guards against corrupted/malformed data)
+              if (aPrevX === POCKETED_SENTINEL || bPrevX === POCKETED_SENTINEL) continue;
+
               const aVx = ax - aPrevX;
               const aVz = az - aPrevZ;
               const bVx = bx - bPrevX;
