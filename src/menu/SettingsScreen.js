@@ -890,14 +890,14 @@ export class SettingsScreen {
     this._sectionSubtitle('回放记录与击球分析');
 
     this._row('击球分析器', this._createSwitch(settings.get('shotAnalyzerEnabled'), (v) => settings.set('shotAnalyzerEnabled', v)), '每次击球后显示详细分析面板');
-    this._rowDisabled('自动保存回放', this._createDisabledSwitch(settings.get('autoSaveReplays'), () => {}), '回放系统尚未实现');
-    this._rowDisabled('最大回放数', this._createDisabledValue(String(settings.get('replayMaxSaved')) + ' 条'), '回放系统尚未实现');
+    this._row('自动保存回放', this._createSwitch(settings.get('autoSaveReplays'), (v) => settings.set('autoSaveReplays', v)), '自动将击球回放保存到回放库');
+    this._rowSlider('最大回放数', settings.get('replayMaxSaved'), 10, 100, ' 条', (v) => settings.set('replayMaxSaved', v), '超过上限时自动删除最旧的回放');
     this._rowDisabled('显示击球数据', this._createDisabledSwitch(settings.get('showShotData'), () => {}), '数据统计面板尚未实现');
     this._rowDisabled('显示热力图', this._createDisabledSwitch(settings.get('showHeatmap'), () => {}), '数据统计面板尚未实现');
     this._rowDisabled('显示胜率预测', this._createDisabledSwitch(settings.get('showWinProbability'), () => {}), '数据统计面板尚未实现');
     this._rowDisabled('显示详细统计', this._createDisabledSwitch(settings.get('showDetailedStats'), () => {}), '数据统计面板尚未实现');
     this._rowDisabled('击球历史追踪', this._createDisabledSwitch(settings.get('shotHistoryTracking'), () => {}), '数据统计面板尚未实现');
-    this._rowDisabled('回放速度', this._createDisabledValue(String((settings.get('replaySpeed') ?? 1.0).toFixed(1)) + 'x'), '回放系统尚未实现');
+    this._rowSlider('回放速度', Math.round((settings.get('replaySpeed') ?? 1.0) * 4), 1, 8, 'x', (v) => settings.set('replaySpeed', v / 4), '回放库和轨迹图的默认播放速度', (v) => (v / 4).toFixed(2) + 'x');
   }
 
   _buildAccessibilityContent() {

@@ -13,6 +13,8 @@
 
 import { POCKETED_SENTINEL } from '../replay/ShotRecorder.js';
 
+const FLOATS_PER_FRAME = 32; // 16 balls × 2 floats (x, z) per frame
+
 const BALL_COLORS = [
   '#ffffff', // 0 cue ball
   '#f4d03f', '#1a5276', '#c0392b', '#8e44ad',
@@ -44,6 +46,7 @@ export class TrajectoryGraph {
     this.frames = null;
     this.frameCount = 0;
     this.frameRate = 60;
+    this.playbackSpeed = 1.0;
     this.tableWidth = 0;
     this.tableDepth = 0;
     this.ballRadius = 0;
@@ -93,6 +96,11 @@ export class TrajectoryGraph {
     this._scheduleRender();
   }
 
+  /** Set playback speed multiplier (e.g. 0.5, 1.0, 2.0). */
+  setPlaybackSpeed(speed) {
+    this.playbackSpeed = Math.max(0.1, Math.min(5.0, speed));
+  }
+
   /** Pause playback. */
   pause() {
     this.playing = false;
@@ -132,7 +140,7 @@ export class TrajectoryGraph {
     if (!this.playing || !this.frames) return;
 
     const interval = 1 / this.frameRate;
-    this.accumulator += dt;
+    this.accumulator += dt * this.playbackSpeed;
 
     while (this.accumulator >= interval) {
       this.accumulator -= interval;
@@ -223,7 +231,7 @@ export class TrajectoryGraph {
 
       let started = false;
       for (let f = 0; f <= maxFrame; f++) {
-        const base = f * 32 + b * 2;
+        const base = f * FLOATS_PER_FRAME + b * 2;
         const x = this.frames[base];
         const z = this.frames[base + 1];
         if (x === POCKETED_SENTINEL) {
@@ -246,7 +254,7 @@ export class TrajectoryGraph {
     const f = Math.min(frameIdx, this.frameCount - 1);
 
     for (let b = 0; b < 16; b++) {
-      const base = f * 32 + b * 2;
+      const base = f * FLOATS_PER_FRAME + b * 2;
       const x = this.frames[base];
       const z = this.frames[base + 1];
       if (x === POCKETED_SENTINEL) continue;

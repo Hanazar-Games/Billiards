@@ -134,6 +134,9 @@ export class AudioManager {
       if (this.ctx && this.ctx.state === 'suspended' && this._hasRecentGesture()) {
         this.resume();
       }
+      if (this.ctx && this.ctx.state === 'running' && this._pendingBGMStart && this.soundEnabled) {
+        this.startBGM();
+      }
     };
     this.ctx.addEventListener('statechange', this._stateHandler);
   }

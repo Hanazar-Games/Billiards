@@ -1,4 +1,26 @@
-# 3D Billiards v1.8.0 — Latest Update
+# 3D Billiards v1.8.1 — Latest Update
+
+## What's New in v1.8.1
+
+### 🐛 Bug Fixes & Polish
+
+**高优先级修复（2 项）**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 1 | `Game.js` 中 `TABLE` 常量未导入导致 `resolveTurn()` 运行时错误 | 补全 `import { ..., TABLE } from '../config.js'` |
+| 2 | `ShotAnalyzerPanel.js` 引用未定义的 `BALL_COLORS` | 在文件顶部添加与 `TrajectoryGraph.js` 一致的字符串颜色表 |
+
+**中优先级修复（4 项）**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 3 | `TrajectoryGraph.js` 中硬编码 `32`（每帧浮点数） | 提取为 `FLOATS_PER_FRAME` 常量，提升可维护性 |
+| 4 | `ShotAnalyzerPanel.js` 回放速度按钮无实际功能 | 为 `TrajectoryGraph` 添加 `playbackSpeed` 属性与 `setPlaybackSpeed()` 方法，按钮点击后实际生效 |
+| 5 | `AudioManager.js` 的 `statechange` 恢复时不处理待启动 BGM | `_stateHandler` 在 context 变为 `running` 后检查 `_pendingBGMStart`，自动启动 BGM |
+| 6 | `SettingsScreen.js` 中回放设置仍标记为 disabled | 自动保存回放、最大回放数、回放速度三个设置项已启用（后端功能在 v1.8.0 已实现） |
+
+---
 
 ## What's New in v1.8.0
 

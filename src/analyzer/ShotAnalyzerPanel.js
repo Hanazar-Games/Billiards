@@ -12,6 +12,14 @@ import { TrajectoryGraph } from './TrajectoryGraph.js';
 
 const TAB_NAMES = ['概览', '轨迹图', '碰撞详情'];
 
+const BALL_COLORS = [
+  '#ffffff', // 0 cue ball
+  '#f4d03f', '#1a5276', '#c0392b', '#8e44ad',
+  '#e67e22', '#27ae60', '#922b21', '#2c3e50',
+  '#f4d03f', '#1a5276', '#c0392b', '#8e44ad',
+  '#e67e22', '#27ae60', '#922b21', // 1-15
+];
+
 export class ShotAnalyzerPanel {
   constructor() {
     this.analysis = null;
@@ -404,9 +412,9 @@ export class ShotAnalyzerPanel {
     };
     speedBtn.onclick = () => {
       speedIdx = (speedIdx + 1) % speeds.length;
-      speedBtn.textContent = speeds[speedIdx] + 'x';
-      // TrajectoryGraph doesn't have speed control on playback rate
-      // We can add it if needed, but for now just show the label
+      const speed = speeds[speedIdx];
+      speedBtn.textContent = speed + 'x';
+      if (this.graph) this.graph.setPlaybackSpeed(speed);
     };
 
     // Update time label

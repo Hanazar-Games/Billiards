@@ -25,7 +25,7 @@ import { ShotRecorder } from '../replay/ShotRecorder.js';
 import { ShotAnalyzerPanel } from '../analyzer/ShotAnalyzerPanel.js';
 import { settings, MATCH_FAIRNESS_KEYS } from '../core/SettingsStore.js';
 import { keyBindings } from '../input/KeyBindings.js';
-import { BALL, SHOT, CAMERA } from '../config.js';
+import { BALL, SHOT, CAMERA, TABLE } from '../config.js';
 import { getTableProfile, resolveTableProfileId, validateModeTableProfile } from './TableProfiles.js';
 import { GameStateSerializer } from '../net/GameStateSerializer.js';
 import { SettingsScreen } from '../menu/SettingsScreen.js';
