@@ -1,4 +1,38 @@
-# 3D Billiards v1.8.1 — Latest Update
+# 3D Billiards v1.8.2 — Latest Update
+
+## What's New in v1.8.2
+
+### 🐛 Bug Fixes & Polish
+
+**🔴 Critical — Memory Leaks & Crashes (5 项)**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 1 | `ShotAnalyzerPanel` 切换标签时旧 `TrajectoryGraph` 和 `ResizeObserver` 未销毁 | 新增 `_cleanupGraph()`，在 `_switchTab()` 和 `_renderTrajectory()` 前调用，彻底释放旧资源 |
+| 2 | `ShotAnalyzerPanel` `updateTime` RAF 回调在 `destroy()` 后访问 `null.isConnected` 崩溃 | 改为 `this.content?.isConnected` 可选链调用 |
+| 3 | `ShotAnalyzerPanel` 初始 `getBoundingClientRect()` 在布局前读取可能为 0×0 | 改为由 `ResizeObserver` 驱动初始尺寸设置 |
+| 4 | `Game.js` `_cleanupAfterMatch()` 只调用 `analyzerPanel.hide()`，未销毁 | 改为 `destroy()` + `null`，彻底释放面板资源 |
+| 5 | `InputHandler.js` `_handleBlur()` 假事件缺少 `clientX/clientY` | 补充当前鼠标坐标，避免下游读到 `undefined` |
+
+**🟠 High — Logic Errors & Missing Guards (5 项)**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 6 | `TrajectoryGraph.js` 多处硬编码 `16` 为球数 | 提取 `BALL_COUNT` 常量，统一使用 |
+| 7 | `TrajectoryGraph.js` `load()` 传入无效数据时仅清空 `frames`，其余字段残留旧值 | 无效数据时重置所有数据字段为默认值 |
+| 8 | `TrajectoryGraph.js` 碰撞标记透明度计算方向反了（越来越亮而不是淡出） | 反转公式：`1.0 - 0.7 * ...`，使标记随时间淡出 |
+| 9 | `ReplayLibrary.js` `save()` 不检查 `autoSaveReplays` 设置 | 开头检查设置，自动保存关闭时直接返回 |
+| 10 | `ReplayLibrary.js` 使用硬编码 `MAX_REPLAYS = 30` | 改为读取 `settings.get('replayMaxSaved')`，上限 200 |
+
+**🟡 Medium — Code Quality (3 项)**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 11 | `SettingsScreen.js` `_switchCategory()` 中存在重复 `clearTimeout(this._switchTimer)` | 移除冗余块，保留单一清理逻辑 |
+| 12 | `ShotAnalyzer.js` `inCircle()` 函数定义后从未使用 | 删除死代码 |
+| 13 | `ShotAnalyzer.js` `_computeScore()` 中 `cuePath` 的冗余 `if` 包裹 | 移除多余条件，改用局部守卫 |
+
+---
 
 ## What's New in v1.8.1
 
@@ -8,15 +42,15 @@
 
 | # | 问题 | 修复 |
 |---|------|------|
-| 1 | `Game.js` 中 `TABLE` 常量未导入导致 `resolveTurn()` 运行时错误 | 补全 `import { ..., TABLE } from '../config.js'` |
-| 2 | `ShotAnalyzerPanel.js` 引用未定义的 `BALL_COLORS` | 在文件顶部添加与 `TrajectoryGraph.js` 一致的字符串颜色表 |
+| 1 | `Game.js` 中 `TABLE` 常量未导入导致 `resolveTurn()` 运行时错误 | 补全 `import { ..., TABLE }` |
+| 2 | `ShotAnalyzerPanel.js` 引用未定义的 `BALL_COLORS` | 在文件顶部添加字符串颜色表 |
 
 **中优先级修复（4 项）**
 
 | # | 问题 | 修复 |
 |---|------|------|
-| 3 | `TrajectoryGraph.js` 中硬编码 `32`（每帧浮点数） | 提取为 `FLOATS_PER_FRAME` 常量，提升可维护性 |
-| 4 | `ShotAnalyzerPanel.js` 回放速度按钮无实际功能 | 为 `TrajectoryGraph` 添加 `playbackSpeed` 属性与 `setPlaybackSpeed()` 方法，按钮点击后实际生效 |
+| 3 | `TrajectoryGraph.js` 中硬编码 `32`（每帧浮点数） | 提取为 `FLOATS_PER_FRAME` 常量 |
+| 4 | `ShotAnalyzerPanel.js` 回放速度按钮无实际功能 | 为 `TrajectoryGraph` 添加 `playbackSpeed` 属性与 `setPlaybackSpeed()` 方法 |
 | 5 | `AudioManager.js` 的 `statechange` 恢复时不处理待启动 BGM | `_stateHandler` 在 context 变为 `running` 后检查 `_pendingBGMStart`，自动启动 BGM |
 | 6 | `SettingsScreen.js` 中回放设置仍标记为 disabled | 自动保存回放、最大回放数、回放速度三个设置项已启用（后端功能在 v1.8.0 已实现） |
 

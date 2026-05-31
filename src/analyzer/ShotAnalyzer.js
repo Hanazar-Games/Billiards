@@ -31,11 +31,6 @@ function dist(x1, z1, x2, z2) {
   return Math.sqrt(dx * dx + dz * dz);
 }
 
-/** Check if a point is inside a circle. */
-function inCircle(px, pz, cx, cz, r) {
-  return dist(px, pz, cx, cz) <= r;
-}
-
 export class ShotAnalyzer {
   /**
    * Analyze recorded shot data.
@@ -277,18 +272,17 @@ export class ShotAnalyzer {
     }
 
     // ── Control: cue ball behavior ──
-    if (cuePath) {
-      // Good control = cue ball doesn't scratch and stops reasonably
-      const cuePocketed = meta.pocketedIds.includes(0);
-      if (!cuePocketed) {
-        control += 25;
-        // Bonus for short cue ball travel (good position play)
-        if (cuePath.totalDistance < 150) control += 15;
-        else if (cuePath.totalDistance < 300) control += 8;
-      }
-      // Spin usage = controlled play
-      if (meta.spinUsed) control += 10;
+    // Good control = cue ball doesn't scratch and stops reasonably
+    const cuePocketed = meta.pocketedIds.includes(0);
+    if (!cuePocketed) {
+      control += 25;
+      // Bonus for short cue ball travel (good position play)
+      const cuePath = paths[0];
+      if (cuePath && cuePath.totalDistance < 150) control += 15;
+      else if (cuePath && cuePath.totalDistance < 300) control += 8;
     }
+    // Spin usage = controlled play
+    if (meta.spinUsed) control += 10;
 
     // ── Difficulty bonus ──
     if (meta.collisionCount >= 3) difficulty += 5;

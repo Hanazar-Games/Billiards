@@ -2974,7 +2974,8 @@ export class Game {
     this.ui.setPower(0);
     this.recorder.reset();
     if (this.analyzerPanel) {
-      this.analyzerPanel.hide();
+      this.analyzerPanel.destroy();
+      this.analyzerPanel = null;
     }
     this.gameStartTime = performance.now();
   }

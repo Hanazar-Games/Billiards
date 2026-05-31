@@ -4,9 +4,16 @@
  * Uses localStorage with automatic eviction when quota is exceeded.
  * Stores up to 30 replays, evicting lowest-score replays first.
  */
+import { settings } from '../core/SettingsStore.js';
+
 const STORAGE_KEY = 'billiards_replays_v1';
-const MAX_REPLAYS = 30;
+const DEFAULT_MAX_REPLAYS = 30;
 const MIN_SCORE_TO_SAVE = 25; // only save shots with score >= 25
+
+function _getMaxReplays() {
+  const v = settings.get('replayMaxSaved');
+  return (typeof v === 'number' && v > 0) ? Math.min(v, 200) : DEFAULT_MAX_REPLAYS;
+}
 
 export class ReplayLibrary {
   constructor() {
@@ -52,8 +59,9 @@ export class ReplayLibrary {
     this.replays = this.replays.slice(Math.floor(this.replays.length / 2));
   }
 
-  /** Try to save a replay. Returns true if saved, false if score too low. */
+  /** Try to save a replay. Returns true if saved, false if score too low or auto-save disabled. */
   save(replayData) {
+    if (settings.get('autoSaveReplays') === false) return false;
     if (!replayData || !replayData.frames || replayData.frameCount < 5) return false;
     if ((replayData.score || 0) < MIN_SCORE_TO_SAVE) return false;
 
@@ -70,9 +78,10 @@ export class ReplayLibrary {
     this.replays.push(entry);
 
     // Evict if over limit (remove lowest score)
-    if (this.replays.length > MAX_REPLAYS) {
+    const maxReplays = _getMaxReplays();
+    if (this.replays.length > maxReplays) {
       this.replays.sort((a, b) => (a.score || 0) - (b.score || 0));
-      this.replays = this.replays.slice(-MAX_REPLAYS);
+      this.replays = this.replays.slice(-maxReplays);
     }
 
     return this._save();
@@ -140,9 +149,10 @@ export class ReplayLibrary {
         count++;
       }
       // Enforce limit
-      if (this.replays.length > MAX_REPLAYS) {
+      const maxReplays = _getMaxReplays();
+      if (this.replays.length > maxReplays) {
         this.replays.sort((a, b) => (a.score || 0) - (b.score || 0));
-        this.replays = this.replays.slice(-MAX_REPLAYS);
+        this.replays = this.replays.slice(-maxReplays);
       }
       this._save();
       return count;

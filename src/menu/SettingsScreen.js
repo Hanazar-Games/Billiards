@@ -410,12 +410,8 @@ export class SettingsScreen {
     });
     this._listeners = [];
 
-    // Cancel any pending category switch to prevent race conditions
-    if (this._switchTimer) {
-      clearTimeout(this._switchTimer);
-      this._switchTimer = null;
-      if (this._contentArea) this._contentArea.classList.remove('switching');
-    }
+    // Defensive: ensure switching class is cleared (timer already cancelled above)
+    if (this._contentArea) this._contentArea.classList.remove('switching');
 
     // Lightweight fade transition: dim content, swap, restore opacity
     const reduced = document.documentElement.classList.contains('reduce-motion');

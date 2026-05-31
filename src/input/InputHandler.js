@@ -58,12 +58,12 @@ export class InputHandler {
     if (this.isDown) {
       this.isDown = false;
       this._capturedPointerId = null;
-      if (this.onMouseUp) this.onMouseUp({ type: 'blur', button: 0 });
+      if (this.onMouseUp) this.onMouseUp({ type: 'blur', button: 0, clientX: this.mouseX, clientY: this.mouseY });
     }
     if (this.rightDown) {
       this.rightDown = false;
       this._capturedPointerId = null;
-      if (this.onRightMouseUp) this.onRightMouseUp({ type: 'blur', button: 2 });
+      if (this.onRightMouseUp) this.onRightMouseUp({ type: 'blur', button: 2, clientX: this.mouseX, clientY: this.mouseY });
     }
   }
 

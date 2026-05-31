@@ -13,7 +13,8 @@
 
 import { POCKETED_SENTINEL } from '../replay/ShotRecorder.js';
 
-const FLOATS_PER_FRAME = 32; // 16 balls × 2 floats (x, z) per frame
+const BALL_COUNT = 16;
+const FLOATS_PER_FRAME = BALL_COUNT * 2; // 16 balls × 2 floats (x, z) per frame
 
 const BALL_COLORS = [
   '#ffffff', // 0 cue ball
@@ -69,6 +70,16 @@ export class TrajectoryGraph {
   load(data, tableInfo = {}) {
     if (!data || !data.frames || data.frameCount < 2) {
       this.frames = null;
+      this.frameCount = 0;
+      this.tableWidth = 0;
+      this.tableDepth = 0;
+      this.ballRadius = 0;
+      this.pocketPositions = [];
+      this.collisions = [];
+      this.pockets = [];
+      this.currentFrame = 0;
+      this.accumulator = 0;
+      this.playing = false;
       return false;
     }
 
@@ -223,7 +234,7 @@ export class TrajectoryGraph {
     const r = this.ballRadius;
     const maxFrame = Math.min(upToFrame, this.frameCount - 1);
 
-    for (let b = 0; b < 16; b++) {
+    for (let b = 0; b < BALL_COUNT; b++) {
       const color = BALL_COLORS[b] || '#888';
       ctx.strokeStyle = color + '44'; // low alpha
       ctx.lineWidth = 1.5;
@@ -253,7 +264,7 @@ export class TrajectoryGraph {
     const r = this.ballRadius;
     const f = Math.min(frameIdx, this.frameCount - 1);
 
-    for (let b = 0; b < 16; b++) {
+    for (let b = 0; b < BALL_COUNT; b++) {
       const base = f * FLOATS_PER_FRAME + b * 2;
       const x = this.frames[base];
       const z = this.frames[base + 1];
@@ -301,7 +312,7 @@ export class TrajectoryGraph {
       if (c.frame > upToFrame) continue;
       visibleIdx++;
 
-      const alpha = 0.3 + 0.7 * (upToFrame - c.frame) / (this.frameCount - c.frame + 1);
+      const alpha = Math.max(0, 1.0 - 0.7 * (upToFrame - c.frame) / (this.frameCount - c.frame + 1));
       const x = c.position?.x ?? 0;
       const z = c.position?.z ?? 0;
 

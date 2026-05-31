@@ -186,6 +186,17 @@ export class ShotAnalyzerPanel {
 
   // ── Tab switching ──
 
+  _cleanupGraph() {
+    if (this.graph) {
+      this.graph.destroy();
+      this.graph = null;
+    }
+    if (this._ro) {
+      this._ro.disconnect();
+      this._ro = null;
+    }
+  }
+
   _switchTab(idx) {
     this._currentTab = idx;
 
@@ -199,6 +210,9 @@ export class ShotAnalyzerPanel {
         btn.style.borderBottomColor = 'transparent';
       }
     });
+
+    // Clean up trajectory tab resources before wiping DOM
+    this._cleanupGraph();
 
     // Render content
     this.content.innerHTML = '';
@@ -365,10 +379,8 @@ export class ShotAnalyzerPanel {
 
     this.content.appendChild(controls);
 
-    // Init graph
-    const rect = canvasWrap.getBoundingClientRect();
+    // Init graph (size will be set by ResizeObserver after layout)
     this.graph = new TrajectoryGraph(canvas);
-    this.graph.resize(rect.width, rect.height);
 
     // Build table info for graph
     const meta = this.analysis.metadata;
@@ -419,7 +431,7 @@ export class ShotAnalyzerPanel {
 
     // Update time label
     const updateTime = () => {
-      if (!this.graph || !this.content.isConnected) return;
+      if (!this.graph || !this.content?.isConnected) return;
       const current = (this.graph.currentFrame / this.graph.frameRate).toFixed(1);
       const total = (this.graph.frameCount / this.graph.frameRate).toFixed(1);
       timeLabel.textContent = `${current}s / ${total}s`;
