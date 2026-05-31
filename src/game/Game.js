@@ -3123,6 +3123,16 @@ export class Game {
       this.audio = null;
     }
 
+    // Dispose UI overlays and timers
+    if (this.ui) {
+      this.ui.destroy();
+      this.ui = null;
+    }
+    if (this.onboardingTips) {
+      this.onboardingTips.destroy();
+      this.onboardingTips = null;
+    }
+
     // Remove network listeners and close connection
     if (this.networkController) {
       if (this._onStateSnapshot) this.networkController.removeEventListener('stateSnapshot', this._onStateSnapshot);

@@ -51,6 +51,7 @@ export class ParticleSystem {
 
   spawnChalkDust(position, direction, power) {
     if (!this.enabled) return;
+    if (settings.get('reducedMotion')) return;
     const mult = this._getIntensityMult();
     const count = Math.min(Math.floor((10 + power / 6) * mult), Math.floor(40 * mult));
     const data = this._allocParticleData(count);
@@ -94,6 +95,7 @@ export class ParticleSystem {
    */
   spawnCollisionSparks(position, intensity) {
     if (!this.enabled) return;
+    if (settings.get('reducedMotion')) return;
     const mult = this._getIntensityMult();
     const count = Math.min(Math.floor((6 + intensity * 2) * mult), Math.floor(30 * mult));
     if (count <= 0) return;
@@ -138,6 +140,7 @@ export class ParticleSystem {
    */
   spawnPocketFlash(position) {
     if (!this.enabled) return;
+    if (settings.get('reducedMotion')) return;
     const mult = this._getIntensityMult();
     const count = Math.max(6, Math.floor(24 * mult));
     const data = this._allocParticleData(count);
@@ -181,6 +184,7 @@ export class ParticleSystem {
    */
   spawnPocketFountain(position, ballId) {
     if (!this.enabled) return;
+    if (settings.get('reducedMotion')) return;
     const mult = this._getIntensityMult();
     const color = FOUNTAIN_COLORS[ballId] ?? FLASH_COLOR;
     const count = Math.max(6, Math.floor((18 + Math.random() * 10) * mult));

@@ -96,6 +96,19 @@ export class AudioManager {
     }
   }
 
+  /** Sync all persisted volume settings after init (or on settings import). */
+  syncVolumesFromSettings() {
+    if (!this.ctx || this.ctx.state === 'closed') return;
+    const mv = settings.get('masterVolume');
+    const music = settings.get('musicVolume');
+    const sfx = settings.get('sfxVolume');
+    const ambient = settings.get('ambientVolumeScale');
+    if (Number.isFinite(mv)) this.setMasterVolume(mv);
+    if (Number.isFinite(music)) this.setMusicVolume(music);
+    if (Number.isFinite(sfx)) this.setSFXVolume(sfx);
+    this.setAmbientVolume(Number.isFinite(ambient) ? ambient * 100 : 100);
+  }
+
   /** Install global listeners for autoplay-policy resilience. */
   _installResilienceListeners() {
     if (!this.ctx) return;
@@ -178,7 +191,9 @@ export class AudioManager {
     if (!Number.isFinite(vol) || !this._masterGain || !this.ctx || this.ctx.state === 'closed') return;
     const v = Math.max(0, Math.min(1, vol / 100));
     this._masterVolume = v;
-    this._masterGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
+    // Respect the master mute switch: if sound is globally off, keep gain at 0
+    const effectiveV = this.soundEnabled ? v : 0.0;
+    this._masterGain.gain.setTargetAtTime(effectiveV, this.ctx.currentTime, 0.05);
   }
 
   setMusicVolume(vol) {
@@ -292,6 +307,9 @@ export class AudioManager {
     }
     this.bgmNodes = [];
     this._pendingBGMStart = false;
+    // Cancel any pending auto-disconnect timeouts so they don't fire after BGM stops
+    for (const tid of this._pendingDisconnects) clearTimeout(tid);
+    this._pendingDisconnects.clear();
     // When called from game entry (preserveFlag=false), reset the flag so
     // visibilitychange does not accidentally restart BGM while in-game.
     if (!preserveFlag) {
@@ -331,7 +349,8 @@ export class AudioManager {
     osc.frequency.setValueAtTime(200 + power * 3, t);
     osc.frequency.exponentialRampToValueAtTime(80, t + 0.08);
 
-    const vol = (0.15 + Math.min(power / 100, 1) * 0.25) * (settings.get('cueHitVolumeScale') ?? 1.0);
+    const feedbackScale = settings.get('hitFeedbackVolumeScale') ?? 1.0;
+    const vol = (0.15 + Math.min(power / 100, 1) * 0.25) * (settings.get('cueHitVolumeScale') ?? 1.0) * feedbackScale;
     gain.gain.setValueAtTime(vol, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
 

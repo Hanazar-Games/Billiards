@@ -116,6 +116,7 @@ export class MenuSystem {
       if (this.audio) {
         const { settings } = await import('../core/SettingsStore.js');
         this.audio.toggleSound(settings.get('soundEnabled'));
+        this.audio.syncVolumesFromSettings();
       }
       if (typeof window !== 'undefined' && window.updateLoadingProgress) {
         window.updateLoadingProgress(55, '音频就绪...');

@@ -494,8 +494,13 @@ export class UI {
     const existing = document.getElementById('ui-confirm-dialog');
     if (existing) existing.remove();
 
+    // Save previously focused element to restore later
+    const previousFocus = document.activeElement;
+
     const overlay = document.createElement('div');
     overlay.id = 'ui-confirm-dialog';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
     overlay.style.cssText = `
       position: fixed; inset: 0; z-index: 60;
       background: rgba(5,7,8,0.72);
@@ -558,6 +563,10 @@ export class UI {
       document.removeEventListener('keydown', this._confirmKeyHandler);
       this._confirmKeyHandler = null;
       setTimeout(() => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, animMs(250));
+      // Restore focus to the element that had it before the dialog opened
+      if (previousFocus && previousFocus.focus) {
+        try { previousFocus.focus(); } catch (e) {}
+      }
     };
 
     cancelBtn.onclick = close;
@@ -577,7 +586,13 @@ export class UI {
     document.body.appendChild(overlay);
     this._confirmOverlay = overlay;
 
-    requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+    requestAnimationFrame(() => {
+      overlay.style.opacity = '1';
+      // Move focus into the dialog for keyboard accessibility
+      if (cancelBtn && cancelBtn.focus) {
+        try { cancelBtn.focus(); } catch (e) {}
+      }
+    });
   }
 
   showPauseMenu() {
@@ -603,6 +618,8 @@ export class UI {
   }
 
   flashRed() {
+    const reduced = document.documentElement.classList.contains('reduce-motion');
+    if (reduced) return;
     const uiLayer = document.getElementById('ui-layer');
     if (!uiLayer) return;
     // Clear any existing flash to prevent overlapping timers
@@ -610,13 +627,12 @@ export class UI {
     if (old && old.parentNode) old.parentNode.removeChild(old);
     if (this._flashTimer) clearTimeout(this._flashTimer);
     if (this._flashInnerTimer) clearTimeout(this._flashInnerTimer);
-    const reduced = document.documentElement.classList.contains('reduce-motion');
     const flash = document.createElement('div');
     flash.id = 'ui-red-flash';
     flash.style.cssText = `
       position: absolute; inset: 0; pointer-events: none; z-index: 5;
       background: radial-gradient(circle at center, rgba(185,18,63,0.18) 0%, transparent 70%);
-      opacity: 0; transition: opacity ${reduced ? '0.01ms' : 'calc(0.25s / var(--ui-anim-speed))'} ease;
+      opacity: 0; transition: opacity calc(0.25s / var(--ui-anim-speed)) ease;
     `;
     uiLayer.appendChild(flash);
     if (this._flashRaf) { cancelAnimationFrame(this._flashRaf); this._flashRaf = null; }
@@ -629,9 +645,9 @@ export class UI {
       this._flashInnerTimer = setTimeout(() => {
         this._flashInnerTimer = null;
         if (flash && flash.parentNode) flash.parentNode.removeChild(flash);
-      }, reduced ? 16 : animMs(300));
+      }, animMs(300));
       this._flashTimer = null;
-    }, reduced ? 16 : animMs(350));
+    }, animMs(350));
   }
 
   showFloatingText(text, screenX, screenY, color = '#d8b15f') {
@@ -643,7 +659,6 @@ export class UI {
     const vh = window.innerHeight || 1;
     const clampedX = Math.max(0, Math.min(vw, screenX));
     const clampedY = Math.max(0, Math.min(vh, screenY));
-    const reduced = document.documentElement.classList.contains('reduce-motion');
     const el = document.createElement('div');
     el.className = 'ui-float-text';
     el.textContent = text;
@@ -653,15 +668,14 @@ export class UI {
       font-size: 18px; font-weight: 800; color: ${color};
       text-shadow: 0 2px 8px rgba(0,0,0,0.8);
       pointer-events: none; z-index: 10; white-space: nowrap;
-      animation: floatTextUp ${reduced ? '0.01ms' : 'calc(1.2s / var(--ui-anim-speed))'} ease-out forwards;
-      opacity: ${reduced ? '0.9' : ''};
+      animation: floatTextUp calc(1.2s / var(--ui-anim-speed)) ease-out forwards;
     `;
     uiLayer.appendChild(el);
     const t = setTimeout(() => {
       if (el.parentNode) el.parentNode.removeChild(el);
       const idx = this._floatTimers.indexOf(t);
       if (idx !== -1) this._floatTimers.splice(idx, 1);
-    }, reduced ? 800 : animMs(1200));
+    }, animMs(1200));
     this._floatTimers.push(t);
   }
 
@@ -1112,7 +1126,8 @@ export class UI {
 
     const crosshair = document.getElementById('crosshair');
     if (crosshair && crosshair.parentNode) crosshair.parentNode.removeChild(crosshair);
-    document.documentElement.classList.remove("high-contrast", "large-text", "reduce-motion", "compact-hud");
+    // Note: we intentionally do NOT remove high-contrast / large-text / reduce-motion /
+    // compact-hud classes here because they are global user preferences, not per-session state.
 
     // Reset static HUD elements so the next game session starts clean
     if (this.message) {
