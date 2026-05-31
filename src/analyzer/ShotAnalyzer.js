@@ -49,6 +49,7 @@ export class ShotAnalyzer {
 
     const frames = new Float32Array(replayData.frames);
     const frameCount = replayData.frameCount;
+    const frameRate = replayData.frameRate || 60;
     const meta = replayData.metadata || {};
     const pocketPositions = options.pocketPositions || [];
     const ballRadius = options.ballRadius || 0;
@@ -104,10 +105,10 @@ export class ShotAnalyzer {
     }
 
     // ── 2. Detect collisions from path discontinuities ──
-    analysis.collisions = ShotAnalyzer._detectCollisions(frames, frameCount, ballRadius);
+    analysis.collisions = ShotAnalyzer._detectCollisions(frames, frameCount, ballRadius, frameRate);
 
     // ── 3. Detect pocket events with timing ──
-    analysis.pockets = ShotAnalyzer._detectPockets(analysis.paths, pocketPositions, ballRadius);
+    analysis.pockets = ShotAnalyzer._detectPockets(analysis.paths, pocketPositions, ballRadius, frameRate);
 
     // ── 4. Score calculation ──
     ShotAnalyzer._computeScore(analysis, pocketPositions, ballRadius);
@@ -131,7 +132,7 @@ export class ShotAnalyzer {
    * Detect collisions by looking for sudden direction changes.
    * Also detects ball-ball proximity events.
    */
-  static _detectCollisions(frames, frameCount, ballRadius) {
+  static _detectCollisions(frames, frameCount, ballRadius, frameRate = 60) {
     const collisions = [];
     const threshold = ballRadius * 1.8; // slightly less than 2R for proximity
 
@@ -183,7 +184,7 @@ export class ShotAnalyzer {
               collisions.push({
                 type: 'ball-ball',
                 frame: f,
-                time: f / 60,
+                time: f / frameRate,
                 ballA: a,
                 ballB: b,
                 position: { x: (ax + bx) / 2, z: (az + bz) / 2 },
@@ -200,7 +201,7 @@ export class ShotAnalyzer {
   }
 
   /** Detect pocket entries with approximate timing. */
-  static _detectPockets(paths, pocketPositions, ballRadius) {
+  static _detectPockets(paths, pocketPositions, ballRadius, frameRate = 60) {
     const pockets = [];
     if (!pocketPositions || pocketPositions.length === 0) return pockets;
 
@@ -228,7 +229,7 @@ export class ShotAnalyzer {
           ballId: b,
           pocketIndex: nearestIdx,
           frame: lastPoint.frame,
-          time: lastPoint.frame / 60,
+          time: lastPoint.frame / frameRate,
           position: { x: lastPoint.x, z: lastPoint.z },
           pocketPosition: pocketPositions[nearestIdx],
           accuracy: Math.max(0, Math.round((1 - nearestDist / (ballRadius * 3)) * 100)),
@@ -268,7 +269,7 @@ export class ShotAnalyzer {
       const start = cuePath.points[0];
       const end = cuePath.points[cuePath.points.length - 1];
       const straightDist = dist(start.x, start.z, end.x, end.z);
-      const pathRatio = straightDist / (cuePath.totalDistance + 0.001);
+      const pathRatio = Math.min(1, straightDist / (cuePath.totalDistance + 0.001));
       // Higher ratio = straighter path = more efficient
       efficiency = 20 + pathRatio * 40;
       // Cap if too many cushions (indicates excessive bouncing)

@@ -6,7 +6,7 @@
  *
  * Playback speeds: 0.1x, 0.25x, 0.5x, 1.0x
  */
-import { POCKETED_SENTINEL } from './ShotRecorder.js';
+import { POCKETED_SENTINEL, BALL_COUNT, FLOATS_PER_FRAME } from './ShotRecorder.js';
 import { BALL } from '../config.js';
 
 const SPEEDS = [0.1, 0.25, 0.5, 1.0];
@@ -151,9 +151,9 @@ export class ShotReplay {
 
   _applyFrame(frameIdx) {
     if (!this.frames || !this.ballsManager) return;
-    const base = frameIdx * 32; // 16 balls * 2 floats
+    const base = frameIdx * FLOATS_PER_FRAME;
 
-    for (let i = 0; i < 16; i++) {
+    for (let i = 0; i < BALL_COUNT; i++) {
       const ball = this.ballsManager.balls[i];
       if (!ball) continue;
 
@@ -175,11 +175,11 @@ export class ShotReplay {
   /** Apply frame with linear interpolation between current and next frame. */
   _applyInterpolated(frameIdx, alpha) {
     if (!this.frames || !this.ballsManager) return;
-    const base1 = frameIdx * 32;
+    const base1 = frameIdx * FLOATS_PER_FRAME;
     const nextIdx = Math.min(frameIdx + 1, this.frameCount - 1);
-    const base2 = nextIdx * 32;
+    const base2 = nextIdx * FLOATS_PER_FRAME;
 
-    for (let i = 0; i < 16; i++) {
+    for (let i = 0; i < BALL_COUNT; i++) {
       const ball = this.ballsManager.balls[i];
       if (!ball) continue;
 

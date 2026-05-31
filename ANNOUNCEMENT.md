@@ -1,4 +1,30 @@
-# 3D Billiards v1.8.3 — Latest Update
+# 3D Billiards v1.8.4 — Latest Update
+
+## What's New in v1.8.4
+
+### 🔧 Bug Fixes & Polish (Fourth Audit Round)
+
+**🟠 High — Data Consistency & Interface Robustness (4 项)**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 1 | `ShotAnalyzerPanel.show()` 不保存 `replayData`，轨迹图依赖调用方预先调用 `setReplayData()` | `show()` 内部自动保存 `this._lastReplayData = replayData`，消除隐性依赖 |
+| 2 | `ShotAnalyzer` 碰撞/进球时间硬编码 60fps，与 `ShotRecorder` 实际帧率脱钩 | 引入 `frameRate` 参数，使用 `replayData.frameRate` 计算真实时间 |
+| 3 | `ReplayPanel` 回放数量显示硬编码 `/30 已保存` | 改为调用 `library.getMaxReplays()`，与设置中的 `replayMaxSaved` 同步 |
+| 4 | `ShotAnalyzer._computeScore()` 中 `pathRatio` 可能因浮点误差 > 1 | 使用 `Math.min(1, ...)` 将路径比限制在 `[0, 1]` |
+
+**🟡 Medium — Magic Numbers & Defensive Checks (4 项)**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 5 | `ShotReplay.js` 多处硬编码 `32`（每帧浮点数）和 `16`（球数） | 统一导入 `FLOATS_PER_FRAME` 和 `BALL_COUNT` 常量 |
+| 6 | `TrajectoryGraph.js` 球号显示范围硬编码 `b <= 15` | 改为 `b < BALL_COUNT`，与常量定义一致 |
+| 7 | `TrajectoryGraph.js` 哨兵值检测仅检查 `x` 坐标 | 改为检查 `x === POCKETED_SENTINEL && z === POCKETED_SENTINEL`，防御数据损坏 |
+| 8 | `ShotRecorder.js` 文件头注释与实际参数不符（20fps/15s/300帧 vs 60fps/18s/1080帧） | 更新注释为 `60fps (~16.67ms) for up to 18 seconds (1080 frames)` |
+
+---
+
+# 3D Billiards v1.8.3 — Previous Update
 
 ## What's New in v1.8.3
 

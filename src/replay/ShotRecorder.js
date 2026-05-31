@@ -1,7 +1,7 @@
 /**
  * ShotRecorder — Records every frame of a shot for playback.
  *
- * Records at 20fps (50ms intervals) for up to 15 seconds (300 frames).
+ * Records at 60fps (~16.67ms intervals) for up to 18 seconds (1080 frames).
  * Each frame stores X/Z position of all 16 balls as a flat Float32Array.
  *
  * Data format:
@@ -13,8 +13,8 @@
  */
 const MAX_FRAMES = 1080; // 18 seconds @ 60fps
 const FRAME_INTERVAL = 1 / 60; // ~16.67ms
-const BALL_COUNT = 16;
-const FLOATS_PER_FRAME = BALL_COUNT * 2; // x, z for each ball
+export const BALL_COUNT = 16;
+export const FLOATS_PER_FRAME = BALL_COUNT * 2; // x, z for each ball
 export const POCKETED_SENTINEL = 999999;
 
 export class ShotRecorder {

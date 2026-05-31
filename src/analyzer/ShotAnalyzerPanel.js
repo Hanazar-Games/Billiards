@@ -156,6 +156,7 @@ export class ShotAnalyzerPanel {
    * @param {Object} tableInfo — { width, depth, ballRadius, pocketPositions }
    */
   show(replayData, tableInfo = {}) {
+    this._lastReplayData = replayData;
     this._tableInfo = tableInfo;
     this.analysis = ShotAnalyzer.analyze(replayData, tableInfo);
     if (!this.analysis) {

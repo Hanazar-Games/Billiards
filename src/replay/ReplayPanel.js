@@ -143,7 +143,8 @@ export class ReplayPanel {
     const replays = this.library.getAll();
 
     if (countLabel) {
-      countLabel.textContent = `${replays.length} / 30 已保存`;
+      const max = this.library?.getMaxReplays?.() ?? 30;
+      countLabel.textContent = `${replays.length} / ${max} 已保存`;
     }
 
     if (replays.length === 0) {

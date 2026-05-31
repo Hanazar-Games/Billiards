@@ -11,10 +11,9 @@
  * Supports pan/zoom and animated playback.
  */
 
-import { POCKETED_SENTINEL } from '../replay/ShotRecorder.js';
+import { POCKETED_SENTINEL, BALL_COUNT, FLOATS_PER_FRAME } from '../replay/ShotRecorder.js';
 
-const BALL_COUNT = 16;
-const FLOATS_PER_FRAME = BALL_COUNT * 2; // 16 balls × 2 floats (x, z) per frame
+// BALL_COUNT and FLOATS_PER_FRAME imported from ShotRecorder.js
 
 const BALL_COLORS = [
   '#ffffff', // 0 cue ball
@@ -238,7 +237,7 @@ export class TrajectoryGraph {
         const base = f * FLOATS_PER_FRAME + b * 2;
         const x = this.frames[base];
         const z = this.frames[base + 1];
-        if (x === POCKETED_SENTINEL) {
+        if (x === POCKETED_SENTINEL && z === POCKETED_SENTINEL) {
           started = false;
           continue;
         }
@@ -261,7 +260,7 @@ export class TrajectoryGraph {
       const base = f * FLOATS_PER_FRAME + b * 2;
       const x = this.frames[base];
       const z = this.frames[base + 1];
-      if (x === POCKETED_SENTINEL) continue;
+      if (x === POCKETED_SENTINEL && z === POCKETED_SENTINEL) continue;
 
       const color = BALL_COLORS[b] || '#888';
 
@@ -276,7 +275,7 @@ export class TrajectoryGraph {
       ctx.stroke();
 
       // Number (for balls 1-15)
-      if (b >= 1 && b <= 15) {
+      if (b >= 1 && b < BALL_COUNT) {
         ctx.fillStyle = b >= 9 ? '#fff' : '#000';
         ctx.font = `${Math.max(8, r * 0.8)}px sans-serif`;
         ctx.textAlign = 'center';

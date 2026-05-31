@@ -113,6 +113,11 @@ export class ReplayLibrary {
     return this.replays.length;
   }
 
+  /** Get current max replays limit (from settings). */
+  getMaxReplays() {
+    return _getMaxReplays();
+  }
+
   /** Update replay name. */
   updateName(id, name) {
     const replay = this.replays.find((r) => r.id === id);
