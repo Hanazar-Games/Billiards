@@ -1,6 +1,7 @@
 import { settings } from '../core/SettingsStore.js';
 import { animMs } from '../core/AnimSpeed.js';
 import { UIText } from '../core/UIText.js';
+import { uiLayout } from './UILayout.js';
 
 
 export class UI {
@@ -27,6 +28,10 @@ export class UI {
     this._confirmOverlay = null;
     this._confirmKeyHandler = null;
     this._currentSpin = { x: 0, y: 0 };
+    // HUD state machine tracking
+    this._hudState = 'AIM';
+    this._messagePriority = 0;
+    this._baseMessagePriority = 0;
 
     const uiLayer = document.getElementById('ui-layer');
 
@@ -141,6 +146,12 @@ export class UI {
 
     if (uiLayer) uiLayer.appendChild(this.bottomHud);
 
+    // Register bottom HUD with the layout manager so its height is measured
+    // dynamically (reacts to compact-hud / large-text / hudScale changes).
+    if (this.bottomHud) {
+      uiLayout.observeElement('bottomHud', this.bottomHud, 'bottom', { priority: 0, mode: 'stack' });
+    }
+
     // ── Pause overlay ──
     this.pauseOverlay = document.createElement('div');
     this.pauseOverlay.style.cssText = `
@@ -250,26 +261,48 @@ export class UI {
     }
   }
 
-  setMessage(text, duration = 0) {
-    if (this.message) {
-      this.message.textContent = text;
-      this._lastMessage = text;
-      this._messageId++;
-      const id = this._messageId;
-      if (this._messageTimer) {
-        clearTimeout(this._messageTimer);
+  /**
+   * Show a message in the top-center HUD area.
+   * @param {string} text
+   * @param {number} [duration=0] — ms to auto-clear (0 = persist)
+   * @param {number} [priority=0] — higher priority messages block lower ones
+   */
+  setMessage(text, duration = 0, priority = 0) {
+    if (!this.message) return;
+    // Higher-priority messages override lower ones; equal or lower are dropped
+    // unless the current message is empty.
+    if (priority < this._messagePriority && this._lastMessage !== '') return;
+    this.message.textContent = text;
+    this._lastMessage = text;
+    this._messagePriority = priority;
+    this._messageId++;
+    const id = this._messageId;
+    if (this._messageTimer) {
+      clearTimeout(this._messageTimer);
+      this._messageTimer = null;
+    }
+    if (duration > 0) {
+      const scale = (typeof settings !== 'undefined' && settings.get) ? (settings.get('messageDurationScale') ?? 1.0) : 1.0;
+      this._messageTimer = setTimeout(() => {
         this._messageTimer = null;
-      }
-      if (duration > 0) {
-        const scale = (typeof settings !== 'undefined' && settings.get) ? (settings.get('messageDurationScale') ?? 1.0) : 1.0;
-        this._messageTimer = setTimeout(() => {
-          this._messageTimer = null;
-          if (this.message && this._messageId === id) {
-            this.message.textContent = '';
-            this._lastMessage = '';
-          }
-        }, duration * scale);
-      }
+        if (this.message && this._messageId === id) {
+          this.message.textContent = '';
+          this._lastMessage = '';
+          this._messagePriority = this._baseMessagePriority;
+        }
+      }, duration * scale);
+    }
+  }
+
+  /** Force-clear the current message regardless of priority. */
+  clearMessage() {
+    if (!this.message) return;
+    this.message.textContent = '';
+    this._lastMessage = '';
+    this._messagePriority = this._baseMessagePriority;
+    if (this._messageTimer) {
+      clearTimeout(this._messageTimer);
+      this._messageTimer = null;
     }
   }
 
@@ -634,16 +667,32 @@ export class UI {
 
   // ── HUD visibility controls (wired from SettingsScreen) ──
   setHudScale(v) {
+    let scale = Math.max(0.5, Math.min(2.0, v));
+    // Prevent the scaled HUD from overflowing narrow viewports
+    const vw = window.innerWidth || 1;
+    const maxScale = vw < 400 ? 1.3 : vw < 600 ? 1.6 : 2.0;
+    scale = Math.min(scale, maxScale);
     if (this.bottomHud) {
-      this.bottomHud.style.transform = `scale(${Math.max(0.5, Math.min(2.0, v))})`;
+      this.bottomHud.style.transform = `scale(${scale})`;
       this.bottomHud.style.transformOrigin = 'bottom center';
     }
+    uiLayout.updateScale('bottomHud', scale);
   }
 
   setHudOpacity(v) {
+    const opacity = String(Math.max(0.3, Math.min(1.0, v)));
     if (this.bottomHud) {
-      this.bottomHud.style.opacity = String(Math.max(0.3, Math.min(1.0, v)));
+      this.bottomHud.style.opacity = opacity;
     }
+    // Apply opacity to other persistent HUD elements so the whole HUD
+    // feels cohesive when the user adjusts transparency.
+    const powerBar = document.getElementById('power-bar-container');
+    if (powerBar) powerBar.style.opacity = opacity;
+    if (this.turnTimerEl) this.turnTimerEl.style.opacity = opacity;
+    if (this.player1Badge) this.player1Badge.style.opacity = opacity;
+    if (this.player2Badge) this.player2Badge.style.opacity = opacity;
+    const versionTag = document.getElementById('version-tag');
+    if (versionTag) versionTag.style.opacity = opacity;
   }
 
   setHighContrastUI(v) {
@@ -686,10 +735,8 @@ export class UI {
   }
 
   setShowPowerBar(v) {
-    if (this.powerFill) {
-      const bar = this.powerFill.parentElement;
-      if (bar) bar.style.display = v ? 'block' : 'none';
-    }
+    this._powerBarSetting = v;
+    this._applyHUDVisibility();
   }
 
   setShowSpinIndicator(v) {
@@ -724,6 +771,7 @@ export class UI {
   }
 
   setShowCrosshair(v) {
+    this._crosshairSetting = v;
     let el = document.getElementById('crosshair');
     if (!el && v) {
       el = document.createElement('div');
@@ -743,7 +791,7 @@ export class UI {
       const uiLayer = document.getElementById('ui-layer');
       if (uiLayer) uiLayer.appendChild(el);
     }
-    if (el) el.style.display = v ? 'block' : 'none';
+    this._applyHUDVisibility();
   }
 
   setShowRemainingBalls(v) {
@@ -751,6 +799,7 @@ export class UI {
   }
 
   setShowComboCounter(v) {
+    this._comboCounterSetting = v;
     if (!this._comboEl && v) {
       this._comboEl = document.createElement('div');
       this._comboEl.style.cssText = `
@@ -762,12 +811,81 @@ export class UI {
       const uiLayer = document.getElementById('ui-layer');
       if (uiLayer) uiLayer.appendChild(this._comboEl);
     }
-    if (this._comboEl) this._comboEl.style.display = v ? 'block' : 'none';
+    this._applyHUDVisibility();
   }
 
   updateComboCounter(count) {
     if (this._comboEl && this._comboEl.style.display !== 'none') {
       this._comboEl.textContent = count > 1 ? `连击 ×${count}` : '';
+    }
+  }
+
+  /**
+   * Transition the HUD to a new game state.
+   * This centralises which UI elements should be visible in each state,
+   * preventing conflicting overlays (e.g. power bar + game-over screen).
+   *
+   * @param {'AIM'|'CHARGING'|'SHOOTING'|'AI_THINKING'|'GAME_OVER'|'BALL_IN_HAND'|'PAUSED'} state
+   */
+  setHUDState(state) {
+    const prev = this._hudState;
+    this._hudState = state;
+
+    // Game over: aggressively clean up transient HUD so only the result remains
+    if (state === 'GAME_OVER') {
+      this.hidePushOutButton();
+      this.hidePushOutChoice();
+      this.hideThreeFoulWarning();
+      this.hideTurnTimer();
+      this._baseMessagePriority = 3;
+    } else if (prev === 'GAME_OVER') {
+      // Leaving game over: drop base priority back to normal
+      this._baseMessagePriority = 0;
+      if (this._messagePriority > 0) this._messagePriority = 0;
+    }
+
+    // Ball-in-hand / AI thinking: clear any low-priority transient messages
+    if (state === 'BALL_IN_HAND' || state === 'AI_THINKING') {
+      if (this._messagePriority < 2) this.clearMessage();
+    }
+
+    this._applyHUDVisibility();
+  }
+
+  /** Apply visibility rules based on the current _hudState and user settings. */
+  _applyHUDVisibility() {
+    const state = this._hudState;
+    const isPlaying = state === 'AIM' || state === 'CHARGING';
+    const isShooting = state === 'SHOOTING';
+    const isGameOver = state === 'GAME_OVER';
+    const isAIThinking = state === 'AI_THINKING';
+    const isBallInHand = state === 'BALL_IN_HAND';
+
+    // Power bar: visible only during AIM/CHARGING when enabled by settings
+    if (this.powerFill) {
+      const bar = this.powerFill.parentElement;
+      if (bar) {
+        const show = (this._powerBarSetting !== false) && isPlaying;
+        bar.style.display = show ? 'block' : 'none';
+      }
+    }
+
+    // Crosshair: visible only during AIM/CHARGING when enabled by settings
+    const crosshair = document.getElementById('crosshair');
+    if (crosshair) {
+      const show = (this._crosshairSetting !== false) && isPlaying;
+      crosshair.style.display = show ? 'block' : 'none';
+    }
+
+    // Combo counter: hidden on game over regardless of setting
+    if (this._comboEl) {
+      const show = (this._comboCounterSetting !== false) && !isGameOver;
+      this._comboEl.style.display = show ? 'block' : 'none';
+    }
+
+    // Turn timer: immediately hide when shooting / AI thinking / game over / ball-in-hand
+    if (isShooting || isAIThinking || isGameOver || isBallInHand) {
+      this.hideTurnTimer();
     }
   }
 
@@ -995,6 +1113,34 @@ export class UI {
     const crosshair = document.getElementById('crosshair');
     if (crosshair && crosshair.parentNode) crosshair.parentNode.removeChild(crosshair);
     document.documentElement.classList.remove("high-contrast", "large-text", "reduce-motion", "compact-hud");
+
+    // Reset static HUD elements so the next game session starts clean
+    if (this.message) {
+      this.message.textContent = '';
+      this._lastMessage = '';
+    }
+    if (this.powerFill) this.powerFill.style.width = '0%';
+    if (this.turnTimerEl) {
+      this.turnTimerEl.style.display = 'none';
+      this.turnTimerEl.classList.remove('warning', 'danger', 'top', 'bottom');
+      this.turnTimerEl.textContent = '--';
+    }
+    if (this.player1Badge) {
+      this.player1Badge.classList.remove('active');
+      this.player1Badge.textContent = this._player1Name?.textContent || '玩家 1';
+    }
+    if (this.player2Badge) {
+      this.player2Badge.classList.remove('active');
+      this.player2Badge.textContent = this._player2Name?.textContent || '玩家 2';
+    }
+    const powerBar = document.getElementById('power-bar-container');
+    if (powerBar) {
+      powerBar.style.display = 'none';
+      powerBar.style.opacity = '';
+    }
+    const versionTag = document.getElementById('version-tag');
+    if (versionTag) versionTag.style.opacity = '';
+
     this._statsPanelRef = null;
     const confirmOverlay = this._confirmOverlay || document.getElementById('ui-confirm-dialog');
     if (confirmOverlay && confirmOverlay.parentNode) {
@@ -1023,6 +1169,7 @@ export class UI {
     this.powerFill = null;
     this.turnTimerEl = null;
 
+    uiLayout.release('bottomHud');
     if (this.bottomHud && this.bottomHud.parentNode) {
       this.bottomHud.parentNode.removeChild(this.bottomHud);
     }

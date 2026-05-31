@@ -15,6 +15,7 @@ import { Game } from '../game/Game.js';
 import { Table } from '../game/Table.js';
 import { BallsManager } from '../game/BallsManager.js';
 import { getTableProfile, getDefaultTableProfile, validateModeTableProfile } from '../game/TableProfiles.js';
+// NOTE: getTableProfile re-exported below for analyzer — keep this import
 import { MainMenuScreen } from './MainMenuScreen.js';
 import { keyBindings } from '../input/KeyBindings.js';
 import { SettingsScreen } from './SettingsScreen.js';
@@ -23,6 +24,8 @@ import { AchievementPanel } from '../achievements/AchievementPanel.js';
 import { ReplayLibrary } from '../replay/ReplayLibrary.js';
 import { ReplayPanel } from '../replay/ReplayPanel.js';
 import { ShotReplay } from '../replay/ShotReplay.js';
+import { ShotAnalyzerPanel } from '../analyzer/ShotAnalyzerPanel.js';
+import { BALL } from '../config.js';
 import { ChallengePanel } from '../challenges/ChallengePanel.js';
 import { ChallengeManager } from '../challenges/ChallengeManager.js';
 import { ChallengeResult } from '../challenges/ChallengeResult.js';
@@ -69,6 +72,7 @@ export class MenuSystem {
     this.replayPanel = null;
     this.replayEngine = null;
     this.replayBallsManager = null;
+    this.analyzerPanel = null;
 
     // Challenge system
     this.challengePanel = null;
@@ -245,7 +249,8 @@ export class MenuSystem {
         this.replayLibrary,
         (replay) => this._startReplayPlayback(replay),
         () => this.mainMenu.show(),
-        () => this._stopReplayPlayback()
+        () => this._stopReplayPlayback(),
+        (replay) => this._showReplayAnalysis(replay)
       );
     }
     this.replayPanel.showList();
@@ -896,6 +901,11 @@ export class MenuSystem {
       this.lanRoomPanel.destroy();
       this.lanRoomPanel = null;
     }
+    // Clean up analyzer panel if present
+    if (this.analyzerPanel) {
+      this.analyzerPanel.destroy();
+      this.analyzerPanel = null;
+    }
 
     // Hide game UI
     const uiLayer = document.getElementById('ui-layer');
@@ -1085,6 +1095,32 @@ export class MenuSystem {
     }
   }
 
+  _showReplayAnalysis(replayData) {
+    if (!replayData) return;
+    if (!this.analyzerPanel) {
+      this.analyzerPanel = new ShotAnalyzerPanel();
+    }
+    const profile = getTableProfile(replayData.metadata?.tableProfileId);
+    const halfW = profile.width / 2;
+    const halfD = profile.depth / 2;
+    const pocketPositions = [
+      { x: -halfW, z: -halfD },
+      { x: halfW, z: -halfD },
+      { x: -halfW, z: 0 },
+      { x: halfW, z: 0 },
+      { x: -halfW, z: halfD },
+      { x: halfW, z: halfD },
+    ];
+    const tableInfo = {
+      width: profile.width,
+      depth: profile.depth,
+      ballRadius: BALL.radius,
+      pocketPositions,
+    };
+    this.analyzerPanel.setReplayData(replayData);
+    this.analyzerPanel.show(replayData, tableInfo);
+  }
+
   _quit() {
     // Stop all loops and timeouts
     this.state = 'DESTROYED';
@@ -1115,7 +1151,7 @@ export class MenuSystem {
     try { if (this.trainerPanel) { this.trainerPanel.destroy(); this.trainerPanel = null; } } catch (e) {}
     try { if (this.trainerResult) { this.trainerResult.destroy(); this.trainerResult = null; } } catch (e) {}
     try { if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; } } catch (e) {}
-
+    try { if (this.analyzerPanel) { this.analyzerPanel.destroy(); this.analyzerPanel = null; } } catch (e) {}
 
     // Clean up shared core
     this.renderer.dispose();

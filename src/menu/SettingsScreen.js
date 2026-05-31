@@ -410,6 +410,13 @@ export class SettingsScreen {
     });
     this._listeners = [];
 
+    // Cancel any pending category switch to prevent race conditions
+    if (this._switchTimer) {
+      clearTimeout(this._switchTimer);
+      this._switchTimer = null;
+      if (this._contentArea) this._contentArea.classList.remove('switching');
+    }
+
     // Lightweight fade transition: dim content, swap, restore opacity
     const reduced = document.documentElement.classList.contains('reduce-motion');
     if (reduced) {
@@ -879,9 +886,10 @@ export class SettingsScreen {
   }
 
   _buildReplayContent() {
-    this._sectionTitle('回放');
-    this._sectionSubtitle('回放记录与数据统计');
+    this._sectionTitle('回放与分析');
+    this._sectionSubtitle('回放记录与击球分析');
 
+    this._row('击球分析器', this._createSwitch(settings.get('shotAnalyzerEnabled'), (v) => settings.set('shotAnalyzerEnabled', v)), '每次击球后显示详细分析面板');
     this._rowDisabled('自动保存回放', this._createDisabledSwitch(settings.get('autoSaveReplays'), () => {}), '回放系统尚未实现');
     this._rowDisabled('最大回放数', this._createDisabledValue(String(settings.get('replayMaxSaved')) + ' 条'), '回放系统尚未实现');
     this._rowDisabled('显示击球数据', this._createDisabledSwitch(settings.get('showShotData'), () => {}), '数据统计面板尚未实现');

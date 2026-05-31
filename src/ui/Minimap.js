@@ -265,7 +265,7 @@ export class Minimap {
     if (!this._profile) {
       this._profile = getDefaultTableProfile();
     }
-    const dpr = Math.min(window.devicePixelRatio, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const cssSize = Math.max(80, Math.min(260, this._size));
     this.canvas.width = cssSize * dpr;
     this.canvas.height = (cssSize * (this._profile.depth / this._profile.width)) * dpr;
@@ -309,8 +309,10 @@ export class Minimap {
     s.top = s.bottom = s.left = s.right = 'auto';
     const [v, h] = pos.split('-');
     const baseOffset = 14;
-    if (v === 'top') s.top = `${baseOffset}px`;
-    else s.bottom = `${baseOffset}px`;
+    const bottomSafe = uiLayout.getSafe('bottom');
+    const topSafe = uiLayout.getSafe('top');
+    if (v === 'top') s.top = `${topSafe + baseOffset}px`;
+    else s.bottom = `${bottomSafe + baseOffset}px`;
     if (h === 'left') s.left = `${baseOffset}px`;
     else s.right = `${baseOffset}px`;
   }

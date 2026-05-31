@@ -22,6 +22,7 @@ export class GameLoop {
   }
 
   start() {
+    if (this.running) return;
     this.running = true;
     this.lastTime = performance.now();
     this._lastFrameTime = this.lastTime;

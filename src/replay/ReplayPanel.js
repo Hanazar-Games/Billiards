@@ -6,11 +6,12 @@
  *   2. Playback controls (during replay) — overlay with play/pause/speed/time
  */
 export class ReplayPanel {
-  constructor(replayLibrary, onPlayReplay, onHideList, onExitReplay) {
+  constructor(replayLibrary, onPlayReplay, onHideList, onExitReplay, onAnalyzeReplay = null) {
     this.library = replayLibrary;
     this.onPlayReplay = onPlayReplay;
     this.onHideList = onHideList;
     this.onExitReplay = onExitReplay;
+    this.onAnalyzeReplay = onAnalyzeReplay;
     this.listContainer = null;
     this.controlContainer = null;
     this._importTimeout = null;
@@ -275,6 +276,25 @@ export class ReplayPanel {
       playBtn.onmouseleave = () => { playBtn.style.background = 'rgba(0,230,118,0.2)'; };
       playBtn.onclick = () => { if (this.onPlayReplay) this.onPlayReplay(replay); };
       btnRow.appendChild(playBtn);
+
+      if (this.onAnalyzeReplay) {
+        const analyzeBtn = document.createElement('button');
+        analyzeBtn.textContent = '分析';
+        analyzeBtn.title = '查看击球分析';
+        analyzeBtn.style.cssText = `
+          flex: 1; padding: 9px 0;
+          font-size: 13px; font-weight: 600; color: #fff;
+          background: rgba(68,138,255,0.2);
+          border: 1px solid rgba(68,138,255,0.4);
+          border-radius: 8px;
+          cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed));
+          pointer-events: auto;
+        `;
+        analyzeBtn.onmouseenter = () => { analyzeBtn.style.background = 'rgba(68,138,255,0.3)'; };
+        analyzeBtn.onmouseleave = () => { analyzeBtn.style.background = 'rgba(68,138,255,0.2)'; };
+        analyzeBtn.onclick = () => { if (this.onAnalyzeReplay) this.onAnalyzeReplay(replay); };
+        btnRow.appendChild(analyzeBtn);
+      }
 
       const exportOneBtn = document.createElement('button');
       exportOneBtn.textContent = '⬇';

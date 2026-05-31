@@ -22,6 +22,7 @@ import { ScreenShake } from '../fx/ScreenShake.js';
 import { PowerLabel } from '../fx/PowerLabel.js';
 import { BallReturnSystem } from '../fx/BallReturnSystem.js';
 import { ShotRecorder } from '../replay/ShotRecorder.js';
+import { ShotAnalyzerPanel } from '../analyzer/ShotAnalyzerPanel.js';
 import { settings, MATCH_FAIRNESS_KEYS } from '../core/SettingsStore.js';
 import { keyBindings } from '../input/KeyBindings.js';
 import { BALL, SHOT, CAMERA } from '../config.js';
@@ -65,6 +66,7 @@ export class Game {
     this.minimap = new Minimap();
     this.recorder = new ShotRecorder();
     this.replayLibrary = null; // injected by MenuSystem
+    this.analyzerPanel = null; // lazy-created
     this.onboardingTips = new OnboardingTips();
 
     this.state = 'AIM'; // AIM, CHARGING, SHOOTING, RESOLVING, AI_THINKING, GAME_OVER
@@ -361,7 +363,7 @@ export class Game {
 
     // In spectator mode, auto-start AI turn if it's AI's turn at game start
     if (this.bothAI && this._shouldTriggerAI() && this.state === 'AIM') {
-      setTimeout(() => {
+      this._spectatorAutoStartTimer = setTimeout(() => {
         if (this.state === 'AIM' && this._shouldTriggerAI()) {
           this.startAITurn();
         }
@@ -516,7 +518,7 @@ export class Game {
     if (this.networkMode && !this.isLocalPlayerTurn()) return; // Network: not your turn
     // Block input if turn timer has expired
     if (this._turnTimerEnabled && this._turnTimerRemaining <= 0) {
-      this.ui.setMessage('⏰ 回合时间已到', 2000);
+      this.ui.setMessage('⏰ 回合时间已到', 2000, 2);
       return;
     }
     if (this.ballInHand) {
@@ -525,7 +527,7 @@ export class Game {
     }
     // Block shot while push-out choice is pending
     if (this.rules?.pushOutPending && this.isLocalPlayerTurn()) {
-      this.ui.setMessage(UIText.pushOutMustChoose, 2000);
+      this.ui.setMessage(UIText.pushOutMustChoose, 2000, 1);
       return;
     }
     this.audio?.resume();
@@ -551,6 +553,7 @@ export class Game {
     this.charging = true;
     this.power = 0;
     this.ui.setPower(0);
+    this.ui.setHUDState('CHARGING');
     this.trajectory?.setVisible(false);
 
     // Show charge tutorial on first charge
@@ -575,6 +578,7 @@ export class Game {
       return;
     }
     this.state = 'SHOOTING';
+    this.ui.setHUDState('SHOOTING');
     this._shotStartTime = performance.now();
     this.charging = false;
     this.dragStart = null;
@@ -757,7 +761,8 @@ export class Game {
     if (this.cue) this.cue.hide();
     this.trajectory.setVisible(false);
     const bihMsg = behindHeadString ? UIText.ballInHandBehindLine : UIText.ballInHandAnywhere;
-    this.ui.setMessage(`${message ? `${message} ` : ''}${bihMsg}`);
+    this.ui.setMessage(`${message ? `${message} ` : ''}${bihMsg}`, 0, 1);
+    this.ui.setHUDState('BALL_IN_HAND');
     this.updateBallInHandPreview();
     if (!onboarding.get('ballInHandExplained')) {
       this.onboardingTips.show('ballInHand', null, 10000);
@@ -805,7 +810,7 @@ export class Game {
         NEAR_POCKET: UIText.ballInHandInvalidNearPocket,
       };
       const msg = reasonMap[this.ballInHandInvalidReason] || UIText.ballInHandInvalid;
-      this.ui.setMessage(msg, 2500);
+      this.ui.setMessage(msg, 2500, 1);
       return;
     }
 
@@ -821,7 +826,7 @@ export class Game {
         );
       }
       if (this.cue) this.cue.show();
-      this.ui.setMessage(UIText.ballInHandWaitHost, 2000);
+      this.ui.setMessage(UIText.ballInHandWaitHost, 2000, 1);
       return;
     }
 
@@ -854,20 +859,23 @@ export class Game {
     const cueBall = this.ballsManager.getCueBall();
     if (!cueBall) return;
 
+    // Block shot during ball-in-hand placement
+    if (this.ballInHand) return;
+
     // Block shot while push-out choice is pending
     if (this.rules?.pushOutPending && this.isLocalPlayerTurn()) {
-      this.ui.setMessage(UIText.pushOutMustChoose, 2000);
+      this.ui.setMessage(UIText.pushOutMustChoose, 2000, 1);
       return;
     }
 
     // Client sends shot intent to host; host executes physically
     if (this.networkMode && this.networkRole === 'client' && this.isLocalPlayerTurn()) {
       if (this._turnTimerEnabled && this._turnTimerRemaining <= 0) {
-        this.ui.setMessage('⏰ 回合时间已到', 2000);
+        this.ui.setMessage('⏰ 回合时间已到', 2000, 2);
         return;
       }
       if (!this.networkController || !this.networkController.connected) {
-        this.ui.setMessage(UIText.networkDisconnect, 2000);
+        this.ui.setMessage(UIText.networkDisconnect, 2000, 2);
         this._enterAimState();
         return;
       }
@@ -963,10 +971,11 @@ export class Game {
   async startAITurn() {
     if (this.state === 'AI_THINKING') return;
     this.state = 'AI_THINKING';
+    this.ui.setHUDState('AI_THINKING');
     // In spectator mode, preserve the turn result message instead of overwriting it;
     // the broadcast commentary system will show AI thinking status separately.
     if (!this.bothAI) {
-      this.ui.setMessage(UIText.aiThinking);
+      this.ui.setMessage(UIText.aiThinking, 0, 2);
     }
     this.trajectory.setVisible(false);
     if (this.cue) this.cue.hide();
@@ -983,7 +992,7 @@ export class Game {
       console.error('AI turn failed', err);
       if (this.state === 'AI_THINKING') {
         this._enterAimState({ showCue: true, showTrajectory: true, updateAim: false });
-        this.ui.setMessage(UIText.aiPlanningFailed, 4000);
+        this.ui.setMessage(UIText.aiPlanningFailed, 4000, 2);
       }
       return;
     }
@@ -1083,6 +1092,7 @@ export class Game {
   }
 
   update(dt) {
+    if (this.state === 'DISPOSED') return;
     if (this.paused) return;
     const isClient = this.networkRole === 'client';
     const pocketPositions = this.table.getPocketPositions();
@@ -1287,7 +1297,7 @@ export class Game {
     if (this.state === 'GAME_OVER' || this.state === 'DISPOSED') return;
     // Network clients should not locally resolve turn timeouts — host is authoritative
     if (this.networkMode && this.networkRole === 'client') {
-      this.ui.setMessage('⏰ 回合时间到，等待房主确认…', 2000);
+      this.ui.setMessage('⏰ 回合时间到，等待房主确认…', 2000, 2);
       this._turnTimerRemaining = 0;
       this._turnTimerRunning = false;
       return;
@@ -1324,6 +1334,7 @@ export class Game {
       this.updateAimDirection();
       this.updateTrajectory();
     }
+    this.ui.setHUDState('AIM');
   }
 
   /** Common ball-in-hand cleanup after placement is confirmed. */
@@ -1335,7 +1346,8 @@ export class Game {
     this.setAimTrajectoryVisible(true);
     this.updateAimDirection();
     this.updateTrajectory();
-    this.ui.setMessage(UIText.ballInHandPlaced, 1800);
+    this.ui.setMessage(UIText.ballInHandPlaced, 1800, 1);
+    this.ui.setHUDState('AIM');
   }
 
   /** Player clicked the Push-out button. */
@@ -1344,7 +1356,7 @@ export class Game {
     const declared = this.rules.declarePushOut();
     if (!declared) return;
     this.ui.hidePushOutButton();
-    this.ui.setMessage(UIText.pushOutTooltip, 3000);
+    this.ui.setMessage(UIText.pushOutTooltip, 3000, 1);
     if (this.networkMode && this.networkRole === 'client') {
       this.networkController?.sendPushOutDeclare();
     } else if (this.networkRole === 'host') {
@@ -1388,7 +1400,7 @@ export class Game {
     const msg = choice === 'accept'
       ? UIText.pushOutAcceptedMsg(playerName)
       : UIText.pushOutPassedMsg(playerName);
-    this.ui.setMessage(msg, 3000);
+    this.ui.setMessage(msg, 3000, 2);
 
     this._enterAimState({ resetPower: true, showCue: true, showTrajectory: true, updateAim: false });
     this._updatePlayerStats();
@@ -1473,6 +1485,25 @@ export class Game {
     if (replayData && this.replayLibrary) {
       this.replayLibrary.save(replayData);
     }
+
+    // Shot Analyzer: show analysis panel for recorded shots
+    if (replayData && settings.get('shotAnalyzerEnabled') !== false
+        && this.mode !== 'trainer' && !this.bothAI
+        && this.networkRole !== 'client') {
+      if (!this.analyzerPanel) {
+        this.analyzerPanel = new ShotAnalyzerPanel();
+      }
+      const pocketPositions = (this.table?.pocketPositions || []).map(p => ({ x: p.x, z: p.z }));
+      const tableInfo = {
+        width: this.tableProfile?.width || TABLE.width,
+        depth: this.tableProfile?.depth || TABLE.depth,
+        ballRadius: BALL.radius,
+        pocketPositions,
+      };
+      this.analyzerPanel.setReplayData(replayData);
+      this.analyzerPanel.show(replayData, tableInfo);
+    }
+
     this.recorder.reset();
 
     const cueBall = this.ballsManager.getCueBall();
@@ -1525,7 +1556,7 @@ export class Game {
         spinText,
       });
       if (feedback) {
-        this.ui.setMessage(feedback, 2500);
+        this.ui.setMessage(feedback, 2500, 1);
       }
       this._enterAimState({ showCue: true, showTrajectory: true, updateAim: false });
       return;
@@ -1562,7 +1593,8 @@ export class Game {
 
     if (result.gameOver) {
       this.state = 'GAME_OVER';
-      this.ui.setMessage(result.message);
+      this.ui.setHUDState('GAME_OVER');
+      this.ui.setMessage(result.message, 0, 3);
       this.ui.hidePushOutButton();
       this.ui.hidePushOutChoice();
       this.ui.hideThreeFoulWarning();
@@ -1600,7 +1632,7 @@ export class Game {
       return;
     }
 
-    this.ui.setMessage(result.message, 4000);
+    this.ui.setMessage(result.message, 4000, 1);
     this.currentPlayer = result.nextPlayer;
     this._turnTimerRemaining = this._turnTimerMax;
     this.ui.setPlayerTurn(this.currentPlayer);
@@ -1781,6 +1813,10 @@ export class Game {
     this.shockwaves?.clear();
     this.screenShake?.cancel();
     this.recorder.reset();
+    if (this.analyzerPanel) {
+      this.analyzerPanel.destroy();
+      this.analyzerPanel = null;
+    }
     this.statsPanel.reset();
     if (this.challengeManager) this.challengeManager.resetMatch();
 
@@ -1803,6 +1839,10 @@ export class Game {
       this._cameraResetTimer = null;
     }
     this._challengeEnding = false;
+    this._settingsOpen = false;
+    if (this.inGameSettings) {
+      try { this.inGameSettings.hide(); } catch (e) {}
+    }
 
     this._removeChallengeHUD();
 
@@ -1816,6 +1856,7 @@ export class Game {
     this._turnTimerRemaining = this._turnTimerMax;
     this.currentPlayer = 1;
     this.state = 'AIM';
+    this.ui.setHUDState('AIM');
     this._enterAimState({ resetPower: true, showCue: false, showTrajectory: false, updateAim: false });
     this.ballInHand = false;
     this.ballInHandValid = false;
@@ -1856,7 +1897,7 @@ export class Game {
 
     // In spectator mode, auto-start AI turn after reset
     if (this.bothAI && this._shouldTriggerAI() && this.state === 'AIM') {
-      setTimeout(() => {
+      this._spectatorAutoStartTimer = setTimeout(() => {
         if (this.state === 'AIM' && this._shouldTriggerAI()) {
           this.startAITurn();
         }
@@ -2065,7 +2106,7 @@ export class Game {
           this.ballInHandValid = false;
           this.state = 'AIM';
           if (this.cue) this.cue.show();
-          this.ui.setMessage(UIText.ballInHandCanceled);
+          this.ui.setMessage(UIText.ballInHandCanceled, 0, 1);
           return;
         }
       }
@@ -2325,7 +2366,7 @@ export class Game {
 
   _hidePause() {
     this.paused = false;
-    this.ui.hidePauseMenu();
+    this.ui?.hidePauseMenu();
   }
 
   _getObjectiveText() {
@@ -2379,12 +2420,12 @@ export class Game {
   _onResetButtonClicked() {
     if (this.networkMode && this.networkRole === 'client') {
       if (!this.networkController || !this.networkController.connected) {
-        this.ui.setMessage(UIText.networkDisconnect, 2000);
+        this.ui.setMessage(UIText.networkDisconnect, 2000, 2);
         return;
       }
       // Client asks host to reset; host will broadcast the new state
       this.networkController.sendShotInput({ x: 0, y: 0, z: 0 }, 0, { x: 0, y: 0 }, null, true);
-      this.ui.setMessage(UIText.resetRequested, 2000);
+      this.ui.setMessage(UIText.resetRequested, 2000, 1);
       return;
     }
     this.resetGame();
@@ -2393,6 +2434,16 @@ export class Game {
   // ── Network multiplayer methods ──
 
   setNetworkController(controller, role, localPlayerId) {
+    // Clean up old controller listeners before replacing
+    if (this.networkController) {
+      if (this._onStateSnapshot) this.networkController.removeEventListener('stateSnapshot', this._onStateSnapshot);
+      if (this._onNetShotInput) this.networkController.removeEventListener('shotInput', this._onNetShotInput);
+      if (this._onNetPocketEvent) this.networkController.removeEventListener('pocketEvent', this._onNetPocketEvent);
+      if (this._onNetPushOutDeclare) this.networkController.removeEventListener('pushOutDeclare', this._onNetPushOutDeclare);
+      if (this._onNetPushOutChoice) this.networkController.removeEventListener('pushOutChoice', this._onNetPushOutChoice);
+      if (this._onNetDisconnected) this.networkController.removeEventListener('disconnected', this._onNetDisconnected);
+      if (this._onNetRoomClosed) this.networkController.removeEventListener('roomClosed', this._onNetRoomClosed);
+    }
     this.networkController = controller;
     this.networkRole = role;
     this.localPlayerId = localPlayerId || 1;
@@ -2465,7 +2516,7 @@ export class Game {
         const msg = reason === 'hostLeft' ? UIText.hostLeft
           : reason === 'hostDisconnected' ? UIText.hostDisconnected
           : UIText.networkDisconnect;
-        this.ui.setMessage(msg, 3000);
+        this.ui.setMessage(msg, 3000, 2);
         this._netDisconnectTimer = setTimeout(() => {
           this._netDisconnectTimer = null;
           if (this.onReturnToMenu) this.onReturnToMenu();
@@ -2475,7 +2526,7 @@ export class Game {
         if (!this.networkMode || this._netDisconnectHandled) return;
         this._netDisconnectHandled = true;
         settings.clearLockedKeys();
-        this.ui.setMessage(UIText.networkDisconnect, 3000);
+        this.ui.setMessage(UIText.networkDisconnect, 3000, 2);
         this._netDisconnectTimer = setTimeout(() => {
           this._netDisconnectTimer = null;
           if (this.onReturnToMenu) this.onReturnToMenu();
@@ -2520,12 +2571,13 @@ export class Game {
     if (this.mode === 'freeplay') return;
     if (this.mode === 'trainer') return;
     if (this.networkMode) {
-      this.ui.setMessage(UIText.networkCannotConcede, 2000);
+      this.ui.setMessage(UIText.networkCannotConcede, 2000, 2);
       return;
     }
     const winner = this.currentPlayer === 1 ? 2 : 1;
-    this.ui.setMessage(UIText.concedeWinner(winner), 0);
+    this.ui.setMessage(UIText.concedeWinner(winner), 0, 3);
     this.state = 'GAME_OVER';
+    this.ui.setHUDState('GAME_OVER');
     if (this.cue) this.cue.hide();
 
     // Notify rules engine
@@ -2921,6 +2973,9 @@ export class Game {
     this.power = 0;
     this.ui.setPower(0);
     this.recorder.reset();
+    if (this.analyzerPanel) {
+      this.analyzerPanel.hide();
+    }
     this.gameStartTime = performance.now();
   }
 
@@ -2933,6 +2988,10 @@ export class Game {
     if (this._cameraResetTimer) {
       clearTimeout(this._cameraResetTimer);
       this._cameraResetTimer = null;
+    }
+    if (this._spectatorAutoStartTimer) {
+      clearTimeout(this._spectatorAutoStartTimer);
+      this._spectatorAutoStartTimer = null;
     }
     // Remove canvas rect resize listener
     if (this._updateCanvasRect) {
@@ -3099,6 +3158,14 @@ export class Game {
       try { this.achievementPanel.destroy(); } catch (e) {}
       this.achievementPanel = null;
     }
+    if (this.inGameSettings) {
+      try { this.inGameSettings.destroy(); } catch (e) {}
+      this.inGameSettings = null;
+    }
+    if (this.analyzerPanel) {
+      try { this.analyzerPanel.destroy(); } catch (e) {}
+      this.analyzerPanel = null;
+    }
 
     // Remove challenge HUD
     const chHud = document.getElementById('challenge-hud');
@@ -3127,12 +3194,6 @@ export class Game {
       this._netDisconnectTimer = null;
     }
 
-    // Clean up in-game settings screen
-    if (this.inGameSettings) {
-      try { this.inGameSettings.destroy(); } catch (e) {}
-      this.inGameSettings = null;
-    }
-
     // Clean up onboarding tips
     if (this.onboardingTips) {
       this.onboardingTips.destroy();
@@ -3147,7 +3208,10 @@ export class Game {
 
     // Null out remaining references to aid GC
     this.onReturnToMenu = null;
-    this.recorder = null;
+    if (this.recorder) {
+      this.recorder.reset();
+      this.recorder = null;
+    }
     this.challengeManager = null;
     this.statsTracker = null;
     this.statsPanel = null;

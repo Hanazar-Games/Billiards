@@ -206,6 +206,7 @@ export class Renderer {
     this._cameraDragMode = mode;
     this._cameraLastX = e.clientX;
     this._cameraLastY = e.clientY;
+    this._cameraPointerId = e.pointerId;
     this._updateCameraCursor(true);
     if (this.renderer.domElement.setPointerCapture) {
       this.renderer.domElement.setPointerCapture(e.pointerId);
@@ -216,8 +217,8 @@ export class Renderer {
   onCameraPointerMove(e) {
     if (!this._cameraDragMode) return;
 
-    const invX = (settings.get('invertMouseX') !== false) ? -1 : 1;
-    const invY = (settings.get('invertMouseY') !== false) ? -1 : 1;
+    const invX = (settings.get('invertMouseX') === true) ? -1 : 1;
+    const invY = (settings.get('invertMouseY') === true) ? -1 : 1;
     const dx = (e.clientX - this._cameraLastX) * invX;
     const dy = (e.clientY - this._cameraLastY) * invY;
     this._cameraLastX = e.clientX;
@@ -314,8 +315,8 @@ export class Renderer {
   }
 
   onWheel(e) {
-    const invX = (settings.get('invertMouseX') !== false) ? -1 : 1;
-    const invY = (settings.get('invertMouseY') !== false) ? -1 : 1;
+    const invX = (settings.get('invertMouseX') === true) ? -1 : 1;
+    const invY = (settings.get('invertMouseY') === true) ? -1 : 1;
     let dx = e.deltaX * invX;
     let dy = e.deltaY * invY;
     if (e.deltaMode === 1) { // LINE
@@ -433,9 +434,10 @@ export class Renderer {
       this.controls.dispose();
     }
     // Release any active pointer capture to prevent stuck pointers
-    if (this.renderer && this.renderer.domElement) {
+    if (this.renderer && this.renderer.domElement && this.renderer.domElement.releasePointerCapture) {
       try {
-        this.renderer.domElement.releasePointerCapture && this.renderer.domElement.releasePointerCapture(1);
+        const pid = this._cameraPointerId ?? 1;
+        this.renderer.domElement.releasePointerCapture(pid);
       } catch (e) {}
     }
     this.renderer.dispose();

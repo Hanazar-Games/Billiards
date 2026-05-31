@@ -314,7 +314,9 @@ export class KeyBindings {
 
     // Handle simple single-key bindings
     if (!boundLower.includes('+')) {
-      return pressedLower === boundLower;
+      // Single-key binding must match exactly with no modifiers pressed
+      const noMods = !modifiers.ctrl && !modifiers.shift && !modifiers.alt && !modifiers.meta;
+      return pressedLower === boundLower && noMods;
     }
 
     // Handle chord bindings like "ctrl+z", "shift+tab", "meta+shift+s"

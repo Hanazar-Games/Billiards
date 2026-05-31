@@ -178,6 +178,7 @@ const DEFAULTS = {
   touchButtonScale: 1.0,
 
   // ── Replay & Stats ──
+  shotAnalyzerEnabled: true,
   autoSaveReplays: true,
   replayQuality: 'standard', // 'compact' | 'standard' | 'high'
   replayMaxSaved: 50,
