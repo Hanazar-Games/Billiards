@@ -38,6 +38,9 @@ import { MatchManager } from '../game/MatchManager.js';
 import { animMs } from '../core/AnimSpeed.js';
 import { MATCH_FAIRNESS_KEYS } from '../core/SettingsStore.js';
 import { SpectatorMode } from '../spectator/SpectatorMode.js';
+import { TournamentPanel } from '../tournament/TournamentPanel.js';
+import { TournamentResult } from '../tournament/TournamentResult.js';
+import { TournamentEngine } from '../tournament/TournamentEngine.js';
 
 
 export class MenuSystem {
@@ -91,6 +94,12 @@ export class MenuSystem {
     this.drillManager = null;
     this.activeDrill = null;
 
+    // Tournament system
+    this.tournamentPanel = null;
+    this.tournamentResult = null;
+    this._tournamentPlayerName = null;
+    this._tournamentOpponentName = null;
+
     this._initAudio().then(() => {
       this._setupMenu();
       if (typeof window !== 'undefined' && window.updateLoadingProgress) {
@@ -126,6 +135,76 @@ export class MenuSystem {
     }
   }
 
+  // ── Lifecycle helpers ──
+
+  /** Hide all transient panels before entering a mode or showing a sub-screen. */
+  _hideAllPanels(except = new Set()) {
+    const hide = (panel) => { if (panel && !except.has(panel)) panel.hide?.(); };
+    hide(this.settingsScreen);
+    if (this.replayPanel && !except.has(this.replayPanel)) this.replayPanel.hideList?.();
+    hide(this.achievementPanel);
+    hide(this.challengePanel);
+    hide(this.challengeResult);
+    hide(this.trainerPanel);
+    hide(this.trainerResult);
+    if (this.lanRoomPanel && !except.has(this.lanRoomPanel)) {
+      this.lanRoomPanel.destroy?.();
+      this.lanRoomPanel = null;
+    }
+    if (this.matchSetupPanel && !except.has(this.matchSetupPanel)) {
+      this.matchSetupPanel.destroy?.();
+      this.matchSetupPanel = null;
+    }
+    if (this.tournamentPanel && !except.has(this.tournamentPanel)) {
+      this.tournamentPanel.hide?.();
+    }
+    if (this.tournamentResult && !except.has(this.tournamentResult)) {
+      this.tournamentResult.hide?.();
+    }
+  }
+
+  /** Dispose active game + loop + spectator. */
+  _disposeCurrentGame() {
+    if (this.loop) { this.loop.stop(); this.loop = null; }
+    if (this.game) { this.game.dispose(); this.game = null; }
+    if (this.spectator) { this.spectator.dispose(); this.spectator = null; }
+  }
+
+  /** Fade menu-layer out and show game UI. Returns false if state changed during fade. */
+  async _fadeToGame() {
+    const menuLayer = document.getElementById('menu-layer');
+    if (menuLayer) {
+      menuLayer.style.transition = 'opacity calc(0.5s / var(--ui-anim-speed)) ease';
+      menuLayer.style.opacity = '0';
+    }
+    await this._delay(animMs(500));
+    if (this.state !== 'TRANSITION') return false;
+    if (menuLayer) menuLayer.style.display = 'none';
+    const uiLayer = document.getElementById('ui-layer');
+    if (uiLayer) uiLayer.style.display = 'flex';
+    return true;
+  }
+
+  /** Fade menu-layer in and hide game UI. */
+  _fadeToMenu() {
+    const uiLayer = document.getElementById('ui-layer');
+    if (uiLayer) uiLayer.style.display = 'none';
+    const menuLayer = document.getElementById('menu-layer');
+    if (menuLayer) {
+      menuLayer.style.display = 'flex';
+      menuLayer.style.transition = 'opacity calc(0.5s / var(--ui-anim-speed)) ease';
+      menuLayer.style.opacity = '0';
+      requestAnimationFrame(() => { menuLayer.style.opacity = '1'; });
+    }
+  }
+
+  /** Clear common timeouts that may be pending across modes. */
+  _clearPendingTimeouts() {
+    if (this._delayTimer) { clearTimeout(this._delayTimer); this._delayTimer = null; }
+    if (this._delayResolve) { this._delayResolve(); this._delayResolve = null; }
+    if (this._replayCompleteTimeout) { clearTimeout(this._replayCompleteTimeout); this._replayCompleteTimeout = null; }
+  }
+
   _setupMenu() {
     if (this.state === 'DESTROYED') return;
     // Ensure menu-layer exists
@@ -156,7 +235,8 @@ export class MenuSystem {
       () => this._quit(),
       () => this._showLanRoom(),
       () => this._showMatchSetup(),
-      () => this._showTrainer()
+      () => this._showTrainer(),
+      () => this._showTournament()
     );
 
     // Create achievement panel (for viewing from menu)
@@ -189,15 +269,7 @@ export class MenuSystem {
   }
 
   _showSettings() {
-    this.mainMenu.hide();
-    if (this.replayPanel) this.replayPanel.hideList();
-    if (this.achievementPanel) this.achievementPanel.hideWall?.();
-    if (this.challengePanel) this.challengePanel.hide();
-    if (this.challengeResult) this.challengeResult.hide();
-    if (this.trainerPanel) this.trainerPanel.hide();
-    if (this.trainerResult) this.trainerResult.hide();
-    if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
-    if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
+    this._hideAllPanels(new Set([this.settingsScreen]));
     // Lock fairness keys for clients and local matches; host can still change them
     const fairnessKeys = Array.from(MATCH_FAIRNESS_KEYS);
     const role = this.game?.networkRole;
@@ -210,41 +282,21 @@ export class MenuSystem {
   _showMainMenu() {
     if (this.state === 'DESTROYED') return;
     this.state = 'MENU';
-    this.settingsScreen.hide();
+    this._hideAllPanels(new Set([this.mainMenu]));
     if (this.replayPanel) { this.replayPanel.destroy(); this.replayPanel = null; }
-    if (this.achievementPanel) this.achievementPanel.hideWall();
-    if (this.challengePanel) this.challengePanel.hide();
-    if (this.trainerPanel) this.trainerPanel.hide();
-    if (this.challengeResult) { this.challengeResult.destroy(); this.challengeResult = null; }
-    if (this.trainerResult) { this.trainerResult.destroy(); this.trainerResult = null; }
-    if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
-    if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
     this.mainMenu.show();
+    if (this.audio && this.audio.soundEnabled) {
+      this.audio.startBGM();
+    }
   }
 
   _showAchievements() {
-    this.mainMenu.hide();
-    if (this.settingsScreen) this.settingsScreen.hide();
-    if (this.replayPanel) this.replayPanel.hideList();
-    if (this.challengePanel) this.challengePanel.hide();
-    if (this.challengeResult) this.challengeResult.hide();
-    if (this.trainerPanel) this.trainerPanel.hide();
-    if (this.trainerResult) this.trainerResult.hide();
-    if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
-    if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
+    this._hideAllPanels(new Set([this.achievementPanel]));
     this.achievementPanel.showWall();
   }
 
   _showReplays() {
-    this.mainMenu.hide();
-    if (this.settingsScreen) this.settingsScreen.hide();
-    if (this.achievementPanel) this.achievementPanel.hideWall?.();
-    if (this.challengePanel) this.challengePanel.hide();
-    if (this.challengeResult) this.challengeResult.hide();
-    if (this.trainerPanel) this.trainerPanel.hide();
-    if (this.trainerResult) this.trainerResult.hide();
-    if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
-    if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
+    this._hideAllPanels(new Set([this.replayPanel]));
     if (!this.replayPanel) {
       this.replayPanel = new ReplayPanel(
         this.replayLibrary,
@@ -259,15 +311,7 @@ export class MenuSystem {
 
   _showChallenges() {
     this.state = 'MENU';
-    this.mainMenu.hide();
-    if (this.settingsScreen) this.settingsScreen.hide();
-    if (this.replayPanel) this.replayPanel.hideList();
-    if (this.achievementPanel) this.achievementPanel.hideWall?.();
-    if (this.challengeResult) this.challengeResult.hide();
-    if (this.trainerPanel) this.trainerPanel.hide();
-    if (this.trainerResult) this.trainerResult.hide();
-    if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
-    if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
+    this._hideAllPanels(new Set([this.challengePanel]));
     if (!this.challengePanel) {
       this.challengePanel = new ChallengePanel(
         (challenge) => this._startChallenge(challenge),
@@ -279,15 +323,7 @@ export class MenuSystem {
 
   _showTrainer() {
     this.state = 'MENU';
-    this.mainMenu.hide();
-    if (this.settingsScreen) this.settingsScreen.hide();
-    if (this.replayPanel) this.replayPanel.hideList();
-    if (this.achievementPanel) this.achievementPanel.hideWall?.();
-    if (this.challengePanel) this.challengePanel.hide();
-    if (this.challengeResult) this.challengeResult.hide();
-    if (this.trainerResult) this.trainerResult.hide();
-    if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
-    if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
+    this._hideAllPanels(new Set([this.trainerPanel]));
     if (!this.trainerPanel) {
       this.trainerPanel = new TrainerPanel(
         (drill) => this._startTrainer(drill),
@@ -297,41 +333,19 @@ export class MenuSystem {
     this.trainerPanel.show();
   }
 
+  _showTournament() {
+    // Placeholder: tournament mode UI not yet implemented
+    console.warn('Tournament mode UI not yet implemented');
+  }
+
   async _startTrainer(drill) {
     if (this.state === 'TRANSITION') return;
     if (this.state !== 'MENU') return;
     this.state = 'TRANSITION';
 
-    // Dispose any existing game instance before creating a new one
-    if (this.game) {
-      try { this.game.dispose(); } catch (e) { console.warn('Old game dispose error:', e); }
-      this.game = null;
-    }
-    if (this.loop) {
-      this.loop.stop();
-      this.loop = null;
-    }
-
-    if (this.trainerPanel) this.trainerPanel.hide();
-    if (this.trainerResult) this.trainerResult.hide();
-    if (this.replayPanel) this.replayPanel.hideList();
-    if (this.achievementPanel) this.achievementPanel.hideWall();
-
-    // Hide menu
-    const menuLayer = document.getElementById('menu-layer');
-    if (menuLayer) {
-      menuLayer.style.transition = 'opacity calc(0.5s / var(--ui-anim-speed)) ease';
-      menuLayer.style.opacity = '0';
-    }
-    await this._delay(animMs(500));
-    if (this.state !== 'TRANSITION') return;
-    if (menuLayer) menuLayer.style.display = 'none';
-
-    // Show game UI
-    const uiLayer = document.getElementById('ui-layer');
-    if (uiLayer) uiLayer.style.display = 'flex';
-
-    // Stop menu BGM before entering trainer
+    this._disposeCurrentGame();
+    const faded = await this._fadeToGame();
+    if (!faded) return;
     if (this.audio) this.audio.stopBGM(false);
 
     // Create drill manager with absolute ideal zone
@@ -360,8 +374,7 @@ export class MenuSystem {
       this.drillManager = null;
       this.activeDrill = null;
       this.state = 'MENU';
-      if (menuLayer) { menuLayer.style.display = 'flex'; menuLayer.style.opacity = '1'; }
-      if (uiLayer) uiLayer.style.display = 'none';
+      this._fadeToMenu();
       return;
     }
     this.game.onReturnToMenu = () => this._stopTrainer();
@@ -385,6 +398,7 @@ export class MenuSystem {
   async _stopTrainer() {
     if (this.state !== 'PLAYING') return;
     this.state = 'TRANSITION';
+    this._clearPendingTimeouts();
 
     // Stop game loop
     if (this.loop) {
@@ -397,6 +411,11 @@ export class MenuSystem {
       this.game.dispose();
       this.game = null;
     }
+
+    // Dispose spectator/analyzer if lingering
+    if (this.spectator) { this.spectator.dispose(); this.spectator = null; }
+    if (this.analyzerPanel) { this.analyzerPanel.destroy(); this.analyzerPanel = null; }
+    if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; }
 
     // Hide game UI
     const uiLayer = document.getElementById('ui-layer');
@@ -440,14 +459,10 @@ export class MenuSystem {
       );
     }
 
-    // Restore menu-layer
-    const menuLayer = document.getElementById('menu-layer');
-    if (menuLayer) {
-      menuLayer.style.display = 'flex';
-      menuLayer.style.opacity = '1';
-    }
-
+    this._fadeToMenu();
     this.drillManager = null;
+    this.activeDrill = null;
+    this.state = 'MENU';
 
     // Restart menu BGM
     if (this.audio && this.audio.soundEnabled) {
@@ -460,36 +475,9 @@ export class MenuSystem {
     if (this.state !== 'MENU') return;
     this.state = 'TRANSITION';
 
-    // Dispose any existing game instance before creating a new one
-    if (this.game) {
-      try { this.game.dispose(); } catch (e) { console.warn('Old game dispose error:', e); }
-      this.game = null;
-    }
-    if (this.loop) {
-      this.loop.stop();
-      this.loop = null;
-    }
-
-    if (this.challengePanel) this.challengePanel.hide();
-    if (this.challengeResult) this.challengeResult.hide();
-    if (this.replayPanel) this.replayPanel.hideList();
-    if (this.achievementPanel) this.achievementPanel.hideWall();
-
-    // Hide menu
-    const menuLayer = document.getElementById('menu-layer');
-    if (menuLayer) {
-      menuLayer.style.transition = 'opacity calc(0.5s / var(--ui-anim-speed)) ease';
-      menuLayer.style.opacity = '0';
-    }
-    await this._delay(animMs(500));
-    if (this.state !== 'TRANSITION') return;
-    if (menuLayer) menuLayer.style.display = 'none';
-
-    // Show game UI
-    const uiLayer = document.getElementById('ui-layer');
-    if (uiLayer) uiLayer.style.display = 'flex';
-
-    // Stop menu BGM before entering challenge
+    this._disposeCurrentGame();
+    const faded = await this._fadeToGame();
+    if (!faded) return;
     if (this.audio) this.audio.stopBGM(false);
 
     // Create challenge manager
@@ -524,8 +512,7 @@ export class MenuSystem {
       this.challengeManager = null;
       this.activeChallenge = null;
       this.state = 'MENU';
-      if (menuLayer) { menuLayer.style.display = 'flex'; menuLayer.style.opacity = '1'; }
-      if (uiLayer) uiLayer.style.display = 'none';
+      this._fadeToMenu();
       return;
     }
     this.game.onReturnToMenu = () => this._stopChallenge();
@@ -549,6 +536,7 @@ export class MenuSystem {
   async _stopChallenge() {
     if (this.state !== 'PLAYING') return;
     this.state = 'TRANSITION';
+    this._clearPendingTimeouts();
 
     // Stop game loop
     if (this.loop) {
@@ -561,6 +549,11 @@ export class MenuSystem {
       this.game.dispose();
       this.game = null;
     }
+
+    // Dispose spectator/analyzer if lingering
+    if (this.spectator) { this.spectator.dispose(); this.spectator = null; }
+    if (this.analyzerPanel) { this.analyzerPanel.destroy(); this.analyzerPanel = null; }
+    if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; }
 
     // Hide game UI
     const uiLayer = document.getElementById('ui-layer');
@@ -598,18 +591,18 @@ export class MenuSystem {
       );
     }
 
-    // Restore menu-layer so challenge result / panel have the menu visible underneath
-    const menuLayer = document.getElementById('menu-layer');
-    if (menuLayer) {
-      menuLayer.style.display = 'flex';
-      menuLayer.style.opacity = '1';
-    }
-
+    this._fadeToMenu();
     this.challengeManager = null;
     this.activeChallenge = null;
+    this.state = 'MENU';
+
+    // Restart menu BGM
+    if (this.audio && this.audio.soundEnabled) {
+      this.audio.startBGM();
+    }
   }
 
-  async _startGame(mode, networkClient = null, networkRole = null, localPlayerId = 1, matchStatus = null, tableProfileId = null) {
+  async _startGame(mode, networkClient = null, networkRole = null, localPlayerId = 1, matchStatus = null, tableProfileId = null, overrideConfig = null) {
     const ALLOWED_START_STATES = new Set(['MENU', 'TRANSITION']);
     if (!ALLOWED_START_STATES.has(this.state) && !networkClient && !matchStatus) return;
     if (this.state === 'TRANSITION') {
@@ -618,41 +611,11 @@ export class MenuSystem {
     }
     this.state = 'TRANSITION';
 
-    // Dispose any existing game instance before creating a new one
-    if (this.game) {
-      try { this.game.dispose(); } catch (e) { console.warn('Old game dispose error:', e); }
-      this.game = null;
-    }
-    if (this.loop) {
-      this.loop.stop();
-      this.loop = null;
-    }
-
-    // Hide any open panels before starting the game
+    this._disposeCurrentGame();
     if (this.replayPanel) this.replayPanel.hideList();
     if (this.achievementPanel) this.achievementPanel.hideWall();
-
-    // Hide menu
-    const menuLayer = document.getElementById('menu-layer');
-    if (menuLayer) {
-      menuLayer.style.transition = 'opacity calc(0.5s / var(--ui-anim-speed)) ease';
-      menuLayer.style.opacity = '0';
-    }
-
-    // Wait for fade-out
-    await this._delay(animMs(500));
-    if (this.state !== 'TRANSITION') {
-      // State changed during fade (e.g., quit) — restore menu visibility
-      if (menuLayer) { menuLayer.style.display = 'flex'; menuLayer.style.opacity = '1'; }
-      return;
-    }
-    if (menuLayer) menuLayer.style.display = 'none';
-
-    // Show game UI
-    const uiLayer = document.getElementById('ui-layer');
-    if (uiLayer) uiLayer.style.display = 'flex';
-
-    // Stop menu BGM before entering game
+    const faded = await this._fadeToGame();
+    if (!faded) return;
     if (this.audio) this.audio.stopBGM(false);
 
     // Create new Game instance
@@ -683,7 +646,7 @@ export class MenuSystem {
     }
 
     // Configure mode
-    const modeConfig = this._getModeConfig(mode, tableProfileId);
+    const modeConfig = overrideConfig || this._getModeConfig(mode, tableProfileId);
 
     // Initialize game with mode
     try {
@@ -693,9 +656,16 @@ export class MenuSystem {
       try { this.game.dispose(); } catch (e) {}
       this.game = null;
       this.state = 'MENU';
-      if (menuLayer) { menuLayer.style.display = 'flex'; menuLayer.style.opacity = '1'; }
-      if (uiLayer) uiLayer.style.display = 'none';
+      this._fadeToMenu();
       return;
+    }
+
+    // Apply tournament HUD names if present
+    if (this._tournamentPlayerName && this.game) {
+      this.game.networkPlayer1Name = this._tournamentPlayerName;
+      this.game.networkPlayer2Name = this._tournamentOpponentName || 'AI';
+      this._tournamentPlayerName = null;
+      this._tournamentOpponentName = null;
     }
 
     // Set up match mode if provided
@@ -733,15 +703,7 @@ export class MenuSystem {
   }
 
   _showLanRoom() {
-    this.mainMenu.hide();
-    if (this.settingsScreen) this.settingsScreen.hide();
-    if (this.replayPanel) this.replayPanel.hideList();
-    if (this.achievementPanel) this.achievementPanel.hideWall?.();
-    if (this.challengePanel) this.challengePanel.hide();
-    if (this.challengeResult) this.challengeResult.hide();
-    if (this.trainerPanel) this.trainerPanel.hide();
-    if (this.trainerResult) this.trainerResult.hide();
-    if (this.matchSetupPanel) { this.matchSetupPanel.hide?.(true); this.matchSetupPanel = null; }
+    this._hideAllPanels(new Set([this.lanRoomPanel]));
     if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; }
     this.lanRoomPanel = new LanRoomPanel(
       (client, mode, tableProfileId) => this._startNetworkGame(client, mode, tableProfileId),
@@ -759,15 +721,7 @@ export class MenuSystem {
   // ── Local Match Mode ──
 
   _showMatchSetup() {
-    this.mainMenu.hide();
-    if (this.settingsScreen) this.settingsScreen.hide();
-    if (this.replayPanel) this.replayPanel.hideList();
-    if (this.achievementPanel) this.achievementPanel.hideWall?.();
-    if (this.challengePanel) this.challengePanel.hide();
-    if (this.challengeResult) this.challengeResult.hide();
-    if (this.trainerPanel) this.trainerPanel.hide();
-    if (this.trainerResult) this.trainerResult.hide();
-    if (this.lanRoomPanel) { this.lanRoomPanel.hide?.(true); this.lanRoomPanel = null; }
+    this._hideAllPanels(new Set([this.matchSetupPanel]));
     if (this.matchSetupPanel) { this.matchSetupPanel.destroy(); this.matchSetupPanel = null; }
     this.matchSetupPanel = new MatchSetupPanel(
       (config) => this._startMatchGame(config),
@@ -863,33 +817,11 @@ export class MenuSystem {
     if (this.state !== 'PLAYING') return;
     this.state = 'TRANSITION';
 
-    // Clear pending timeouts
-    if (this._delayTimer) { clearTimeout(this._delayTimer); this._delayTimer = null; }
-    if (this._delayResolve) { this._delayResolve(); this._delayResolve = null; }
-    if (this._replayCompleteTimeout) { clearTimeout(this._replayCompleteTimeout); this._replayCompleteTimeout = null; }
-
-    // Stop game loop
-    if (this.loop) {
-      this.loop.stop();
-      this.loop = null;
-    }
-
-    // Dispose game
-    if (this.game) {
-      this.game.dispose();
-      this.game = null;
-    }
-
-    // Dispose spectator mode
-    if (this.spectator) {
-      this.spectator.dispose();
-      this.spectator = null;
-    }
+    this._clearPendingTimeouts();
+    this._disposeCurrentGame();
 
     // Clear match engine when leaving match mode
-    if (this.matchManager) {
-      this.matchManager = null;
-    }
+    if (this.matchManager) { this.matchManager = null; }
 
     // Clear challenge/trainer references to prevent stale state
     if (this.challengeManager) { this.challengeManager = null; }
@@ -897,36 +829,15 @@ export class MenuSystem {
     if (this.drillManager) { this.drillManager = null; }
     if (this.activeDrill) { this.activeDrill = null; }
 
-    // Clean up LAN room panel if present
-    if (this.lanRoomPanel) {
-      this.lanRoomPanel.destroy();
-      this.lanRoomPanel = null;
-    }
-    // Clean up analyzer panel if present
-    if (this.analyzerPanel) {
-      this.analyzerPanel.destroy();
-      this.analyzerPanel = null;
-    }
-
-    // Hide game UI
-    const uiLayer = document.getElementById('ui-layer');
-    if (uiLayer) uiLayer.style.display = 'none';
-
-    // Show menu layer
-    const menuLayer = document.getElementById('menu-layer');
-    if (menuLayer) {
-      menuLayer.style.display = 'flex';
-      menuLayer.style.transition = 'opacity calc(0.5s / var(--ui-anim-speed)) ease';
-      menuLayer.style.opacity = '0';
-      requestAnimationFrame(() => {
-        menuLayer.style.opacity = '1';
-      });
-    }
+    // Clean up LAN room panel / analyzer panel if present
+    if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; }
+    if (this.analyzerPanel) { this.analyzerPanel.destroy(); this.analyzerPanel = null; }
 
     // Show main menu
     if (this.challengeResult) { this.challengeResult.destroy(); this.challengeResult = null; }
     if (this.trainerResult) { this.trainerResult.destroy(); this.trainerResult = null; }
     this.mainMenu.show();
+    this._fadeToMenu();
     this.state = 'MENU';
 
     // Restart menu BGM if sound is enabled
@@ -942,6 +853,9 @@ export class MenuSystem {
     if (this.state !== 'MENU') return;
     this.state = 'REPLAY';
     if (this.audio) this.audio.stopBGM(false);
+
+    // Clean up any lingering replay resources
+    this._cleanupReplayScene();
 
     // Hide replay list
     if (this.replayPanel) this.replayPanel.hideList();
@@ -1007,7 +921,7 @@ export class MenuSystem {
 
     // Start replay loop
     this._replayLastTime = performance.now();
-    this._replayTick();
+    this._replayRafId = requestAnimationFrame(() => this._replayTick());
   }
 
   _replayTick() {
@@ -1029,21 +943,23 @@ export class MenuSystem {
     }
     this.renderer.render();
 
-    requestAnimationFrame(() => this._replayTick());
+    this._replayRafId = requestAnimationFrame(() => this._replayTick());
   }
 
   _stopReplayPlayback() {
     if (this.state !== 'REPLAY') return;
     this.state = 'TRANSITION';
-
-    // Cancel pending auto-stop timeout
-    if (this._replayCompleteTimeout) {
-      clearTimeout(this._replayCompleteTimeout);
-      this._replayCompleteTimeout = null;
+    this._clearPendingTimeouts();
+    if (this._replayRafId) {
+      cancelAnimationFrame(this._replayRafId);
+      this._replayRafId = null;
     }
-    if (this._delayTimer) {
-      clearTimeout(this._delayTimer);
-      this._delayTimer = null;
+    // Clear replay panel button handlers to prevent stale closures
+    if (this.replayPanel) {
+      this.replayPanel.playBtn.onclick = null;
+      this.replayPanel.speedBtn.onclick = null;
+      this.replayPanel.exitBtn.onclick = null;
+      this.replayPanel.progressBar.onclick = null;
     }
 
     // Stop replay engine
@@ -1058,6 +974,23 @@ export class MenuSystem {
     }
 
     // Clean up replay scene objects
+    this._cleanupReplayScene();
+
+    // Show main menu
+    if (this.trainerResult) { this.trainerResult.destroy(); this.trainerResult = null; }
+    this.mainMenu.show();
+    this._fadeToMenu();
+    this.state = 'MENU';
+    this._startMenuLoop();
+
+    // Restart menu BGM
+    if (this.audio && this.audio.soundEnabled) {
+      this.audio.startBGM();
+    }
+  }
+
+  /** Helper: remove replay table/balls from scene and physics. */
+  _cleanupReplayScene() {
     if (this._replayBalls) {
       for (const ball of this._replayBalls.balls) {
         this.renderer.scene.remove(ball.mesh);
@@ -1071,28 +1004,6 @@ export class MenuSystem {
       this.physics.removeTableBody();
       this._replayTable.dispose();
       this._replayTable = null;
-    }
-
-    // Show menu layer
-    const menuLayer = document.getElementById('menu-layer');
-    if (menuLayer) {
-      menuLayer.style.display = 'flex';
-      menuLayer.style.transition = 'opacity calc(0.5s / var(--ui-anim-speed)) ease';
-      menuLayer.style.opacity = '0';
-      requestAnimationFrame(() => {
-        menuLayer.style.opacity = '1';
-      });
-    }
-
-    // Show main menu
-    if (this.challengeResult) { this.challengeResult.destroy(); this.challengeResult = null; }
-    this.mainMenu.show();
-    this.state = 'MENU';
-    this._startMenuLoop();
-
-    // Restart menu BGM
-    if (this.audio && this.audio.soundEnabled) {
-      this.audio.startBGM();
     }
   }
 
@@ -1123,8 +1034,9 @@ export class MenuSystem {
   }
 
   _quit() {
-    // Stop all loops and timeouts
     this.state = 'DESTROYED';
+    this._clearPendingTimeouts();
+
     if (this._menuLoopId !== null) {
       cancelAnimationFrame(this._menuLoopId);
       this._menuLoopId = null;
@@ -1133,18 +1045,12 @@ export class MenuSystem {
       this.loop.stop();
       this.loop = null;
     }
-    if (this._replayCompleteTimeout) {
-      clearTimeout(this._replayCompleteTimeout);
-      this._replayCompleteTimeout = null;
-    }
-    if (this._delayTimer) {
-      clearTimeout(this._delayTimer);
-      this._delayTimer = null;
-    }
 
-    // Clean up game and replay
+    // Clean up game, spectator, replay
     try { if (this.game) this.game.dispose(); } catch (e) { console.warn('Game dispose error:', e); }
+    try { if (this.spectator) this.spectator.dispose(); } catch (e) {}
     try { if (this.replayEngine) this.replayEngine.stop(); } catch (e) {}
+    this._cleanupReplayScene();
     try { if (this.replayPanel) this.replayPanel.destroy(); } catch (e) {}
     try { if (this.challengePanel) this.challengePanel.destroy(); } catch (e) {}
     try { if (this.challengeResult) this.challengeResult.destroy(); } catch (e) {}
@@ -1153,10 +1059,12 @@ export class MenuSystem {
     try { if (this.trainerResult) { this.trainerResult.destroy(); this.trainerResult = null; } } catch (e) {}
     try { if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; } } catch (e) {}
     try { if (this.analyzerPanel) { this.analyzerPanel.destroy(); this.analyzerPanel = null; } } catch (e) {}
+    try { if (this.matchSetupPanel) { this.matchSetupPanel.destroy(); this.matchSetupPanel = null; } } catch (e) {}
+    try { if (this.tournamentPanel) { this.tournamentPanel.destroy(); this.tournamentPanel = null; } } catch (e) {}
+    try { if (this.tournamentResult) { this.tournamentResult.destroy(); this.tournamentResult = null; } } catch (e) {}
 
     // Clean up shared core
     this.renderer.dispose();
-    // Remove bodies by copying array first to avoid mutation-during-iteration
     const bodies = this.physics?.world?.bodies ? [...this.physics.world.bodies] : [];
     bodies.forEach((b) => {
       try { this.physics.world.removeBody(b); } catch (e) {}
@@ -1168,16 +1076,14 @@ export class MenuSystem {
       this.audio = null;
     }
 
-    if (this._menuLoopId !== null) { cancelAnimationFrame(this._menuLoopId); this._menuLoopId = null; }
-    if (this._replayCompleteTimeout) { clearTimeout(this._replayCompleteTimeout); this._replayCompleteTimeout = null; }
-    if (this._delayTimer) { clearTimeout(this._delayTimer); this._delayTimer = null; }
-    if (this._delayResolve) { this._delayResolve(); this._delayResolve = null; }
     this.mainMenu?.destroy();
     this.settingsScreen?.destroy();
     this.mainMenu = null;
     this.settingsScreen = null;
 
-    // Remove menu-layer from DOM so a fresh MenuSystem starts clean
+    // Hide UI layer and remove menu-layer from DOM
+    const uiLayer = document.getElementById('ui-layer');
+    if (uiLayer) uiLayer.style.display = 'none';
     const menuLayer = document.getElementById('menu-layer');
     if (menuLayer && menuLayer.parentNode) {
       menuLayer.parentNode.removeChild(menuLayer);

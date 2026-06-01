@@ -12,7 +12,7 @@ import { VERSION_TAG } from '../core/Version.js';
  *  - Back button when returning from settings
  */
 export class MainMenuScreen {
-  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onShowChallenges, onQuit, onLanMultiplayer, onMatchSetup, onShowTrainer) {
+  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onShowChallenges, onQuit, onLanMultiplayer, onMatchSetup, onShowTrainer, onShowTournament) {
     this.onSelectMode = onSelectMode || (() => {});
     this.onSettings = onSettings;
     this.onAchievements = onAchievements;
@@ -22,6 +22,7 @@ export class MainMenuScreen {
     this.onLanMultiplayer = onLanMultiplayer;
     this.onMatchSetup = onMatchSetup;
     this.onShowTrainer = onShowTrainer;
+    this.onShowTournament = onShowTournament;
     this.container = null;
     this._fadeTimer = null;
     this._hideTimer = null;
@@ -91,6 +92,9 @@ export class MainMenuScreen {
     });
     this._addButton(playGroup, '本地比赛', '自定义名字与赛制 · 8 球或 9 球 · 单局/三局/五局', () => {
       if (this.onMatchSetup) this.onMatchSetup();
+    });
+    this._addButton(playGroup, '冠军锦标赛', '8人单淘汰 · progressively harder AI · 争夺金杯', () => {
+      if (this.onShowTournament) this.onShowTournament();
     });
 
     // ── Section: 练习与挑战 ──
@@ -262,5 +266,6 @@ export class MainMenuScreen {
     this.onLanMultiplayer = null;
     this.onMatchSetup = null;
     this.onShowTrainer = null;
+    this.onShowTournament = null;
   }
 }

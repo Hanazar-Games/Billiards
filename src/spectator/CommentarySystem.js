@@ -333,7 +333,8 @@ export class CommentarySystem {
       this._displayedText = this._currentLine;
       this._charIndex = this._currentLine.length;
       this._typeTimer += dt * 1000;
-      if (this._typeTimer > 2500) this._startNextLine();
+      const speed = Math.max(0.5, Math.min(1.5, settings.get('uiAnimSpeed') ?? 1));
+      if (this._typeTimer > 2500 / speed) this._startNextLine();
       return;
     }
 

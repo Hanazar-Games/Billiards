@@ -1172,8 +1172,6 @@ export class UI {
       this._confirmKeyHandler = null;
     }
     this._confirmOverlay = null;
-    if (this.player1Badge) this.player1Badge.textContent = this._player1Name?.textContent || '玩家 1';
-    if (this.player2Badge) this.player2Badge.textContent = this._player2Name?.textContent || '玩家 2';
     this._player1Name = null;
     this._player2Name = null;
     this._player1Detail = null;

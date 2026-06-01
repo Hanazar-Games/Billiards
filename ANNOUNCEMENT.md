@@ -1,4 +1,38 @@
-# 3D Billiards v1.8.5 — Latest Update
+# 3D Billiards v1.8.6 — Latest Update
+
+## What's New in v1.8.6
+
+### 🔧 Global Deep Audit — UI/UX/SFX/BGM & Lifecycle Fix Round
+
+**🔴 Critical — Runtime Errors & Memory Leaks (4 项)**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 1 | `MenuSystem._replayTick()` 使用 RAF 循环但未存储 id，`_stopReplayPlayback()` 无法取消，导致 replay 停止后仍多执行一帧甚至持续泄漏 | 新增 `this._replayRafId`，停止时 `cancelAnimationFrame` |
+| 2 | `SpectatorMode._onBallPocketed()` 中 `ball.mesh.position.x` 未防御 `mesh` 为 null（球被 pocketed 后 mesh 可能已被移除） | 增加 `ball.mesh` 存在性检查后再访问位置 |
+| 3 | `SpectatorMode.onFoul/onMiss/onSafety` 未检查 `this.active`，stop/dispose 后仍被外部调用会导致对已销毁对象的访问 | 三个公共回调入口处增加 `if (!this.active) return;` |
+| 4 | `MenuSystem._startReplayPlayback()` 中 replayPanel 按钮的 `onclick` 在 `_stopReplayPlayback()` 后未被清空，形成对已销毁 `replayEngine` 的闭包引用 | 停止时显式将四个按钮的 `onclick` 设为 `null` |
+
+**🟠 High — Resource Cleanup & Null Safety (3 项)**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 5 | `BroadcastUI.destroy()` 只将 `container` 设为 null，内部 DOM 引用（`_topBar`、`_p1Box`、`_commentaryText` 等）仍保留对已移除元素的引用，阻碍 GC | destroy 后逐一 null 化所有内部 DOM 引用 |
+| 6 | `ShotReplay._applyFrame()` / `_applyInterpolated()` 未防御 `ball.mesh` 为 null，极端情况下可能抛出 TypeError | 增加 `ball.mesh` 存在性检查 |
+| 7 | `AudioManager.reinit()`（lowLatencyMode 切换）dispose+init 后不恢复静音状态，`syncVolumesFromSettings()` 只在设置有效时才应用 | 在 `syncVolumesFromSettings()` 后追加 `toggleSound(this.soundEnabled)` 确保静音状态正确 |
+
+**🟡 Medium — Code Quality & Consistency (4 项)**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 8 | `MenuSystem` 三个 catch 块（`_startTrainer`、`_startChallenge`、`_startGame`）直接引用未声明的 `menuLayer`/`uiLayer` 变量 | 改为统一调用 `this._fadeToMenu()` |
+| 9 | `TrajectoryGraph.removeEventListener('wheel')` 未传递 `{ passive: false }`，与 `addEventListener` 参数不匹配 | 补充 options 参数 |
+| 10 | `SpectatorMode` 中存在 `_onGameEvent` 和 `_tmpPocketed` 死代码 | 移除未使用的绑定和数组 |
+| 11 | `UI.destroy()` 中设置 player badge textContent 的代码重复执行两次 | 删除冗余的第二次赋值 |
+
+---
+
+# 3D Billiards v1.8.5 — Previous Update
 
 ## What's New in v1.8.5
 
@@ -73,7 +107,7 @@
 | 1 | `ShotAnalyzerPanel` 轨迹图播放速度始终从 1.0x 开始，忽略设置中的「回放速度」 | 初始化时读取 `settings.get('replaySpeed')`，与设置面板同步 |
 | 2 | `ShotAnalyzerPanel` 元数据「时长」可能显示 `NaN` | 改为 `(meta.duration \|\| 0).toFixed(1)` 防御性处理 |
 | 3 | `ShotAnalyzer` 碰撞检测计算入射角时未防御前一帧的哨兵值 | 新增 `aPrevX === POCKETED_SENTINEL` 检查，跳过异常数据 |
-| 4 | `ReplayLibrary` 注释仍写「最多保存 30 条」 | 更新为「最多保存 replayMaxSaved 条（默认 30）」 |
+| 4 | `ReplayLibrary` 注释仍写「最多保存 30 条」 | 更新为「最多保存 replayMaxSaved 条（默认 50）」 |
 
 **🟡 Medium — 代码清理 (2 项)**
 

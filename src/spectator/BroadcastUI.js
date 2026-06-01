@@ -292,7 +292,8 @@ export class BroadcastUI {
     if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
     if (this.container) {
       this.container.style.display = 'block';
-      requestAnimationFrame(() => {
+      this._showRafId = requestAnimationFrame(() => {
+        this._showRafId = null;
         if (this.container) this.container.style.opacity = '1';
       });
     }
@@ -323,15 +324,36 @@ export class BroadcastUI {
     this.setCommentary('');
     this.setShotCount(0);
     this._shotCount = 0;
+    if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
+    if (this._showRafId) { cancelAnimationFrame(this._showRafId); this._showRafId = null; }
   }
 
   destroy() {
     this.hide();
+    if (this._showRafId) { cancelAnimationFrame(this._showRafId); this._showRafId = null; }
+    if (this._badgeTimer) { clearTimeout(this._badgeTimer); this._badgeTimer = null; }
+    if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }
     this.container = null;
-    if (this._badgeTimer) { clearTimeout(this._badgeTimer); this._badgeTimer = null; }
-    if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
+    this._topBar = null;
+    this._p1Box = null;
+    this._p2Box = null;
+    this._centerBox = null;
+    this._matchTypeEl = null;
+    this._timerEl = null;
+    this._shotCountEl = null;
+    this._commentaryBox = null;
+    this._commentaryText = null;
+    this._cursorEl = null;
+    this._eventBadge = null;
+    this._visible = false;
+    this._matchStartTime = 0;
+    // Remove injected style if no other BroadcastUI instances need it
+    const style = document.getElementById('broadcast-blink-style');
+    if (style && style.parentNode) {
+      style.parentNode.removeChild(style);
+    }
   }
 }

@@ -442,7 +442,7 @@ export class TrajectoryGraph {
       this.canvas.removeEventListener('mousedown', this._onMouseDown);
       window.removeEventListener('mousemove', this._onMouseMove);
       window.removeEventListener('mouseup', this._onMouseUp);
-      this.canvas.removeEventListener('wheel', this._onWheel);
+      this.canvas.removeEventListener('wheel', this._onWheel, { passive: false });
       this._onMouseDown = null;
       this._onMouseMove = null;
       this._onMouseUp = null;

@@ -486,8 +486,9 @@ export class SettingsScreen {
     this._row('低延迟模式',
       this._createSwitch(settings.get('lowLatencyMode'), (v) => {
         settings.set('lowLatencyMode', v);
+        if (this.audio && this.audio.reinit) this.audio.reinit();
       }),
-      '减少音频缓冲，可能降低音质（刷新页面后生效）'
+      '减少音频缓冲，可能降低音质'
     );
   }
 
@@ -935,6 +936,7 @@ export class SettingsScreen {
             this.audio.setSFXVolume(settings.get('sfxVolume'));
             this.audio.setMusicVolume(settings.get('musicVolume'));
             if (this.audio.setAmbientVolume) this.audio.setAmbientVolume((settings.get('ambientVolumeScale') ?? 1.0) * 100);
+            if (this.audio.reinit) this.audio.reinit();
           }
           this._toast('已恢复为默认设置');
         }
@@ -1034,6 +1036,7 @@ export class SettingsScreen {
           this.audio.setSFXVolume(settings.get('sfxVolume'));
           this.audio.setMusicVolume(settings.get('musicVolume'));
           if (this.audio.setAmbientVolume) this.audio.setAmbientVolume((settings.get('ambientVolumeScale') ?? 1.0) * 100);
+          if (this.audio.reinit) this.audio.reinit();
         }
         // Note: importText is gone after _syncAllControls rebuilds the DOM, so no need to clear
       } catch (e) {

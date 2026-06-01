@@ -2117,17 +2117,23 @@ export class Game {
 
       // Camera mode switching (works in any state)
       if (keyBindings.matches('cameraFree', key, mods)) {
-        this.cameraMode = 'free';
-        this._resetCameraFree();
+        if (!this.bothAI) {
+          this.cameraMode = 'free';
+          this._resetCameraFree();
+        }
         return;
       }
       if (keyBindings.matches('cameraTop', key, mods)) {
-        this.cameraMode = 'top';
-        this._resetCameraTop();
+        if (!this.bothAI) {
+          this.cameraMode = 'top';
+          this._resetCameraTop();
+        }
         return;
       }
       if (keyBindings.matches('cameraFollow', key, mods)) {
-        this.cameraMode = 'follow';
+        if (!this.bothAI) {
+          this.cameraMode = 'follow';
+        }
         return;
       }
       if (keyBindings.matches('pause', key, mods)) {
@@ -3161,10 +3167,7 @@ export class Game {
     this._onToggleComboCounter = null;
 
     // Destroy UI elements created by this game session
-    if (this.ui) {
-      this.ui.destroy();
-      this.ui = null;
-    }
+    // (this.ui and this.onboardingTips already disposed above)
     if (this.statsPanel) {
       this.statsPanel.destroy();
       this.statsPanel = null;
@@ -3193,26 +3196,12 @@ export class Game {
       clearTimeout(this._challengeEndTimeout);
       this._challengeEndTimeout = null;
     }
-    if (this._strikeHideTimer) {
-      clearTimeout(this._strikeHideTimer);
-      this._strikeHideTimer = null;
-    }
-    if (this._cameraResetTimer) {
-      clearTimeout(this._cameraResetTimer);
-      this._cameraResetTimer = null;
-    }
     this._challengeEnding = false;
 
     // Cancel network disconnect timer
     if (this._netDisconnectTimer) {
       clearTimeout(this._netDisconnectTimer);
       this._netDisconnectTimer = null;
-    }
-
-    // Clean up onboarding tips
-    if (this.onboardingTips) {
-      this.onboardingTips.destroy();
-      this.onboardingTips = null;
     }
 
     // Clean up input

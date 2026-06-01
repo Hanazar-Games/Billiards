@@ -195,6 +195,15 @@ export class ShotAnalyzerPanel {
   // ── Tab switching ──
 
   _cleanupGraph() {
+    if (this._trajectoryRafId) {
+      cancelAnimationFrame(this._trajectoryRafId);
+      this._trajectoryRafId = null;
+    }
+    if (this._playBtn && this._onPlayBtnClick) {
+      this._playBtn.removeEventListener('click', this._onPlayBtnClick);
+      this._playBtn = null;
+      this._onPlayBtnClick = null;
+    }
     if (this.graph) {
       this.graph.destroy();
       this.graph = null;
@@ -436,16 +445,22 @@ export class ShotAnalyzerPanel {
     };
 
     // Update time label
-    const updateTime = () => {
-      if (!this.graph || !this.content?.isConnected) return;
+    this._onPlayBtnClick = () => {
+      if (!this.graph || !this.content?.isConnected) {
+        this._trajectoryRafId = null;
+        return;
+      }
       const current = (this.graph.currentFrame / this.graph.frameRate).toFixed(1);
       const total = (this.graph.frameCount / this.graph.frameRate).toFixed(1);
       timeLabel.textContent = `${current}s / ${total}s`;
       if (this.graph.playing) {
-        requestAnimationFrame(updateTime);
+        this._trajectoryRafId = requestAnimationFrame(this._onPlayBtnClick);
+      } else {
+        this._trajectoryRafId = null;
       }
     };
-    playBtn.addEventListener('click', updateTime);
+    this._playBtn = playBtn;
+    playBtn.addEventListener('click', this._onPlayBtnClick);
 
     // Handle resize
     const ro = new ResizeObserver((entries) => {
@@ -560,14 +575,7 @@ export class ShotAnalyzerPanel {
       window.removeEventListener('keydown', this._onKeyDown);
       this._onKeyDown = null;
     }
-    if (this.graph) {
-      this.graph.destroy();
-      this.graph = null;
-    }
-    if (this._ro) {
-      this._ro.disconnect();
-      this._ro = null;
-    }
+    this._cleanupGraph();
     if (this.overlay && this.overlay.parentNode) {
       this.overlay.parentNode.removeChild(this.overlay);
     }

@@ -30,8 +30,6 @@ export class SpectatorMode {
     this._eightBallAnnounced = false;
     this._gameOverHandled = false;
 
-    this._onGameEvent = this._onGameEvent.bind(this);
-    this._tmpPocketed = [];
     this._hiddenHudDisplays = new Map();
   }
 
@@ -67,6 +65,12 @@ export class SpectatorMode {
     this._originalUpdateCamera = this.game._updateCamera?.bind(this.game);
     this.game._updateCamera = () => {}; // no-op
 
+    // Disable orbit controls so CameraDirector has sole authority
+    if (this.renderer?.controls) {
+      this._originalControlsEnabled = this.renderer.controls.enabled;
+      this.renderer.controls.enabled = false;
+    }
+
     // Hide default game HUD elements that conflict with broadcast UI
     this._hideDefaultHUD();
   }
@@ -78,6 +82,13 @@ export class SpectatorMode {
     // Restore original camera update
     if (this._originalUpdateCamera && this.game) {
       this.game._updateCamera = this._originalUpdateCamera;
+    }
+    this._originalUpdateCamera = null;
+
+    // Restore orbit controls
+    if (this.renderer?.controls && this._originalControlsEnabled !== undefined) {
+      this.renderer.controls.enabled = this._originalControlsEnabled;
+      this._originalControlsEnabled = undefined;
     }
 
     this.camera.reset();
@@ -255,7 +266,7 @@ export class SpectatorMode {
       const pockets = game.table.getPocketPositions?.() || [];
       // Try to find which pocket the ball went into (approximate)
       const ball = game.ballsManager?.getBall?.(ballId);
-      if (ball && pockets.length > 0) {
+      if (ball && ball.mesh && pockets.length > 0) {
         let closestIdx = 0;
         let closestDist = Infinity;
         for (let i = 0; i < pockets.length; i++) {
@@ -290,6 +301,7 @@ export class SpectatorMode {
 
   /** Public: trigger a foul comment. Called from Game if needed. */
   onFoul(playerNum, isScratch) {
+    if (!this.active) return;
     this.commentary.onFoul(playerNum, isScratch);
     if (isScratch) {
       this.ui.showEventBadge('母球落袋', 2500);
@@ -300,25 +312,24 @@ export class SpectatorMode {
 
   /** Public: trigger a miss comment. */
   onMiss(playerNum) {
+    if (!this.active) return;
     this.commentary.onMiss(playerNum);
   }
 
   /** Public: trigger a safety comment. */
   onSafety(playerNum) {
+    if (!this.active) return;
     this.commentary.onSafety(playerNum);
   }
 
   dispose() {
-    const wasActive = this.active;
     this.stop();
     this.camera.dispose();
     this.commentary.dispose();
-    if (!wasActive) {
-      this._restoreDefaultHUD();
-      this.ui.destroy();
-    }
     this.game = null;
     this.renderer = null;
     this._hiddenHudDisplays.clear();
+    this._originalUpdateCamera = null;
+    this._originalControlsEnabled = undefined;
   }
 }

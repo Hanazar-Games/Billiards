@@ -22,7 +22,7 @@
 
 import { settings } from '../core/SettingsStore.js';
 
-const SFX_COOLDOWN_MS = 20; // min gap between identical SFX
+const SFX_COOLDOWN_MS = 40; // min gap between identical SFX
 
 export class AudioManager {
   constructor() {
@@ -47,6 +47,8 @@ export class AudioManager {
     this._masterVolume = 1.0;
     this._ambientVolume = 1.0;
     this._pendingDisconnects = new Set();
+    this._disposing = false;
+    this._settingsChangedHandler = null;
   }
 
   /** Disconnect a chain of audio nodes after the source finishes playing. */
@@ -54,7 +56,7 @@ export class AudioManager {
     if (!source) return;
     const all = nodes.filter(Boolean);
     const doDisconnect = () => {
-      if (!this.ctx) return; // AudioManager disposed — skip
+      if (this._disposing || !this.ctx) return; // AudioManager disposed — skip
       try {
         source.disconnect();
         all.forEach(n => n.disconnect());
@@ -152,6 +154,19 @@ export class AudioManager {
       }
     };
     this.ctx.addEventListener('statechange', this._stateHandler);
+
+    // React to settings changes that affect audio routing
+    this._settingsChangedHandler = (e) => {
+      const key = e.detail?.key;
+      if (key === 'muteWhenUnfocused') {
+        // If just turned on and tab is hidden, stop BGM immediately
+        if (settings.get('muteWhenUnfocused') !== false && document.hidden && this.bgmNodes.length > 0) {
+          this._bgmWasPlaying = true;
+          this.stopBGM();
+        }
+      }
+    };
+    window.addEventListener('settingsChanged', this._settingsChangedHandler);
   }
 
   _removeResilienceListeners() {
@@ -169,6 +184,10 @@ export class AudioManager {
     if (this._stateHandler && this.ctx) {
       this.ctx.removeEventListener('statechange', this._stateHandler);
       this._stateHandler = null;
+    }
+    if (this._settingsChangedHandler) {
+      window.removeEventListener('settingsChanged', this._settingsChangedHandler);
+      this._settingsChangedHandler = null;
     }
   }
 
@@ -502,7 +521,21 @@ export class AudioManager {
     });
   }
 
+  /** Re-create AudioContext so lowLatencyMode changes take effect immediately. */
+  reinit() {
+    if (!this.initialized) return;
+    const wasPlaying = this.bgmNodes.length > 0;
+    this.dispose();
+    this.init();
+    this.syncVolumesFromSettings();
+    this.toggleSound(this.soundEnabled);
+    if (wasPlaying && this.soundEnabled) {
+      this.startBGM();
+    }
+  }
+
   dispose() {
+    this._disposing = true;
     this.stopBGM();
     this._removeResilienceListeners();
 
@@ -519,8 +552,10 @@ export class AudioManager {
     this.initialized = false;
     this._lastSfxTime.clear();
     this._pendingBGMStart = false;
+    this._bgmWasPlaying = false;
     this._lastUserGestureAt = 0;
     for (const tid of this._pendingDisconnects) clearTimeout(tid);
     this._pendingDisconnects.clear();
+    this._disposing = false;
   }
 }

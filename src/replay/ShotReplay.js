@@ -4,12 +4,13 @@
  * Replays a recorded shot by interpolating ball positions from frame data.
  * Supports variable playback speed and pause.
  *
- * Playback speeds: 0.1x, 0.25x, 0.5x, 1.0x
+ * Playback speeds: 0.25x, 0.5x, 1.0x, 2.0x
  */
 import { POCKETED_SENTINEL, BALL_COUNT, FLOATS_PER_FRAME } from './ShotRecorder.js';
 import { BALL } from '../config.js';
+import { settings } from '../core/SettingsStore.js';
 
-const SPEEDS = [0.1, 0.25, 0.5, 1.0];
+const SPEEDS = [0.25, 0.5, 1.0, 2.0];
 // frameInterval is now per-replay (set in load)
 
 export class ShotReplay {
@@ -18,7 +19,7 @@ export class ShotReplay {
     this.ballsManager = ballsManager;
     this.playing = false;
     this.paused = false;
-    this.speedIndex = 3; // default 1.0x
+    this.speedIndex = this._resolveSpeedIndex(); // default 1.0x
     this.currentFrame = 0;
     this.frameCount = 0;
     this.frames = null;
@@ -42,7 +43,7 @@ export class ShotReplay {
     this.frameInterval = 1 / this.frameRate;
     this.currentFrame = 0;
     this.accumulator = 0;
-    this.speedIndex = 3;
+    this.speedIndex = this._resolveSpeedIndex();
     this.paused = false;
     this.playing = false;
 
@@ -85,7 +86,25 @@ export class ShotReplay {
     }
   }
 
-  /** Set playback speed by index (0=0.1x, 1=0.25x, 2=0.5x, 3=1.0x). */
+  /** Resolve closest speed index from settings replaySpeed. */
+  _resolveSpeedIndex() {
+    const replaySpeed = settings.get('replaySpeed');
+    if (typeof replaySpeed !== 'number' || !isFinite(replaySpeed) || replaySpeed <= 0) {
+      return 2; // default 1.0x
+    }
+    let bestIdx = 2;
+    let bestDiff = Infinity;
+    for (let i = 0; i < SPEEDS.length; i++) {
+      const diff = Math.abs(SPEEDS[i] - replaySpeed);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }
+
+  /** Set playback speed by index (0=0.25x, 1=0.5x, 2=1.0x, 3=2.0x). */
   setSpeed(index) {
     this.speedIndex = Math.max(0, Math.min(SPEEDS.length - 1, index));
   }
@@ -102,7 +121,8 @@ export class ShotReplay {
 
   getSpeedLabel() {
     const s = SPEEDS[this.speedIndex];
-    return s < 1 ? `${Math.round(s * 100)}%` : '1.0x';
+    if (s === 1.0) return '1.0x';
+    return s < 1 ? `${Math.round(s * 100)}%` : `${s.toFixed(1)}x`;
   }
 
   /** Seek to a specific frame. */
@@ -155,7 +175,7 @@ export class ShotReplay {
 
     for (let i = 0; i < BALL_COUNT; i++) {
       const ball = this.ballsManager.balls[i];
-      if (!ball) continue;
+      if (!ball || !ball.mesh) continue;
 
       const x = this.frames[base + i * 2];
       const z = this.frames[base + i * 2 + 1];
@@ -181,7 +201,7 @@ export class ShotReplay {
 
     for (let i = 0; i < BALL_COUNT; i++) {
       const ball = this.ballsManager.balls[i];
-      if (!ball) continue;
+      if (!ball || !ball.mesh) continue;
 
       const x1 = this.frames[base1 + i * 2];
       const z1 = this.frames[base1 + i * 2 + 1];
