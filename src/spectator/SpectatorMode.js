@@ -258,7 +258,7 @@ export class SpectatorMode {
       isDifficult,
       isLong,
       isBank,
-      false
+      this.commentary._comboCount >= 2
     );
 
     // Show pocket close-up on broadcast camera
@@ -285,18 +285,46 @@ export class SpectatorMode {
   }
 
   _isDifficultShot(game) {
-    // Heuristic: if aim direction is at a shallow angle to the pocket
-    // For now, use random factor weighted by AI difficulty
-    return Math.random() < 0.15;
+    // Heuristic: blend randomness with geometric difficulty
+    const cueBall = game.ballsManager?.getCueBall?.();
+    if (!cueBall || !cueBall.mesh) return Math.random() < 0.15;
+    const pockets = game.table?.getPocketPositions?.() || [];
+    if (pockets.length === 0) return Math.random() < 0.15;
+
+    const cbPos = cueBall.mesh.position;
+    // Find closest pocket distance
+    let closestPocketDistSq = Infinity;
+    for (const p of pockets) {
+      const dx = p.x - cbPos.x;
+      const dz = p.z - cbPos.z;
+      const d = dx * dx + dz * dz;
+      if (d < closestPocketDistSq) closestPocketDistSq = d;
+    }
+    const profile = game.tableProfile;
+    const diagonalSq = ((profile?.width ?? 2.5) ** 2 + (profile?.depth ?? 1.25) ** 2);
+    const distRatio = closestPocketDistSq / diagonalSq;
+    // Higher distance = more difficult; base chance 10%, up to +20% for long shots
+    const chance = 0.10 + Math.min(distRatio, 0.20);
+    return Math.random() < chance;
   }
 
   _isLongShot(game) {
-    // Heuristic: cue ball far from target
     const cueBall = game.ballsManager?.getCueBall?.();
-    if (!cueBall) return false;
-    const aim = game.aimDirection;
-    // Raycast approx: check if target is far
-    return false; // Simplified
+    if (!cueBall || !cueBall.mesh) return false;
+    const pockets = game.table?.getPocketPositions?.() || [];
+    if (pockets.length === 0) return false;
+
+    const cbPos = cueBall.mesh.position;
+    let maxDistSq = 0;
+    for (const p of pockets) {
+      const dx = p.x - cbPos.x;
+      const dz = p.z - cbPos.z;
+      maxDistSq = Math.max(maxDistSq, dx * dx + dz * dz);
+    }
+    const profile = game.tableProfile;
+    const diagonalSq = ((profile?.width ?? 2.5) ** 2 + (profile?.depth ?? 1.25) ** 2);
+    // Long shot if cue ball is > 50% of table diagonal from the pocket
+    return maxDistSq > diagonalSq * 0.25;
   }
 
   /** Public: trigger a foul comment. Called from Game if needed. */

@@ -185,7 +185,7 @@ export class ShotAnalyzerPanel {
 
   hide() {
     this.overlay.style.display = 'none';
-    if (this.graph) this.graph.pause();
+    this._cleanupGraph();
   }
 
   isVisible() {

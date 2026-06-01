@@ -1,4 +1,33 @@
-# 3D Billiards v1.8.6 — Latest Update
+# 3D Billiards v1.8.7 — Latest Update
+
+## What's New in v1.8.7
+
+### 🔧 Global Deep Audit — UI/UX/SFX/BGM Bug Fixes & Experience Improvements
+
+**🔴 Critical — Runtime Errors & Commentary Bugs (2 项)**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 1 | `SpectatorMode._onBallPocketed()` 将 `isCombo` 硬编码为 `false`，导致 `CommentarySystem` 的连击评论（"连续进球！"）永远不会触发 | 改为动态判断 `this.commentary._comboCount >= 2` |
+| 2 | `ShotAnalyzerPanel.hide()` 仅调用 `graph.pause()`，未取消 `_trajectoryRafId`，隐藏面板后轨迹图 RAF 可能多跑一帧 | `hide()` 现调用 `_cleanupGraph()` 彻底释放资源 |
+
+**🟠 High — Timer Display & Detection Logic (3 项)**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 3 | `BroadcastUI.setMatchTimer()` 仅计算 `mm:ss`，超过 60 分钟时分钟数回绕（如 65 分钟显示为 05:00） | 新增小时计算，>60 分钟显示 `h:mm:ss` |
+| 4 | `StatsPanel._fmtTime()` 同样不处理小时，对局统计和结算面板中长时间比赛显示异常 | 统一修复为 `h:mm:ss` / `mm:ss` / `ss` 分层显示 |
+| 5 | `SpectatorMode._isLongShot()` 始终返回 `false` 且声明了未使用的 `aim` 变量，长台评论（"远距离一击"）永不触发 | 基于 table profile 对角线距离实现真实长台检测 |
+
+**🟡 Medium — Shot Difficulty & UX Improvements (1 项)**
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 6 | `SpectatorMode._isDifficultShot()` 纯随机（固定 15% 概率），高难度评论（"难度极高的一杆"）触发无依据 | 改为基于 cue ball 到 pocket 距离的比例加权概率（10%~30%） |
+
+---
+
+# 3D Billiards v1.8.6 — Previous Update
 
 ## What's New in v1.8.6
 
