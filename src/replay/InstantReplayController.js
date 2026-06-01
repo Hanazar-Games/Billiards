@@ -31,7 +31,6 @@ export class InstantReplayController {
     this._savedBallStates = [];
     this._savedCameraState = null;
     this._onComplete = null;
-    this._autoTriggered = false;
   }
 
   /** Start instant replay. Returns true if started. */

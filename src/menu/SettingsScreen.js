@@ -895,6 +895,12 @@ export class SettingsScreen {
     this._rowDisabled('显示详细统计', this._createDisabledSwitch(settings.get('showDetailedStats'), () => {}), '数据统计面板尚未实现');
     this._rowDisabled('击球历史追踪', this._createDisabledSwitch(settings.get('shotHistoryTracking'), () => {}), '数据统计面板尚未实现');
     this._rowSlider('回放速度', Math.round((settings.get('replaySpeed') ?? 1.0) * 4), 1, 8, 'x', (v) => settings.set('replaySpeed', v / 4), '回放库和轨迹图的默认播放速度', (v) => (v / 4).toFixed(2) + 'x');
+
+    this._sectionTitle('即时回放');
+    this._sectionSubtitle('击球后自动/手动回放上一杆');
+    this._row('启用即时回放', this._createSwitch(settings.get('instantReplayEnabled') !== false, (v) => settings.set('instantReplayEnabled', v)), '按 R 键或在 AIM 状态点击按钮回放上一杆');
+    this._row('自动回放精彩球', this._createSwitch(settings.get('autoInstantReplay') !== false, (v) => settings.set('autoInstantReplay', v)), '精彩进球（评分达标）后自动进入慢动作回放');
+    this._rowSlider('回放触发阈值', settings.get('instantReplayThreshold') || 35, 10, 80, ' 分', (v) => settings.set('instantReplayThreshold', v), '分数越高，自动回放越严格', (v) => `${v} 分`);
   }
 
   _buildAccessibilityContent() {

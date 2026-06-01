@@ -395,8 +395,10 @@ export class AudioManager {
     osc.frequency.setValueAtTime(600 + intensity * 400, t);
     osc.frequency.exponentialRampToValueAtTime(300, t + 0.05);
 
-    gain.gain.setValueAtTime(intensity * 0.1 * (settings.get('collisionVolumeScale') ?? 1.0), t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+    // Non-linear volume curve: soft touches audible, hard hits punchy
+    const vol = (0.05 + intensity * intensity * 0.12) * (settings.get('collisionVolumeScale') ?? 1.0);
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06 + intensity * 0.04);
 
     osc.connect(gain);
     gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
@@ -428,8 +430,10 @@ export class AudioManager {
     filter.frequency.value = 800 + intensity * 1000;
 
     const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(intensity * 0.12 * (settings.get('collisionVolumeScale') ?? 1.0), t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    // Non-linear volume curve for more dynamic cushion feedback
+    const vol = (0.06 + intensity * intensity * 0.14) * (settings.get('collisionVolumeScale') ?? 1.0);
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08 + intensity * 0.04);
 
     noise.connect(filter);
     filter.connect(gain);

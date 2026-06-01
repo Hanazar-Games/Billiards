@@ -1,4 +1,22 @@
-# 3D Billiards v1.9.0 — Latest Update
+# 3D Billiards v1.9.1 — Latest Update
+
+## What's New in v1.9.1
+
+### 🔧 v1.9.0 Post-Release Polish — UI/UX/SFX Improvements
+
+**即时回放设置面板**
+- 设置 → 回放与分析 面板新增三项即时回放控制：
+  - **即时回放** 开关 — 启用/禁用整个回放系统
+  - **自动触发回放** 开关 — 控制精彩进球后是否自动播放
+  - **触发阈值** 滑块（15–60 分）— 自定义自动回放的评分门槛
+
+**音效动态范围增强**
+- `playBallCollision`：采用非线性音量曲线（`0.05 + intensity² × 0.12`），轻碰可闻、重击更有冲击力，同时根据力度动态延长衰减时间
+- `playCushionBounce`：同样的非线性曲线（`0.06 + intensity² × 0.14`），库边反弹反馈更具层次感
+
+---
+
+# 3D Billiards v1.9.0 — Previous Update
 
 ## What's New in v1.9.0
 

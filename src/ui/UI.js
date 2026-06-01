@@ -874,6 +874,7 @@ export class UI {
     const isGameOver = state === 'GAME_OVER';
     const isAIThinking = state === 'AI_THINKING';
     const isBallInHand = state === 'BALL_IN_HAND';
+    const isReplaying = state === 'REPLAYING';
 
     // Power bar: visible only during AIM/CHARGING when enabled by settings
     if (this.powerFill) {
@@ -891,14 +892,14 @@ export class UI {
       crosshair.style.display = show ? 'block' : 'none';
     }
 
-    // Combo counter: hidden on game over regardless of setting
+    // Combo counter: hidden on game over or replay regardless of setting
     if (this._comboEl) {
-      const show = (this._comboCounterSetting !== false) && !isGameOver;
+      const show = (this._comboCounterSetting !== false) && !isGameOver && !isReplaying;
       this._comboEl.style.display = show ? 'block' : 'none';
     }
 
-    // Turn timer: immediately hide when shooting / AI thinking / game over / ball-in-hand
-    if (isShooting || isAIThinking || isGameOver || isBallInHand) {
+    // Turn timer: immediately hide when shooting / AI thinking / game over / ball-in-hand / replaying
+    if (isShooting || isAIThinking || isGameOver || isBallInHand || isReplaying) {
       this.hideTurnTimer();
     }
   }
