@@ -35,8 +35,11 @@ export class CareerPanel {
   show() {
     if (!this.container) this._buildUI();
     this._render();
+    const wasHidden = this.container.style.display !== 'flex';
     this.container.style.display = 'flex';
-    this.container.style.animation = 'panelIn 260ms cubic-bezier(0.2,0.8,0.2,1) both';
+    if (wasHidden) {
+      this.container.style.animation = 'panelIn 260ms cubic-bezier(0.2,0.8,0.2,1) both';
+    }
   }
 
   hide() {
@@ -48,10 +51,18 @@ export class CareerPanel {
       document.removeEventListener('keydown', this._onKeyDown);
       this._onKeyDown = null;
     }
+    // Null all inline event handlers on close button before removal
+    const closeBtn = this.container?.querySelector('#career-close-btn');
+    if (closeBtn) {
+      closeBtn.onmouseenter = null;
+      closeBtn.onmouseleave = null;
+      closeBtn.onclick = null;
+    }
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }
     this.container = null;
+    this.profiler = null;
   }
 
   /* ── Build ── */
@@ -64,7 +75,7 @@ export class CareerPanel {
     this.container.style.cssText = `
       position: fixed; inset: 0;
       display: none; flex-direction: column; align-items: center;
-      padding: 32px 20px 40px;
+      padding: max(32px, env(safe-area-inset-top)) 20px max(40px, env(safe-area-inset-bottom));
       overflow-y: auto;
       z-index: 200;
       ${GLASS_BG}
@@ -74,6 +85,7 @@ export class CareerPanel {
     wrap.style.cssText = `
       max-width: 960px; width: 100%;
       display: flex; flex-direction: column; gap: 22px;
+      padding-bottom: env(safe-area-inset-bottom, 0);
     `;
 
     // Header
@@ -82,6 +94,11 @@ export class CareerPanel {
     // Sections (populated in _render)
     this._overviewSection = document.createElement('div');
     this._overviewSection.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:14px;';
+    // Mobile responsive: 2 columns on narrow screens
+    const mq = document.createElement('style');
+    mq.textContent = '@media (max-width: 600px) { #career-panel .overview-grid { grid-template-columns: repeat(2, 1fr) !important; } }';
+    mq.id = 'career-panel-mq';
+    if (!document.getElementById('career-panel-mq')) document.head.appendChild(mq);
     wrap.appendChild(this._overviewSection);
 
     this._styleSection = document.createElement('div');
@@ -125,6 +142,7 @@ export class CareerPanel {
     `;
 
     const close = document.createElement('button');
+    close.id = 'career-close-btn';
     close.textContent = '✕';
     close.style.cssText = `
       width:38px;height:38px;border-radius:10px;
@@ -154,8 +172,19 @@ export class CareerPanel {
     const summary = this.profiler.getSummary();
     const hasData = summary.games > 0 || summary.shots > 0;
 
-    this._emptyState.style.display = hasData ? 'none' : 'block';
+    if (!hasData) {
+      this._emptyState.style.display = 'block';
+      this._overviewSection.innerHTML = '';
+      this._styleSection.innerHTML = '';
+      this._modeSection.innerHTML = '';
+      this._spinSection.innerHTML = '';
+      this._powerSection.innerHTML = '';
+      this._specialSection.innerHTML = '';
+      this._recordsSection.innerHTML = '';
+      return;
+    }
 
+    this._emptyState.style.display = 'none';
     this._renderOverview(summary);
     this._renderStyleTags(summary.labels);
     this._renderModeBreakdown();
@@ -219,7 +248,7 @@ export class CareerPanel {
 
       const desc = document.createElement('span');
       desc.textContent = tag.desc;
-      desc.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.5);';
+      desc.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.65);';
 
       badge.appendChild(name);
       badge.appendChild(desc);
@@ -313,7 +342,7 @@ export class CareerPanel {
 
       const pct = document.createElement('span');
       pct.textContent = `${s.pct}%`;
-      pct.style.cssText = 'width:40px;text-align:right;font-size:12px;color:rgba(255,255,255,0.5);font-variant-numeric:tabular-nums;';
+      pct.style.cssText = 'width:40px;text-align:right;font-size:12px;color:rgba(255,255,255,0.6);font-variant-numeric:tabular-nums;';
 
       row.appendChild(label);
       row.appendChild(barWrap);
@@ -363,7 +392,7 @@ export class CareerPanel {
 
       const lbl = document.createElement('span');
       lbl.textContent = labels[i];
-      lbl.style.cssText = 'font-size:10px;color:rgba(255,255,255,0.35);text-align:center;white-space:pre-line;line-height:1.3;';
+      lbl.style.cssText = 'font-size:10px;color:rgba(255,255,255,0.55);text-align:center;white-space:pre-line;line-height:1.3;';
 
       col.appendChild(count);
       col.appendChild(barWrap);
@@ -404,7 +433,7 @@ export class CareerPanel {
       header.appendChild(rate);
 
       const footer = document.createElement('div');
-      footer.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.4);';
+      footer.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.55);';
       if (s.name === '开球') {
         footer.textContent = `共 ${s.attempts} 局开球，进 ${s.success} 球`;
       } else {
@@ -432,7 +461,7 @@ export class CareerPanel {
       { icon: '🧱', label: '单杆最多碰库', value: `${rec.mostCushionsInOneShot} 次` },
     ];
 
-    if (rec.fastestWinSeconds !== null && rec.fastestWinSeconds !== Infinity) {
+    if (Number.isFinite(rec.fastestWinSeconds) && rec.fastestWinSeconds > 0) {
       const min = Math.floor(rec.fastestWinSeconds / 60);
       const sec = String(Math.floor(rec.fastestWinSeconds % 60)).padStart(2, '0');
       items.splice(2, 0, { icon: '⏱️', label: '最快胜利', value: `${min}:${sec}` });

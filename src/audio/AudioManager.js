@@ -556,7 +556,7 @@ export class AudioManager {
     this._lastSfxTime.clear();
     this._pendingBGMStart = false;
     this._bgmWasPlaying = false;
-    this._lastUserGestureAt = 0;
+    this._lastUserGestureAt = -Infinity;
     for (const tid of this._pendingDisconnects) clearTimeout(tid);
     this._pendingDisconnects.clear();
     this._disposing = false;

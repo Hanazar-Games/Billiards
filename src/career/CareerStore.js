@@ -71,6 +71,7 @@ function _deepClone(obj) {
 export class CareerStore {
   constructor() {
     this._data = _deepClone(DEFAULTS);
+    this._saveTimer = null;
     this._load();
   }
 
@@ -81,7 +82,7 @@ export class CareerStore {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') {
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
         // Merge loaded data over defaults (handles schema migration)
         this._data = this._mergeDeep(_deepClone(DEFAULTS), parsed);
       }
@@ -100,8 +101,12 @@ export class CareerStore {
 
   _mergeDeep(target, source) {
     for (const key of Object.keys(source)) {
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+      if (!Object.prototype.hasOwnProperty.call(target, key)) continue;
       if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-        if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+        if (!target[key] || typeof target[key] !== 'object' || Array.isArray(target[key])) {
+          target[key] = {};
+        }
         this._mergeDeep(target[key], source[key]);
       } else {
         target[key] = source[key];
@@ -125,7 +130,7 @@ export class CareerStore {
     return decisive > 0 ? this._data.gamesWon / decisive : 0;
   }
   getByMode(mode) {
-    return _deepClone(this._data.byMode[mode] || { played: 0, won: 0, lost: 0 });
+    return _deepClone(this._data.byMode[mode] || { played: 0, won: 0, lost: 0, byDifficulty: {}, completed: 0 });
   }
   getShotStyle() { return _deepClone(this._data.shotStyle); }
   getRecords() { return _deepClone(this._data.records); }
@@ -170,49 +175,63 @@ export class CareerStore {
       d.records.mostCushionsInOneShot = params.cushions || 0;
     }
 
-    // Spin
+    // Spin — use dominant direction only to avoid double-counting diagonal spins
     const sx = params.spin?.x ?? 0;
     const sy = params.spin?.y ?? 0;
     if (Math.abs(sx) < 0.1 && Math.abs(sy) < 0.1) {
       d.shotStyle.spin.center++;
     } else {
-      if (sy > 0.1) d.shotStyle.spin.top++;
-      if (sy < -0.1) d.shotStyle.spin.bottom++;
-      if (sx > 0.1) d.shotStyle.spin.left++;
-      if (sx < -0.1) d.shotStyle.spin.right++;
+      const absX = Math.abs(sx);
+      const absY = Math.abs(sy);
+      if (absY >= absX) {
+        // Vertical dominant
+        if (sy > 0.1) d.shotStyle.spin.top++;
+        else if (sy < -0.1) d.shotStyle.spin.bottom++;
+      } else {
+        // Horizontal dominant
+        // sx > 0 means cue tip is to the right → right english (右塞)
+        // sx < 0 means cue tip is to the left → left english (左塞)
+        if (sx > 0.1) d.shotStyle.spin.right++;
+        else if (sx < -0.1) d.shotStyle.spin.left++;
+      }
     }
 
     // Special shots
+    // Clamp all count inputs to non-negative
+    const pocketed = Math.max(0, Number.isFinite(params.pocketedCount) ? params.pocketedCount : 0);
+    const collisions = Math.max(0, Number.isFinite(params.collisions) ? params.collisions : 0);
+    const cushions = Math.max(0, Number.isFinite(params.cushions) ? params.cushions : 0);
+
     if (params.isBreak) {
       d.shotStyle.breakShots++;
-      d.shotStyle.breakPocketedTotal += params.pocketedCount || 0;
+      d.shotStyle.breakPocketedTotal += pocketed;
     }
     if (params.isLongShot) {
       d.shotStyle.longShotAttempts++;
-      if ((params.pocketedCount || 0) > 0) d.shotStyle.longShotSuccess++;
+      if (pocketed > 0) d.shotStyle.longShotSuccess++;
     }
     if (params.isThinCut) {
       d.shotStyle.thinCutAttempts++;
-      if ((params.pocketedCount || 0) > 0) d.shotStyle.thinCutSuccess++;
+      if (pocketed > 0) d.shotStyle.thinCutSuccess++;
     }
     if (params.isBank) {
       d.shotStyle.bankAttempts++;
-      if ((params.pocketedCount || 0) > 0) d.shotStyle.bankSuccess++;
+      if (pocketed > 0) d.shotStyle.bankSuccess++;
     }
 
     // Totals
-    d.totals.ballsPocketed += params.pocketedCount || 0;
+    d.totals.ballsPocketed += pocketed;
     if (params.isFoul) d.totals.fouls++;
     if (params.isScratch) d.totals.scratches++;
-    d.totals.ballCollisions += params.collisions || 0;
-    d.totals.cushionCollisions += params.cushions || 0;
+    d.totals.ballCollisions += collisions;
+    d.totals.cushionCollisions += cushions;
 
     // Pocketed record
     if ((params.pocketedCount || 0) > d.records.highestBallsInOneTurn) {
       d.records.highestBallsInOneTurn = params.pocketedCount;
     }
 
-    this._save();
+    this._scheduleSave();
   }
 
   /**
@@ -222,13 +241,14 @@ export class CareerStore {
    */
   recordStreak(count, endOfGame = false) {
     const d = this._data;
-    if (count > d.records.maxConsecutivePockets) {
-      d.records.maxConsecutivePockets = count;
+    const safeCount = Math.max(0, Number.isFinite(count) ? count : 0);
+    if (safeCount > d.records.maxConsecutivePockets) {
+      d.records.maxConsecutivePockets = safeCount;
     }
-    if (endOfGame && count > d.records.maxConsecutivePocketsInGame) {
-      d.records.maxConsecutivePocketsInGame = count;
+    if (endOfGame && safeCount > d.records.maxConsecutivePocketsInGame) {
+      d.records.maxConsecutivePocketsInGame = safeCount;
     }
-    this._save();
+    this._scheduleSave();
   }
 
   /**
@@ -244,7 +264,7 @@ export class CareerStore {
    */
   recordGame(params = {}) {
     const d = this._data;
-    const mode = params.mode || 'freeplay';
+    const mode = d.byMode[params.mode] ? params.mode : 'freeplay';
     const result = params.result; // 'win' | 'loss' | 'draw' | null
 
     d.gamesPlayed++;
@@ -255,8 +275,8 @@ export class CareerStore {
     const modeStats = d.byMode[mode];
     if (modeStats) {
       modeStats.played++;
-      if (result === 'win') modeStats.won++;
-      if (result === 'loss') modeStats.lost++;
+      if (result === 'win' && 'won' in modeStats) modeStats.won++;
+      if (result === 'loss' && 'lost' in modeStats) modeStats.lost++;
 
       if (mode === 'vsai' && params.difficulty && modeStats.byDifficulty?.[params.difficulty]) {
         const diff = modeStats.byDifficulty[params.difficulty];
@@ -264,21 +284,23 @@ export class CareerStore {
         if (result === 'win') diff.won++;
         if (result === 'loss') diff.lost++;
       }
-      if (mode === 'challenge') {
+      if (mode === 'challenge' && 'completed' in modeStats) {
         if (result === 'win') modeStats.completed++;
       }
     }
 
     // Streak record
-    if ((params.maxStreak || 0) > d.records.maxConsecutivePocketsInGame) {
-      d.records.maxConsecutivePocketsInGame = params.maxStreak || 0;
+    const safeStreak = Math.max(0, Number.isFinite(params.maxStreak) ? params.maxStreak : 0);
+    if (safeStreak > d.records.maxConsecutivePocketsInGame) {
+      d.records.maxConsecutivePocketsInGame = safeStreak;
     }
 
     // Fastest win
-    if (result === 'win' && params.durationSeconds > 0) {
+    const dur = params.durationSeconds;
+    if (result === 'win' && Number.isFinite(dur) && dur > 0) {
       const current = d.records.fastestWinSeconds;
-      if (current === null || params.durationSeconds < current) {
-        d.records.fastestWinSeconds = params.durationSeconds;
+      if (current === null || dur < current) {
+        d.records.fastestWinSeconds = dur;
       }
     }
 
@@ -299,11 +321,25 @@ export class CareerStore {
     this._save();
   }
 
+  _scheduleSave() {
+    if (this._saveTimer) return;
+    this._saveTimer = setTimeout(() => {
+      this._saveTimer = null;
+      this._save();
+    }, 800);
+  }
+
   /* ── Reset ── */
 
   reset() {
+    const backup = _deepClone(this._data);
     this._data = _deepClone(DEFAULTS);
-    this._save();
+    try {
+      this._save();
+    } catch (e) {
+      this._data = backup;
+      throw e;
+    }
   }
 }
 

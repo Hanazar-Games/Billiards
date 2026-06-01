@@ -423,7 +423,18 @@ export class Game {
           if (this.state === 'SHOOTING' && ball.id === 0 && otherBall.id !== 0) {
             this.rules?.recordFirstHit(otherBall.id);
             this.achievements.onBallCollision(relVel);
-              if (this.challengeManager) this.challengeManager.onBallCollision(ball, otherBall);
+            if (this.challengeManager) this.challengeManager.onBallCollision(ball, otherBall);
+            // Career: long-shot detection (distance > 150cm)
+            if (this._shotFirstHitDistance === 0) {
+              this._shotFirstHitDistance = ball.mesh.position.distanceTo(otherBall.mesh.position);
+              if (this._shotFirstHitDistance > 150) {
+                this._shotIsLongShot = true;
+              }
+            }
+            // Career: bank shot = cushion hit before first ball contact
+            if (this._shotHadCushionBeforeHit) {
+              this._shotIsBank = true;
+            }
           }
 
           // Deduplicate: cannon-es fires collide on BOTH bodies.
@@ -446,6 +457,9 @@ export class Game {
           }
         } else if (otherBody.material === this.physics.cushionMaterial) {
           // Ball-cushion collision
+          if (this.state === 'SHOOTING' && this._shotFirstHitDistance === 0) {
+            this._shotHadCushionBeforeHit = true;
+          }
           this.ballsManager?.applyCushionSpin(ball);
           if (this.state === 'SHOOTING') {
             this.rules?.recordCushionHit?.(ball.id);
@@ -959,6 +973,11 @@ export class Game {
     this.powerLabel?.show(force);
     this.trails.startRecording(cueBall);
     this.recorder.start(this.ballsManager, this.mode, force, this.cueTipOffset, this.tableProfileId);
+
+    // Reset per-shot career tracking flags
+    this._shotIsLongShot = false;
+    this._shotIsBank = false;
+    this._shotFirstHitDistance = 0;
 
     // Strike snap: cue visually touches the ball for one frame before hiding
     if (this.cue) this.cue.strikeSnap(cueBall.mesh.position, this.aimDirection);
@@ -1696,6 +1715,8 @@ export class Game {
         isFoul: result.foul,
         isScratch: result.scratch,
         mode: this.mode,
+        isLongShot: this._shotIsLongShot,
+        isBank: this._shotIsBank,
       });
     }
     if (result.foul) {
@@ -1741,7 +1762,7 @@ export class Game {
       // Career game recording
       if (!this.networkMode && !this.bothAI) {
         const myPlayerNum = this.aiEnabled ? 1 : this.currentPlayer;
-        const myStats = summary.player1 || {};
+        const myStats = summary[`player${myPlayerNum}`] || {};
         const myResult = result.winner === myPlayerNum ? 'win'
           : result.winner === 0 ? 'draw' : 'loss';
         careerStore.recordGame({
@@ -2773,7 +2794,7 @@ export class Game {
     // Career game recording (concede = loss)
     if (!this.networkMode && !this.bothAI) {
       const myPlayerNum = this.aiEnabled ? 1 : this.currentPlayer;
-      const myStats = summary.player1 || {};
+      const myStats = summary[`player${myPlayerNum}`] || {};
       careerStore.recordGame({
         mode: this.mode,
         result: 'loss',

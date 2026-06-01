@@ -359,6 +359,7 @@ export class MenuSystem {
     this.state = 'TRANSITION';
 
     this._disposeCurrentGame();
+    if (this.careerPanel) this.careerPanel.hide();
     const faded = await this._fadeToGame();
     if (!faded) return;
     if (this.audio) this.audio.stopBGM(false);
@@ -491,6 +492,7 @@ export class MenuSystem {
     this.state = 'TRANSITION';
 
     this._disposeCurrentGame();
+    if (this.careerPanel) this.careerPanel.hide();
     const faded = await this._fadeToGame();
     if (!faded) return;
     if (this.audio) this.audio.stopBGM(false);
@@ -629,6 +631,7 @@ export class MenuSystem {
     this._disposeCurrentGame();
     if (this.replayPanel) this.replayPanel.hideList();
     if (this.achievementPanel) this.achievementPanel.hideWall();
+    if (this.careerPanel) this.careerPanel.hide();
     const faded = await this._fadeToGame();
     if (!faded) return;
     if (this.audio) this.audio.stopBGM(false);

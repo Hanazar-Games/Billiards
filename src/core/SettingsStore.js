@@ -20,6 +20,7 @@ const DEFAULTS = {
   foulVolumeScale: 1.0,
   ambientVolumeScale: 1.0,
   hitFeedbackVolumeScale: 1.0,
+  winVolumeScale: 1.0,
   vibrationEnabled: false,
   lowLatencyMode: false,
 
