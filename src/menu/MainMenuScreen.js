@@ -12,7 +12,7 @@ import { VERSION_TAG } from '../core/Version.js';
  *  - Back button when returning from settings
  */
 export class MainMenuScreen {
-  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onShowChallenges, onQuit, onLanMultiplayer, onMatchSetup, onShowTrainer, onShowTournament) {
+  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onShowChallenges, onQuit, onLanMultiplayer, onMatchSetup, onShowTrainer, onShowTournament, onShowCareer) {
     this.onSelectMode = onSelectMode || (() => {});
     this.onSettings = onSettings;
     this.onAchievements = onAchievements;
@@ -23,6 +23,7 @@ export class MainMenuScreen {
     this.onMatchSetup = onMatchSetup;
     this.onShowTrainer = onShowTrainer;
     this.onShowTournament = onShowTournament;
+    this.onShowCareer = onShowCareer;
     this.container = null;
     this._fadeTimer = null;
     this._hideTimer = null;
@@ -119,6 +120,9 @@ export class MainMenuScreen {
     });
     this._addButton(socialGroup, '局域网联机', '同一 Wi-Fi 下创建或加入房间，与好友对战', () => {
       if (this.onLanMultiplayer) this.onLanMultiplayer();
+    });
+    this._addButton(socialGroup, '生涯统计', '查看击球风格分析、胜率趋势与最佳记录', () => {
+      if (this.onShowCareer) this.onShowCareer();
     });
 
     // ── Section: 系统 ──

@@ -1,4 +1,31 @@
-# 3D Billiards v1.9.2 — Latest Update
+# 3D Billiards v1.10.0 — Latest Update
+
+## What's New in v1.10.0
+
+### 📊 Career Stats & Shot Style Profiler — Your Personal Billiards DNA
+
+全新**生涯统计与击球风格分析系统**，让每一次击球都成为你成长路上的数据足迹。
+
+**核心功能：**
+- **生涯总览**：总局数、胜率、总击球数、最长连杆 — 一目了然
+- **击球风格标签**：系统根据你的击球数据自动分析风格，如「重炮手」「触感型」「旋转艺术家」「长台杀手」「薄球大师」等
+- **模式战绩**：各游戏模式的胜率条形图，支持 VS AI 按难度细分
+- **杆法偏好**：高杆/低杆/左塞/右塞/中杆的使用比例可视化
+- **力度分布**：5 档力度柱状图，直观展示你的发力习惯
+- **特殊击球**：长台进攻、薄球、库边球、开球的命中率统计
+- **最佳记录**：最快胜利、最高力度、单杆最多进球、单杆最多碰撞等
+- **数据持久化**：所有数据自动保存在本地，跨会话累积
+
+**技术实现：**
+- `CareerStore` — 独立持久化存储模块，采用 localStorage + 默认合并策略，兼容未来 schema 升级
+- `ShotProfiler` — 纯数据分析引擎，零 DOM 依赖，可测试
+- `CareerPanel` — 玻璃态全屏面板，CSS 数据可视化（条形图、柱状图、徽章），`Escape` 键返回
+- `Game.js` 集成 — `resolveTurn()` 自动记录每杆数据，`gameOver` / `concede` 自动记录整局结果
+- 网络对战和观赛模式自动排除，避免污染个人数据
+
+---
+
+# 3D Billiards v1.9.2 — Previous Update
 
 ## What's New in v1.9.2
 

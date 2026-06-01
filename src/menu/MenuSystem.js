@@ -41,6 +41,7 @@ import { SpectatorMode } from '../spectator/SpectatorMode.js';
 import { TournamentPanel } from '../tournament/TournamentPanel.js';
 import { TournamentResult } from '../tournament/TournamentResult.js';
 import { TournamentEngine } from '../tournament/TournamentEngine.js';
+import { CareerPanel } from '../career/CareerPanel.js';
 
 
 export class MenuSystem {
@@ -99,6 +100,9 @@ export class MenuSystem {
     this.tournamentResult = null;
     this._tournamentPlayerName = null;
     this._tournamentOpponentName = null;
+
+    // Career stats panel
+    this.careerPanel = null;
 
     this._initAudio().then(() => {
       this._setupMenu();
@@ -161,6 +165,7 @@ export class MenuSystem {
     if (this.tournamentResult && !except.has(this.tournamentResult)) {
       this.tournamentResult.hide?.();
     }
+    hide(this.careerPanel);
   }
 
   /** Dispose active game + loop + spectator. */
@@ -236,7 +241,8 @@ export class MenuSystem {
       () => this._showLanRoom(),
       () => this._showMatchSetup(),
       () => this._showTrainer(),
-      () => this._showTournament()
+      () => this._showTournament(),
+      () => this._showCareerStats()
     );
 
     // Create achievement panel (for viewing from menu)
@@ -331,6 +337,15 @@ export class MenuSystem {
       );
     }
     this.trainerPanel.show();
+  }
+
+  _showCareerStats() {
+    this.state = 'MENU';
+    this._hideAllPanels(new Set([this.careerPanel]));
+    if (!this.careerPanel) {
+      this.careerPanel = new CareerPanel(() => this._showMainMenu());
+    }
+    this.careerPanel.show();
   }
 
   _showTournament() {
@@ -1065,6 +1080,7 @@ export class MenuSystem {
     try { if (this.matchSetupPanel) { this.matchSetupPanel.destroy(); this.matchSetupPanel = null; } } catch (e) {}
     try { if (this.tournamentPanel) { this.tournamentPanel.destroy(); this.tournamentPanel = null; } } catch (e) {}
     try { if (this.tournamentResult) { this.tournamentResult.destroy(); this.tournamentResult = null; } } catch (e) {}
+    try { if (this.careerPanel) { this.careerPanel.destroy(); this.careerPanel = null; } } catch (e) {}
 
     // Clean up shared core
     this.renderer.dispose();

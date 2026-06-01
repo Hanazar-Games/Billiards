@@ -25,6 +25,7 @@ import { ShotRecorder } from '../replay/ShotRecorder.js';
 import { InstantReplayController } from '../replay/InstantReplayController.js';
 import { ShotAnalyzerPanel } from '../analyzer/ShotAnalyzerPanel.js';
 import { settings, MATCH_FAIRNESS_KEYS } from '../core/SettingsStore.js';
+import { careerStore } from '../career/CareerStore.js';
 import { keyBindings } from '../input/KeyBindings.js';
 import { BALL, SHOT, CAMERA, TABLE } from '../config.js';
 import { getTableProfile, resolveTableProfileId, validateModeTableProfile } from './TableProfiles.js';
@@ -1680,6 +1681,23 @@ export class Game {
     for (const id of effectivePocketedIds) {
       this.statsTracker.recordPocket(this.currentPlayer, id);
     }
+
+    // Career shot recording
+    if (!this.networkMode && !this.bothAI) {
+      const myPlayerNum = this.aiEnabled ? 1 : this.currentPlayer;
+      const stats = this.statsTracker.playerStats[myPlayerNum] || {};
+      careerStore.recordShot({
+        power: (this._lastShotPower || 0) * 100,
+        spin: this.cueTipOffset || { x: 0, y: 0 },
+        pocketedCount: effectivePocketedIds.length,
+        collisions: stats.ballCollisions || 0,
+        cushions: stats.cushionCollisions || 0,
+        isBreak: this._isBreakShot,
+        isFoul: result.foul,
+        isScratch: result.scratch,
+        mode: this.mode,
+      });
+    }
     if (result.foul) {
       this.statsTracker.recordFoul(this.currentPlayer, result.scratch);
       if (this.ui) this.ui.updateComboCounter(0);
@@ -1718,6 +1736,23 @@ export class Game {
       );
       if (this.challengeManager) {
         this.challengeManager.onGameEnd(result.winner);
+      }
+
+      // Career game recording
+      if (!this.networkMode && !this.bothAI) {
+        const myPlayerNum = this.aiEnabled ? 1 : this.currentPlayer;
+        const myStats = summary.player1 || {};
+        const myResult = result.winner === myPlayerNum ? 'win'
+          : result.winner === 0 ? 'draw' : 'loss';
+        careerStore.recordGame({
+          mode: this.mode,
+          result: myResult,
+          durationSeconds: duration,
+          difficulty: this.aiPlayer?.difficulty,
+          myPockets: myStats.ballsPocketed || 0,
+          myShots: myStats.shots || 0,
+          maxStreak: myStats.maxConsecutivePockets || 0,
+        });
       }
 
       if (result.winner === this.currentPlayer) {
@@ -2733,6 +2768,21 @@ export class Game {
     );
     if (this.challengeManager) {
       this.challengeManager.onGameEnd(winner);
+    }
+
+    // Career game recording (concede = loss)
+    if (!this.networkMode && !this.bothAI) {
+      const myPlayerNum = this.aiEnabled ? 1 : this.currentPlayer;
+      const myStats = summary.player1 || {};
+      careerStore.recordGame({
+        mode: this.mode,
+        result: 'loss',
+        durationSeconds: duration,
+        difficulty: this.aiPlayer?.difficulty,
+        myPockets: myStats.ballsPocketed || 0,
+        myShots: myStats.shots || 0,
+        maxStreak: myStats.maxConsecutivePockets || 0,
+      });
     }
 
     this.audio?.playWin();
