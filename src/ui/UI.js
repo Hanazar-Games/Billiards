@@ -332,9 +332,10 @@ export class UI {
     const totalSec = Math.floor(safeMs / 1000);
     if (this._lastTimerSec === totalSec) return;
     this._lastTimerSec = totalSec;
-    const min = String(Math.floor(totalSec / 60)).padStart(2, '0');
+    const h = Math.floor(totalSec / 3600);
+    const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
     const sec = String(totalSec % 60).padStart(2, '0');
-    this._hudTimer.textContent = `${min}:${sec}`;
+    this._hudTimer.textContent = h > 0 ? `${h}:${m}:${sec}` : `${m}:${sec}`;
   }
 
   setTurnTimer(seconds, maxSeconds) {
@@ -1000,6 +1001,10 @@ export class UI {
       const uiLayer = document.getElementById('ui-layer');
       if (uiLayer) uiLayer.appendChild(this._replayHintEl);
     }
+    if (this._replayHintHideTimer) {
+      clearTimeout(this._replayHintHideTimer);
+      this._replayHintHideTimer = null;
+    }
     this._replayHintEl.style.display = 'block';
     this._replayHintEl.onclick = onClick;
     requestAnimationFrame(() => {
@@ -1014,7 +1019,8 @@ export class UI {
     if (this._replayHintEl) {
       this._replayHintEl.style.opacity = '0';
       this._replayHintEl.style.transform = 'translateY(6px)';
-      setTimeout(() => {
+      this._replayHintHideTimer = setTimeout(() => {
+        this._replayHintHideTimer = null;
         if (this._replayHintEl) this._replayHintEl.style.display = 'none';
       }, animMs(250));
       this._replayHintEl.onclick = null;
@@ -1160,6 +1166,10 @@ export class UI {
       this._pushOutBtn.parentNode.removeChild(this._pushOutBtn);
     }
     this._pushOutBtn = null;
+    if (this._replayHintHideTimer) {
+      clearTimeout(this._replayHintHideTimer);
+      this._replayHintHideTimer = null;
+    }
     if (this._replayHintEl && this._replayHintEl.parentNode) {
       this._replayHintEl.onmouseenter = null;
       this._replayHintEl.onmouseleave = null;

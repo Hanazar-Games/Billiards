@@ -87,7 +87,7 @@ const KEYBOARD_BINDABLE = new Set([
   'cameraFree','cameraTop','cameraFollow','zoomIn','zoomOut',
   'aimUp','aimDown','aimLeft','aimRight','shoot','powerUp','powerDown','cancelShot',
   'spinUp','spinDown','spinLeft','spinRight','spinReset','spinMaxTop','spinMaxBottom',
-  'pause','undo','resetGame','toggleTrajectory','toggleSound','screenshot','toggleFPS',
+  'pause','undo','resetGame','toggleTrajectory','toggleSound','screenshot','toggleFPS','instantReplay',
   'openSettings','closeModal','toggleFullscreen','nextTab','prevTab',
 ]);
 
@@ -111,6 +111,7 @@ const DEFAULT_BINDINGS = {
   spinLeft:     'a',
   spinRight:    'd',
   spinReset:    'r',
+  instantReplay:'shift+r',
   spinMaxTop:   'shift+w',
   spinMaxBottom:'shift+s',
   pause:        'escape',
@@ -147,6 +148,7 @@ const PRESET_MAC = {
   spinLeft:     'a',
   spinRight:    'd',
   spinReset:    'r',
+  instantReplay:'shift+r',
   spinMaxTop:   'shift+w',
   spinMaxBottom:'shift+s',
   pause:        'escape',

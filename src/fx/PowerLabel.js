@@ -20,7 +20,6 @@ const TIERS = [
 export class PowerLabel {
   constructor() {
     this.el = null;
-    this._ensureElement();
     this._animId = null;
     this._startTime = 0;
     this._duration = 0;

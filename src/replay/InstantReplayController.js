@@ -53,8 +53,8 @@ export class InstantReplayController {
       return false;
     }
 
-    // Set slow-motion speed (default 0.5x)
-    this.replayEngine.setSpeed(1);
+    // Respect user's replaySpeed setting (load() already resolved it)
+    // Intentionally do NOT override — instant replays use the same speed preference
     this.replayEngine.play();
 
     // Show HUD
@@ -134,6 +134,9 @@ export class InstantReplayController {
         position: ball.mesh
           ? { x: ball.mesh.position.x, y: ball.mesh.position.y, z: ball.mesh.position.z }
           : null,
+        quaternion: ball.mesh
+          ? { x: ball.mesh.quaternion.x, y: ball.mesh.quaternion.y, z: ball.mesh.quaternion.z, w: ball.mesh.quaternion.w }
+          : null,
         visible: ball.mesh ? ball.mesh.visible : false,
         pocketed: ball.pocketed,
       });
@@ -147,6 +150,9 @@ export class InstantReplayController {
       if (!ball || !ball.mesh) continue;
       if (state.position) {
         ball.mesh.position.set(state.position.x, state.position.y, state.position.z);
+      }
+      if (state.quaternion) {
+        ball.mesh.quaternion.set(state.quaternion.x, state.quaternion.y, state.quaternion.z, state.quaternion.w);
       }
       ball.mesh.visible = state.visible;
       ball.pocketed = state.pocketed;
@@ -196,7 +202,7 @@ export class InstantReplayController {
     if (!replayData) return false;
     if (settings.get('instantReplayEnabled') === false) return false;
     if (settings.get('autoInstantReplay') === false) return false;
-    const threshold = settings.get('instantReplayThreshold') || 35;
+    const threshold = settings.get('instantReplayThreshold') ?? 35;
     return (replayData.score || 0) >= threshold;
   }
 
@@ -206,6 +212,7 @@ export class InstantReplayController {
   }
 
   dispose() {
+    this._onComplete = null;
     this._endReplay();
     this.ui.destroy();
     this.replayEngine = null;

@@ -431,13 +431,16 @@ export class Game {
             if (relVel > 0.5) {
               this.audio?.playBallCollision(relVel);
             }
-            if (this.state === 'SHOOTING' && relVel > 1.0) {
-              this.statsTracker.recordBallCollision(this.currentPlayer);
-              this._tmpVec3d
-                .copy(ball.mesh.position)
-                .add(otherBall.mesh.position)
-                .multiplyScalar(0.5);
-              this.particles.spawnCollisionSparks(this._tmpVec3d, relVel);
+            if (this.state === 'SHOOTING') {
+              this.recorder.recordCollision();
+              if (relVel > 1.0) {
+                this.statsTracker.recordBallCollision(this.currentPlayer);
+                this._tmpVec3d
+                  .copy(ball.mesh.position)
+                  .add(otherBall.mesh.position)
+                  .multiplyScalar(0.5);
+                this.particles.spawnCollisionSparks(this._tmpVec3d, relVel);
+              }
             }
           }
         } else if (otherBody.material === this.physics.cushionMaterial) {
@@ -496,6 +499,7 @@ export class Game {
   }
 
   onMouseMove() {
+    if (this.state === 'REPLAYING') return;
     if (this.bothAI) return; // spectator mode: no human input
     // Freeze aim while in camera-control mode
     if (this.renderer._shiftCameraControl) return;
@@ -512,6 +516,7 @@ export class Game {
   }
 
   onMouseDown(e) {
+    if (this.state === 'REPLAYING') return;
     if (this.paused) return;
     // In spectator mode, ignore all human input
     if (this.bothAI) return;
@@ -570,6 +575,7 @@ export class Game {
   }
 
   onMouseUp() {
+    if (this.state === 'REPLAYING') return;
     if (this.paused) return;
     if (this.bothAI) return; // spectator mode: no human input
     if (this.state !== 'CHARGING') return;
@@ -1105,7 +1111,7 @@ export class Game {
     const isClient = this.networkRole === 'client';
     const pocketPositions = this.table.getPocketPositions();
 
-    if (!isClient) {
+    if (!isClient && this.state !== 'REPLAYING') {
       this.ballsManager.updatePhysicsGuards(dt, pocketPositions);
       this.ballsManager.sync();
     }
@@ -1181,11 +1187,13 @@ export class Game {
     }
 
     // Update visual effects
-    this.trails.update(dt);
-    this.particles.update(dt);
-    this.shockwaves.update(dt);
-    this.screenShake.update(dt);
-    if (this.ballReturn) this.ballReturn.update(dt);
+    if (this.state !== 'REPLAYING') {
+      this.trails.update(dt);
+      this.particles.update(dt);
+      this.shockwaves.update(dt);
+      this.screenShake.update(dt);
+      if (this.ballReturn) this.ballReturn.update(dt);
+    }
 
     // Update match timer
     if (this.gameStartTime) {
@@ -1225,7 +1233,8 @@ export class Game {
     if (this.state === 'AIM' && this.cue && this.cue.visible) {
       // Check for instant replay auto-trigger on first frame of AIM
       // Disabled in network games to avoid desync
-      if (this._lastReplayData && !this.networkMode
+      if (this._lastReplayData && !this.networkMode && !this.ballInHand
+          && InstantReplayController.isEnabled()
           && InstantReplayController.shouldAutoTrigger(this._lastReplayData)) {
         const data = this._lastReplayData;
         this._lastReplayData = null;
@@ -1363,12 +1372,13 @@ export class Game {
   }
 
   _updateReplayHint() {
-    if (!InstantReplayController.isEnabled() || this.networkMode) {
+    if (!InstantReplayController.isEnabled() || this.networkMode || this.ballInHand) {
       this.ui.hideReplayHint();
       return;
     }
     if (this.state === 'AIM' && this._lastReplayData) {
       this.ui.showReplayHint(() => {
+        if (this.ballInHand) return;
         const data = this._lastReplayData;
         this._lastReplayData = null;
         this._startInstantReplay(data, false);
@@ -1395,6 +1405,7 @@ export class Game {
   _startInstantReplay(replayData, auto = false) {
     if (!replayData || !this.instantReplay) return;
     if (!InstantReplayController.isEnabled()) return;
+    if (this.ballInHand) return;
 
     // Hide game UI elements during replay
     if (this.cue) this.cue.hide();
@@ -1418,6 +1429,14 @@ export class Game {
   /** End instant replay and return to normal AIM state. */
   _endInstantReplay() {
     if (this.state !== 'REPLAYING') return;
+
+    if (this.ballInHand) {
+      this.state = 'AIM';
+      this.ui.setHUDState('BALL_IN_HAND');
+      if (this.cue) this.cue.hide();
+      this.setAimTrajectoryVisible(false);
+      return;
+    }
 
     this.state = 'AIM';
     this.ui.setHUDState('AIM');
@@ -1560,7 +1579,9 @@ export class Game {
     // Save replay if shot was interesting
     this.recorder.stop();
     const replayData = this.recorder.getReplayData();
-    this._lastReplayData = replayData || null;
+    if (!this.networkMode) {
+      this._lastReplayData = replayData || null;
+    }
     if (replayData && this.replayLibrary) {
       this.replayLibrary.save(replayData);
     }
@@ -1898,8 +1919,8 @@ export class Game {
     this.recorder.reset();
     if (this.instantReplay) {
       this.instantReplay.dispose();
-      this.instantReplay = null;
     }
+    this.instantReplay = new InstantReplayController(this.scene, this.camera, this.ballsManager);
     if (this.analyzerPanel) {
       this.analyzerPanel.destroy();
       this.analyzerPanel = null;
@@ -2202,7 +2223,9 @@ export class Game {
 
       // Instant replay (R key) — manual trigger in AIM or REPLAYING state
       // Disabled in network games to avoid desync
-      if (key === 'r' && !mods.ctrl && !mods.meta && !mods.alt && !this.networkMode) {
+      // Instant replay (R key by default) — manual trigger in AIM or REPLAYING state
+      // Disabled in network games and during ball-in-hand to avoid state issues
+      if (keyBindings.matches('instantReplay', key, mods) && !this.networkMode && !this.ballInHand) {
         if (this.state === 'REPLAYING') {
           this.instantReplay?.skip();
           return;
@@ -2252,6 +2275,7 @@ export class Game {
 
       // Enter to confirm shot when confirmShotOnRelease is disabled
       if (key === 'enter' && settings.get('confirmShotOnRelease') === false) {
+        if (this.state === 'REPLAYING') return;
         if (this.paused) return;
         // Prevent accidental shot when typing in an input/textarea
         const tag = e.target?.tagName;
@@ -2928,6 +2952,12 @@ export class Game {
       case 'quickBreak':
         // Applied when starting a new game
         break;
+      case 'instantReplayEnabled':
+      case 'autoInstantReplay':
+      case 'instantReplayThreshold':
+        // Instant replay settings are read live; refresh hint visibility
+        if (this.state === 'AIM') this._updateReplayHint();
+        break;
       case 'language':
         // Language switch requires page reload or full text refresh
         break;
@@ -3084,6 +3114,7 @@ export class Game {
     this.power = 0;
     this.ui.setPower(0);
     this.recorder.reset();
+    this._lastReplayData = null;
     if (this.analyzerPanel) {
       this.analyzerPanel.destroy();
       this.analyzerPanel = null;
@@ -3230,6 +3261,12 @@ export class Game {
       this.audio = null;
     }
 
+    // Dispose instant replay before UI (its onComplete may touch UI)
+    if (this.instantReplay) {
+      try { this.instantReplay.dispose(); } catch (e) {}
+      this.instantReplay = null;
+    }
+
     // Dispose UI overlays and timers
     if (this.ui) {
       this.ui.destroy();
@@ -3284,10 +3321,6 @@ export class Game {
     if (this.analyzerPanel) {
       try { this.analyzerPanel.destroy(); } catch (e) {}
       this.analyzerPanel = null;
-    }
-    if (this.instantReplay) {
-      try { this.instantReplay.dispose(); } catch (e) {}
-      this.instantReplay = null;
     }
 
     // Remove challenge HUD

@@ -24,6 +24,7 @@ export class GameLoop {
   start() {
     if (this.running) return;
     this.running = true;
+    this._errorCount = 0;
     this.lastTime = performance.now();
     this._lastFrameTime = this.lastTime;
     this._fpsLimitMs = this._getFrameIntervalMs();

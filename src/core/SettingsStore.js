@@ -348,6 +348,9 @@ export class SettingsStore {
       return;
     }
     if (this._data[key] === value) return;
+    if (key === 'instantReplayThreshold') {
+      value = Math.max(0, Math.min(100, Number(value) || 35));
+    }
     this._data[key] = value;
     this._save();
     this._notify(key, value);

@@ -123,7 +123,7 @@ export class InstantReplayCamera {
   }
 
   _getCurrentLook() {
-    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    const dir = _TMP.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
     return _TMP3.copy(this.camera.position).add(dir.multiplyScalar(60));
   }
 }

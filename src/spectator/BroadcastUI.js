@@ -144,9 +144,11 @@ export class BroadcastUI {
     this.container.appendChild(this._eventBadge);
 
     // Inject blink keyframe + responsive media queries if not present
-    if (!document.getElementById('broadcast-blink-style')) {
-      const style = document.createElement('style');
+    let style = document.getElementById('broadcast-blink-style');
+    if (!style) {
+      style = document.createElement('style');
       style.id = 'broadcast-blink-style';
+      style.dataset.refcount = '0';
       style.textContent = `
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
         .broadcast-p1-active .broadcast-player-left { border-color: rgba(216,177,95,0.7); background: rgba(140,110,40,0.45); }
@@ -163,6 +165,9 @@ export class BroadcastUI {
         }
       `;
       document.head.appendChild(style);
+    }
+    if (style) {
+      style.dataset.refcount = String(parseInt(style.dataset.refcount || '0', 10) + 1);
     }
 
     parent.appendChild(this.container);
@@ -351,10 +356,14 @@ export class BroadcastUI {
     this._eventBadge = null;
     this._visible = false;
     this._matchStartTime = 0;
-    // Remove injected style if no other BroadcastUI instances need it
+    // Decrement refcount and remove style only when no instances remain
     const style = document.getElementById('broadcast-blink-style');
-    if (style && style.parentNode) {
-      style.parentNode.removeChild(style);
+    if (style) {
+      const rc = Math.max(0, parseInt(style.dataset.refcount || '0', 10) - 1);
+      style.dataset.refcount = String(rc);
+      if (rc <= 0 && style.parentNode) {
+        style.parentNode.removeChild(style);
+      }
     }
   }
 }

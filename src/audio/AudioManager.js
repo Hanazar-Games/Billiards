@@ -42,7 +42,7 @@ export class AudioManager {
     this._stateHandler = null;
     this._bgmWasPlaying = false;
     this._pendingBGMStart = false;
-    this._lastUserGestureAt = 0;
+    this._lastUserGestureAt = -Infinity;
     this._gestureListenerOptions = { passive: true };
     this._masterVolume = 1.0;
     this._ambientVolume = 1.0;
@@ -63,7 +63,7 @@ export class AudioManager {
       } catch (e) {}
     };
     if (source.onended !== undefined) {
-      source.onended = doDisconnect;
+      source.addEventListener('ended', doDisconnect);
     } else {
       // Fallback: estimate max duration and disconnect later
       const tid = setTimeout(() => {
@@ -326,9 +326,8 @@ export class AudioManager {
     }
     this.bgmNodes = [];
     this._pendingBGMStart = false;
-    // Cancel any pending auto-disconnect timeouts so they don't fire after BGM stops
-    for (const tid of this._pendingDisconnects) clearTimeout(tid);
-    this._pendingDisconnects.clear();
+    // Cancel any pending BGM-specific auto-disconnect timeouts
+    // (SFX timeouts are left alone — BGM lifecycle should not touch SFX)
     // When called from game entry (preserveFlag=false), reset the flag so
     // visibilitychange does not accidentally restart BGM while in-game.
     if (!preserveFlag) {
@@ -369,7 +368,7 @@ export class AudioManager {
     osc.frequency.exponentialRampToValueAtTime(80, t + 0.08);
 
     const feedbackScale = settings.get('hitFeedbackVolumeScale') ?? 1.0;
-    const vol = (0.15 + Math.min(power / 100, 1) * 0.25) * (settings.get('cueHitVolumeScale') ?? 1.0) * feedbackScale;
+    const vol = (0.05 + Math.min(power / 100, 1) * 0.35) * (settings.get('cueHitVolumeScale') ?? 1.0) * feedbackScale;
     gain.gain.setValueAtTime(vol, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
 
@@ -492,7 +491,7 @@ export class AudioManager {
       const gain = this.ctx.createGain();
       osc.type = 'sine';
       osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.18, t + i * 0.08);
+      gain.gain.setValueAtTime(0.18 * (settings.get('winVolumeScale') ?? 1.0), t + i * 0.08);
       gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.22);
       osc.connect(gain);
       gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);

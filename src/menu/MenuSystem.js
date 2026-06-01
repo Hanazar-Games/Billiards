@@ -74,7 +74,7 @@ export class MenuSystem {
     this.replayLibrary = new ReplayLibrary();
     this.replayPanel = null;
     this.replayEngine = null;
-    this.replayBallsManager = null;
+    // NOTE: replayBallsManager removed — was never used
     this.analyzerPanel = null;
 
     // Challenge system
@@ -832,6 +832,8 @@ export class MenuSystem {
     // Clean up LAN room panel / analyzer panel if present
     if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; }
     if (this.analyzerPanel) { this.analyzerPanel.destroy(); this.analyzerPanel = null; }
+    if (this.tournamentPanel) { this.tournamentPanel.destroy(); this.tournamentPanel = null; }
+    if (this.tournamentResult) { this.tournamentResult.destroy(); this.tournamentResult = null; }
 
     // Show main menu
     if (this.challengeResult) { this.challengeResult.destroy(); this.challengeResult = null; }
@@ -998,6 +1000,7 @@ export class MenuSystem {
         ball.geometry?.dispose();
         ball.material?.dispose();
       }
+      this._replayBalls.balls.length = 0;
       this._replayBalls = null;
     }
     if (this._replayTable) {

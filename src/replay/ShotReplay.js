@@ -182,10 +182,12 @@ export class ShotReplay {
 
       if (x === POCKETED_SENTINEL && z === POCKETED_SENTINEL) {
         ball.mesh.visible = false;
+        ball.pocketed = true;
         continue;
       }
 
       ball.mesh.visible = true;
+      ball.pocketed = false;
       ball.mesh.position.x = x;
       ball.mesh.position.z = z;
       ball.mesh.position.y = BALL.radius;
@@ -212,6 +214,11 @@ export class ShotReplay {
         ball.mesh.visible = false;
         continue;
       }
+      // Next frame is pocketed — hide immediately rather than interpolating to sentinel
+      if (x2 === POCKETED_SENTINEL && z2 === POCKETED_SENTINEL) {
+        ball.mesh.visible = false;
+        continue;
+      }
 
       ball.mesh.visible = true;
       ball.mesh.position.x = x1 + (x2 - x1) * alpha;
@@ -233,6 +240,6 @@ export class ShotReplay {
 
   /** Get total duration in seconds. */
   getDuration() {
-    return this.frameCount * (this.frameInterval || (1 / 60));
+    return Math.max(0, this.frameCount - 1) * (this.frameInterval || (1 / 60));
   }
 }

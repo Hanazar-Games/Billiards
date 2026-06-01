@@ -125,6 +125,9 @@ export class SpectatorMode {
     const game = this.game;
     const state = game.state;
 
+    // Do not fight with Instant Replay camera director
+    if (state === 'REPLAYING') return;
+
     // Camera update
     this.camera.update(dt, game);
 
@@ -258,7 +261,7 @@ export class SpectatorMode {
       isDifficult,
       isLong,
       isBank,
-      this.commentary._comboCount >= 2
+      this.commentary._comboCount >= 1
     );
 
     // Show pocket close-up on broadcast camera
