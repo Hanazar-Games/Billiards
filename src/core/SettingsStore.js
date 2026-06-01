@@ -192,6 +192,9 @@ const DEFAULTS = {
   showDetailedStats: true,
   shotHistoryTracking: true,
   replaySpeed: 1.0,
+  instantReplayEnabled: true,
+  autoInstantReplay: true,
+  instantReplayThreshold: 35,
 
   // ── Accessibility ──
   invertMouseX: true,

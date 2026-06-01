@@ -22,6 +22,7 @@ import { ScreenShake } from '../fx/ScreenShake.js';
 import { PowerLabel } from '../fx/PowerLabel.js';
 import { BallReturnSystem } from '../fx/BallReturnSystem.js';
 import { ShotRecorder } from '../replay/ShotRecorder.js';
+import { InstantReplayController } from '../replay/InstantReplayController.js';
 import { ShotAnalyzerPanel } from '../analyzer/ShotAnalyzerPanel.js';
 import { settings, MATCH_FAIRNESS_KEYS } from '../core/SettingsStore.js';
 import { keyBindings } from '../input/KeyBindings.js';
@@ -65,6 +66,7 @@ export class Game {
     this.powerLabel = new PowerLabel();
     this.minimap = new Minimap();
     this.recorder = new ShotRecorder();
+    this.instantReplay = new InstantReplayController(this.scene, this.camera, null); // ballsManager injected in init
     this.replayLibrary = null; // injected by MenuSystem
     this.analyzerPanel = null; // lazy-created
     this.onboardingTips = new OnboardingTips();
@@ -211,6 +213,7 @@ export class Game {
 
     this.ballsManager = new BallsManager(this.physics, this.tableProfile);
     this.ballsManager.createBalls();
+    if (this.instantReplay) this.instantReplay.ballsManager = this.ballsManager;
     if (this.mode === 'trainer' && this.drillConfig) {
       const { idealZone } = this.ballsManager.setupDrill(this.drillConfig, this.tableProfile);
       this.drillIdealZone = idealZone;
@@ -220,6 +223,7 @@ export class Game {
     }
     this._wireBallsManagerEvents();
     this.ballsManager.addToScene(this.scene);
+    if (this.instantReplay) this.instantReplay.ballsManager = this.ballsManager;
     // Apply ball visual settings after creation
     for (const ball of this.ballsManager.balls) {
       ball.updateVisualSettings(settings);
@@ -581,6 +585,7 @@ export class Game {
     }
     this.state = 'SHOOTING';
     this.ui.setHUDState('SHOOTING');
+    this.ui.hideReplayHint();
     this._shotStartTime = performance.now();
     this.charging = false;
     this.dragStart = null;
@@ -1082,6 +1087,7 @@ export class Game {
 
     // Shoot
     this.state = 'SHOOTING';
+    this.ui.hideReplayHint();
     this._shotStartTime = performance.now();
     this.charging = false;
     this.shoot();
@@ -1206,10 +1212,27 @@ export class Game {
       this.recorder.update(dt, this.ballsManager);
     }
 
+    // Instant replay mode: delegate camera to replay director
+    if (this.state === 'REPLAYING') {
+      this.instantReplay.update(dt);
+      // Skip normal camera and aim updates during replay
+      return;
+    }
+
     // Camera mode updates
     this._updateCamera();
 
     if (this.state === 'AIM' && this.cue && this.cue.visible) {
+      // Check for instant replay auto-trigger on first frame of AIM
+      // Disabled in network games to avoid desync
+      if (this._lastReplayData && !this.networkMode
+          && InstantReplayController.shouldAutoTrigger(this._lastReplayData)) {
+        const data = this._lastReplayData;
+        this._lastReplayData = null;
+        this._startInstantReplay(data, true);
+        return;
+      }
+      this._updateReplayHint();
       this.updateAimDirection();
       this.setAimTrajectoryVisible(true);
       this.updateTrajectory(dt);
@@ -1339,6 +1362,22 @@ export class Game {
     this.ui.setHUDState('AIM');
   }
 
+  _updateReplayHint() {
+    if (!InstantReplayController.isEnabled() || this.networkMode) {
+      this.ui.hideReplayHint();
+      return;
+    }
+    if (this.state === 'AIM' && this._lastReplayData) {
+      this.ui.showReplayHint(() => {
+        const data = this._lastReplayData;
+        this._lastReplayData = null;
+        this._startInstantReplay(data, false);
+      });
+    } else {
+      this.ui.hideReplayHint();
+    }
+  }
+
   /** Common ball-in-hand cleanup after placement is confirmed. */
   _endBallInHand() {
     this.ballInHand = false;
@@ -1350,6 +1389,43 @@ export class Game {
     this.updateTrajectory();
     this.ui.setMessage(UIText.ballInHandPlaced, 1800, 1);
     this.ui.setHUDState('AIM');
+  }
+
+  /** Start instant replay of the last shot. */
+  _startInstantReplay(replayData, auto = false) {
+    if (!replayData || !this.instantReplay) return;
+    if (!InstantReplayController.isEnabled()) return;
+
+    // Hide game UI elements during replay
+    if (this.cue) this.cue.hide();
+    this.setAimTrajectoryVisible(false);
+    this.ui.hideTurnTimer();
+    this.ui.hideReplayHint();
+
+    this.state = 'REPLAYING';
+    this.ui.setHUDState('REPLAYING');
+
+    const started = this.instantReplay.start(replayData, {
+      auto,
+      onComplete: () => this._endInstantReplay(),
+    });
+
+    if (!started) {
+      this._endInstantReplay();
+    }
+  }
+
+  /** End instant replay and return to normal AIM state. */
+  _endInstantReplay() {
+    if (this.state !== 'REPLAYING') return;
+
+    this.state = 'AIM';
+    this.ui.setHUDState('AIM');
+
+    if (this.cue) this.cue.show();
+    this.setAimTrajectoryVisible(true);
+    this.updateAimDirection();
+    this.updateTrajectory();
   }
 
   /** Player clicked the Push-out button. */
@@ -1484,6 +1560,7 @@ export class Game {
     // Save replay if shot was interesting
     this.recorder.stop();
     const replayData = this.recorder.getReplayData();
+    this._lastReplayData = replayData || null;
     if (replayData && this.replayLibrary) {
       this.replayLibrary.save(replayData);
     }
@@ -1782,6 +1859,10 @@ export class Game {
 
   resetGame() {
     if (this.state === 'DISPOSED') return;
+    this._lastReplayData = null;
+    if (this.instantReplay && this.instantReplay.active) {
+      this.instantReplay.skip();
+    }
     if (this.ballReturn) this.ballReturn.reset();
     for (const ball of this.ballsManager.balls) {
       const listener = this._ballCollideListeners.get(ball.id);
@@ -1815,6 +1896,10 @@ export class Game {
     this.shockwaves?.clear();
     this.screenShake?.cancel();
     this.recorder.reset();
+    if (this.instantReplay) {
+      this.instantReplay.dispose();
+      this.instantReplay = null;
+    }
     if (this.analyzerPanel) {
       this.analyzerPanel.destroy();
       this.analyzerPanel = null;
@@ -2111,6 +2196,21 @@ export class Game {
           this.state = 'AIM';
           if (this.cue) this.cue.show();
           this.ui.setMessage(UIText.ballInHandCanceled, 0, 1);
+          return;
+        }
+      }
+
+      // Instant replay (R key) — manual trigger in AIM or REPLAYING state
+      // Disabled in network games to avoid desync
+      if (key === 'r' && !mods.ctrl && !mods.meta && !mods.alt && !this.networkMode) {
+        if (this.state === 'REPLAYING') {
+          this.instantReplay?.skip();
+          return;
+        }
+        if (this.state === 'AIM' && this._lastReplayData) {
+          const data = this._lastReplayData;
+          this._lastReplayData = null;
+          this._startInstantReplay(data, false);
           return;
         }
       }
@@ -2953,6 +3053,7 @@ export class Game {
     // Recreate balls in drill layout
     this.ballsManager = new BallsManager(this.physics, this.tableProfile);
     this.ballsManager.createBalls();
+    if (this.instantReplay) this.instantReplay.ballsManager = this.ballsManager;
     const { idealZone } = this.ballsManager.setupDrill(this.drillConfig, this.tableProfile);
     this.drillIdealZone = idealZone;
     this._wireBallsManagerEvents();
@@ -3183,6 +3284,10 @@ export class Game {
     if (this.analyzerPanel) {
       try { this.analyzerPanel.destroy(); } catch (e) {}
       this.analyzerPanel = null;
+    }
+    if (this.instantReplay) {
+      try { this.instantReplay.dispose(); } catch (e) {}
+      this.instantReplay = null;
     }
 
     // Remove challenge HUD

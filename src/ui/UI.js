@@ -960,6 +960,66 @@ export class UI {
     }
   }
 
+  showReplayHint(onClick) {
+    if (!this._replayHintEl) {
+      this._replayHintEl = document.createElement('button');
+      this._replayHintEl.className = 'hud-btn';
+      this._replayHintEl.textContent = '🔁 回放上一杆 (R)';
+      this._replayHintEl.style.cssText = `
+        position: absolute;
+        bottom: calc(var(--hud-bottom-safe) + 84px);
+        right: calc(var(--hud-right-safe) + 12px);
+        padding: 7px 14px;
+        font-size: 12px;
+        font-weight: 750;
+        background: rgba(0,0,0,0.55);
+        border: 1px solid rgba(255,255,255,0.18);
+        color: rgba(255,255,255,0.75);
+        border-radius: 8px;
+        cursor: pointer;
+        pointer-events: auto;
+        backdrop-filter: blur(6px);
+        z-index: 12;
+        transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+        opacity: 0;
+        transform: translateY(6px);
+      `;
+      this._replayHintEl.onmouseenter = () => {
+        if (this._replayHintEl) {
+          this._replayHintEl.style.background = 'rgba(255,255,255,0.12)';
+          this._replayHintEl.style.borderColor = 'rgba(255,255,255,0.3)';
+        }
+      };
+      this._replayHintEl.onmouseleave = () => {
+        if (this._replayHintEl) {
+          this._replayHintEl.style.background = 'rgba(0,0,0,0.55)';
+          this._replayHintEl.style.borderColor = 'rgba(255,255,255,0.18)';
+        }
+      };
+      const uiLayer = document.getElementById('ui-layer');
+      if (uiLayer) uiLayer.appendChild(this._replayHintEl);
+    }
+    this._replayHintEl.style.display = 'block';
+    this._replayHintEl.onclick = onClick;
+    requestAnimationFrame(() => {
+      if (this._replayHintEl) {
+        this._replayHintEl.style.opacity = '1';
+        this._replayHintEl.style.transform = 'translateY(0)';
+      }
+    });
+  }
+
+  hideReplayHint() {
+    if (this._replayHintEl) {
+      this._replayHintEl.style.opacity = '0';
+      this._replayHintEl.style.transform = 'translateY(6px)';
+      setTimeout(() => {
+        if (this._replayHintEl) this._replayHintEl.style.display = 'none';
+      }, animMs(250));
+      this._replayHintEl.onclick = null;
+    }
+  }
+
   showPushOutChoice(onAccept, onPass) {
     if (!this._pushOutChoiceWrap) {
       this._pushOutChoiceWrap = document.createElement('div');
@@ -1099,6 +1159,13 @@ export class UI {
       this._pushOutBtn.parentNode.removeChild(this._pushOutBtn);
     }
     this._pushOutBtn = null;
+    if (this._replayHintEl && this._replayHintEl.parentNode) {
+      this._replayHintEl.onmouseenter = null;
+      this._replayHintEl.onmouseleave = null;
+      this._replayHintEl.onclick = null;
+      this._replayHintEl.parentNode.removeChild(this._replayHintEl);
+    }
+    this._replayHintEl = null;
     if (this._pushOutChoiceWrap && this._pushOutChoiceWrap.parentNode) {
       this._pushOutChoiceWrap.parentNode.removeChild(this._pushOutChoiceWrap);
     }
