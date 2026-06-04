@@ -240,4 +240,202 @@ export class ShotProfiler {
       labels: this.analyzeStyle(),
     };
   }
+
+  /* ── Training Tips (Coach System) ── */
+
+  /**
+   * Generate 3-5 personalized training tips based on career data.
+   * Returns empty array when insufficient data.
+   */
+  getTrainingTips() {
+    const tips = [];
+    const style = this.store.getShotStyle();
+    const totals = this.store.getTotals();
+    const shots = this.store.getShotsTaken() || 0;
+    const games = this.store.getGamesPlayed() || 0;
+    const avgPower = parseFloat(this.getAveragePower());
+    const pocketRate = parseFloat(this.getPocketRate());
+    const foulRate = parseFloat(this.getFoulRate());
+
+    // Need some baseline data
+    if (shots < 5 && games < 2) return [];
+
+    // 1. Power preference
+    if (shots >= 10) {
+      const heavy = (style.powerBuckets[3] || 0) + (style.powerBuckets[4] || 0);
+      const light = (style.powerBuckets[0] || 0) + (style.powerBuckets[1] || 0);
+      const heavyRatio = heavy / shots;
+      const lightRatio = light / shots;
+
+      if (heavyRatio > 0.5) {
+        tips.push({
+          category: '力度',
+          icon: '💪',
+          title: '降低平均发力',
+          text: `你 ${(heavyRatio * 100).toFixed(0)}% 的击球使用大/暴杆，母球容易失控。尝试在 40-60% 力度区间多加练习，提升走位精度。`,
+          priority: 3,
+        });
+      } else if (lightRatio > 0.5) {
+        tips.push({
+          category: '力度',
+          icon: '💪',
+          title: '适当增加发力',
+          text: `你 ${(lightRatio * 100).toFixed(0)}% 的击球偏轻推，进攻范围受限。适当练习中等力度击球，扩大得分手段。`,
+          priority: 3,
+        });
+      } else if (avgPower >= 35 && avgPower <= 65) {
+        tips.push({
+          category: '力度',
+          icon: '💪',
+          title: '力度控制均衡',
+          text: '你的力度分布较为均衡，轻重结合得当。继续保持，针对不同球型灵活调整。',
+          priority: 1,
+        });
+      }
+    }
+
+    // 2. Spin usage
+    if (shots >= 10) {
+      const spinTotal = (style.spin.top + style.spin.bottom + style.spin.left + style.spin.right);
+      const spinRatio = spinTotal / shots;
+      const centerRatio = (style.spin.center || 0) / shots;
+
+      if (centerRatio > 0.7) {
+        tips.push({
+          category: '旋转',
+          icon: '🔄',
+          title: '尝试更多杆法',
+          text: `你 ${(centerRatio * 100).toFixed(0)}% 使用中杆，走位手段较单一。练习高杆跟进、低杆缩回，可以大幅改善母球控制。`,
+          priority: 3,
+        });
+      } else if (spinRatio < 0.15) {
+        tips.push({
+          category: '旋转',
+          icon: '🔄',
+          title: '增加旋转使用',
+          text: '旋转使用比例偏低。适当加入塞球可以帮助母球到达理想位置，减少后续难度。',
+          priority: 2,
+        });
+      } else {
+        tips.push({
+          category: '旋转',
+          icon: '🔄',
+          title: '杆法运用良好',
+          text: '你的杆法选择较为丰富，能够根据球型使用不同旋转。继续精进旋转与力度的配合。',
+          priority: 1,
+        });
+      }
+    }
+
+    // 3. Long shot accuracy
+    if (style.longShotAttempts >= 5) {
+      const rate = style.longShotSuccess / style.longShotAttempts;
+      if (rate < 0.3) {
+        tips.push({
+          category: '长台',
+          icon: '🎯',
+          title: '强化长台稳定性',
+          text: `长台命中率 ${(rate * 100).toFixed(0)}% 偏低。建议在训练模式反复练习长距离直球，建立稳定的出杆节奏。`,
+          priority: 3,
+        });
+      } else if (rate >= 0.5) {
+        tips.push({
+          category: '长台',
+          icon: '🎯',
+          title: '长台手感出色',
+          text: `长台命中率 ${(rate * 100).toFixed(0)}%，值得信任。可以在实战中更自信地选择长台进攻。`,
+          priority: 1,
+        });
+      }
+    }
+
+    // 4. Thin cut accuracy
+    if (style.thinCutAttempts >= 5) {
+      const rate = style.thinCutSuccess / style.thinCutAttempts;
+      if (rate < 0.25) {
+        tips.push({
+          category: '薄球',
+          icon: '✨',
+          title: '提升薄球成功率',
+          text: `薄球成功率 ${(rate * 100).toFixed(0)}% 有提升空间。练习薄球时放慢节奏，注意力集中在大力区与薄边的交界处。`,
+          priority: 3,
+        });
+      } else if (rate >= 0.4) {
+        tips.push({
+          category: '薄球',
+          icon: '✨',
+          title: '薄球值得信赖',
+          text: `薄球成功率 ${(rate * 100).toFixed(0)}%，技术扎实。在复杂球型中，你的薄球能力可以创造更多机会。`,
+          priority: 1,
+        });
+      }
+    }
+
+    // 5. Mode weakness
+    const modeTips = this._analyzeModeWeakness();
+    if (modeTips) tips.push(modeTips);
+
+    // 6. Foul control
+    if (shots >= 10 && foulRate > 12) {
+      tips.push({
+        category: '纪律',
+        icon: '🛡️',
+        title: '控制犯规率',
+        text: `当前犯规率 ${foulRate.toFixed(1)}% 偏高。注意避免母球落袋和先碰非目标球，提升击球前的规划。`,
+        priority: 3,
+      });
+    }
+
+    // 7. Pocket efficiency
+    if (shots >= 10 && pocketRate < 30) {
+      tips.push({
+        category: '效率',
+        icon: '⚡',
+        title: '提高进球率',
+        text: `进球率 ${pocketRate.toFixed(1)}% 有提升空间。充分利用轨迹线确认瞄准，优先选择成功率更高的球路。`,
+        priority: 2,
+      });
+    }
+
+    // Sort by priority (higher = more important), then shuffle stable by category
+    tips.sort((a, b) => b.priority - a.priority);
+
+    // Return 3-5 tips; if fewer than 3 meaningful tips, return empty (not enough data)
+    if (tips.length < 2) return [];
+    return tips.slice(0, 5);
+  }
+
+  _analyzeModeWeakness() {
+    const modes = [
+      { key: 'vsai', label: 'VS AI' },
+      { key: 'local2p', label: '本地对战' },
+      { key: '9ball', label: '9球' },
+      { key: 'challenge', label: '挑战' },
+    ];
+    let weakest = null;
+    let lowestRate = Infinity;
+
+    for (const m of modes) {
+      const s = this.store.getByMode(m.key);
+      const decisive = (s.won || 0) + (s.lost || 0);
+      if (decisive >= 3) {
+        const rate = (s.won || 0) / decisive;
+        if (rate < lowestRate) {
+          lowestRate = rate;
+          weakest = { mode: m.label, won: s.won || 0, lost: s.lost || 0, played: decisive, rate };
+        }
+      }
+    }
+
+    if (weakest && weakest.rate < 0.45) {
+      return {
+        category: '模式',
+        icon: '🎮',
+        title: `${weakest.mode} 胜率待提升`,
+        text: `${weakest.mode} 模式 ${weakest.played} 战 ${weakest.won} 胜，胜率 ${(weakest.rate * 100).toFixed(0)}%。建议针对性练习该模式的规则和策略。`,
+        priority: 3,
+      };
+    }
+    return null;
+  }
 }

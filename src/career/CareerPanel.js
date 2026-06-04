@@ -96,10 +96,18 @@ export class CareerPanel {
     this._overviewSection.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:14px;';
     // Mobile responsive: 2 columns on narrow screens
     const mq = document.createElement('style');
-    mq.textContent = '@media (max-width: 600px) { #career-panel .overview-grid { grid-template-columns: repeat(2, 1fr) !important; } }';
+    mq.textContent = `
+      @media (max-width: 600px) {
+        #career-panel .overview-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        #career-panel .tips-grid { grid-template-columns: 1fr !important; }
+      }
+    `;
     mq.id = 'career-panel-mq';
     if (!document.getElementById('career-panel-mq')) document.head.appendChild(mq);
     wrap.appendChild(this._overviewSection);
+
+    this._tipsSection = document.createElement('div');
+    wrap.appendChild(this._tipsSection);
 
     this._styleSection = document.createElement('div');
     wrap.appendChild(this._styleSection);
@@ -175,6 +183,7 @@ export class CareerPanel {
     if (!hasData) {
       this._emptyState.style.display = 'block';
       this._overviewSection.innerHTML = '';
+      this._tipsSection.innerHTML = '';
       this._styleSection.innerHTML = '';
       this._modeSection.innerHTML = '';
       this._spinSection.innerHTML = '';
@@ -186,12 +195,60 @@ export class CareerPanel {
 
     this._emptyState.style.display = 'none';
     this._renderOverview(summary);
+    this._renderTrainingTips();
     this._renderStyleTags(summary.labels);
     this._renderModeBreakdown();
     this._renderSpinPreference();
     this._renderPowerDistribution();
     this._renderSpecialShots();
     this._renderRecords(summary);
+  }
+
+  _renderTrainingTips() {
+    const tips = this.profiler.getTrainingTips();
+    this._tipsSection.innerHTML = '';
+    if (!tips || tips.length === 0) return;
+
+    const title = this._sectionTitle('🎯 训练建议 / 下一步提升');
+    this._tipsSection.appendChild(title);
+
+    const grid = document.createElement('div');
+    grid.className = 'tips-grid';
+    grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;';
+
+    for (const tip of tips) {
+      const card = document.createElement('div');
+      card.style.cssText = `${CARD_BG} padding:14px 16px;display:flex;flex-direction:column;gap:6px;`;
+
+      const header = document.createElement('div');
+      header.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:2px;';
+
+      const icon = document.createElement('span');
+      icon.textContent = tip.icon;
+      icon.style.cssText = 'font-size:18px;';
+
+      const category = document.createElement('span');
+      category.textContent = tip.category;
+      category.style.cssText = 'font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.6px;';
+
+      const name = document.createElement('span');
+      name.textContent = tip.title;
+      name.style.cssText = `font-weight:800;color:${ACCENT_GOLD};font-size:14px;margin-left:auto;text-align:right;`;
+
+      header.appendChild(icon);
+      header.appendChild(category);
+      header.appendChild(name);
+
+      const text = document.createElement('div');
+      text.textContent = tip.text;
+      text.style.cssText = 'font-size:12.5px;color:rgba(255,255,255,0.75);line-height:1.55;';
+
+      card.appendChild(header);
+      card.appendChild(text);
+      grid.appendChild(card);
+    }
+
+    this._tipsSection.appendChild(grid);
   }
 
   _renderOverview(s) {

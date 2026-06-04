@@ -252,4 +252,77 @@ describe('ShotProfiler', () => {
     assert.strictEqual(summary.avgPower, '60.0');
     assert.strictEqual(summary.pocketRate, '100.0');
   });
+
+  test('getTrainingTips returns empty for insufficient data', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    const tips = profiler.getTrainingTips();
+    assert.deepStrictEqual(tips, []);
+  });
+
+  test('getTrainingTips detects heavy power preference', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    for (let i = 0; i < 12; i++) store.recordShot({ power: 85 });
+    const tips = profiler.getTrainingTips();
+    assert(tips.length > 0);
+    assert(tips.some(t => t.category === '力度' && t.title === '降低平均发力'));
+  });
+
+  test('getTrainingTips detects light power preference', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    for (let i = 0; i < 12; i++) store.recordShot({ power: 15 });
+    const tips = profiler.getTrainingTips();
+    assert(tips.length > 0);
+    assert(tips.some(t => t.category === '力度' && t.title === '适当增加发力'));
+  });
+
+  test('getTrainingTips detects low spin usage', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    for (let i = 0; i < 12; i++) store.recordShot({ spin: { x: 0, y: 0 } });
+    const tips = profiler.getTrainingTips();
+    assert(tips.length > 0);
+    assert(tips.some(t => t.category === '旋转' && t.title === '尝试更多杆法'));
+  });
+
+  test('getTrainingTips detects long shot weakness', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    for (let i = 0; i < 10; i++) store.recordShot({ power: 50 });
+    for (let i = 0; i < 5; i++) store.recordShot({ isLongShot: true, pocketedCount: 0 });
+    const tips = profiler.getTrainingTips();
+    assert(tips.some(t => t.category === '长台' && t.title === '强化长台稳定性'));
+  });
+
+  test('getTrainingTips detects thin cut strength', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    for (let i = 0; i < 10; i++) store.recordShot({ power: 50 });
+    for (let i = 0; i < 5; i++) store.recordShot({ isThinCut: true, pocketedCount: 1 });
+    const tips = profiler.getTrainingTips();
+    assert(tips.some(t => t.category === '薄球' && t.title === '薄球值得信赖'));
+  });
+
+  test('getTrainingTips detects mode weakness', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    for (let i = 0; i < 10; i++) store.recordShot({ power: 50 });
+    for (let i = 0; i < 5; i++) store.recordGame({ mode: 'vsai', result: 'loss' });
+    const tips = profiler.getTrainingTips();
+    assert(tips.some(t => t.category === '模式'));
+  });
+
+  test('getTrainingTips caps at 5 tips', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    // Create data that would generate many tips
+    for (let i = 0; i < 20; i++) store.recordShot({ power: 85, spin: { x: 0, y: 0 }, isFoul: true });
+    for (let i = 0; i < 5; i++) store.recordShot({ isLongShot: true, pocketedCount: 0 });
+    for (let i = 0; i < 5; i++) store.recordShot({ isThinCut: true, pocketedCount: 0 });
+    for (let i = 0; i < 5; i++) store.recordGame({ mode: 'vsai', result: 'loss' });
+    const tips = profiler.getTrainingTips();
+    assert(tips.length >= 2 && tips.length <= 5);
+  });
 });
