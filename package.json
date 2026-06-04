@@ -18,8 +18,9 @@
     "test:ui-layout": "node test/ui-layout.test.js",
     "test:settings-audit": "node test/settings-audit.test.js",
     "test:smoke": "node test/smoke.test.js",
+    "test:trainer-challenge-safety": "node test/trainer-challenge-safety.test.js",
     "test:dist": "node test/dist-smoke.test.js",
-    "test": "npm run test:rules && npm run test:table && npm run test:lan && npm run test:ai && npm run test:analyzer && npm run test:instant-replay && npm run test:career && npm run test:ui-layout && npm run test:settings-audit && npm run test:smoke"
+    "test": "npm run test:rules && npm run test:table && npm run test:lan && npm run test:ai && npm run test:analyzer && npm run test:instant-replay && npm run test:career && npm run test:ui-layout && npm run test:settings-audit && npm run test:trainer-challenge-safety && npm run test:smoke"
   },
   "dependencies": {
     "cannon-es": "^0.20.0",

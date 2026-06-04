@@ -1,4 +1,43 @@
-# 3D Billiards v1.19.0 — Latest Update
+# 3D Billiards v1.20.0 — Latest Update
+
+## What's New in v1.20.0
+
+### 🛡️ 训练/挑战数据安全审计 — 从存储到 UI 的全链路加固
+
+对 `DrillManager`、`ChallengeManager` 和 `ChallengeData` 进行了全链路的数据安全审计，确保任何来源的损坏、旧版或畸形 localStorage 数据都不会导致程序崩溃或错误显示。
+
+**DrillManager 加固：**
+- 新增 `_clampStars()` 和 `_sanitizeEntry()`，将非法 star 值（NaN、负数、>3、小数）统一钳制到 `0-3` 整数
+- `_loadBest()` 对 corrupted JSON、非对象 entry、字符串/数字/数组 entry 全部走 `_sanitizeEntry()` 回退到安全默认值
+- `_saveBest()` 在写入前对现有 attempts/completions 做 `(existing.attempts || 0) + 1` 安全累加，防止 `NaN + 1 = NaN` 污染
+- `getProgress()` 对未知 `drillId` 返回 `null` 而不是 `undefined`，UI 层已用 `|| {}` 兜底
+- `isUnlocked()` / `getUnlockRequirement()` 对未知 `drillId` 返回 `false` / `''`，避免 `getDrill()` 返回 `undefined` 时抛异常
+- `getAllBest()` 在根数据为数组时返回 `{}`，防止旧 schema 格式导致后续遍历崩溃
+
+**ChallengeManager 加固：**
+- 新增 `_clampStars()` 和 `_sanitizeEntry()`，与 DrillManager 同等强度
+- `_loadBest()` / `_saveBest()` 同样对 corrupted JSON 和非法 entry 做 sanitize + clamp
+- `_complete()` 在保存前通过 `_clampStars()` 确保 stars 始终落在 `0-3`
+- `getAllBest()` 根数据为数组时返回 `{}`
+- `getResultStats()` 在 `best.stars` 为 `NaN` 时安全降级，`isNewRecord` 为 `false`
+
+**ChallengeData 加固：**
+- 新增 `isValidChallengeId(id)` 用于外部快速校验
+- `isUnlocked()` 对 `null` / `undefined` challenge 返回 `false`，不再依赖调用方前置校验
+- `getUnlockRequirement()` / `getStarConditions()` 对 `null` challenge 返回 `''`
+- `getProgress()` 对 `bestData` 中的每个 entry 的 `stars` 做 `Math.max(0, Math.min(3, ...))` 钳制，并支持非对象 `bestData` 安全降级
+- `getFeaturedChallengeId()` 对 `bestData` 做空值安全处理，避免每日推荐在数据损坏时崩溃
+
+**UI 层防崩溃：**
+- `ChallengeResult.show()` 和 `TrainerResult.show()` 对 `NaN` stars 已做防御，不会触发 `RangeError: Invalid count`
+- `TrainerPanel._createCard()` 和 `ChallengePanel._createCard()` 对缺失 progress 字段已用 `|| 0` 兜底
+
+**新增测试：**
+- `test/trainer-challenge-safety.test.js` 覆盖 25 个场景：坏 JSON、NaN stars、负 attempts、非对象 entry、未知 ID、钳制行为、解锁逻辑、UI show() 防崩溃
+
+---
+
+# 3D Billiards v1.19.0
 
 ## What's New in v1.19.0
 

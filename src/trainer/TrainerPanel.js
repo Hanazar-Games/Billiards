@@ -404,7 +404,8 @@ export class TrainerPanel {
     if (unlocked) {
       const starDisplay = document.createElement('div');
       starDisplay.style.cssText = 'font-size: 14px; color: #ffd700;';
-      starDisplay.textContent = bestStars > 0 ? '★'.repeat(bestStars) + '☆'.repeat(3 - bestStars) : '未练习';
+      const safeStars = Number.isFinite(bestStars) ? Math.max(0, Math.min(3, Math.floor(bestStars))) : 0;
+      starDisplay.textContent = safeStars > 0 ? '★'.repeat(safeStars) + '☆'.repeat(3 - safeStars) : '未练习';
       bottomRow.appendChild(starDisplay);
     } else {
       const lockDisplay = document.createElement('div');

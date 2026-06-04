@@ -152,11 +152,12 @@ export class ChallengeResult {
       this.bannerEl.style.display = 'none';
     }
 
+    const safeStars = Number.isFinite(stars) ? Math.max(0, Math.min(3, Math.floor(stars))) : 0;
     if (completed) {
       this.titleEl.textContent = '🎉 挑战成功！';
       this.titleEl.style.color = '#00e676';
-      this.starsEl.textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
-      this.subtitleEl.textContent = `${name} — 获得 ${stars} 星`;
+      this.starsEl.textContent = '★'.repeat(safeStars) + '☆'.repeat(3 - safeStars);
+      this.subtitleEl.textContent = `${name} — 获得 ${safeStars} 星`;
       this.failReasonEl.style.display = 'none';
     } else {
       this.titleEl.textContent = '💔 挑战失败';
@@ -188,8 +189,9 @@ export class ChallengeResult {
     if (stats.breakPocketed !== undefined) rows.push(`🎱 开球进袋: ${stats.breakPocketed}`);
     if (stats.consecutivePockets !== undefined) rows.push(`🔥 最高连击: ${stats.consecutivePockets}`);
     if (stats.totalBallsPocketed !== undefined) rows.push(`🎱 总进球: ${stats.totalBallsPocketed}`);
-    if (stats.bestStars !== undefined) {
-      const bestStr = '★'.repeat(stats.bestStars) + '☆'.repeat(3 - stats.bestStars);
+    if (Number.isFinite(stats.bestStars)) {
+      const safeBest = Math.max(0, Math.min(3, Math.floor(stats.bestStars)));
+      const bestStr = '★'.repeat(safeBest) + '☆'.repeat(3 - safeBest);
       rows.push(`⭐ 历史最佳: ${bestStr}`);
     }
 

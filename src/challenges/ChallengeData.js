@@ -211,8 +211,9 @@ export function getChallengesByDifficulty(difficulty) {
 // ------------------------------------------------------------------
 
 export function getStarConditions(challenge) {
+  if (!challenge || !challenge.params) return '';
   const { type, params } = challenge;
-  const t = params.starThresholds || [1, 2, 3];
+  const t = Array.isArray(params.starThresholds) ? params.starThresholds : [1, 2, 3];
   switch (type) {
     case CHALLENGE_TYPE.POWER_LIMIT:
       return powerDesc(params.maxPower, t);
@@ -259,6 +260,7 @@ export function getTotalStars(bestData) {
 }
 
 export function isUnlocked(challenge, bestData) {
+  if (!challenge || typeof challenge !== 'object') return false;
   if (challenge.difficulty <= 2) return true;
   const total = getTotalStars(bestData);
   if (challenge.difficulty <= 4) return total >= 3;
@@ -266,6 +268,7 @@ export function isUnlocked(challenge, bestData) {
 }
 
 export function getUnlockRequirement(challenge) {
+  if (!challenge || typeof challenge !== 'object') return '';
   if (challenge.difficulty <= 2) return null;
   if (challenge.difficulty <= 4) return '需要获得 3 颗总星级以解锁中级挑战';
   return '需要获得 8 颗总星级以解锁高级挑战';
@@ -308,7 +311,10 @@ export function getProgress(bestData) {
   let max = 0;
   let completed = 0;
   for (const c of CHALLENGES) {
-    const s = bestData[c.id]?.stars || 0;
+    const raw = bestData[c.id];
+    const s = (raw && typeof raw === 'object' && Number.isFinite(raw.stars))
+      ? Math.max(0, Math.min(3, Math.floor(raw.stars)))
+      : 0;
     earned += s;
     max += 3;
     if (s >= 1) completed++;

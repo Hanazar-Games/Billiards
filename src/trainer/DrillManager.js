@@ -181,38 +181,44 @@ export class DrillManager {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const data = raw ? JSON.parse(raw) : {};
-      const entry = data[id] || {};
-      return {
-        stars: entry.stars || 0,
-        attempts: entry.attempts || 0,
-        completions: entry.completions || 0,
-        bestPowerError: entry.bestPowerError ?? null,
-        bestPowerErrorStars: entry.bestPowerErrorStars || 0,
-        lastPlayed: entry.lastPlayed || null,
-      };
+      const entry = (data && typeof data === 'object' && !Array.isArray(data)) ? data[id] : {};
+      return DrillManager._sanitizeEntry(entry);
     } catch (e) {
       return { stars: 0, attempts: 0, completions: 0, bestPowerError: null, bestPowerErrorStars: 0, lastPlayed: null };
     }
   }
 
+  static _sanitizeEntry(raw) {
+    const entry = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    const stars = Number.isFinite(entry.stars) ? Math.max(0, Math.min(3, Math.floor(entry.stars))) : 0;
+    const attempts = Number.isFinite(entry.attempts) ? Math.max(0, Math.floor(entry.attempts)) : 0;
+    const completions = Number.isFinite(entry.completions) ? Math.max(0, Math.floor(entry.completions)) : 0;
+    const bestPowerError = Number.isFinite(entry.bestPowerError) && entry.bestPowerError >= 0 ? entry.bestPowerError : null;
+    const bestPowerErrorStars = Number.isFinite(entry.bestPowerErrorStars) ? Math.max(0, Math.min(3, Math.floor(entry.bestPowerErrorStars))) : 0;
+    const lastPlayed = typeof entry.lastPlayed === 'string' ? entry.lastPlayed : null;
+    return { stars, attempts, completions, bestPowerError, bestPowerErrorStars, lastPlayed };
+  }
+
   _saveBest(updates) {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      const data = raw ? JSON.parse(raw) : {};
-      const existing = data[this.drill.id] || { stars: 0, attempts: 0, completions: 0, bestPowerError: null, bestPowerErrorStars: 0, lastPlayed: null };
+      let data = raw ? JSON.parse(raw) : {};
+      if (!data || typeof data !== 'object' || Array.isArray(data)) data = {};
+      const existing = DrillManager._sanitizeEntry(data[this.drill.id]);
 
-      existing.stars = updates.stars ?? existing.stars ?? 0;
-      existing.attempts = (existing.attempts || 0) + 1;
+      const newStars = Number.isFinite(updates.stars) ? Math.max(0, Math.min(3, Math.floor(updates.stars))) : existing.stars;
+      existing.stars = newStars;
+      existing.attempts = existing.attempts + 1;
 
       if (this.completed) {
-        existing.completions = (existing.completions || 0) + 1;
+        existing.completions = existing.completions + 1;
       }
 
-      if (updates.powerError !== null && updates.powerError !== undefined) {
+      if (updates.powerError !== null && updates.powerError !== undefined && Number.isFinite(updates.powerError) && updates.powerError >= 0) {
         const prevErr = existing.bestPowerError ?? Infinity;
         if (updates.powerError < prevErr) {
           existing.bestPowerError = updates.powerError;
-          existing.bestPowerErrorStars = updates.powerErrorStars || this.stars;
+          existing.bestPowerErrorStars = Number.isFinite(updates.powerErrorStars) ? Math.max(0, Math.min(3, Math.floor(updates.powerErrorStars))) : this.stars;
         }
       }
 
@@ -227,7 +233,9 @@ export class DrillManager {
   static getAllBest() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
+      const data = raw ? JSON.parse(raw) : {};
+      if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
+      return data;
     } catch (e) {
       return {};
     }
@@ -240,14 +248,14 @@ export class DrillManager {
     const drill = getDrill(drillId);
     if (!drill) return null;
     const all = DrillManager.getAllBest();
-    const entry = all[drillId] || {};
+    const entry = DrillManager._sanitizeEntry(all[drillId]);
     return {
-      stars: entry.stars || 0,
-      attempts: entry.attempts || 0,
-      completions: entry.completions || 0,
-      bestPowerError: entry.bestPowerError ?? null,
-      bestPowerErrorStars: entry.bestPowerErrorStars || 0,
-      lastPlayed: entry.lastPlayed || null,
+      stars: entry.stars,
+      attempts: entry.attempts,
+      completions: entry.completions,
+      bestPowerError: entry.bestPowerError,
+      bestPowerErrorStars: entry.bestPowerErrorStars,
+      lastPlayed: entry.lastPlayed,
       unlocked: DrillManager.isUnlocked(drillId),
     };
   }
@@ -256,12 +264,16 @@ export class DrillManager {
    * Get category-level progress summary.
    */
   static getCategoryProgress() {
-    const all = DrillManager.getAllBest();
     const result = {};
     for (const cat of ['BASIC', 'INTERMEDIATE', 'ADVANCED']) {
       const drills = DRILLS.filter((d) => d.category === cat);
-      const completed = drills.filter((d) => (all[d.id]?.stars || 0) >= 1).length;
-      const totalStars = drills.reduce((sum, d) => sum + (all[d.id]?.stars || 0), 0);
+      let completed = 0;
+      let totalStars = 0;
+      for (const d of drills) {
+        const p = DrillManager.getProgress(d.id);
+        if (p && p.stars >= 1) completed++;
+        if (p) totalStars += p.stars;
+      }
       const maxStars = drills.length * 3;
       result[cat] = { completed, total: drills.length, totalStars, maxStars };
     }

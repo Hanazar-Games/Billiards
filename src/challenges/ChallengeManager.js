@@ -396,17 +396,18 @@ export class ChallengeManager {
   // ── Result helpers ──
 
   getResultStats() {
-    const { params } = this.challenge;
+    const safeStars = Number.isFinite(this.best.stars) ? this.best.stars : 0;
+    const safePrev = Number.isFinite(this.best.prevStars) ? this.best.prevStars : 0;
     return {
-      duration: this.gameDuration,
+      duration: Number.isFinite(this.gameDuration) ? this.gameDuration : 0,
       fouls: this.totalFouls,
       totalShots: this.totalShots,
       spinPockets: this.spinPocketCount,
       breakPocketed: this.breakPocketedCount,
       consecutivePockets: this.maxConsecutivePocketShots,
       totalBallsPocketed: this.totalBallsPocketed,
-      bestStars: this.best.stars || 0,
-      isNewRecord: this.completed && this.stars > (this.best.prevStars || 0),
+      bestStars: safeStars,
+      isNewRecord: this.completed && this.stars > safePrev,
       powerError: null, // reserved
     };
   }
@@ -417,22 +418,34 @@ export class ChallengeManager {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const data = raw ? JSON.parse(raw) : {};
-      return data[id] || { stars: 0, attempts: 0, completions: 0 };
+      const entry = (data && typeof data === 'object' && !Array.isArray(data)) ? data[id] : {};
+      return ChallengeManager._sanitizeEntry(entry);
     } catch (e) {
-      return { stars: 0, attempts: 0, completions: 0 };
+      return { stars: 0, attempts: 0, completions: 0, prevStars: 0 };
     }
+  }
+
+  static _sanitizeEntry(raw) {
+    const entry = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    const stars = Number.isFinite(entry.stars) ? Math.max(0, Math.min(3, Math.floor(entry.stars))) : 0;
+    const attempts = Number.isFinite(entry.attempts) ? Math.max(0, Math.floor(entry.attempts)) : 0;
+    const completions = Number.isFinite(entry.completions) ? Math.max(0, Math.floor(entry.completions)) : 0;
+    const prevStars = Number.isFinite(entry.prevStars) ? Math.max(0, Math.min(3, Math.floor(entry.prevStars))) : 0;
+    return { stars, attempts, completions, prevStars };
   }
 
   _saveBest(stars, isNewRecord) {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      const data = raw ? JSON.parse(raw) : {};
-      const existing = data[this.challenge.id] || { stars: 0, attempts: 0, completions: 0 };
-      existing.prevStars = existing.stars || 0;
-      existing.stars = Math.max(existing.stars || 0, stars);
-      existing.attempts = (existing.attempts || 0) + 1;
-      if (this.completed && stars > 0) {
-        existing.completions = (existing.completions || 0) + 1;
+      let data = raw ? JSON.parse(raw) : {};
+      if (!data || typeof data !== 'object' || Array.isArray(data)) data = {};
+      const existing = ChallengeManager._sanitizeEntry(data[this.challenge.id]);
+      existing.prevStars = existing.stars;
+      const clampedStars = Number.isFinite(stars) ? Math.max(0, Math.min(3, Math.floor(stars))) : existing.stars;
+      existing.stars = Math.max(existing.stars, clampedStars);
+      existing.attempts = existing.attempts + 1;
+      if (this.completed && clampedStars > 0) {
+        existing.completions = existing.completions + 1;
       }
       data[this.challenge.id] = existing;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -446,7 +459,9 @@ export class ChallengeManager {
   static getAllBest() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
+      const data = raw ? JSON.parse(raw) : {};
+      if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
+      return data;
     } catch (e) {
       return {};
     }

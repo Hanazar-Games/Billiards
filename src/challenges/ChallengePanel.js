@@ -298,7 +298,8 @@ export class ChallengePanel {
     bottom.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
     const stars = document.createElement('div');
     stars.style.cssText = 'font-size:14px;color:#ffd700;';
-    stars.textContent = best.stars > 0 ? '★'.repeat(best.stars) + '☆'.repeat(3 - best.stars) : '未通关';
+    const safeStars = Number.isFinite(best.stars) ? Math.max(0, Math.min(3, Math.floor(best.stars))) : 0;
+    stars.textContent = safeStars > 0 ? '★'.repeat(safeStars) + '☆'.repeat(3 - safeStars) : '未通关';
     bottom.appendChild(stars);
     const diff = document.createElement('span');
     diff.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.35);';
@@ -425,7 +426,8 @@ export class ChallengePanel {
 
     const starDisplay = document.createElement('div');
     starDisplay.style.cssText = 'font-size:14px;color:#ffd700;';
-    starDisplay.textContent = best.stars > 0 ? '★'.repeat(best.stars) + '☆'.repeat(3 - best.stars) : (unlocked ? '未通关' : '🔒 锁定');
+    const safeStars = Number.isFinite(best.stars) ? Math.max(0, Math.min(3, Math.floor(best.stars))) : 0;
+    starDisplay.textContent = safeStars > 0 ? '★'.repeat(safeStars) + '☆'.repeat(3 - safeStars) : (unlocked ? '未通关' : '🔒 锁定');
     bottomRow.appendChild(starDisplay);
 
     const badges = document.createElement('div');

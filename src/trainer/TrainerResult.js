@@ -125,11 +125,12 @@ export class TrainerResult {
 
     const { powerError, isNewBestStars, isNewBestPowerError, completions, prevBestStars } = stats;
 
+    const safeStars = Number.isFinite(stars) ? Math.max(0, Math.min(3, Math.floor(stars))) : 0;
     if (completed) {
       this.titleEl.textContent = '🎉 练习成功！';
       this.titleEl.style.color = '#00e676';
-      this.starsEl.textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
-      this.subtitleEl.textContent = `${name} — 获得 ${stars} 星`;
+      this.starsEl.textContent = '★'.repeat(safeStars) + '☆'.repeat(3 - safeStars);
+      this.subtitleEl.textContent = `${name} — 获得 ${safeStars} 星`;
 
       // New best banner
       const banners = [];
@@ -143,9 +144,9 @@ export class TrainerResult {
       }
 
       // Feedback text based on stars
-      if (stars === 3) {
+      if (safeStars === 3) {
         this.feedbackEl.textContent = '完美！你的击球精准度和控制力都达到了优秀水平。';
-      } else if (stars === 2) {
+      } else if (safeStars === 2) {
         this.feedbackEl.textContent = '不错的表现！再微调一下力度或角度即可满分。';
       } else {
         this.feedbackEl.textContent = '完成了！继续保持练习，逐步提高稳定性。';
