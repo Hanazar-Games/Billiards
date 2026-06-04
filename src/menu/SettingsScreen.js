@@ -995,6 +995,7 @@ export class SettingsScreen {
       a.href = url;
       a.download = 'billiards-settings.json';
       a.click();
+      if (this._blobRevokeTimer) clearTimeout(this._blobRevokeTimer);
       this._blobRevokeTimer = setTimeout(() => { URL.revokeObjectURL(url); this._blobRevokeTimer = null; }, 60000);
       this._toast('配置已下载');
     });
@@ -1098,13 +1099,18 @@ export class SettingsScreen {
         '清除本地缓存',
         '确定要清除所有本地存储的数据吗？包括设置、成就、回放记录等。此操作不可撤销。',
         () => {
-          const keys = [];
-          for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (k && k.startsWith('billiards_')) keys.push(k);
+          try {
+            const keys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const k = localStorage.key(i);
+              if (k && k.startsWith('billiards_')) keys.push(k);
+            }
+            keys.forEach(k => localStorage.removeItem(k));
+            this._toast('本地缓存已清除，刷新后生效');
+          } catch (e) {
+            console.warn('[SettingsScreen] Failed to clear localStorage:', e);
+            this._toast('清除失败：浏览器可能限制了本地存储访问');
           }
-          keys.forEach(k => localStorage.removeItem(k));
-          this._toast('本地缓存已清除，刷新后生效');
         }
       );
     });

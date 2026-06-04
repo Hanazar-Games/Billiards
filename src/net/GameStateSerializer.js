@@ -123,7 +123,7 @@ export class GameStateSerializer {
     }
 
     // Update game state fields
-    const ALLOWED_STATES = new Set(['AIM','CHARGING','SHOOTING','AI_THINKING','GAME_OVER','DISPOSED']);
+    const ALLOWED_STATES = new Set(['AIM','CHARGING','SHOOTING','AI_THINKING','GAME_OVER','REPLAYING','BALL_IN_HAND','DISPOSED']);
     if (snapshot.state !== undefined && ALLOWED_STATES.has(snapshot.state)) {
       game.state = snapshot.state;
     }

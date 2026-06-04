@@ -171,6 +171,26 @@ export class CareerStore {
 
     // Clean recentGames: remove entries with invalid structure
     d.recentGames = d.recentGames.filter((g) => g && typeof g === 'object');
+
+    // Sanitize byMode nested stats to prevent string concatenation from corrupted storage
+    const byMode = d.byMode || {};
+    for (const modeKey of Object.keys(byMode)) {
+      const modeStats = byMode[modeKey];
+      if (!modeStats || typeof modeStats !== 'object') continue;
+      if ('played' in modeStats && typeof modeStats.played !== 'number') modeStats.played = Number(modeStats.played) || 0;
+      if ('won' in modeStats && typeof modeStats.won !== 'number') modeStats.won = Number(modeStats.won) || 0;
+      if ('lost' in modeStats && typeof modeStats.lost !== 'number') modeStats.lost = Number(modeStats.lost) || 0;
+      if ('completed' in modeStats && typeof modeStats.completed !== 'number') modeStats.completed = Number(modeStats.completed) || 0;
+      if (modeStats.byDifficulty) {
+        for (const diffKey of Object.keys(modeStats.byDifficulty)) {
+          const diff = modeStats.byDifficulty[diffKey];
+          if (!diff || typeof diff !== 'object') continue;
+          if ('played' in diff && typeof diff.played !== 'number') diff.played = Number(diff.played) || 0;
+          if ('won' in diff && typeof diff.won !== 'number') diff.won = Number(diff.won) || 0;
+          if ('lost' in diff && typeof diff.lost !== 'number') diff.lost = Number(diff.lost) || 0;
+        }
+      }
+    }
   }
 
   /* ── Public getters ── */

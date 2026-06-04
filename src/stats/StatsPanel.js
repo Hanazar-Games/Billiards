@@ -230,6 +230,7 @@ export class StatsPanel {
   _showCompactVictory(summary, aiEnabled) {
     const winnerName = summary.winner === 1 ? '玩家 1' : (aiEnabled ? 'AI' : '玩家 2');
     const overlay = this._ensureGameOverOverlay();
+    if (!overlay) return;
     if (this._gameOverHideTimer) { clearTimeout(this._gameOverHideTimer); this._gameOverHideTimer = null; }
     overlay.innerHTML = `
       <div style="
@@ -248,7 +249,11 @@ export class StatsPanel {
       </div>
     `;
     overlay.style.display = 'flex';
-    requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+    if (this._gameOverRafId) cancelAnimationFrame(this._gameOverRafId);
+    this._gameOverRafId = requestAnimationFrame(() => {
+      this._gameOverRafId = null;
+      if (overlay && overlay.style) overlay.style.opacity = '1';
+    });
   }
 
   _showFullGameOver(summary, aiEnabled) {
@@ -397,6 +402,10 @@ export class StatsPanel {
       this._gameOverOverlay.parentNode.removeChild(this._gameOverOverlay);
     }
     this._gameOverOverlay = null;
+    if (this._gameOverRafId) {
+      cancelAnimationFrame(this._gameOverRafId);
+      this._gameOverRafId = null;
+    }
     if (this._gameOverKeyHandler) {
       document.removeEventListener('keydown', this._gameOverKeyHandler);
       this._gameOverKeyHandler = null;

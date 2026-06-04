@@ -756,6 +756,7 @@ export class Game {
       if (z > headStringZ) return 'BEHIND_LINE';
     }
 
+    if (!this.table) return 'OUT_OF_BOUNDS';
     for (const pocket of this.table.getPocketPositions()) {
       const dx = x - pocket.x;
       const dz = z - pocket.z;
@@ -908,6 +909,7 @@ export class Game {
       }
       if (!this.networkController || !this.networkController.connected) {
         this.ui.setMessage(UIText.networkDisconnect, 2000, 2);
+        this._shotStartTime = null; // clear to prevent safety timeout misfire
         this._enterAimState();
         return;
       }
@@ -1131,7 +1133,7 @@ export class Game {
     if (this.state === 'DISPOSED') return;
     if (this.paused) return;
     const isClient = this.networkRole === 'client';
-    const pocketPositions = this.table.getPocketPositions();
+    const pocketPositions = this.table?.getPocketPositions?.() || [];
 
     if (!isClient && this.state !== 'REPLAYING') {
       this.ballsManager.updatePhysicsGuards(dt, pocketPositions);
@@ -1325,6 +1327,7 @@ export class Game {
 
   _updateTurnTimer(dt) {
     if (!this._turnTimerEnabled) return;
+    if (!Number.isFinite(dt)) dt = 0.016;
 
     // Start timer when entering AIM state
     if (this.state === 'AIM' && !this.paused && !this._turnTimerRunning) {
@@ -1450,6 +1453,7 @@ export class Game {
 
   /** End instant replay and return to normal AIM state. */
   _endInstantReplay() {
+    if (this.state === 'DISPOSED') return;
     if (this.state !== 'REPLAYING') return;
 
     if (this.ballInHand) {
@@ -1628,8 +1632,8 @@ export class Game {
 
     this.recorder.reset();
 
-    const cueBall = this.ballsManager.getCueBall();
-    const cuePocketed = cueBall.pocketed;
+    const cueBall = this.ballsManager?.getCueBall?.();
+    const cuePocketed = cueBall?.pocketed || false;
 
     // Trainer mode: evaluate drill, auto-reset for retry
     if (this.mode === 'trainer') {
@@ -1991,6 +1995,10 @@ export class Game {
     if (this._challengeEndTimeout) {
       clearTimeout(this._challengeEndTimeout);
       this._challengeEndTimeout = null;
+    }
+    if (this._spectatorAutoStartTimer) {
+      clearTimeout(this._spectatorAutoStartTimer);
+      this._spectatorAutoStartTimer = null;
     }
     if (this._netDisconnectTimer) {
       clearTimeout(this._netDisconnectTimer);
@@ -2497,6 +2505,7 @@ export class Game {
       if (this.renderer.controls) {
         this.renderer.controls.enabled = false;
       }
+      if (!this.ballsManager) return;
       const cueBall = this.ballsManager.getCueBall();
       if (cueBall && !cueBall.pocketed) {
         const pos = cueBall.mesh.position;

@@ -196,7 +196,7 @@ export class InstantReplayCamera {
     // Wide side angle showing the final table state
     // Alternate side based on cue ball position for variety
     const cueBall = ballsManager.getCueBall?.();
-    const side = (cueBall && cueBall.mesh && cueBall.mesh.x > 0) ? -1 : 1;
+    const side = (cueBall && cueBall.mesh && cueBall.mesh.position.x > 0) ? -1 : 1;
     this._targetPos.set(side * 65, 40, 0);
     this._targetLook.set(0, 0, 0);
   }

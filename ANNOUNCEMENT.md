@@ -1,4 +1,46 @@
-# 3D Billiards v1.15.0 — Latest Update
+# 3D Billiards v1.16.0 — Latest Update
+
+## What's New in v1.16.0
+
+### 🛡️ 总体防御性审计与崩溃修复
+
+对整个仓库进行了系统性运行时审计，修复了 **6 Critical + 8 High + 8 Medium** 共 22 项问题，覆盖崩溃、状态机错乱、数据污染、计时器泄漏、网络不同步、UI 死代码。
+
+**Critical（运行时崩溃）：**
+- `MenuSystem._showReplayAnalysis()` — `getTableProfile()` 可能返回 `null`，随后访问 `.width` 导致白屏崩溃 → 已加 null guard
+- `Game.update()` — `this.table.getPocketPositions()` 无 null guard，初始化/销毁竞争时崩溃 → 已加 optional chaining
+- `Game.resolveTurn()` — `getCueBall()` 返回 null 时访问 `.pocketed` 崩溃 → 已加 null guard
+- `Game._updateCamera()` — `this.ballsManager` 为 null 时调用 `getCueBall()` 崩溃 → 已加前置检查
+- `AIPlayer.takeTurn()` — trainer 模式下 `game.rules === null`，解构后调用 `.getStatus()` 崩溃 → 已加空值短路
+- `AudioManager` — `playCueHit` / `playBallCollision` 未验证参数 finite；NaN 传入 Web Audio API 会抛出 `DOMException` → 已加 `Number.isFinite` guard
+
+**High（状态机错乱 / 功能彻底失效 / 数据污染）：**
+- `GameStateSerializer.ALLOWED_STATES` 缺少 `'REPLAYING'` 和 `'BALL_IN_HAND'` → 网络客户端在即时回放/球在手状态时不同步 → 已补全
+- `Game.shoot()` LAN 客户端分支：连接验证失败前已设置 `this.state = 'SHOOTING'` 和 `this._shotStartTime`，回退时不清理 `_shotStartTime` → 20s 物理安全超时会在下一帧错误触发 → 已在失败路径清理
+- `InstantReplayCamera._settlePhase()` — 误用 `cueBall.mesh.x`（Three.js Object3D 无此属性），应为 `cueBall.mesh.position.x` → settle 相机永远只固定在桌子同一侧 → 已修复
+- `SettingsScreen` — "清除本地缓存"按钮遍历 `localStorage` 无 `try/catch` → 隐私浏览/沙盒 iframe 中点击崩溃 → 已包裹 try/catch
+- `ReplayPanel.updateControls()` — 读取 `replayEngine._meta`，但 `ShotReplay` 根本没有此属性 → metadata 显示永远是空（死代码）→ 已改为读取 `replayEngine.metadata`
+- `CareerStore._sanitizeData()` — 不递归清理 `byMode` 嵌套对象；损坏 localStorage 可导致字符串拼接污染统计（如 `"5" + 1 = "51"`）→ 已添加 byMode 嵌套 sanitization
+- `SettingsStore._load()` — 类型校验 `typeof defVal === typeof val` 不拒绝 `NaN` / `Infinity` / `null` → 损坏 localStorage 可导致滑块显示 NaN → 已添加 finite / null 拒绝
+- `Game.getCueBallPlacementReason()` — 调用 `this.table.getPocketPositions()` 无 `this.table` 检查 → 初始化不完全时崩溃 → 已加 guard
+
+**Medium（可复现的功能缺陷 / 泄漏 / 竞态）：**
+- `SettingsScreen` — 导出设置文件的 `URL.revokeObjectURL` timer 每次点击都新建，旧 timer 不被清理 → 已加 clearTimeout
+- `Game` — `init()` 和 `resetGame()` 都设置 `_spectatorAutoStartTimer`，但旧 timer 仅在各自函数内被清除 → rapid reset 时旧回调可能在 stale state 上执行 → 已在 `resetGame()` 中统一清理
+- `Game._updateTurnTimer(dt)` — 不验证 `dt`；若传入 `undefined` 则 `_turnTimerRemaining` 永久变为 `NaN` → 已加 `Number.isFinite` guard
+- `StatsPanel` — `_showCompactVictory` / `_showFullGameOver` 调用 `requestAnimationFrame` 但不存储 id；`_ensureGameOverOverlay` 可能返回 null 但调用者不检查 → 已加 RAF 跟踪 + null guard
+- `Game._endInstantReplay()` — 不检查 `DISPOSED`；销毁后被调用会复活 `this.state = 'AIM'` → 已加 DISPOSED guard
+- `ReplayPanel._renderList()` — 直接访问 `this.library.replays` 而非封装方法；`new Date(replay.savedAt)` 不验证时间戳 → 已加 library guard 和 savedAt 验证
+- `CareerPanel.destroy()` — 注入的 `<style id="career-panel-mq">` 未从 `<head>` 移除 → 已添加移除逻辑
+- `CareerStore.reset()` — 不清除待定的 `_saveTimer` → 已添加 clearTimeout
+
+**测试与构建：**
+- 所有命令行测试通过（rules/table/lan/ai/analyzer/instant-replay/career/ui-layout/settings-audit）
+- Build 成功
+
+---
+
+# 3D Billiards v1.15.0 — Previous Update
 
 ## What's New in v1.15.0
 
@@ -93,6 +135,11 @@
 - 新增 `test/settings-audit.test.js` (14 项测试)：默认值完整性、锁定键保护、重置保留、动画速度缩放、CSS 类切换、自定义属性发布
 
 ---
+
+
+---
+
+## 📜 Release History
 
 # 3D Billiards v1.12.0 — Previous Update
 

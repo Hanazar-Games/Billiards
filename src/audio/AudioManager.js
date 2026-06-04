@@ -358,13 +358,14 @@ export class AudioManager {
     if (!this._canPlay()) return;
     if (!this._cooldown('cueHit')) return;
     this.resume();
+    if (!Number.isFinite(power)) power = 50;
 
     const t = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(200 + power * 3, t);
+    osc.frequency.setValueAtTime(200 + Math.max(0, power) * 3, t);
     osc.frequency.exponentialRampToValueAtTime(80, t + 0.08);
 
     const feedbackScale = settings.get('hitFeedbackVolumeScale') ?? 1.0;
@@ -381,7 +382,8 @@ export class AudioManager {
 
   playBallCollision(velocity = 5) {
     if (!this._canPlay()) return;
-    const intensity = Math.min(velocity / 20, 1);
+    if (!Number.isFinite(velocity)) velocity = 5;
+    const intensity = Math.min(Math.max(0, velocity) / 20, 1);
     if (intensity < 0.05) return;
     if (!this._cooldown('ballCollision')) return;
     this.resume();

@@ -61,6 +61,8 @@ export class CareerPanel {
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }
+    const mq = document.getElementById('career-panel-mq');
+    if (mq && mq.parentNode) mq.parentNode.removeChild(mq);
     this.container = null;
     this.profiler = null;
   }

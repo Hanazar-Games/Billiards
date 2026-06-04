@@ -167,6 +167,7 @@ export class ReplayPanel {
       countLabel.textContent += `  ·  ${corrupted} 条已损坏`;
     }
 
+    if (!this.library) return;
     replays.forEach((replay) => {
       const meta = replay?.metadata || {};
       const isCorrupted = !replay || !replay.frames || !Array.isArray(replay.frames);
@@ -259,8 +260,12 @@ export class ReplayPanel {
       row1.appendChild(leftTags);
 
       const date = document.createElement('div');
-      const d = new Date(replay.savedAt);
-      date.textContent = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      const savedAt = Number.isFinite(replay.savedAt) ? replay.savedAt : Date.now();
+      const d = new Date(savedAt);
+      const dateText = Number.isNaN(d.getTime())
+        ? '未知时间'
+        : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      date.textContent = dateText;
       date.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.35); white-space:nowrap;';
       row1.appendChild(date);
       card.appendChild(row1);
@@ -580,8 +585,8 @@ export class ReplayPanel {
       this._lastProgressPct = progressPct;
     }
 
-    // Update metadata if available on the loaded replay data
-    const meta = replayEngine._meta;
+    // Metadata display: ShotReplay does not have _meta; use the loaded replay data's metadata if available
+    const meta = replayEngine._meta || replayEngine.metadata || null;
     if (meta && this.metaDisplay && typeof meta === 'object') {
       const parts = [];
       if ((meta.maxPower || 0) > 0) parts.push(`力度 ${Math.round(meta.maxPower)}`);

@@ -66,9 +66,12 @@ export class AIPlayer {
 
     try {
       const { ballsManager, table, rules } = game;
+      if (!ballsManager || !table) {
+        return null;
+      }
       const cueBall = ballsManager.getCueBall();
       const pocketPositions = table.getPocketPositions();
-      const status = rules.getStatus();
+      const status = rules?.getStatus?.() || { breakShot: false, targetBall: null };
       const playerGroup = typeof rules.getPlayerGroup === 'function'
         ? rules.getPlayerGroup(2)
         : null;

@@ -1034,6 +1034,10 @@ export class MenuSystem {
       this.analyzerPanel = new ShotAnalyzerPanel();
     }
     const profile = getTableProfile(replayData.metadata?.tableProfileId);
+    if (!profile) {
+      console.warn('[MenuSystem] Unknown table profile for replay analysis:', replayData.metadata?.tableProfileId);
+      return;
+    }
     const halfW = profile.width / 2;
     const halfD = profile.depth / 2;
     const pocketPositions = [

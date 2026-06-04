@@ -306,7 +306,15 @@ export class SettingsStore {
               const defVal = DEFAULTS[key];
               const val = parsed[key];
               // Basic type validation: only overwrite if types match or both are objects
-              if (typeof defVal === typeof val || (typeof defVal === 'object' && typeof val === 'object')) {
+              // Also reject NaN/Infinity for numeric defaults and null for object defaults
+              let valid = typeof defVal === typeof val || (typeof defVal === 'object' && typeof val === 'object');
+              if (valid && typeof defVal === 'number') {
+                valid = Number.isFinite(val);
+              }
+              if (valid && typeof defVal === 'object' && defVal !== null) {
+                valid = val !== null;
+              }
+              if (valid) {
                 this._data[key] = _deepClone(val);
               }
             } else {
