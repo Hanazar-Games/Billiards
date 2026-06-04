@@ -82,8 +82,13 @@ export class ChallengeManager {
   onShot(cueBall, power, spin) {
     this._shotReset();
     this.shotPower = power;
-    this.shotUsedSpin = Math.abs(spin.x) > 0.05 || Math.abs(spin.y) > 0.05;
-    this.shotStartPos = cueBall.mesh.position.clone();
+    const s = spin || { x: 0, y: 0 };
+    this.shotUsedSpin = Math.abs(s.x) > 0.05 || Math.abs(s.y) > 0.05;
+    if (cueBall && cueBall.mesh && cueBall.mesh.position) {
+      this.shotStartPos = cueBall.mesh.position.clone();
+    } else {
+      this.shotStartPos = null;
+    }
     this.totalShots++;
   }
 
@@ -112,23 +117,27 @@ export class ChallengeManager {
   onBallCollision(ballA, ballB) {
     // Track first hit for combo detection
     if (this.firstHitBallId !== null) return;
-    if (ballA.id === 0 && ballB.id !== 0) {
-      this.firstHitBallId = ballB.id;
-    } else if (ballB.id === 0 && ballA.id !== 0) {
-      this.firstHitBallId = ballA.id;
+    const aId = ballA && ballA.id;
+    const bId = ballB && ballB.id;
+    if (aId === 0 && bId !== 0 && bId !== undefined) {
+      this.firstHitBallId = bId;
+    } else if (bId === 0 && aId !== 0 && aId !== undefined) {
+      this.firstHitBallId = aId;
     }
   }
 
   onBreakShot(pocketedIds) {
-    this.breakPocketedCount = pocketedIds.filter((id) => id !== 0).length;
+    const ids = Array.isArray(pocketedIds) ? pocketedIds : [];
+    this.breakPocketedCount = ids.filter((id) => id !== 0).length;
     this._checkBreakShot();
   }
 
   onTurnEnd(result) {
     const nonCue = this.shotPocketedIds.filter((id) => id !== 0);
     const hadPocket = nonCue.length > 0;
+    const foul = result && result.foul;
 
-    if (result.foul) {
+    if (foul) {
       this.totalFouls++;
       this._checkNoFoul();
       this.consecutivePocketShots = 0;
@@ -142,7 +151,7 @@ export class ChallengeManager {
     }
 
     // Capture final cue ball position for position-play evaluation
-    if (result.cueBallPos) {
+    if (result && result.cueBallPos) {
       this.shotFinalCuePos = result.cueBallPos;
     }
 
@@ -153,7 +162,7 @@ export class ChallengeManager {
   }
 
   onShotUpdate(cueBall) {
-    if (!this.shotStartPos) return;
+    if (!this.shotStartPos || !cueBall || !cueBall.mesh || !cueBall.mesh.position) return;
     const dx = cueBall.mesh.position.x - this.shotStartPos.x;
     const dz = cueBall.mesh.position.z - this.shotStartPos.z;
     const dist = Math.sqrt(dx * dx + dz * dz);

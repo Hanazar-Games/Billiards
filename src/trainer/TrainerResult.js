@@ -162,12 +162,12 @@ export class TrainerResult {
 
     // Render stats
     const rows = [];
-    if (typeof stats.power === 'number') rows.push(`💪 击球力度: ${Math.round(stats.power)}%`);
-    if (typeof powerError === 'number') rows.push(`🎯 力度误差: ${powerError.toFixed(1)}` + (isNewBestPowerError ? ' (新最佳!)' : ''));
-    if (typeof stats.distance === 'number') rows.push(`📏 走位偏差: ${stats.distance.toFixed(1)}cm`);
-    if (typeof completions === 'number') rows.push(`✅ 累计完成: ${completions} 次`);
-    if (typeof stats.attempts === 'number') rows.push(`🎯 累计尝试: ${stats.attempts} 次`);
-    if (typeof prevBestStars === 'number' && prevBestStars > 0 && !isNewBestStars) {
+    if (Number.isFinite(stats.power)) rows.push(`💪 击球力度: ${Math.round(stats.power)}%`);
+    if (Number.isFinite(powerError)) rows.push(`🎯 力度误差: ${powerError.toFixed(1)}` + (isNewBestPowerError ? ' (新最佳!)' : ''));
+    if (Number.isFinite(stats.distance)) rows.push(`📏 走位偏差: ${stats.distance.toFixed(1)}cm`);
+    if (Number.isFinite(completions)) rows.push(`✅ 累计完成: ${completions} 次`);
+    if (Number.isFinite(stats.attempts)) rows.push(`🎯 累计尝试: ${stats.attempts} 次`);
+    if (Number.isFinite(prevBestStars) && prevBestStars > 0 && !isNewBestStars) {
       rows.push(`🏆 历史最佳: ${prevBestStars} 星`);
     }
 

@@ -17,7 +17,20 @@ export class AchievementStore {
   _load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          // Validate shape: stats must be an object, unlocked must be an object
+          if (typeof parsed.stats !== 'object' || parsed.stats === null || Array.isArray(parsed.stats)) {
+            parsed.stats = {};
+          }
+          if (typeof parsed.unlocked !== 'object' || parsed.unlocked === null || Array.isArray(parsed.unlocked)) {
+            parsed.unlocked = {};
+          }
+          if (!Array.isArray(parsed.modesWon)) parsed.modesWon = [];
+          return parsed;
+        }
+      }
     } catch (e) {
       console.warn('AchievementStore: failed to load', e);
     }
@@ -75,6 +88,8 @@ export class AchievementStore {
 
   /** Increment a stat counter */
   incrementStat(key, amount = 1) {
+    if (!key || typeof key !== 'string') return;
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') return;
     if (this.data.stats[key] === undefined) {
       this.data.stats[key] = 0;
     }
@@ -84,6 +99,8 @@ export class AchievementStore {
 
   /** Set a stat value */
   setStat(key, value) {
+    if (!key || typeof key !== 'string') return;
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') return;
     if (this.data.stats[key] !== undefined) {
       this.data.stats[key] = value;
       this._save();

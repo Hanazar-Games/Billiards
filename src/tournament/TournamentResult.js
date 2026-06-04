@@ -128,6 +128,7 @@ export class TournamentResult {
 
   _render(data) {
     if (!this.container) return;
+    this.container.style.display = 'flex';
     this.card.innerHTML = '';
 
     // Trophy icon

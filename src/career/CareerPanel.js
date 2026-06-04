@@ -57,7 +57,7 @@ export class CareerPanel {
   destroy() {
     this._shown = false;
     if (this._onKeyDown) {
-      document.removeEventListener('keydown', this._onKeyDown);
+      window.removeEventListener('keydown', this._onKeyDown);
       this._onKeyDown = null;
     }
     if (this.container) {
@@ -210,6 +210,7 @@ export class CareerPanel {
       this._powerSection.innerHTML = '';
       this._specialSection.innerHTML = '';
       this._recordsSection.innerHTML = '';
+      this._growthPathSection.innerHTML = '';
       return;
     }
 

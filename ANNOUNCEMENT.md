@@ -1,4 +1,41 @@
-# 3D Billiards v1.21.0 — Latest Update
+# 3D Billiards v1.22.0 — Latest Update
+
+## What's New in v1.22.0
+
+### 🛡️ 内容系统 + UI 生命周期总体审计 — 修复 6 项 Critical + 6 项 High + 5 项 Medium
+
+对全仓库进行了跨模块的总体审计，覆盖 trainer、challenges、career、tournament、achievements、replay、analyzer、ui、game 目录，重点检查面板重叠、Escape 路由冲突、事件/timer/RAF 泄漏、localStorage 坏数据、NaN/undefined 显示、reducedMotion/uiAnimSpeed 合规。修复清单如下：
+
+**Critical（崩溃/泄漏级）：**
+- `Game.js startAITurn`：AI aim/charge RAF 循环在 `this.paused` 分支未检查 `this.state === 'DISPOSED'`，玩家暂停后离开游戏会导致无限 RAF 泄漏。已在两个 tick 的 paused 分支顶部增加 DISPOSED 检查并 `resolve()` 退出。
+- `Game.js resolveTurn`：trainer 模式下 `onTrainerComplete` 回调内部调用 `_stopTrainer()` → `game.dispose()` 后，`update()` 仍继续执行到 `ballsManager.getCueBall()` 抛出 `TypeError`。已在 `resolveTurn()` 返回后增加 `if (this.state === 'DISPOSED') return;` 守卫。
+- `MenuSystem._stopTrainer()`：在显示 `trainerResult` 后才 null `activeDrill`，但 retry 回调的箭头函数在构造时捕获 `this.activeDrill`，执行时已经变为 `null`。已改为在构造回调前用局部变量 `drillId` 捕获当前 drill ID。
+- `AchievementPanel` 缺少 `hide()` 方法：`_hideAllPanels()` 调用 `panel.hide?.()`，但成就墙只有 `hideWall()`，导致进入游戏时成就墙仍可见。已新增 `hide() { this.hideWall(); }` 别名。
+- `CareerPanel.destroy()`：键盘监听器通过 `window.addEventListener` 添加，但 `destroy()` 用 `document.removeEventListener` 移除，导致监听器永久泄漏。已修正为 `window.removeEventListener`。
+- `src/replay/ReplaySystem.js`：导入不存在的 `./ReplayRecorder.js`，任何引用该模块都会导致构建/加载崩溃。该文件为未使用的死代码，已删除。
+
+**High（严重影响级）：**
+- `UI.js _showConfirmDialog`：确认对话框的 Escape/Enter 键盘处理器未调用 `e.stopPropagation()`，事件继续冒泡到 `Game.js`，导致取消对话框的同时意外触发暂停/取消蓄力。已添加 `e.stopPropagation()`。
+- `Achievement toast pointer-events`：单个 toast 为 `pointer-events: auto`，会拦截右上角 HUD 按钮（如即时回放跳过按钮）的点击。已改为 `pointer-events: none`（toast 无需交互）。
+- `TrainerResult.show()`：使用 `typeof === 'number'` 守卫统计值，但 `typeof NaN === 'number'`，导致可显示 "击球力度: NaN%"。已统一改为 `Number.isFinite()` 守卫。
+- `AchievementStore._load()`：localStorage 解析后直接返回，未校验 `stats` 和 `unlocked` 是否为对象。若 `stats` 被污染为 `null`，后续 `incrementStat` 会抛出 `TypeError`。已增加形状校验与回退。
+- `AchievementStore` 原型污染：`incrementStat`/`setStat` 的 `key` 直接用于属性访问，未过滤 `__proto__`/`constructor`/`prototype`。已增加键名白名单过滤。
+- `TournamentResult.showChampion/showEliminated`：调用 `_render()` 但 `_render()` 本身不设置 `display = 'flex'`（仅在 `_appendSeasonContext` 中设置），导致直接调用这两个 API 时面板不可见。已在 `_render()` 入口统一设置 `display = 'flex'`。
+
+**Medium（明显缺陷级）：**
+- `ChallengeManager` 事件钩子：`onShot`/`onBreakShot`/`onTurnEnd`/`onBallCollision`/`onShotUpdate` 未对入参做空值/类型守卫，Game.js 的异常调用会直接抛错。已补充 null/undefined/array 类型校验。
+- `CareerPanel._render()`：清空各 section 时遗漏 `_growthPathSection`，如果面板从有数据切换到无数据（如 reset 后），旧 growth path 卡片会残留。已补充清空。
+- `AchievementPanel.showWall()`：入场动画 `panelIn 260ms` 硬编码，未检查 `reducedMotion` 也未使用 `--ui-anim-speed`。已改为 `isReducedMotion()` 时 `animation: none`，正常时使用 `calc(0.26s / var(--ui-anim-speed))`。
+- `TournamentBracket`：staggered entrance 使用 `setTimeout` 但 `destroy()` 不清理这些 timer，导致被 detached 的 card 节点被闭包引用直到超时。已增加 `_staggerTimers` 数组并在 `destroy()` 中全部 `clearTimeout`。
+- `TournamentPanel._showBracket()`：重复进入 bracket 屏幕时，旧的 `TournamentBracket` 实例被 `this.content.innerHTML = ''` 从 DOM 移除但从未调用 `destroy()`，timer 泄漏。已在 `_showBracket()` 开头增加 `if (this.bracket) { this.bracket.destroy(); this.bracket = null; }`。
+
+**构建与测试：**
+- 全部 13 组非浏览器测试通过（rules/table/lan/ai/analyzer/instant-replay/career/ui-layout/settings-audit/trainer-challenge-safety/achievement-toast）
+- `npm run build` 成功
+
+---
+
+# 3D Billiards v1.21.0
 
 ## What's New in v1.21.0
 

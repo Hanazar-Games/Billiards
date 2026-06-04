@@ -389,6 +389,7 @@ export class TournamentPanel {
 
   _showBracket() {
     this._screen = 'bracket';
+    if (this.bracket) { this.bracket.destroy(); this.bracket = null; }
     this.content.innerHTML = '';
     if (!this.engine.state) return;
 

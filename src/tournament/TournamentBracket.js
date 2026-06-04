@@ -17,6 +17,7 @@ export class TournamentBracket {
   constructor(container) {
     this.container = container;
     this.wrapper = null;
+    this._staggerTimers = [];
   }
 
   render(rounds, currentRound, currentMatchIndex, champion) {
@@ -95,15 +96,18 @@ export class TournamentBracket {
     this.container.appendChild(this.wrapper);
 
     // Staggered entrance animation for cards
+    this._staggerTimers.forEach(t => clearTimeout(t));
+    this._staggerTimers = [];
     const cards = this.wrapper.querySelectorAll('.tournament-match-card');
     cards.forEach((card, i) => {
       card.style.opacity = '0';
       card.style.transform = 'translateY(10px)';
-      setTimeout(() => {
+      const t = setTimeout(() => {
         card.style.transition = `opacity calc(0.35s / var(--ui-anim-speed)) ease, transform calc(0.35s / var(--ui-anim-speed)) ease`;
         card.style.opacity = '1';
         card.style.transform = 'translateY(0)';
       }, animMs(80 + i * 60));
+      this._staggerTimers.push(t);
     });
   }
 
@@ -183,6 +187,8 @@ export class TournamentBracket {
   }
 
   destroy() {
+    this._staggerTimers.forEach(t => clearTimeout(t));
+    this._staggerTimers = [];
     if (this.wrapper && this.wrapper.parentNode) {
       this.wrapper.parentNode.removeChild(this.wrapper);
     }

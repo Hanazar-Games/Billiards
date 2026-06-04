@@ -588,8 +588,8 @@ export class UI {
     overlay.onclick = (e) => { if (e.target === overlay) close(); };
 
     this._confirmKeyHandler = (e) => {
-      if (e.key === 'Escape') { e.preventDefault(); close(); }
-      else if (e.key === 'Enter') { e.preventDefault(); close(); if (onConfirm) onConfirm(); }
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
+      else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); close(); if (onConfirm) onConfirm(); }
     };
     document.addEventListener('keydown', this._confirmKeyHandler);
 

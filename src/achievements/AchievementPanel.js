@@ -85,7 +85,7 @@ export class AchievementPanel {
       transform: translateX(120%);
       opacity: 0;
       transition: transform ${reduced ? '0.01ms' : 'calc(0.5s / var(--ui-anim-speed))'} cubic-bezier(0.34, 1.56, 0.64, 1), opacity ${reduced ? '0.01ms' : '0.4s'} ease;
-      pointer-events: auto;
+      pointer-events: none;
       min-width: 280px;
       max-width: min(400px, calc(100vw - var(--hud-right-safe) - var(--hud-left-safe) - 32px));
     `;
@@ -240,7 +240,15 @@ export class AchievementPanel {
     document.body.appendChild(this.wallContainer);
     this._renderWall();
     this.wallContainer.style.display = 'flex';
-    this.wallContainer.style.animation = 'panelIn 260ms cubic-bezier(0.2,0.8,0.2,1) both';
+    if (isReducedMotion()) {
+      this.wallContainer.style.animation = 'none';
+    } else {
+      this.wallContainer.style.animation = 'panelIn calc(0.26s / var(--ui-anim-speed)) cubic-bezier(0.2,0.8,0.2,1) both';
+    }
+  }
+
+  hide() {
+    this.hideWall();
   }
 
   hideWall() {

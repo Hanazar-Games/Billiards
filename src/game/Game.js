@@ -1053,11 +1053,15 @@ export class Game {
     if (this.cue) this.cue.show();
     await new Promise(resolve => {
       const tick = () => {
+        if (this.state === 'DISPOSED') {
+          resolve();
+          return;
+        }
         if (this.paused) {
           requestAnimationFrame(tick);
           return;
         }
-        if (!this.cue || !this.ballsManager || this.state === 'DISPOSED') {
+        if (!this.cue || !this.ballsManager) {
           resolve();
           return;
         }
@@ -1094,6 +1098,10 @@ export class Game {
 
     await new Promise(resolve => {
       const tick = () => {
+        if (this.state === 'DISPOSED') {
+          resolve();
+          return;
+        }
         // Respect pause state — stop charging while paused
         if (this.paused) {
           requestAnimationFrame(tick);
@@ -1104,7 +1112,7 @@ export class Game {
         this.power = targetPower * progress;
         if (this.ui) this.ui.setPower((this.power / SHOT.maxPower) * 100);
 
-        if (progress < 1 && this.state === 'CHARGING' && this.state !== 'DISPOSED') {
+        if (progress < 1 && this.state === 'CHARGING') {
           requestAnimationFrame(tick);
         } else {
           resolve();
@@ -1200,6 +1208,7 @@ export class Game {
         if (this.ballsManager.allStopped()) {
           this._shotStartTime = null;
           this.resolveTurn(this.turnPocketedIds);
+          if (this.state === 'DISPOSED') return;
         }
       }
 
