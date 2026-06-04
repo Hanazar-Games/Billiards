@@ -11,6 +11,7 @@
 
 import { animMs } from '../core/AnimSpeed.js';
 import { TournamentEngine } from './TournamentEngine.js';
+import { getStyleMeta } from './TournamentData.js';
 
 export class TournamentBracket {
   constructor(container) {
@@ -142,14 +143,24 @@ export class TournamentBracket {
       color: rgba(255,255,255,0.8); font-variant-numeric: tabular-nums;
     `;
 
+    const tagStyle = `
+      font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.45);
+      background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 4px;
+      white-space: nowrap;
+    `;
+
     const p1Winner = winner && winner.id === p1.id;
     const p2Winner = winner && winner.id === p2.id;
+
+    const p1StyleMeta = p1.style && !p1.isPlayer ? getStyleMeta(p1.style) : null;
+    const p2StyleMeta = p2.style && !p2.isPlayer ? getStyleMeta(p2.style) : null;
 
     card.innerHTML = `
       <div style="${rowStyle(p1Winner, !!winner && !p1Winner)}">
         <div style="${nameStyle(p1.color)}">
           ${p1.isPlayer ? '<span style="font-size:11px;">👤</span>' : '<span style="font-size:11px;">🤖</span>'}
           ${_esc(p1.name)}
+          ${p1StyleMeta ? `<span style="${tagStyle}">${p1StyleMeta.icon} ${_esc(p1.style)}</span>` : ''}
         </div>
         <div style="${scoreStyle}">${match.played ? match.p1Score : '-'}</div>
       </div>
@@ -158,6 +169,7 @@ export class TournamentBracket {
         <div style="${nameStyle(p2.color)}">
           ${p2.isPlayer ? '<span style="font-size:11px;">👤</span>' : '<span style="font-size:11px;">🤖</span>'}
           ${_esc(p2.name)}
+          ${p2StyleMeta ? `<span style="${tagStyle}">${p2StyleMeta.icon} ${_esc(p2.style)}</span>` : ''}
         </div>
         <div style="${scoreStyle}">${match.played ? match.p2Score : '-'}</div>
       </div>

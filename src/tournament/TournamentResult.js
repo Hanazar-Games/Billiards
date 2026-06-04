@@ -4,9 +4,15 @@
  * Shows either:
  *   - Champion screen (gold trophy, stats, replay prompt)
  *   - Elimination screen (silver/bronze consolation, round reached)
+ *
+ * v2 adds:
+ *   - Season context (total entries, championships, streak)
+ *   - Opponents faced list with style tags
+ *   - Rich post-match summary
  */
 
 import { animMs } from '../core/AnimSpeed.js';
+import { getStyleMeta } from './TournamentData.js';
 
 export class TournamentResult {
   constructor(onRematch, onBack) {
@@ -39,7 +45,7 @@ export class TournamentResult {
       border: 1px solid var(--line, rgba(255,255,255,0.12));
       border-radius: 20px;
       padding: 40px 44px;
-      min-width: 340px; max-width: 480px;
+      min-width: 340px; max-width: 520px;
       display: flex; flex-direction: column;
       align-items: center; gap: 18px;
       box-shadow: 0 32px 100px rgba(0,0,0,0.6);
@@ -76,6 +82,22 @@ export class TournamentResult {
       headline: '锦标赛结束',
       subline: `你在 ${roundName} 中止步`,
     });
+  }
+
+  /** v2 rich summary with opponents list and season context. */
+  showSummary(summary, seasonStats) {
+    if (!summary) return;
+    if (summary.isChampion) {
+      const finalOpponent = summary.opponentsFaced[summary.opponentsFaced.length - 1];
+      this.showChampion(summary.player?.name, finalOpponent?.name, summary.mode);
+    } else {
+      const lastMatch = summary.opponentsFaced[summary.opponentsFaced.length - 1];
+      const roundName = lastMatch ? (lastMatch.round === 0 ? '八强赛' : lastMatch.round === 1 ? '半决赛' : '决赛') : '八强赛';
+      this.showEliminated(summary.player?.name, roundName, summary.trophy);
+    }
+    // Append extra content to card
+    this._appendOpponentsList(summary.opponentsFaced);
+    this._appendSeasonContext(seasonStats, summary.isChampion);
   }
 
   _render(data) {
@@ -123,6 +145,74 @@ export class TournamentResult {
       `;
       this.card.appendChild(badge);
     }
+  }
+
+  _appendOpponentsList(opponentsFaced) {
+    if (!opponentsFaced || opponentsFaced.length === 0) return;
+    const wrap = document.createElement('div');
+    wrap.style.cssText = `
+      width: 100%; display: flex; flex-direction: column; gap: 6px;
+      margin-top: 4px;
+    `;
+
+    const label = document.createElement('div');
+    label.textContent = '本届赛事击败的对手';
+    label.style.cssText = `
+      font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.45);
+      text-transform: uppercase; letter-spacing: 1px;
+      text-align: left;
+    `;
+    wrap.appendChild(label);
+
+    const row = document.createElement('div');
+    row.style.cssText = `
+      display: flex; flex-wrap: wrap; gap: 6px;
+      justify-content: center;
+    `;
+
+    for (const opp of opponentsFaced) {
+      if (!opp.playerWon) continue; // only show defeated opponents
+      const meta = getStyleMeta(opp.style);
+      const chip = document.createElement('span');
+      chip.style.cssText = `
+        font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.75);
+        background: rgba(255,255,255,0.06); padding: 4px 10px; border-radius: 6px;
+        border: 1px solid rgba(255,255,255,0.1);
+      `;
+      const roundNames = ['八强', '四强', '决赛'];
+      chip.textContent = `${meta.icon} ${_esc(opp.name)} (${roundNames[opp.round] || ''})`;
+      row.appendChild(chip);
+    }
+
+    if (row.children.length > 0) {
+      wrap.appendChild(row);
+      this.card.appendChild(wrap);
+    }
+  }
+
+  _appendSeasonContext(seasonStats, isChampion) {
+    if (!seasonStats) return;
+    const ctx = document.createElement('div');
+    ctx.style.cssText = `
+      width: 100%; padding: 10px 12px; margin-top: 4px;
+      background: rgba(255,255,255,0.04); border-radius: 10px;
+      font-size: 12px; color: rgba(255,255,255,0.55);
+      line-height: 1.6;
+    `;
+
+    const parts = [`这是你第 ${seasonStats.totalEntered} 次参赛`];
+    if (isChampion) {
+      parts.push(`累计夺冠 ${seasonStats.championships} 次`);
+      if (seasonStats.currentStreak > 1) {
+        parts.push(`当前连胜 ${seasonStats.currentStreak} 届 🔥`);
+      }
+    }
+    if (seasonStats.bestStreak > 0) {
+      parts.push(`最佳连胜纪录 ${seasonStats.bestStreak} 届`);
+    }
+
+    ctx.textContent = parts.join(' · ');
+    this.card.appendChild(ctx);
 
     // Action buttons
     const btnRow = document.createElement('div');

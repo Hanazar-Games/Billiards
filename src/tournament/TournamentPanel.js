@@ -1,18 +1,22 @@
 /**
  * TournamentPanel — The main tournament UI.
  *
- * Three screens:
- *   1. Setup   — enter name, pick colour, choose mode
- *   2. Bracket — view bracket, see opponent info, start next match
- *   3. History — browse past tournaments
+ * Screens:
+ *   1. Setup    — enter name, pick colour, choose mode, view season stats
+ *   2. Bracket  — view bracket, see opponent info, start next match
+ *   3. PreMatch — opponent preview, season context, head-to-head
+ *   4. History  — browse past tournaments as rich cards
  */
 
 import { animMs } from '../core/AnimSpeed.js';
 import { TournamentEngine } from './TournamentEngine.js';
 import { TournamentStore } from './TournamentStore.js';
 import { TournamentBracket } from './TournamentBracket.js';
-import { PLAYER_COLORS } from './TournamentData.js';
+import { PLAYER_COLORS, getStyleMeta } from './TournamentData.js';
 import { getEnabledProfilesForMode } from '../game/TableProfiles.js';
+
+const ACCENT_GOLD = 'rgba(216,177,95,1)';
+const ACCENT_TEAL = 'rgba(78,205,196,1)';
 
 export class TournamentPanel {
   constructor(onStartMatch, onBack) {
@@ -23,6 +27,7 @@ export class TournamentPanel {
     this.store = new TournamentStore();
     this.bracket = null;
     this._fadeTimer = null;
+    this._screen = 'setup'; // setup | bracket | prematch | history
     this._buildUI();
   }
 
@@ -70,7 +75,7 @@ export class TournamentPanel {
 
     this.container.appendChild(this.header);
 
-    // Content area (switches between setup / bracket / history)
+    // Content area (switches between screens)
     this.content = document.createElement('div');
     this.content.style.cssText = `
       width: 100%; max-width: 720px;
@@ -90,7 +95,6 @@ export class TournamentPanel {
     requestAnimationFrame(() => {
       if (this.container) this.container.style.opacity = '1';
     });
-    // Default to setup if no active tournament
     if (this.engine.state && this.engine.state.status === 'active') {
       this._showBracket();
     } else {
@@ -132,8 +136,21 @@ export class TournamentPanel {
   // ── Screen: Setup ──
 
   _showSetup() {
+    this._screen = 'setup';
     this.content.innerHTML = '';
     if (this.bracket) { this.bracket.destroy(); this.bracket = null; }
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = `
+      width: 100%; max-width: 460px;
+      display: flex; flex-direction: column; gap: 16px; align-items: stretch;
+    `;
+
+    // Season stats card (if any history exists)
+    const stats = this.store.getSeasonStats();
+    if (stats.totalEntered > 0) {
+      wrap.appendChild(this._renderSeasonStatsCard(stats));
+    }
 
     const card = this._createCard();
 
@@ -273,12 +290,77 @@ export class TournamentPanel {
     histBtn.onclick = () => this._showHistory();
     card.appendChild(histBtn);
 
-    this.content.appendChild(card);
+    wrap.appendChild(card);
+    this.content.appendChild(wrap);
+  }
+
+  _renderSeasonStatsCard(stats) {
+    const card = document.createElement('div');
+    card.style.cssText = `
+      background: var(--panel-strong, rgba(20,24,28,0.92));
+      border: 1px solid var(--line, rgba(255,255,255,0.12));
+      border-radius: 16px;
+      padding: 18px 22px;
+      width: 100%;
+      display: flex; flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+      backdrop-filter: blur(12px);
+    `;
+
+    const title = document.createElement('div');
+    title.textContent = '📊 赛季记录';
+    title.style.cssText = `
+      font-size: 14px; font-weight: 800; color: ${ACCENT_GOLD};
+      letter-spacing: 1px;
+    `;
+    card.appendChild(title);
+
+    const grid = document.createElement('div');
+    grid.style.cssText = `
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    `;
+
+    const roundLabels = { '-1': '-', '0': '八强', '1': '四强', '2': '决赛' };
+    const items = [
+      { label: '参赛', value: stats.totalEntered },
+      { label: '冠军', value: stats.championships },
+      { label: '最佳', value: roundLabels[String(stats.bestRound)] || '-' },
+      { label: '胜场', value: stats.totalWins },
+      { label: '负场', value: stats.totalLosses },
+      { label: '连胜', value: stats.currentStreak > 0 ? `${stats.currentStreak} 🔥` : stats.bestStreak > 0 ? `最佳 ${stats.bestStreak}` : '0' },
+    ];
+
+    for (const item of items) {
+      const cell = document.createElement('div');
+      cell.style.cssText = `
+        background: rgba(255,255,255,0.04);
+        border-radius: 8px; padding: 10px 6px; text-align: center;
+      `;
+      cell.innerHTML = `
+        <div style="font-size:16px;font-weight:800;color:#fff;margin-bottom:2px;">${item.value}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.5px;">${item.label}</div>
+      `;
+      grid.appendChild(cell);
+    }
+
+    card.appendChild(grid);
+
+    // Favorite mode
+    if (stats.favoriteMode) {
+      const fav = document.createElement('div');
+      fav.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.4);text-align:center;';
+      fav.textContent = `常用项目：${stats.favoriteMode === '9ball' ? '9 球' : '8 球'}`;
+      card.appendChild(fav);
+    }
+
+    return card;
   }
 
   // ── Screen: Bracket ──
 
   _showBracket() {
+    this._screen = 'bracket';
     this.content.innerHTML = '';
     if (!this.engine.state) return;
 
@@ -304,6 +386,7 @@ export class TournamentPanel {
       const roundName = TournamentEngine.getRoundName(match.round);
       const gamesNeeded = match.gamesNeeded;
       const formatLabel = gamesNeeded === 1 ? '单局决胜' : gamesNeeded === 3 ? '三局两胜' : '五局三胜';
+      const styleMeta = opponent ? getStyleMeta(opponent.style) : null;
 
       statusCard.innerHTML = `
         <div style="text-align:center;">
@@ -313,36 +396,34 @@ export class TournamentPanel {
           <div style="font-size:16px;font-weight:800;color:#fff;margin-bottom:4px;">
             下一场对手：${opponent ? _esc(opponent.name) : '???'}
           </div>
-          <div style="font-size:12px;color:rgba(255,255,255,0.5);">
-            ${opponent ? `${_esc(opponent.title || '')} · ${_esc(opponent.style || '')}` : ''}
+          <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:8px;">
+            ${opponent ? `${_esc(opponent.title || '')}${styleMeta ? ' · ' + styleMeta.icon + ' ' + _esc(opponent.style || '') : ''}` : ''}
           </div>
         </div>
       `;
 
-      const playBtn = document.createElement('button');
-      playBtn.type = 'button';
-      playBtn.textContent = '开始比赛';
-      playBtn.style.cssText = `
-        width: 100%; padding: 12px 0; margin-top: 14px;
-        background: linear-gradient(90deg, rgba(216,177,95,0.25), rgba(180,140,60,0.2));
-        border: 1px solid rgba(216,177,95,0.55);
-        border-radius: 10px; color: #f0d78c;
-        font-size: 15px; font-weight: 800; cursor: pointer;
-        pointer-events: auto; letter-spacing: 2px;
+      const previewBtn = document.createElement('button');
+      previewBtn.type = 'button';
+      previewBtn.textContent = '查看赛前情报';
+      previewBtn.style.cssText = `
+        width: 100%; padding: 12px 0; margin-top: 10px;
+        background: linear-gradient(90deg, rgba(68,138,255,0.22), rgba(68,138,255,0.12));
+        border: 1px solid rgba(68,138,255,0.5);
+        border-radius: 10px; color: #8fc3ff;
+        font-size: 14px; font-weight: 800; cursor: pointer;
+        pointer-events: auto; letter-spacing: 1px;
         transition: all calc(0.2s / var(--ui-anim-speed)) ease;
       `;
-      playBtn.onmouseenter = () => {
-        playBtn.style.background = 'linear-gradient(90deg, rgba(216,177,95,0.4), rgba(180,140,60,0.35))';
-        playBtn.style.transform = 'translateY(-1px)';
+      previewBtn.onmouseenter = () => {
+        previewBtn.style.background = 'linear-gradient(90deg, rgba(68,138,255,0.35), rgba(68,138,255,0.22))';
+        previewBtn.style.transform = 'translateY(-1px)';
       };
-      playBtn.onmouseleave = () => {
-        playBtn.style.background = 'linear-gradient(90deg, rgba(216,177,95,0.25), rgba(180,140,60,0.2))';
-        playBtn.style.transform = 'translateY(0)';
+      previewBtn.onmouseleave = () => {
+        previewBtn.style.background = 'linear-gradient(90deg, rgba(68,138,255,0.22), rgba(68,138,255,0.12))';
+        previewBtn.style.transform = 'translateY(0)';
       };
-      playBtn.onclick = () => {
-        if (this.onStartMatch) this.onStartMatch();
-      };
-      statusCard.appendChild(playBtn);
+      previewBtn.onclick = () => this._showPreMatch();
+      statusCard.appendChild(previewBtn);
     } else {
       statusCard.innerHTML = `
         <div style="text-align:center;color:rgba(255,255,255,0.6);">
@@ -365,66 +446,282 @@ export class TournamentPanel {
     this.bracket.render(rounds, currentRound, currentMatchIndex, champion);
   }
 
-  // ── Screen: History ──
+  // ── Screen: PreMatch ──
 
-  _showHistory() {
+  _showPreMatch() {
+    this._screen = 'prematch';
     this.content.innerHTML = '';
     if (this.bracket) { this.bracket.destroy(); this.bracket = null; }
 
+    const preview = this.engine.getMatchPreview(this.store.getSeasonStats());
+    if (!preview) return;
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = `
+      width: 100%; max-width: 460px;
+      display: flex; flex-direction: column; gap: 14px; align-items: stretch;
+    `;
+
+    // Round banner
+    const banner = document.createElement('div');
+    banner.style.cssText = `
+      text-align: center; padding: 12px;
+      background: linear-gradient(135deg, rgba(216,177,95,0.15), rgba(180,140,60,0.08));
+      border: 1px solid rgba(216,177,95,0.3);
+      border-radius: 12px;
+    `;
+    banner.innerHTML = `
+      <div style="font-size:12px;font-weight:700;color:${ACCENT_GOLD};letter-spacing:2px;text-transform:uppercase;">
+        ${preview.roundName}
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px;">
+        ${preview.format}${preview.difficulty ? ' · 难度 ' + preview.difficulty : ''}
+      </div>
+    `;
+    wrap.appendChild(banner);
+
+    // Opponent card
+    if (preview.opponent) {
+      const oppCard = this._createCard();
+      oppCard.style.padding = '22px 24px';
+
+      const top = document.createElement('div');
+      top.style.cssText = `
+        display: flex; align-items: center; gap: 14px; margin-bottom: 12px;
+      `;
+
+      const avatar = document.createElement('div');
+      avatar.textContent = preview.opponent.styleIcon || '🤖';
+      avatar.style.cssText = `
+        width: 52px; height: 52px; border-radius: 50%;
+        background: ${preview.opponent.color || 'rgba(255,255,255,0.1)'};
+        display: flex; align-items: center; justify-content: center;
+        font-size: 24px; flex-shrink: 0;
+        box-shadow: 0 4px 16px ${preview.opponent.color || 'rgba(255,255,255,0.1)'}33;
+      `;
+      top.appendChild(avatar);
+
+      const info = document.createElement('div');
+      info.style.cssText = 'display:flex;flex-direction:column;gap:2px;';
+      info.innerHTML = `
+        <div style="font-size:18px;font-weight:800;color:#fff;">${_esc(preview.opponent.name)}</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.55);">${_esc(preview.opponent.title || '')}</div>
+        <div style="font-size:11px;color:${ACCENT_GOLD};">
+          ${preview.opponent.styleIcon || ''} ${_esc(preview.opponent.style || '')}
+        </div>
+      `;
+      top.appendChild(info);
+      oppCard.appendChild(top);
+
+      const desc = document.createElement('div');
+      desc.textContent = preview.opponent.styleDesc || '';
+      desc.style.cssText = `
+        font-size: 12.5px; color: rgba(255,255,255,0.65);
+        line-height: 1.5; padding: 10px 12px;
+        background: rgba(255,255,255,0.04); border-radius: 8px;
+      `;
+      oppCard.appendChild(desc);
+
+      wrap.appendChild(oppCard);
+    }
+
+    // Head-to-head
+    const h2h = this._buildHeadToHead(preview.opponent?.name);
+    if (h2h) wrap.appendChild(h2h);
+
+    // Season snapshot
+    if (preview.seasonStats) {
+      const snap = document.createElement('div');
+      snap.style.cssText = `
+        font-size: 11px; color: rgba(255,255,255,0.4);
+        text-align: center; line-height: 1.6;
+      `;
+      const s = preview.seasonStats;
+      const roundLabels = { '-1': '-', '0': '八强', '1': '四强', '2': '决赛' };
+      snap.textContent = `赛季：参赛 ${s.totalEntered} 次 · 冠军 ${s.championships} 次 · 最佳 ${roundLabels[String(s.bestRound)] || '-'} · 连胜 ${s.currentStreak > 0 ? s.currentStreak : s.bestStreak}`;
+      wrap.appendChild(snap);
+    }
+
+    // Buttons
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = `
+      display: flex; gap: 10px; margin-top: 4px;
+    `;
+
+    const startBtn = document.createElement('button');
+    startBtn.type = 'button';
+    startBtn.textContent = '开始比赛';
+    startBtn.style.cssText = `
+      flex: 1; padding: 14px 0;
+      background: linear-gradient(90deg, rgba(216,177,95,0.25), rgba(180,140,60,0.2));
+      border: 1px solid rgba(216,177,95,0.55);
+      border-radius: 10px; color: #f0d78c;
+      font-size: 15px; font-weight: 800; cursor: pointer;
+      pointer-events: auto; letter-spacing: 2px;
+      transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+    `;
+    startBtn.onmouseenter = () => {
+      startBtn.style.background = 'linear-gradient(90deg, rgba(216,177,95,0.4), rgba(180,140,60,0.35))';
+      startBtn.style.transform = 'translateY(-1px)';
+    };
+    startBtn.onmouseleave = () => {
+      startBtn.style.background = 'linear-gradient(90deg, rgba(216,177,95,0.25), rgba(180,140,60,0.2))';
+      startBtn.style.transform = 'translateY(0)';
+    };
+    startBtn.onclick = () => {
+      if (this.onStartMatch) this.onStartMatch();
+    };
+    btnRow.appendChild(startBtn);
+
+    const backBtn = document.createElement('button');
+    backBtn.type = 'button';
+    backBtn.textContent = '返回对阵表';
+    backBtn.style.cssText = `
+      flex: 1; padding: 14px 0;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px; color: rgba(255,255,255,0.8);
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      pointer-events: auto;
+      transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+    `;
+    backBtn.onmouseenter = () => {
+      backBtn.style.background = 'rgba(255,255,255,0.12)';
+      backBtn.style.borderColor = 'rgba(255,255,255,0.3)';
+    };
+    backBtn.onmouseleave = () => {
+      backBtn.style.background = 'rgba(255,255,255,0.06)';
+      backBtn.style.borderColor = 'rgba(255,255,255,0.15)';
+    };
+    backBtn.onclick = () => this._showBracket();
+    btnRow.appendChild(backBtn);
+
+    wrap.appendChild(btnRow);
+    this.content.appendChild(wrap);
+  }
+
+  _buildHeadToHead(opponentName) {
+    if (!opponentName) return null;
+    const stats = this.store.getSeasonStats();
+    const wins = stats.rivalWins[opponentName] || 0;
+    if (wins === 0) return null;
+
     const card = this._createCard();
-    card.style.maxWidth = '520px';
+    card.style.padding = '14px 18px';
+    card.innerHTML = `
+      <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:4px;">
+        历史交锋
+      </div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.8);">
+        你对 ${_esc(opponentName)} 保持 <span style="color:${ACCENT_TEAL};font-weight:800;">${wins} 胜</span> 不败
+      </div>
+    `;
+    return card;
+  }
+
+  // ── Screen: History ──
+
+  _showHistory() {
+    this._screen = 'history';
+    this.content.innerHTML = '';
+    if (this.bracket) { this.bracket.destroy(); this.bracket = null; }
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = `
+      width: 100%; max-width: 520px;
+      display: flex; flex-direction: column; gap: 14px; align-items: stretch;
+    `;
 
     const title = document.createElement('div');
     title.textContent = '📜 锦标赛历史';
     title.style.cssText = `
       font-size: 16px; font-weight: 800; color: #fff;
-      text-align: center; margin-bottom: 16px;
+      text-align: center;
     `;
-    card.appendChild(title);
+    wrap.appendChild(title);
 
     const history = this.store.getAll();
     if (history.length === 0) {
       const empty = document.createElement('div');
       empty.textContent = '暂无锦标赛记录';
       empty.style.cssText = 'text-align:center;color:rgba(255,255,255,0.4);font-size:13px;padding:20px 0;';
-      card.appendChild(empty);
+      wrap.appendChild(empty);
     } else {
       history.forEach((h) => {
-        const row = document.createElement('div');
-        row.style.cssText = `
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 10px 12px; border-radius: 8px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.08);
-          margin-bottom: 8px;
-        `;
-
         const isChampion = h.champion?.name === h.playerName;
         const trophyIcon = h.trophy ? h.trophy.icon : '';
         const trophyColor = h.trophy ? h.trophy.color : 'rgba(255,255,255,0.3)';
+        const borderColor = isChampion ? 'rgba(216,177,95,0.45)' : 'rgba(255,255,255,0.1)';
+        const bg = isChampion ? 'linear-gradient(135deg, rgba(216,177,95,0.08), rgba(20,24,28,0.92))' : 'var(--panel-strong, rgba(20,24,28,0.92))';
 
-        row.innerHTML = `
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div style="font-size:20px;">${trophyIcon}</div>
+        const card = document.createElement('div');
+        card.style.cssText = `
+          background: ${bg};
+          border: 1px solid ${borderColor};
+          border-radius: 14px; padding: 16px 18px;
+          display: flex; flex-direction: column; gap: 10px;
+          transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+        `;
+        card.onmouseenter = () => {
+          card.style.borderColor = isChampion ? 'rgba(216,177,95,0.7)' : 'rgba(255,255,255,0.2)';
+          card.style.transform = 'translateY(-1px)';
+        };
+        card.onmouseleave = () => {
+          card.style.borderColor = borderColor;
+          card.style.transform = 'translateY(0)';
+        };
+
+        // Top row: trophy + date + mode
+        const top = document.createElement('div');
+        top.style.cssText = `
+          display: flex; align-items: center; justify-content: space-between;
+        `;
+        const dateStr = h.createdAt ? new Date(h.createdAt).toLocaleDateString() : '-';
+        top.innerHTML = `
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="font-size:22px;">${trophyIcon}</div>
             <div>
               <div style="font-size:13px;font-weight:700;color:#fff;">${_esc(h.playerName)}</div>
-              <div style="font-size:11px;color:rgba(255,255,255,0.5);">
-                ${new Date(h.createdAt).toLocaleDateString()} · ${h.mode === '9ball' ? '9 球' : '8 球'}
-              </div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.45);">${dateStr} · ${h.mode === '9ball' ? '9 球' : '8 球'}</div>
             </div>
           </div>
           <div style="font-size:12px;font-weight:700;color:${trophyColor};">
             ${isChampion ? '冠军' : h.trophy ? h.trophy.name : '未获奖'}
           </div>
         `;
-        card.appendChild(row);
+        card.appendChild(top);
+
+        // Opponents row
+        if (h.opponentSnapshots && h.opponentSnapshots.length > 0) {
+          const oppRow = document.createElement('div');
+          oppRow.style.cssText = `
+            display: flex; flex-wrap: wrap; gap: 6px;
+          `;
+          for (const snap of h.opponentSnapshots) {
+            const meta = getStyleMeta(snap.style);
+            const chip = document.createElement('span');
+            chip.style.cssText = `
+              font-size: 11px; font-weight: 600;
+              color: ${snap.playerWon ? 'rgba(120,220,160,0.9)' : 'rgba(220,120,120,0.9)'};
+              background: ${snap.playerWon ? 'rgba(0,230,118,0.08)' : 'rgba(255,71,87,0.08)'};
+              padding: 3px 8px; border-radius: 6px;
+              border: 1px solid ${snap.playerWon ? 'rgba(0,230,118,0.2)' : 'rgba(255,71,87,0.2)'};
+            `;
+            const roundNames = ['八强', '四强', '决赛'];
+            chip.textContent = `${meta.icon} ${_esc(snap.name)} (${roundNames[snap.round] || ''}) ${snap.playerWon ? '✓' : '✗'}`;
+            oppRow.appendChild(chip);
+          }
+          card.appendChild(oppRow);
+        }
+
+        wrap.appendChild(card);
       });
 
       const clearBtn = document.createElement('button');
       clearBtn.type = 'button';
       clearBtn.textContent = '清空记录';
       clearBtn.style.cssText = `
-        width: 100%; padding: 10px 0; margin-top: 8px;
+        width: 100%; padding: 10px 0; margin-top: 4px;
         background: rgba(185,30,50,0.12);
         border: 1px solid rgba(185,30,50,0.35);
         border-radius: 8px; color: #ff8a9a;
@@ -442,7 +739,7 @@ export class TournamentPanel {
         this.store.clear();
         this._showHistory();
       };
-      card.appendChild(clearBtn);
+      wrap.appendChild(clearBtn);
     }
 
     const backBtn = document.createElement('button');
@@ -450,13 +747,13 @@ export class TournamentPanel {
     backBtn.textContent = '← 返回';
     backBtn.className = 'ui-action';
     backBtn.style.cssText = `
-      width: 100%; padding: 10px 0; margin-top: 8px;
+      width: 100%; padding: 10px 0; margin-top: 4px;
       font-size: 13px; font-weight: 700; pointer-events: auto;
     `;
     backBtn.onclick = () => this._showSetup();
-    card.appendChild(backBtn);
+    wrap.appendChild(backBtn);
 
-    this.content.appendChild(card);
+    this.content.appendChild(wrap);
   }
 
   // ── Helpers ──
@@ -519,7 +816,6 @@ export class TournamentPanel {
     const colorIdx = this._selectedColorIndex || 0;
     const mode = this._modeValue || '8ball';
 
-    // Pick a random table profile suitable for the mode
     const profiles = getEnabledProfilesForMode(mode);
     const tableProfileId = profiles.length > 0
       ? profiles[Math.floor(Math.random() * profiles.length)].id
@@ -530,6 +826,14 @@ export class TournamentPanel {
   }
 
   _goBack() {
+    if (this._screen === 'prematch') {
+      this._showBracket();
+      return;
+    }
+    if (this._screen === 'history') {
+      this._showSetup();
+      return;
+    }
     this.hide();
     if (this.onBack) this.onBack();
   }

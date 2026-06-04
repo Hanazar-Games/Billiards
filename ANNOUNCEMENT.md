@@ -1,4 +1,66 @@
-# 3D Billiards v1.17.0 — Latest Update
+# 3D Billiards v1.18.0 — Latest Update
+
+## What's New in v1.18.0
+
+### 🏆 锦标赛赛季体验 — 从单纯对战到完整赛季旅程
+
+将原有的 8 人单淘汰锦标赛升级为完整的**赛季体验**，新增赛季记录、对手风格标签、赛前预览、赛后总结、冠军历史卡片五大模块。数据全部保存在 TournamentStore 中，**兼容旧存档**（v1 历史记录会自动迁移到新格式）。
+
+**赛季记录：**
+- TournamentStore schema 升级至 v2，新增 `seasonStats` 聚合统计
+- 追踪：参赛次数、冠军次数、最佳成绩（八强/四强/决赛）、总胜/负场、对手击败记录、连胜纪录、常用项目
+- 旧存档自动迁移：检测到 v1 纯数组格式时自动计算并补全赛季统计
+
+**对手风格标签：**
+- 12 位 AI 对手每位拥有独特风格（进攻型 ⚔️、防守型 🛡️、旋转型 🌀、力量型 💪、均衡型 ⚖️、速度型 ⚡）
+- 风格标签在对阵表卡片、赛前预览、历史记录中全程展示
+- 每种风格配有专属图标和一句话描述
+
+**赛前预览（新增屏幕）：**
+- 在对阵表点击「查看赛前情报」进入全新 PreMatch 屏幕
+- 展示对手头像（代表色 + 风格图标）、名字、头衔、风格描述
+- 展示比赛信息（轮次、赛制、难度）
+- 历史交锋提示：如果你曾击败过该对手，显示连胜记录
+- 赛季快照：参赛次数、冠军次数、最佳成绩、当前连胜
+
+**赛后总结升级：**
+- TournamentResult 新增 `showSummary()` 方法，展示击败的对手列表（带风格标签和轮次）
+- 赛季数据更新提示：这是你第 X 次参赛 · 累计夺冠 Y 次 · 最佳连胜 Z 届
+
+**冠军历史卡片：**
+- 历史记录屏幕从简单列表升级为富卡片网格
+- 冠军记录以金色渐变边框 + 高亮背景标识
+- 每张卡片展示：奖杯图标、选手名、日期、项目、成绩标签
+- 对手快照列表：每位对手显示风格图标、名字、轮次、胜负标记
+-  hover 时卡片微抬 + 边框高亮
+
+**UI 一致性：**
+- 全部使用现有 glassmorphism 设计体系，与菜单风格统一
+- 移动端适配：单列布局、不重叠、安全区兼容
+- 返回/继续比赛/历史查看流程清晰：Setup → Bracket → PreMatch → Game → Result → Setup/Menu
+
+**MenuSystem 集成：**
+- `_showTournament()` 从 placeholder 变为完整实现
+- `_startTournamentMatch()` / `_onTournamentGameEnd()` 管理比赛生命周期
+- 比赛结束后自动判断锦标赛是否结束，展示对应结果屏幕
+
+**技术实现：**
+- `TournamentStore` — v2 schema + v1 迁移 + `_rebuildSeasonStats()` + `_updateSeasonStats()`
+- `TournamentData` — 新增 `STYLE_META`、`getStyleMeta()`、`buildMatchPreview()`
+- `TournamentEngine` — 新增 `getMatchPreview()`、`getTournamentSummary()`
+- `TournamentPanel` — 新增 `_showPreMatch()`、`_renderSeasonStatsCard()`、`_buildHeadToHead()`、升级 `_showHistory()` 为卡片网格
+- `TournamentBracket` — match card 中展示风格标签
+- `TournamentResult` — 新增 `showSummary()` 与对手列表、赛季上下文
+
+**测试覆盖：**
+- 新增 `test/tournament.test.js`（15 项测试）
+- TournamentStore：空数据、记录更新、淘汰追踪、清空、未完成的忽略、跨赛事对手统计
+- TournamentEngine：创建、preview、summary（冠军/淘汰）
+- TournamentData：风格元数据、preview 构建、null 处理
+
+---
+
+# 3D Billiards v1.17.0 — Previous Update
 
 ## What's New in v1.17.0
 

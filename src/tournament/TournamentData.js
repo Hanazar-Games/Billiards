@@ -23,6 +23,20 @@ export const OPPONENT_NAMES = [
   { name: '杨帆', title: '海上风暴', style: '速度型' },
 ];
 
+/** Style label → icon & description for UI display. */
+export const STYLE_META = {
+  '进攻型': { icon: '⚔️', desc: '偏好主动进攻，长台选择激进' },
+  '防守型': { icon: '🛡️', desc: '注重安全球，母球控制严密' },
+  '旋转型': { icon: '🌀', desc: '频繁使用杆法，走位细腻' },
+  '力量型': { icon: '💪', desc: '发力饱满，击球果断有力' },
+  '均衡型': { icon: '⚖️', desc: '攻防兼备，无明显短板' },
+  '速度型': { icon: '⚡', desc: '出杆节奏快，速战速决' },
+};
+
+export function getStyleMeta(style) {
+  return STYLE_META[style] || { icon: '🎱', desc: '风格未知' };
+}
+
 /** Avatar colour palette (dark theme friendly). */
 export const PLAYER_COLORS = [
   '#d8b15f', // gold
@@ -94,6 +108,36 @@ export function createPlayerCharacter(name, colorIndex = 0) {
     style: '自定义',
     isPlayer: true,
   };
+}
+
+/** Build a pre-match preview object for a given match. */
+export function buildMatchPreview(match, seasonStats = null) {
+  if (!match) return null;
+  const opponent = match.player1?.isPlayer ? match.player2 : match.player1;
+  const player = match.player1?.isPlayer ? match.player1 : match.player2;
+  const opponentMeta = opponent ? getStyleMeta(opponent.style) : { icon: '🎱', desc: '' };
+  const difficulty = match.round != null ? (ROUND_DIFFICULTY[match.round]?.[match.player1?.isPlayer ? 1 : 0]) : null;
+
+  const preview = {
+    roundName: match.round === 0 ? '八强赛' : match.round === 1 ? '半决赛' : '决赛',
+    format: match.gamesNeeded === 1 ? '单局决胜' : match.gamesNeeded === 3 ? '三局两胜' : '五局三胜',
+    tableProfileId: match.tableProfileId,
+    opponent: opponent ? {
+      name: opponent.name,
+      title: opponent.title,
+      style: opponent.style,
+      styleIcon: opponentMeta.icon,
+      styleDesc: opponentMeta.desc,
+      color: opponent.color,
+    } : null,
+    player: player ? {
+      name: player.name,
+      color: player.color,
+    } : null,
+    difficulty,
+    seasonStats: seasonStats || null,
+  };
+  return preview;
 }
 
 /** Generate a complete 8-player single-elimination bracket. */

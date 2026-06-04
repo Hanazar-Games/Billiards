@@ -371,8 +371,120 @@ export class MenuSystem {
   }
 
   _showTournament() {
-    // Placeholder: tournament mode UI not yet implemented
-    console.warn('Tournament mode UI not yet implemented');
+    this.state = 'MENU';
+    this._hideAllPanels(new Set([this.tournamentPanel]));
+    if (!this.tournamentPanel) {
+      this.tournamentPanel = new TournamentPanel(
+        () => this._startTournamentMatch(),
+        () => this._showMainMenu()
+      );
+    }
+    this.tournamentPanel.show();
+  }
+
+  async _startTournamentMatch() {
+    if (this.state === 'TRANSITION') return;
+    if (this.state !== 'MENU') return;
+    this.state = 'TRANSITION';
+
+    this._disposeCurrentGame();
+    if (this.tournamentPanel) this.tournamentPanel.hide();
+    const faded = await this._fadeToGame();
+    if (!faded) return;
+    if (this.audio) this.audio.stopBGM(false);
+
+    const engine = this.tournamentPanel?.getEngine();
+    if (!engine) {
+      this.state = 'MENU';
+      this._fadeToMenu();
+      return;
+    }
+
+    const modeConfig = engine.getModeConfigForCurrentMatch();
+    if (!modeConfig) {
+      this.state = 'MENU';
+      this._fadeToMenu();
+      return;
+    }
+
+    const match = engine.getCurrentMatch();
+    if (match) {
+      const opponent = match.player1?.isPlayer ? match.player2 : match.player1;
+      this._tournamentPlayerName = match.player1?.isPlayer ? match.player1.name : match.player2?.name;
+      this._tournamentOpponentName = opponent?.name;
+    }
+
+    this.game = new Game(this.renderer, this.physics, this.audio);
+    this.game.achievements = this.achievements;
+    this.game.replayLibrary = this.replayLibrary;
+
+    try {
+      await this.game.init(modeConfig);
+    } catch (err) {
+      console.error('Tournament game init failed:', err);
+      try { this.game.dispose(); } catch (e) {}
+      this.game = null;
+      this.state = 'MENU';
+      this._fadeToMenu();
+      return;
+    }
+
+    this.game.onReturnToMenu = () => this._onTournamentGameEnd(1);
+    this.game.onConcede = () => this._onTournamentGameEnd(2);
+
+    this.loop = new GameLoop({
+      update: (dt) => {
+        if ((!this.game || this.game.networkRole !== 'client') && !this.game?.paused) {
+          this.physics.step(dt);
+        }
+        this.game.update(dt);
+      },
+      render: () => {
+        if (this.game) this.game.render(this.renderer);
+        this.renderer.render();
+      },
+    });
+
+    this.state = 'PLAYING';
+    this.loop.start();
+  }
+
+  _onTournamentGameEnd(winner) {
+    if (this.state !== 'PLAYING') return;
+    this.state = 'TRANSITION';
+
+    const playerWon = winner === 1;
+    const result = this.tournamentPanel?.onGameEnd(playerWon);
+
+    this._clearPendingTimeouts();
+    if (this.loop) { this.loop.stop(); this.loop = null; }
+    if (this.game) { this.game.dispose(); this.game = null; }
+
+    const uiLayer = document.getElementById('ui-layer');
+    if (uiLayer) uiLayer.style.display = 'none';
+
+    this._startMenuLoop();
+    this._fadeToMenu();
+    this.state = 'MENU';
+
+    if (this.audio && this.audio.soundEnabled) {
+      this.audio.startBGM();
+    }
+
+    if (result?.tournamentOver && this.tournamentPanel) {
+      const engine = this.tournamentPanel.getEngine();
+      const summary = engine.getTournamentSummary();
+      const seasonStats = this.tournamentPanel.store.getSeasonStats();
+      if (!this.tournamentResult) {
+        this.tournamentResult = new TournamentResult(
+          () => this._showTournament(),
+          () => this._showMainMenu()
+        );
+      }
+      this.tournamentResult.showSummary(summary, seasonStats);
+    } else if (this.tournamentPanel) {
+      this.tournamentPanel.show();
+    }
   }
 
   async _startTrainer(drill) {

@@ -11,6 +11,7 @@ import {
   createPlayerCharacter,
   getNextMatch,
   getWinnerSlot,
+  buildMatchPreview,
   ROUND_DIFFICULTY,
   TROPHY_TIERS,
 } from './TournamentData.js';
@@ -163,6 +164,43 @@ export class TournamentEngine {
       config.tableProfileId = match.tableProfileId;
     }
     return config;
+  }
+
+  /** Get a rich pre-match preview for the current match. */
+  getMatchPreview(seasonStats) {
+    const match = this.getCurrentMatch();
+    return buildMatchPreview(match, seasonStats);
+  }
+
+  /** Get a post-tournament summary for the result screen. */
+  getTournamentSummary() {
+    if (!this.state) return null;
+    const s = this.state;
+    const isChampion = !!s.champion?.isPlayer;
+    const playerMatches = s.rounds
+      .flat()
+      .filter((m) => m.played && (m.player1?.isPlayer || m.player2?.isPlayer));
+
+    const opponentsFaced = playerMatches.map((m) => {
+      const opponent = m.player1?.isPlayer ? m.player2 : m.player1;
+      return {
+        name: opponent?.name,
+        title: opponent?.title,
+        style: opponent?.style,
+        round: m.round,
+        playerWon: !!(m.winner?.isPlayer),
+      };
+    });
+
+    return {
+      isChampion,
+      champion: s.champion,
+      player: s.player,
+      mode: s.mode,
+      trophy: s.trophy,
+      opponentsFaced,
+      roundsTotal: s.rounds.length,
+    };
   }
 
   _findPlayerNextMatch() {
