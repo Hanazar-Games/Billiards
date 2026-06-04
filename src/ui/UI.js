@@ -673,6 +673,7 @@ export class UI {
     const vh = window.innerHeight || 1;
     const clampedX = Math.max(0, Math.min(vw, screenX));
     const clampedY = Math.max(0, Math.min(vh, screenY));
+    const reduced = document.documentElement.classList.contains('reduce-motion');
     const el = document.createElement('div');
     el.className = 'ui-float-text';
     el.textContent = text;
@@ -682,14 +683,15 @@ export class UI {
       font-size: 18px; font-weight: 800; color: ${color};
       text-shadow: 0 2px 8px rgba(0,0,0,0.8);
       pointer-events: none; z-index: 10; white-space: nowrap;
-      animation: floatTextUp calc(1.2s / var(--ui-anim-speed)) ease-out forwards;
+      ${reduced ? '' : `animation: floatTextUp calc(1.2s / var(--ui-anim-speed)) ease-out forwards;`}
+      opacity: var(--hud-opacity, 1);
     `;
     uiLayer.appendChild(el);
     const t = setTimeout(() => {
       if (el.parentNode) el.parentNode.removeChild(el);
       const idx = this._floatTimers.indexOf(t);
       if (idx !== -1) this._floatTimers.splice(idx, 1);
-    }, animMs(1200));
+    }, reduced ? 600 : animMs(1200));
     this._floatTimers.push(t);
   }
 
@@ -709,6 +711,10 @@ export class UI {
 
   setHudOpacity(v) {
     const opacity = String(Math.max(0.3, Math.min(1.0, v)));
+    // Publish as CSS custom property so dynamically-created HUD elements inherit it
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.setProperty('--hud-opacity', opacity);
+    }
     if (this.bottomHud) {
       this.bottomHud.style.opacity = opacity;
     }
@@ -721,6 +727,25 @@ export class UI {
     if (this.player2Badge) this.player2Badge.style.opacity = opacity;
     const versionTag = document.getElementById('version-tag');
     if (versionTag) versionTag.style.opacity = opacity;
+    // Minimap
+    const minimap = document.querySelector('.table-minimap');
+    if (minimap) minimap.style.opacity = String(Math.min(1, (settings.get('minimapOpacity') ?? 0.85) * parseFloat(opacity)));
+    // Combo counter
+    if (this._comboEl) this._comboEl.style.opacity = opacity;
+    // FPS counter
+    if (this._fpsEl) this._fpsEl.style.opacity = opacity;
+    // Crosshair
+    const crosshair = document.getElementById('crosshair');
+    if (crosshair) crosshair.style.opacity = opacity;
+    // Message
+    if (this.message) this.message.style.opacity = opacity;
+    // Replay hint
+    if (this._replayHintEl) this._replayHintEl.style.opacity = opacity;
+    // Push-out button / choice
+    if (this._pushOutBtn) this._pushOutBtn.style.opacity = opacity;
+    if (this._pushOutChoiceWrap) this._pushOutChoiceWrap.style.opacity = opacity;
+    // Three-foul badge
+    if (this._threeFoulBadge) this._threeFoulBadge.style.opacity = opacity;
   }
 
   setHighContrastUI(v) {
@@ -749,6 +774,7 @@ export class UI {
         font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.6);
         font-family: ui-monospace, SFMono-Regular, monospace;
         pointer-events: none; z-index: 10;
+        opacity: var(--hud-opacity, 1);
       `;
       const uiLayer = document.getElementById('ui-layer');
       if (uiLayer) uiLayer.appendChild(this._fpsEl);
@@ -809,6 +835,7 @@ export class UI {
         width: 24px; height: 24px; pointer-events: none; z-index: 9;
         border: 2px solid rgba(255,255,255,0.7); border-radius: 50%;
         box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 0 8px rgba(255,255,255,0.3);
+        opacity: var(--hud-opacity, 1);
       `;
       const h = document.createElement('div');
       h.style.cssText = 'position:absolute;top:50%;left:0;width:100%;height:2px;background:rgba(255,255,255,0.7);transform:translateY(-50%);';
@@ -835,6 +862,7 @@ export class UI {
         font-size: 14px; font-weight: 800; color: rgba(216,177,95,0.9);
         text-shadow: 0 2px 8px rgba(0,0,0,0.7); pointer-events: none; z-index: 10;
         white-space: nowrap; letter-spacing: 1px;
+        opacity: var(--hud-opacity, 1);
       `;
       const uiLayer = document.getElementById('ui-layer');
       if (uiLayer) uiLayer.appendChild(this._comboEl);
@@ -952,6 +980,7 @@ export class UI {
         color: #f0d78c; border-radius: 10px; cursor: pointer; pointer-events: auto;
         backdrop-filter: blur(8px); z-index: 15;
         transition: all calc(0.2s / var(--ui-anim-speed)) ease;
+        opacity: var(--hud-opacity, 1);
       `;
       const _setPushHover = (active) => {
         this._pushOutBtn.style.background = active ? 'rgba(212,167,44,0.32)' : 'rgba(212,167,44,0.18)';
@@ -1022,7 +1051,8 @@ export class UI {
     this._replayHintEl.onclick = onClick;
     requestAnimationFrame(() => {
       if (this._replayHintEl) {
-        this._replayHintEl.style.opacity = '1';
+        const hudOp = getComputedStyle(document.documentElement).getPropertyValue('--hud-opacity').trim() || '1';
+        this._replayHintEl.style.opacity = hudOp;
         this._replayHintEl.style.transform = 'translateY(0)';
       }
     });
@@ -1049,6 +1079,7 @@ export class UI {
         background: rgba(8,10,12,0.78); border: 1px solid rgba(255,255,255,0.12);
         border-radius: 12px; padding: 10px 16px; backdrop-filter: blur(10px);
         pointer-events: auto;
+        opacity: var(--hud-opacity, 1);
       `;
       const prompt = document.createElement('span');
       prompt.textContent = UIText.pushOutPrompt;
@@ -1111,6 +1142,7 @@ export class UI {
 
   showThreeFoulWarning() {
     if (!this._threeFoulBadge) {
+      const reduced = document.documentElement.classList.contains('reduce-motion');
       this._threeFoulBadge = document.createElement('div');
       this._threeFoulBadge.style.cssText = `
         position: absolute; top: calc(var(--hud-top-safe) + 16px); left: 50%; transform: translateX(-50%);
@@ -1118,7 +1150,8 @@ export class UI {
         background: rgba(185,18,63,0.22); border: 1px solid rgba(185,18,63,0.55);
         color: #ff8a9a; border-radius: 10px; pointer-events: none;
         backdrop-filter: blur(8px); z-index: 12; white-space: nowrap;
-        animation: badgePulse 2s ease-in-out infinite;
+        ${reduced ? '' : 'animation: badgePulse 2s ease-in-out infinite;'}
+        opacity: var(--hud-opacity, 1);
       `;
       const uiLayer = document.getElementById('ui-layer');
       if (uiLayer) uiLayer.appendChild(this._threeFoulBadge);

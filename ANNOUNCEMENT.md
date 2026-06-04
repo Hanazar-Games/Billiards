@@ -1,4 +1,36 @@
-# 3D Billiards v1.12.0 — Latest Update
+# 3D Billiards v1.14.0 — Latest Update
+
+## What's New in v1.14.0
+
+### ⚙️ Settings System Consistency Audit
+
+全面审计并修复设置项的「显示但未生效」问题，确保所有在设置面板中出现的选项都能实时作用于游戏。
+
+**已启用的设置项：**
+- **自动保存回放 (autoSaveReplays)** — 之前灰显，现已可开关
+- **最大回放数 (replayMaxSaved)** — 之前灰显，现已可调节 (10–100)
+- **回放速度 (replaySpeed)** — 之前灰显，现已可调节 (0.25x–2x)
+
+**UI 动画与减弱动态效果一致性：**
+- `reducedMotion` 现在被所有 HUD 元素和动画系统读取
+- `flashRed()` 等视觉反馈在减弱动态模式下直接跳过
+- `CommentarySystem` 在减弱动态模式下瞬间显示完整解说文本
+- 新增 `prefers-reduced-motion` 操作系统级媒体查询支持
+
+**HUD 不透明度一致性：**
+- `hudOpacity` 现在统一作用于：迷你地图、连击计数器、FPS 计数器、准星、消息提示、回放提示、Push-out 按钮/选项、三次犯规徽章
+- 新增 `--hud-opacity` CSS 自定义属性
+
+**音频设置验证：**
+- `AudioManager` 所有音效和音乐均实时读取对应音量比例 (master/collision/cue/ambient/sfx/music)
+- `toggleSound()` 平滑渐变主音量增益
+
+**测试覆盖：**
+- 新增 `test/settings-audit.test.js` (14 项测试)：默认值完整性、锁定键保护、重置保留、动画速度缩放、CSS 类切换、自定义属性发布
+
+---
+
+# 3D Billiards v1.12.0 — Previous Update
 
 ## What's New in v1.12.0
 

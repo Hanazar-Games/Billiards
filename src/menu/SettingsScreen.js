@@ -879,6 +879,7 @@ export class SettingsScreen {
     this._rowSlider('UI 缩放', Math.round(settings.get('hudScale') * 100), 50, 200, '%', (v) => settings.set('hudScale', v / 100));
     this._rowSelect('计时器位置', TIMER_POS_OPTIONS, settings.get('timerPosition') || 'top', (v) => settings.set('timerPosition', v));
     this._row('显示 FPS', this._createSwitch(settings.get('showFPS'), (v) => settings.set('showFPS', v)));
+    this._row('浮动文字', this._createSwitch(settings.get('floatingTextEnabled') !== false, (v) => settings.set('floatingTextEnabled', v)), '进球/犯规时显示浮动提示');
     this._rowSelect('回合计时器', TURN_TIMER_OPTIONS, settings.get('turnTimer') || 'off', (v) => settings.set('turnTimer', v), this._isLocked('turnTimer') ? '由房主/比赛锁定' : '联机/竞技模式可能由房主统一锁定', this._isLocked('turnTimer'), '由房主/比赛锁定');
   }
 
@@ -914,15 +915,15 @@ export class SettingsScreen {
     this._row('大字体模式', this._createSwitch(settings.get('largeTextMode'), (v) => settings.set('largeTextMode', v)));
     this._rowSlider('界面透明度', Math.round(settings.get('hudOpacity') * 100), 30, 100, '%', (v) => settings.set('hudOpacity', v / 100));
     this._row('减弱动态效果', this._createSwitch(settings.get('reducedMotion'), (v) => settings.set('reducedMotion', v)));
-    this._rowDisabled('单手柄模式', this._createDisabledSwitch(settings.get('singleHandMode'), () => {}));
-    this._rowDisabled('左撇子模式', this._createDisabledSwitch(settings.get('leftHandMode'), () => {}));
-    this._rowDisabled('自动提示', this._createDisabledSwitch(settings.get('autoHints'), () => {}));
-    this._rowDisabled('提示频率', this._createDisabledSwitch(false, () => {}));
+    this._rowDisabled('单手柄模式', this._createDisabledSwitch(settings.get('singleHandMode'), () => {}), '需要触屏/手柄输入系统');
+    this._rowDisabled('左撇子模式', this._createDisabledSwitch(settings.get('leftHandMode'), () => {}), '需要 UI 布局镜像系统');
+    this._rowDisabled('自动提示', this._createDisabledSwitch(settings.get('autoHints'), () => {}), '需要 AI 提示引擎');
+    this._rowDisabled('提示频率', this._createDisabledSwitch(false, () => {}), '需要 AI 提示引擎');
     this._row('击球确认', this._createSwitch(settings.get('confirmShotOnRelease'), (v) => settings.set('confirmShotOnRelease', v)));
-    this._rowDisabled('语音播报', this._createDisabledSwitch(settings.get('voiceAnnounce'), () => {}));
-    this._rowDisabled('音效可视化', this._createDisabledSwitch(settings.get('soundCueVisualHints'), () => {}));
-    this._rowDisabled('聚焦模式', this._createDisabledSwitch(settings.get('focusMode'), () => {}));
-    this._rowDisabled('聚焦透明度', this._createDisabledSwitch(false, () => {}));
+    this._rowDisabled('语音播报', this._createDisabledSwitch(settings.get('voiceAnnounce'), () => {}), '需要 Web Speech API 集成');
+    this._rowDisabled('音效可视化', this._createDisabledSwitch(settings.get('soundCueVisualHints'), () => {}), '需要音频频谱分析系统');
+    this._rowDisabled('聚焦模式', this._createDisabledSwitch(settings.get('focusMode'), () => {}), '需要场景模糊渲染管线');
+    this._rowDisabled('聚焦透明度', this._createDisabledSwitch(false, () => {}), '需要场景模糊渲染管线');
   }
 
   _buildOtherContent() {
@@ -952,10 +953,10 @@ export class SettingsScreen {
     // ── Game Preferences ──
     this._sectionTitle('游戏偏好', true);
     this._sectionSubtitle('个人化的游戏行为设置');
-    this._rowDisabled('快速发球', this._createDisabledSwitch(settings.get('quickBreak'), () => {}));
-    this._rowDisabled('自动跳过动画', this._createDisabledSwitch(settings.get('autoSkipAnimation'), () => {}));
-    this._rowDisabled('跳过对手回合', this._createDisabledSwitch(settings.get('skipOpponentTurn'), () => {}));
-    this._rowDisabled('显示对手轨迹', this._createDisabledSwitch(settings.get('showOpponentTrajectory'), () => {}));
+    this._rowDisabled('快速发球', this._createDisabledSwitch(settings.get('quickBreak'), () => {}), '需要发球动画跳过系统');
+    this._rowDisabled('自动跳过动画', this._createDisabledSwitch(settings.get('autoSkipAnimation'), () => {}), '需要回合间动画系统');
+    this._rowDisabled('跳过对手回合', this._createDisabledSwitch(settings.get('skipOpponentTurn'), () => {}), '需要 AI 自动代打系统');
+    this._rowDisabled('显示对手轨迹', this._createDisabledSwitch(settings.get('showOpponentTrajectory'), () => {}), '需要对手轨迹预测系统');
     this._rowSelect('默认球桌 (8球)', TABLE_PROFILE_OPTIONS, settings.get('defaultTableProfile8Ball'), (v) => settings.set('defaultTableProfile8Ball', v), '仅影响新对局的默认选择，比赛/联机中由房主锁定');
     this._rowSelect('默认球桌 (9球)', TABLE_PROFILE_OPTIONS.filter(o => o.value !== 'chinese8'), settings.get('defaultTableProfile9Ball'), (v) => settings.set('defaultTableProfile9Ball', v), '仅影响新对局的默认选择，比赛/联机中由房主锁定');
     this._rowSelect('默认球桌 (练习)', TABLE_PROFILE_OPTIONS, settings.get('defaultTableProfileFreeplay'), (v) => settings.set('defaultTableProfileFreeplay', v), '仅影响新对局的默认选择');
@@ -1972,25 +1973,26 @@ export class SettingsScreen {
     const el = document.createElement('div');
     el.dataset.settingsToast = 'true';
     el.textContent = text;
+    const reduced = document.documentElement.classList.contains('reduce-motion');
     el.style.cssText = `
       position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
       padding: 10px 20px; border-radius: 10px;
       background: rgba(30,30,30,0.92); border: 1px solid rgba(255,255,255,0.1);
       color: #fff; font-size: 13px; font-weight: 600;
       z-index: 200; pointer-events: none;
-      animation: settingsCardIn calc(0.3s / var(--ui-anim-speed)) ease both;
+      ${reduced ? '' : `animation: settingsCardIn calc(0.3s / var(--ui-anim-speed)) ease both;`}
     `;
     document.body.appendChild(el);
     if (!this._toastTimers) this._toastTimers = [];
     const fadeTimer = setTimeout(() => {
       el.style.opacity = '0';
-      el.style.transition = 'opacity calc(0.3s / var(--ui-anim-speed)) ease';
+      el.style.transition = reduced ? 'opacity 0.05s ease' : `opacity calc(0.3s / var(--ui-anim-speed)) ease`;
       const removeTimer = setTimeout(() => {
         if (el.parentNode) el.remove();
         if (this._toastTimers) {
           this._toastTimers = this._toastTimers.filter(t => t !== removeTimer);
         }
-      }, animMs(300));
+      }, reduced ? 60 : animMs(300));
       if (!this._toastTimers) this._toastTimers = [];
       this._toastTimers.push(removeTimer);
       // Remove the now-fired fade timer from tracking
