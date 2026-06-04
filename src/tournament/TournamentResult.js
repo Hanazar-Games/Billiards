@@ -227,14 +227,14 @@ export class TournamentResult {
       line-height: 1.6;
     `;
 
-    const parts = [`这是你第 ${seasonStats.totalEntered} 次参赛`];
+    const parts = [`这是你第 ${seasonStats.totalEntered ?? 0} 次参赛`];
     if (isChampion) {
-      parts.push(`累计夺冠 ${seasonStats.championships} 次`);
-      if (seasonStats.currentStreak > 1) {
+      parts.push(`累计夺冠 ${seasonStats.championships ?? 0} 次`);
+      if ((seasonStats.currentStreak ?? 0) > 1) {
         parts.push(`当前连胜 ${seasonStats.currentStreak} 届 🔥`);
       }
     }
-    if (seasonStats.bestStreak > 0) {
+    if ((seasonStats.bestStreak ?? 0) > 0) {
       parts.push(`最佳连胜纪录 ${seasonStats.bestStreak} 届`);
     }
 

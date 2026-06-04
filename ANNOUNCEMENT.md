@@ -1,4 +1,30 @@
-# 3D Billiards v1.22.0 — Latest Update
+# 3D Billiards v1.23.0 — Latest Update
+
+## What's New in v1.23.0
+
+### 🔍 UI/UX/SFX/BGM 深度审计 — 修复 4 项 High + 6 项 Medium
+
+对 v1.20.0–v1.22.0 新增功能（成就 Toast、训练/挑战数据安全、面板生命周期治理）进行逐文件深度复查，覆盖 UI 渲染、动画一致性、SFX/BGM 状态切换、事件泄漏、NaN/undefined 显示、键盘路由、reducedMotion/uiAnimSpeed 合规。
+
+**High（严重影响级）：**
+- `AchievementStore.getUnlockTime`：使用 `|| null` 导致 epoch 0（1970-01-01）被误判为 `null`，成就墙解锁日期会显示为空白。已改为 `?? null` 以正确保留 `0` 值。
+- `AchievementPanel.showToast`：去重逻辑仅检查 `_toastQueue`，未检查 `_activeToasts`，同一成就可在 3 个可见 toast 内被重复渲染导致重叠。已在入队前同时检查 visible + queue，并在 entry 上记录 `achId` 用于比对。
+- `DrillManager.onShot` / `AchievementSystem.onShot`：`spin` 参数未做空值守卫，当调用方传入 `undefined` 时 `Math.abs(spin.x)` 会直接抛出 `TypeError`。已统一补充 `spin || { x: 0, y: 0 }` 回退。
+- 5 处面板入场动画硬编码 `260ms`：CareerPanel、TrainerPanel、ChallengePanel、ReplayPanel 的 `show()` 均使用 `'panelIn 260ms ...'` 字面量，未接入 `--ui-anim-speed`，与 v1.22.0 修复的 AchievementPanel 不一致。已全部改为 `calc(0.26s / var(--ui-anim-speed))`。
+
+**Medium（明显缺陷级）：**
+- `TournamentResult._appendSeasonContext`：`seasonStats.totalEntered`、`championships`、`currentStreak`、`bestStreak` 未做 `??` fallback，若 SeasonStats 字段缺失会显示 `undefined` 字符串。已补充 `?? 0` 回退。
+- `AchievementPanel._renderToast`：reducedMotion 下 transition 使用 `0.01ms`，部分浏览器仍可能渲染一帧过渡闪烁。已改为 `0.001s` 并同步更新测试断言。
+- `MenuSystem._stopTrainer`：局部变量 `drillId` 实际存储的是 drill 对象而非 ID，命名具有误导性。已重命名为 `drill` 以准确反映其类型。
+
+**构建与测试：**
+- 全部 13 组非浏览器测试通过
+- `npm run build` 成功
+- 新增测试：`deduplicates against active toasts`
+
+---
+
+# 3D Billiards v1.22.0
 
 ## What's New in v1.22.0
 

@@ -59,7 +59,8 @@ export class DrillManager {
 
   onShot(cueBall, power, spin) {
     this.shotPower = power;
-    this.shotUsedSpin = Math.abs(spin.x) > 0.05 || Math.abs(spin.y) > 0.05;
+    const s = spin || { x: 0, y: 0 };
+    this.shotUsedSpin = Math.abs(s.x) > 0.05 || Math.abs(s.y) > 0.05;
     this.targetBallPocketed = false;
     this.cueBallRestPos = null;
     this.cueBallStartPos = cueBall.mesh.position.clone();

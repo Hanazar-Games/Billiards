@@ -146,7 +146,7 @@ export class ChallengePanel {
     this.container.style.display = 'flex';
     this.container.style.animation = isReducedMotion()
       ? 'none'
-      : 'panelIn 260ms cubic-bezier(0.2,0.8,0.2,1) both';
+      : 'panelIn calc(0.26s / var(--ui-anim-speed)) cubic-bezier(0.2,0.8,0.2,1) both';
     this._renderList();
   }
 

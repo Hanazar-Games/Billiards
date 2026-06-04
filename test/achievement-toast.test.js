@@ -109,7 +109,7 @@ describe('AchievementPanel toast layout & queue', () => {
     panel.destroy();
   });
 
-  test('reducedMotion sets transition to 0.01ms', async () => {
+  test('reducedMotion sets transition to near-zero', async () => {
     const originalContains = document.documentElement.classList.contains;
     document.documentElement.classList.contains = (cls) => cls === 'reduce-motion';
 
@@ -118,10 +118,20 @@ describe('AchievementPanel toast layout & queue', () => {
     panel.showToast('first_win');
     const toast = panel._activeToasts[0]?.element;
     assert.ok(toast);
-    assert.ok(toast.style.cssText.includes('0.01ms'), 'transition should be 0.01ms under reduced motion');
+    assert.ok(toast.style.cssText.includes('0.001s'), 'transition should be near-zero under reduced motion');
     panel.destroy();
 
     document.documentElement.classList.contains = originalContains;
+  });
+
+  test('deduplicates against active toasts', async () => {
+    const { AchievementPanel } = await import('../src/achievements/AchievementPanel.js');
+    const panel = new AchievementPanel({ getAllAchievements: () => [] });
+    panel.showToast('first_win');
+    panel.showToast('first_win'); // duplicate while visible
+    assert.strictEqual(panel._activeToasts.length, 1);
+    assert.strictEqual(panel._toastQueue.length, 0);
+    panel.destroy();
   });
 
   test('queue drains when a toast is removed', async () => {

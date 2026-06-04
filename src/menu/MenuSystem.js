@@ -582,13 +582,13 @@ export class MenuSystem {
     // Restart menu render loop
     this._startMenuLoop();
 
-    // Show trainer result (capture drill id before nulling)
-    const drillId = this.activeDrill;
+    // Show trainer result (capture drill before nulling)
+    const drill = this.activeDrill;
     if (this.drillManager) {
       const hud = this.drillManager.getHUDData();
       if (!this.trainerResult) {
         this.trainerResult = new TrainerResult(
-          () => this._startTrainer(drillId),
+          () => this._startTrainer(drill),
           () => this._showTrainer()
         );
       }

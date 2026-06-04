@@ -78,7 +78,7 @@ export class AchievementStore {
 
   /** Get unlock timestamp (or null) */
   getUnlockTime(id) {
-    return this.data.unlocked[id] || null;
+    return this.data.unlocked[id] ?? null;
   }
 
   /** Get number of unlocked achievements */
