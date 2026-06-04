@@ -7,6 +7,7 @@
 
 import { ShotProfiler } from './ShotProfiler.js';
 import { careerStore } from './CareerStore.js';
+import { GrowthPath } from './GrowthPath.js';
 
 const GLASS_BG = `
   background:
@@ -22,9 +23,12 @@ const ACCENT_TEAL = 'rgba(78,205,196,1)';
 const ACCENT_RED  = 'rgba(255,107,107,1)';
 
 export class CareerPanel {
-  constructor(onBack) {
+  constructor(onBack, { onStartDrill, onStartChallenge } = {}) {
     this.onBack = onBack;
+    this.onStartDrill = onStartDrill;
+    this.onStartChallenge = onStartChallenge;
     this.profiler = new ShotProfiler(careerStore);
+    this.growthPath = new GrowthPath(this.profiler);
     this.container = null;
     this._buildUI();
     this._setupKeyboard();
@@ -129,6 +133,9 @@ export class CareerPanel {
     this._recordsSection = document.createElement('div');
     wrap.appendChild(this._recordsSection);
 
+    this._growthPathSection = document.createElement('div');
+    wrap.appendChild(this._growthPathSection);
+
     this._emptyState = document.createElement('div');
     this._emptyState.style.cssText = `
       text-align:center;color:rgba(255,255,255,0.4);font-size:15px;padding:60px 20px;
@@ -198,6 +205,7 @@ export class CareerPanel {
     this._emptyState.style.display = 'none';
     this._renderOverview(summary);
     this._renderTrainingTips();
+    this._renderGrowthPath();
     this._renderStyleTags(summary.labels);
     this._renderModeBreakdown();
     this._renderSpinPreference();
@@ -251,6 +259,92 @@ export class CareerPanel {
     }
 
     this._tipsSection.appendChild(grid);
+  }
+
+  _renderGrowthPath() {
+    this._growthPathSection.innerHTML = '';
+    // Gracefully degrade if GrowthPath is unavailable
+    if (!this.growthPath) return;
+
+    const recs = this.growthPath.analyze();
+    if (!recs || recs.length === 0) return;
+
+    const title = this._sectionTitle('🌱 成长路线 / 推荐训练');
+    this._growthPathSection.appendChild(title);
+
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;';
+
+    for (const r of recs) {
+      const card = document.createElement('div');
+      const accent = r.type === 'drill' ? '#448aff' : '#ff6b6b';
+      const typeLabel = r.type === 'drill' ? '训练' : '挑战';
+      card.style.cssText = `${CARD_BG} padding:14px 16px;display:flex;flex-direction:column;gap:8px;border-color:rgba(255,255,255,0.08);`;
+
+      // Top row: type badge + name + difficulty
+      const top = document.createElement('div');
+      top.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
+
+      const badge = document.createElement('span');
+      badge.textContent = typeLabel;
+      badge.style.cssText = `font-size:10px;font-weight:700;color:${accent};background:${accent}18;padding:2px 8px;border-radius:4px;`;
+
+      const name = document.createElement('span');
+      name.textContent = r.name;
+      name.style.cssText = `font-weight:800;color:#f4f7f4;font-size:14px;`;
+
+      const diff = document.createElement('span');
+      diff.style.cssText = 'font-size:12px;color:#ffd700;letter-spacing:1px;margin-left:auto;';
+      diff.textContent = '★'.repeat(r.difficulty || 1) + '☆'.repeat(Math.max(0, 5 - (r.difficulty || 1)));
+
+      top.appendChild(badge);
+      top.appendChild(name);
+      top.appendChild(diff);
+      card.appendChild(top);
+
+      // Reason
+      const reason = document.createElement('div');
+      reason.textContent = r.reason;
+      reason.style.cssText = 'font-size:12.5px;color:rgba(255,255,255,0.7);line-height:1.5;';
+      card.appendChild(reason);
+
+      // Action row
+      const actionRow = document.createElement('div');
+      actionRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:2px;';
+
+      if (r.unlocked) {
+        const btn = document.createElement('button');
+        btn.textContent = '开始练习';
+        btn.className = 'ui-action';
+        btn.style.cssText = `
+          padding:6px 14px;font-size:12px;font-weight:700;color:#fff;
+          background:${accent};border:none;border-radius:6px;cursor:pointer;
+          pointer-events:auto;transition:opacity 0.2s ease;
+        `;
+        btn.onmouseenter = () => { btn.style.opacity = '0.85'; };
+        btn.onmouseleave = () => { btn.style.opacity = '1'; };
+        if (r.type === 'drill' && this.onStartDrill) {
+          btn.onclick = () => this.onStartDrill(r.id);
+        } else if (r.type === 'challenge' && this.onStartChallenge) {
+          btn.onclick = () => this.onStartChallenge(r.id);
+        } else {
+          btn.style.opacity = '0.5';
+          btn.style.cursor = 'default';
+          btn.disabled = true;
+        }
+        actionRow.appendChild(btn);
+      } else {
+        const lock = document.createElement('span');
+        lock.textContent = '🔒 完成前置练习以解锁';
+        lock.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.35);';
+        actionRow.appendChild(lock);
+      }
+
+      card.appendChild(actionRow);
+      grid.appendChild(card);
+    }
+
+    this._growthPathSection.appendChild(grid);
   }
 
   _renderOverview(s) {

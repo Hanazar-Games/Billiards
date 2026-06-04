@@ -13,9 +13,10 @@ import { DRILLS, DRILL_CATEGORIES } from './DrillData.js';
 import { DrillManager } from './DrillManager.js';
 
 export class TrainerPanel {
-  constructor(onSelectDrill, onBack) {
+  constructor(onSelectDrill, onBack, { growthPath } = {}) {
     this.onSelectDrill = onSelectDrill;
     this.onBack = onBack;
+    this.growthPath = growthPath;
     this.container = null;
     this._buildUI();
     this._setupKeyboard();
@@ -77,6 +78,15 @@ export class TrainerPanel {
     `;
     this.container.appendChild(this._progressWrap);
 
+    // For You (Growth Path) banner
+    this._forYouWrap = document.createElement('div');
+    this._forYouWrap.style.cssText = `
+      max-width: 900px; width: 100%;
+      margin-bottom: 20px;
+      display: none; flex-direction: column; gap: 10px;
+    `;
+    this.container.appendChild(this._forYouWrap);
+
     // Content area
     this.contentEl = document.createElement('div');
     this.contentEl.style.cssText = `
@@ -122,6 +132,20 @@ export class TrainerPanel {
     if (!this.contentEl) return;
     this.contentEl.innerHTML = '';
     this._progressWrap.innerHTML = '';
+    this._forYouWrap.innerHTML = '';
+    this._forYouWrap.style.display = 'none';
+
+    // Compute recommended drill ids from GrowthPath
+    this._recommendedIds = new Set();
+    if (this.growthPath) {
+      const recs = this.growthPath.analyze();
+      const drillRecs = recs.filter((r) => r.type === 'drill');
+      if (drillRecs.length > 0) {
+        this._forYouWrap.style.display = 'flex';
+        this._renderForYou(drillRecs);
+        for (const r of drillRecs) this._recommendedIds.add(r.id);
+      }
+    }
 
     const bestData = DrillManager.getAllBest();
     const catProgress = DrillManager.getCategoryProgress();
@@ -170,7 +194,8 @@ export class TrainerPanel {
 
       catDrills.forEach((drill) => {
         const progress = DrillManager.getProgress(drill.id);
-        const card = this._createCard(drill, progress);
+        const isRecommended = this._recommendedIds.has(drill.id);
+        const card = this._createCard(drill, progress, isRecommended);
         grid.appendChild(card);
       });
 
@@ -213,17 +238,67 @@ export class TrainerPanel {
     this._progressWrap.appendChild(barWrap);
   }
 
-  _createCard(drill, progress) {
+  _renderForYou(drillRecs) {
+    const title = document.createElement('div');
+    title.style.cssText = `
+      font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.7);
+      letter-spacing: 0.5px;
+    `;
+    title.textContent = '🌱 为你推荐';
+    this._forYouWrap.appendChild(title);
+
+    const row = document.createElement('div');
+    row.style.cssText = `
+      display: flex; gap: 10px; flex-wrap: wrap;
+    `;
+
+    for (const r of drillRecs.slice(0, 3)) {
+      const chip = document.createElement('button');
+      chip.style.cssText = `
+        padding: 8px 14px; font-size: 13px; font-weight: 700; color: #fff;
+        background: linear-gradient(135deg, rgba(68,138,255,0.25), rgba(68,138,255,0.10));
+        border: 1px solid rgba(68,138,255,0.45); border-radius: 8px;
+        cursor: pointer; pointer-events: auto; transition: all 180ms ease;
+        display: flex; align-items: center; gap: 8px;
+      `;
+      chip.innerHTML = `
+        <span style="font-size:11px;color:#448aff;background:rgba(68,138,255,0.15);padding:2px 6px;border-radius:4px;">训练</span>
+        <span>${r.name}</span>
+      `;
+      chip.onmouseenter = () => {
+        chip.style.borderColor = 'rgba(95,177,216,0.8)';
+        chip.style.transform = 'translateY(-1px)';
+      };
+      chip.onmouseleave = () => {
+        chip.style.borderColor = 'rgba(68,138,255,0.45)';
+        chip.style.transform = 'translateY(0)';
+      };
+      chip.onclick = () => {
+        if (this.onSelectDrill) {
+          const drill = DRILLS.find((d) => d.id === r.id);
+          if (drill) this.onSelectDrill(drill);
+        }
+      };
+      row.appendChild(chip);
+    }
+
+    this._forYouWrap.appendChild(row);
+  }
+
+  _createCard(drill, progress, isRecommended = false) {
     const unlocked = progress.unlocked;
     const bestStars = progress.stars || 0;
     const completions = progress.completions || 0;
     const bestPowerError = progress.bestPowerError;
 
     const card = document.createElement('div');
+    const borderColor = isRecommended
+      ? 'rgba(68,138,255,0.55)'
+      : (unlocked ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.06)');
     card.style.cssText = `
       padding: 18px;
       background: ${unlocked ? 'rgba(12,15,18,0.7)' : 'rgba(8,10,12,0.85)'};
-      border: 1px solid ${unlocked ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.06)'};
+      border: 1px solid ${borderColor};
       border-radius: 8px;
       transition: transform 180ms cubic-bezier(0.2,0.8,0.2,1), background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
       pointer-events: ${unlocked ? 'auto' : 'none'};
@@ -235,13 +310,13 @@ export class TrainerPanel {
     if (unlocked) {
       card.onmouseenter = () => {
         card.style.background = 'rgba(20,26,30,0.86)';
-        card.style.borderColor = 'rgba(95,177,216,0.45)';
+        card.style.borderColor = isRecommended ? 'rgba(95,177,216,0.8)' : 'rgba(95,177,216,0.45)';
         card.style.transform = 'translateY(-2px)';
         card.style.boxShadow = '0 20px 54px rgba(0,0,0,0.34)';
       };
       card.onmouseleave = () => {
         card.style.background = 'rgba(12,15,18,0.7)';
-        card.style.borderColor = 'rgba(255,255,255,0.14)';
+        card.style.borderColor = borderColor;
         card.style.transform = 'translateY(0)';
         card.style.boxShadow = '0 14px 38px rgba(0,0,0,0.25)';
       };

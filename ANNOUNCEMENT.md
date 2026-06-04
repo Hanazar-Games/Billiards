@@ -1,4 +1,32 @@
-# 3D Billiards v1.16.0 — Latest Update
+# 3D Billiards v1.17.0 — Latest Update
+
+## What's New in v1.17.0
+
+### 🌱 成长路线系统 — 从数据短板到针对性训练
+
+全新 **GrowthPath（成长路线）** 系统，将 CareerStore 生涯统计与 ShotProfiler 风格分析真正落地为可执行的训练计划。系统会自动识别你的技术短板（力度控制、旋转使用、长台稳定性、薄球成功率、犯规率等），并推荐最多 3 个具体的训练关卡（Drill）或挑战（Challenge）。
+
+**核心功能：**
+- **智能短板识别** — 基于真实击球数据：力度分布偏轻/偏重、旋转使用不足、长台/薄球/库边球命中率低、犯规率偏高、进球率偏低
+- **精准映射推荐** — 每个短板对应 1 个训练关卡 + 1 个挑战候选，按优先级排序后去重，确保推荐质量
+- **空数据友好** — 新玩家或无足够数据时，自动展示初学者推荐（直线球 → 轻推练习 → 蜻蜓点水挑战）
+- **一键直达训练** — CareerPanel 的推荐卡片上可直接点击「开始练习」，无需手动翻找
+
+**UI 集成点：**
+- **生涯面板** — 新增「🌱 成长路线 / 推荐训练」区块，显示类型标签、名称、难度、推荐理由和解锁状态
+- **训练面板** — 顶部新增「为你推荐」横幅，点击即可进入推荐 Drill；推荐 Drill 的卡片以蓝色高亮边框标识
+- **挑战面板** — 顶部新增「为你推荐」横幅，点击即可进入推荐 Challenge；推荐 Challenge 的卡片以红色高亮边框标识
+
+**技术实现：**
+- `src/career/GrowthPath.js` — 纯数据分析引擎，零 DOM 依赖，输入 ShotProfiler + Drill/Challenge 最佳数据，输出结构化推荐
+- `CareerPanel` — 新增 `_renderGrowthPath()`，支持可选的 `onStartDrill` / `onStartChallenge` 回调
+- `TrainerPanel` / `ChallengePanel` — 新增 `_renderForYou()` 横幅与卡片高亮
+- `MenuSystem` — 统一传入共享的 `GrowthPath` 实例与跳转回调
+- **测试覆盖** — 新增 11 项 GrowthPath 单元测试：空数据、力度偏重/偏轻、旋转不足、长台弱、薄球弱、犯规高、无短板回退、数量上限、元数据完整性、去重
+
+---
+
+# 3D Billiards v1.16.0 — Previous Update
 
 ## What's New in v1.16.0
 
@@ -135,11 +163,6 @@
 - 新增 `test/settings-audit.test.js` (14 项测试)：默认值完整性、锁定键保护、重置保留、动画速度缩放、CSS 类切换、自定义属性发布
 
 ---
-
-
----
-
-## 📜 Release History
 
 # 3D Billiards v1.12.0 — Previous Update
 

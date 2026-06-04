@@ -42,6 +42,11 @@ import { TournamentPanel } from '../tournament/TournamentPanel.js';
 import { TournamentResult } from '../tournament/TournamentResult.js';
 import { TournamentEngine } from '../tournament/TournamentEngine.js';
 import { CareerPanel } from '../career/CareerPanel.js';
+import { GrowthPath } from '../career/GrowthPath.js';
+import { ShotProfiler } from '../career/ShotProfiler.js';
+import { careerStore } from '../career/CareerStore.js';
+import { getDrill } from '../trainer/DrillData.js';
+import { getChallenge } from '../challenges/ChallengeData.js';
 
 
 export class MenuSystem {
@@ -103,6 +108,9 @@ export class MenuSystem {
 
     // Career stats panel
     this.careerPanel = null;
+
+    // Growth Path (shared recommendation engine)
+    this.growthPath = new GrowthPath(new ShotProfiler(careerStore));
 
     this._initAudio().then(() => {
       this._setupMenu();
@@ -321,7 +329,8 @@ export class MenuSystem {
     if (!this.challengePanel) {
       this.challengePanel = new ChallengePanel(
         (challenge) => this._startChallenge(challenge),
-        () => this._showMainMenu()
+        () => this._showMainMenu(),
+        { growthPath: this.growthPath }
       );
     }
     this.challengePanel.show();
@@ -333,7 +342,8 @@ export class MenuSystem {
     if (!this.trainerPanel) {
       this.trainerPanel = new TrainerPanel(
         (drill) => this._startTrainer(drill),
-        () => this._showMainMenu()
+        () => this._showMainMenu(),
+        { growthPath: this.growthPath }
       );
     }
     this.trainerPanel.show();
@@ -343,7 +353,19 @@ export class MenuSystem {
     this.state = 'MENU';
     this._hideAllPanels(new Set([this.careerPanel]));
     if (!this.careerPanel) {
-      this.careerPanel = new CareerPanel(() => this._showMainMenu());
+      this.careerPanel = new CareerPanel(
+        () => this._showMainMenu(),
+        {
+          onStartDrill: (drillId) => {
+            const drill = getDrill(drillId);
+            if (drill) this._startTrainer(drill);
+          },
+          onStartChallenge: (challengeId) => {
+            const ch = getChallenge(challengeId);
+            if (ch) this._startChallenge(ch);
+          },
+        }
+      );
     }
     this.careerPanel.show();
   }

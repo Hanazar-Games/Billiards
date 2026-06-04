@@ -23,9 +23,10 @@ import { ChallengeManager } from './ChallengeManager.js';
 import { animMs } from '../core/AnimSpeed.js';
 
 export class ChallengePanel {
-  constructor(onSelectChallenge, onBack) {
+  constructor(onSelectChallenge, onBack, { growthPath } = {}) {
     this.onSelectChallenge = onSelectChallenge;
     this.onBack = onBack;
+    this.growthPath = growthPath;
     this.container = null;
     this.activeFilter = 0; // 0 = all
     this._buildUI();
@@ -73,6 +74,11 @@ export class ChallengePanel {
     // Progress bar
     this.progressWrap = document.createElement('div');
     wrap.appendChild(this.progressWrap);
+
+    // For You (Growth Path) banner
+    this._forYouWrap = document.createElement('div');
+    this._forYouWrap.style.cssText = 'display:none;flex-direction:column;gap:10px;';
+    wrap.appendChild(this._forYouWrap);
 
     // Filter tabs
     const filterRow = document.createElement('div');
@@ -174,12 +180,26 @@ export class ChallengePanel {
     grid.innerHTML = '';
     banners.innerHTML = '';
     progressWrap.innerHTML = '';
+    this._forYouWrap.innerHTML = '';
+    this._forYouWrap.style.display = 'none';
 
     const bestData = ChallengeManager.getAllBest();
     const progress = getProgress(bestData);
 
     // Progress bar
     this._renderProgressBar(progressWrap, progress);
+
+    // Growth Path recommendations
+    this._recommendedIds = new Set();
+    if (this.growthPath) {
+      const recs = this.growthPath.analyze();
+      const chRecs = recs.filter((r) => r.type === 'challenge');
+      if (chRecs.length > 0) {
+        this._forYouWrap.style.display = 'flex';
+        this._renderForYou(chRecs, bestData);
+        for (const r of chRecs) this._recommendedIds.add(r.id);
+      }
+    }
 
     // Daily & Featured
     const dailyId = getDailyChallengeId();
@@ -197,7 +217,8 @@ export class ChallengePanel {
     list.forEach((ch) => {
       const best = bestData[ch.id] || { stars: 0 };
       const unlocked = isUnlocked(ch, bestData);
-      const card = this._createCard(ch, best, unlocked);
+      const isRecommended = this._recommendedIds.has(ch.id);
+      const card = this._createCard(ch, best, unlocked, isRecommended);
       grid.appendChild(card);
     });
   }
@@ -276,12 +297,64 @@ export class ChallengePanel {
     return el;
   }
 
-  _createCard(ch, best, unlocked) {
+  _renderForYou(chRecs, bestData) {
+    const title = document.createElement('div');
+    title.style.cssText = `
+      font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.7);
+      letter-spacing: 0.5px;
+    `;
+    title.textContent = '🌱 为你推荐';
+    this._forYouWrap.appendChild(title);
+
+    const row = document.createElement('div');
+    row.style.cssText = `
+      display: flex; gap: 10px; flex-wrap: wrap;
+    `;
+
+    for (const r of chRecs.slice(0, 3)) {
+      const ch = CHALLENGES.find((c) => c.id === r.id);
+      const unlocked = ch ? isUnlocked(ch, bestData) : false;
+      const chip = document.createElement('button');
+      chip.style.cssText = `
+        padding: 8px 14px; font-size: 13px; font-weight: 700; color: #fff;
+        background: linear-gradient(135deg, rgba(255,107,107,0.25), rgba(255,107,107,0.10));
+        border: 1px solid rgba(255,107,107,0.45); border-radius: 8px;
+        cursor: ${unlocked ? 'pointer' : 'default'}; pointer-events: auto; transition: all 180ms ease;
+        display: flex; align-items: center; gap: 8px;
+        opacity: ${unlocked ? '1' : '0.5'};
+      `;
+      chip.innerHTML = `
+        <span style="font-size:11px;color:#ff6b6b;background:rgba(255,107,107,0.15);padding:2px 6px;border-radius:4px;">挑战</span>
+        <span>${r.name}</span>
+      `;
+      if (unlocked) {
+        chip.onmouseenter = () => {
+          chip.style.borderColor = 'rgba(255,107,107,0.8)';
+          chip.style.transform = 'translateY(-1px)';
+        };
+        chip.onmouseleave = () => {
+          chip.style.borderColor = 'rgba(255,107,107,0.45)';
+          chip.style.transform = 'translateY(0)';
+        };
+        chip.onclick = () => {
+          if (this.onSelectChallenge && ch) this.onSelectChallenge(ch);
+        };
+      }
+      row.appendChild(chip);
+    }
+
+    this._forYouWrap.appendChild(row);
+  }
+
+  _createCard(ch, best, unlocked, isRecommended = false) {
     const card = document.createElement('div');
+    const borderColor = isRecommended
+      ? 'rgba(255,107,107,0.55)'
+      : (unlocked ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.06)');
     card.style.cssText = `
       padding: 18px;
       background: ${unlocked ? 'rgba(12,15,18,0.7)' : 'rgba(12,15,18,0.45)'};
-      border: 1px solid ${unlocked ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.06)'};
+      border: 1px solid ${borderColor};
       border-radius: 8px;
       transition: transform 180ms cubic-bezier(0.2,0.8,0.2,1), background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
       pointer-events: ${unlocked ? 'auto' : 'none'};
@@ -292,13 +365,13 @@ export class ChallengePanel {
     if (unlocked) {
       card.onmouseenter = () => {
         card.style.background = 'rgba(20,26,30,0.86)';
-        card.style.borderColor = 'rgba(216,177,95,0.45)';
+        card.style.borderColor = isRecommended ? 'rgba(255,107,107,0.8)' : 'rgba(216,177,95,0.45)';
         card.style.transform = 'translateY(-2px)';
         card.style.boxShadow = '0 20px 54px rgba(0,0,0,0.34)';
       };
       card.onmouseleave = () => {
         card.style.background = 'rgba(12,15,18,0.7)';
-        card.style.borderColor = 'rgba(255,255,255,0.14)';
+        card.style.borderColor = borderColor;
         card.style.transform = 'translateY(0)';
         card.style.boxShadow = '0 14px 38px rgba(0,0,0,0.25)';
       };

@@ -6,6 +6,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { CareerStore } from '../src/career/CareerStore.js';
 import { ShotProfiler } from '../src/career/ShotProfiler.js';
+import { GrowthPath } from '../src/career/GrowthPath.js';
 
 describe('CareerStore', () => {
   let store;
@@ -384,5 +385,127 @@ describe('ShotProfiler', () => {
     store = new CareerStore();
     store.recordGame({ mode: 'vsai', result: 'win', durationSeconds: NaN });
     assert.strictEqual(store.getRecords().fastestWinSeconds, null);
+  });
+});
+
+describe('GrowthPath', () => {
+  let store, profiler, path;
+
+  test('returns beginner recommendations for empty data', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    path = new GrowthPath(profiler);
+    const recs = path.analyze();
+    assert.strictEqual(recs.length, 3);
+    assert(recs.every((r) => r.name && r.id));
+    assert.strictEqual(recs[0].type, 'drill');
+    assert.strictEqual(recs[0].id, 'straight_shot');
+  });
+
+  test('detects heavy power preference and recommends power control', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    path = new GrowthPath(profiler);
+    for (let i = 0; i < 12; i++) store.recordShot({ power: 85, spin: { x: 0.5, y: 0 }, pocketedCount: 1 });
+    const recs = path.analyze();
+    assert(recs.some((r) => r.id === 'soft_touch'));
+    assert(recs.some((r) => r.id === 'feather_touch'));
+  });
+
+  test('detects light power preference and recommends power control', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    path = new GrowthPath(profiler);
+    for (let i = 0; i < 12; i++) store.recordShot({ power: 15, spin: { x: 0.5, y: 0 }, pocketedCount: 1 });
+    const recs = path.analyze();
+    assert(recs.some((r) => r.id === 'soft_touch'));
+  });
+
+  test('detects low spin usage and recommends spin-related content', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    path = new GrowthPath(profiler);
+    for (let i = 0; i < 12; i++) store.recordShot({ spin: { x: 0, y: 0 } });
+    const recs = path.analyze();
+    assert(recs.some((r) => r.id === 'position_play' || r.id === 'spin_win'));
+  });
+
+  test('detects long shot weakness and recommends long shot drill', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    path = new GrowthPath(profiler);
+    for (let i = 0; i < 10; i++) store.recordShot({ power: 50 });
+    for (let i = 0; i < 5; i++) store.recordShot({ isLongShot: true, pocketedCount: 0 });
+    const recs = path.analyze();
+    assert(recs.some((r) => r.id === 'long_shot'));
+  });
+
+  test('detects thin cut weakness and recommends thin cut drill', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    path = new GrowthPath(profiler);
+    for (let i = 0; i < 10; i++) store.recordShot({ power: 50 });
+    for (let i = 0; i < 5; i++) store.recordShot({ isThinCut: true, pocketedCount: 0 });
+    const recs = path.analyze();
+    assert(recs.some((r) => r.id === 'thin_cut'));
+  });
+
+  test('detects high foul rate and recommends discipline content', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    path = new GrowthPath(profiler);
+    for (let i = 0; i < 12; i++) store.recordShot({ power: 50, isFoul: true });
+    const recs = path.analyze();
+    assert(recs.some((r) => r.id === 'straight_shot' || r.id === 'no_foul_win'));
+  });
+
+  test('returns fallback recommendations when no clear weakness', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    path = new GrowthPath(profiler);
+    for (let i = 0; i < 12; i++) store.recordShot({ power: 50, pocketedCount: 1 });
+    const recs = path.analyze();
+    assert.strictEqual(recs.length, 3);
+    assert(recs.every((r) => r.name && r.id));
+  });
+
+  test('caps recommendations at 3', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    path = new GrowthPath(profiler);
+    // Create data that would trigger many weaknesses
+    for (let i = 0; i < 20; i++) store.recordShot({ power: 85, spin: { x: 0, y: 0 }, isFoul: true });
+    for (let i = 0; i < 5; i++) store.recordShot({ isLongShot: true, pocketedCount: 0 });
+    for (let i = 0; i < 5; i++) store.recordShot({ isThinCut: true, pocketedCount: 0 });
+    const recs = path.analyze();
+    assert.strictEqual(recs.length, 3);
+  });
+
+  test('returns metadata for each recommendation', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    path = new GrowthPath(profiler);
+    for (let i = 0; i < 12; i++) store.recordShot({ power: 85 });
+    const recs = path.analyze();
+    for (const r of recs) {
+      assert.strictEqual(typeof r.name, 'string');
+      assert.strictEqual(typeof r.id, 'string');
+      assert.strictEqual(typeof r.type, 'string');
+      assert.strictEqual(typeof r.priority, 'number');
+      assert.strictEqual(typeof r.reason, 'string');
+      assert.strictEqual(typeof r.unlocked, 'boolean');
+      assert.strictEqual(typeof r.difficulty, 'number');
+    }
+  });
+
+  test('deduplicates recommendations by id', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    path = new GrowthPath(profiler);
+    // Both heavy power and high foul may recommend straight_shot or soft_touch
+    for (let i = 0; i < 12; i++) store.recordShot({ power: 85, isFoul: true });
+    const recs = path.analyze();
+    const ids = recs.map((r) => r.id);
+    assert.strictEqual(new Set(ids).size, ids.length);
   });
 });
