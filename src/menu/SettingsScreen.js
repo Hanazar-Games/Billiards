@@ -2125,11 +2125,11 @@ export class SettingsScreen {
   }
 
   show() {
-    if (!this.container) return;
+    if (!this.container || this._shown) return;
+    this._shown = true;
     if (this._showRaf) { cancelAnimationFrame(this._showRaf); this._showRaf = null; }
     if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
-    const wasHidden = this.container.style.display === 'none';
-    if (wasHidden) this._syncAllControls();
+    this._syncAllControls();
     this.container.style.display = 'flex';
     this._showRaf = requestAnimationFrame(() => {
       this._showRaf = null;
@@ -2149,6 +2149,7 @@ export class SettingsScreen {
   }
 
   hide() {
+    this._shown = false;
     if (!this.container) return;
     if (this._showRaf) { cancelAnimationFrame(this._showRaf); this._showRaf = null; }
     keyBindings.cancelListening();
@@ -2167,6 +2168,7 @@ export class SettingsScreen {
   }
 
   destroy() {
+    this._shown = false;
     keyBindings.cancelListening();
     if (this._switchTimer) { clearTimeout(this._switchTimer); this._switchTimer = null; }
     if (this._showRaf) { cancelAnimationFrame(this._showRaf); this._showRaf = null; }
@@ -2199,10 +2201,14 @@ export class SettingsScreen {
     document.querySelectorAll('[data-settings-toast="true"]').forEach(el => {
       if (el.parentNode) el.parentNode.removeChild(el);
     });
-    if (this.container && this.container.parentNode) {
-      this.container.parentNode.removeChild(this.container);
+    if (this.container) {
+      this.container.innerHTML = '';
+      if (this.container.parentNode) {
+        this.container.parentNode.removeChild(this.container);
+      }
     }
     this.container = null;
+    this._contentArea = null;
     this.audio = null;
   }
 }

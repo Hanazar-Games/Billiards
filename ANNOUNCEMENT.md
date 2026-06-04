@@ -1,4 +1,41 @@
-# 3D Billiards v1.18.0 — Latest Update
+# 3D Billiards v1.19.0 — Latest Update
+
+## What's New in v1.19.0
+
+### 🛡️ 面板生命周期治理 — 全面防御性 UI 加固
+
+对所有 9 个全屏/覆盖面板进行了系统级的生命周期审计与加固，消除重复显示、动画泄漏、监听器残留、DOM 堆积、z-index 冲突和 Escape 路由不一致等隐患。
+
+**防重复进入与动画泄漏：**
+- 全部面板（CareerPanel、TrainerPanel、ChallengePanel、AchievementPanel、ReplayPanel、ShotAnalyzerPanel、TournamentPanel、TournamentResult、ChallengeResult、TrainerResult、SettingsScreen）新增 `_shown` 状态标志
+- `show()` 重复调用时被忽略，防止重复渲染、重复动画和计时器堆积
+- `hide()` / `destroy()` 立即重置 `_shown`，确保状态与 DOM 同步
+
+**监听器与计时器清理：**
+- `destroy()` 统一清理 `window.removeEventListener('keydown', ...)`，杜绝键盘事件泄漏
+- TournamentPanel / TournamentResult 新增原本缺失的 Escape 监听
+- 所有面板 `destroy()` 前执行 `container.innerHTML = ''`，释放全部内联事件处理器（onclick/onmouseenter/onmouseleave），切断闭包引用链
+- SettingsScreen `destroy()` 清理 `_tabEls`、`_confirmHandlers`、toast 元素、backdrop 元素
+
+**Escape 行为统一：**
+- 规则：**当前最顶层显示的面板**响应 Escape，关闭自身并调用 `onBack` / `onExit`
+- TournamentPanel：Escape 时若处于 PreMatch 屏幕则返回 Bracket，否则隐藏并返回菜单
+- TournamentResult / ChallengeResult / TrainerResult：Escape 隐藏并返回上级
+- ReplayPanel：Escape 时优先关闭列表；若列表已关则退出回放
+- 不存在 Escape 穿透到游戏或菜单底层的问题
+
+**进入游戏前强制清场：**
+- `MenuSystem._fadeToGame()` 之前统一调用 `_hideAllPanels()`，确保所有菜单面板、结果面板、回放控制面板全部隐藏
+- `_hideAllPanels()` 新增覆盖：`challengeResult`、`trainerResult`、`tournamentResult`、`replayControls`、`analyzerPanel`
+- 杜绝「游戏中菜单面板残留」或「z-index 堆叠导致 UI 遮挡」
+
+**reducedMotion 合规：**
+- CareerPanel、TrainerPanel、ChallengePanel、ReplayPanel 的 `show()` 动画现在检查 `isReducedMotion()`，在减弱动态效果设置下直接设为 `animation: none`
+- TournamentPanel 的淡入动画在 reducedMotion 下跳过 `requestAnimationFrame` 渐变，直接显示
+
+---
+
+# 3D Billiards v1.18.0
 
 ## What's New in v1.18.0
 

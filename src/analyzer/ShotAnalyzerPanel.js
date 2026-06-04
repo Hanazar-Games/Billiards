@@ -26,6 +26,7 @@ export class ShotAnalyzerPanel {
     this.analysis = null;
     this.graph = null;
     this._currentTab = 0;
+    this._shown = false;
     // NOTE: All event handlers are inline (onclick/onmouseenter) on DOM elements
     // that are removed via innerHTML = '' on tab switches, so no manual tracking needed.
     this._build();
@@ -156,6 +157,8 @@ export class ShotAnalyzerPanel {
    * @param {Object} tableInfo — { width, depth, ballRadius, pocketPositions }
    */
   show(replayData, tableInfo = {}) {
+    if (this._shown) return;
+    this._shown = true;
     this._tableInfo = tableInfo;
     // Always clean up previous graph/analysis before starting new one
     this._cleanupGraph();
@@ -203,6 +206,7 @@ export class ShotAnalyzerPanel {
   }
 
   hide() {
+    this._shown = false;
     this.overlay.style.display = 'none';
     this._cleanupGraph();
   }
@@ -592,17 +596,22 @@ export class ShotAnalyzerPanel {
   }
 
   destroy() {
+    this._shown = false;
     this.hide();
     if (this._onKeyDown) {
       window.removeEventListener('keydown', this._onKeyDown);
       this._onKeyDown = null;
     }
     this._cleanupGraph();
-    if (this.overlay && this.overlay.parentNode) {
-      this.overlay.parentNode.removeChild(this.overlay);
+    if (this.overlay) {
+      this.overlay.innerHTML = '';
+      if (this.overlay.parentNode) {
+        this.overlay.parentNode.removeChild(this.overlay);
+      }
     }
     this.overlay = null;
     this.panel = null;
     this.content = null;
+    this.tabButtons = null;
   }
 }

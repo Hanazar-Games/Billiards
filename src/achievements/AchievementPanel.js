@@ -16,10 +16,12 @@ export class AchievementPanel {
     this.system = achievementSystem;
     this.toastContainer = null;
     this.wallContainer = null;
+    this._wallShown = false;
     this._toastTimers = [];
     this._toastShowRaf = null;
     this._ownsToastContainer = false;
     this._buildToast();
+    this._setupKeyboard();
   }
 
   // ── Toast Notification ──
@@ -117,6 +119,8 @@ export class AchievementPanel {
   // ── Achievement Wall (Full Screen) ──
 
   showWall() {
+    if (this._wallShown) return;
+    this._wallShown = true;
     if (this.wallContainer) {
       this.wallContainer.style.display = 'flex';
       this._renderWall();
@@ -194,6 +198,7 @@ export class AchievementPanel {
   }
 
   hideWall() {
+    this._wallShown = false;
     if (this.wallContainer) {
       this.wallContainer.style.display = 'none';
     }
@@ -303,25 +308,33 @@ export class AchievementPanel {
   }
 
   destroy() {
+    this._wallShown = false;
     for (const t of this._toastTimers) clearTimeout(t);
     this._toastTimers = [];
     if (this._toastShowRaf) { cancelAnimationFrame(this._toastShowRaf); this._toastShowRaf = null; }
     if (this.toastContainer && this.toastContainer.parentNode && this._ownsToastContainer) {
       this.toastContainer.parentNode.removeChild(this.toastContainer);
     }
-    if (this.wallContainer && this.wallContainer.parentNode) {
-      this.wallContainer.parentNode.removeChild(this.wallContainer);
+    if (this.wallContainer) {
+      this.wallContainer.innerHTML = '';
+      if (this.wallContainer.parentNode) {
+        this.wallContainer.parentNode.removeChild(this.wallContainer);
+      }
     }
-    // Null inline handlers on wall tabs to prevent detached DOM retention
-    const tabs = document.getElementById('ach-tabs');
-    if (tabs) {
-      tabs.querySelectorAll('button').forEach((btn) => {
-        btn.onmouseenter = null;
-        btn.onmouseleave = null;
-        btn.onclick = null;
-      });
+    if (this._onKeyDown) {
+      window.removeEventListener('keydown', this._onKeyDown);
+      this._onKeyDown = null;
     }
     this.toastContainer = null;
     this.wallContainer = null;
+  }
+
+  _setupKeyboard() {
+    this._onKeyDown = (e) => {
+      if (e.key === 'Escape' && this._wallShown) {
+        this.hideWall();
+      }
+    };
+    window.addEventListener('keydown', this._onKeyDown);
   }
 }

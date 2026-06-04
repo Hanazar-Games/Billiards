@@ -1,4 +1,5 @@
 import { uiLayout } from '../ui/UILayout.js';
+import { isReducedMotion } from '../core/AnimSpeed.js';
 
 /**
  * ReplayPanel — UI for browsing and playing back recorded shots.
@@ -16,6 +17,8 @@ export class ReplayPanel {
     this.onAnalyzeReplay = onAnalyzeReplay;
     this.listContainer = null;
     this.controlContainer = null;
+    this._listShown = false;
+    this._controlsShown = false;
     this._importTimeout = null;
     this._buildListUI();
     this._buildControlUI();
@@ -127,12 +130,17 @@ export class ReplayPanel {
   }
 
   showList() {
+    if (this._listShown) return;
+    this._listShown = true;
     this.listContainer.style.display = 'flex';
-    this.listContainer.style.animation = 'panelIn 260ms cubic-bezier(0.2,0.8,0.2,1) both';
+    this.listContainer.style.animation = isReducedMotion()
+      ? 'none'
+      : 'panelIn 260ms cubic-bezier(0.2,0.8,0.2,1) both';
     this._renderList();
   }
 
   hideList() {
+    this._listShown = false;
     this.listContainer.style.display = 'none';
   }
 
@@ -549,11 +557,13 @@ export class ReplayPanel {
   }
 
   showControls() {
+    this._controlsShown = true;
     this.controlContainer.style.display = 'flex';
     uiLayout.claim('replayControls', 'bottom', 84);
   }
 
   hideControls() {
+    this._controlsShown = false;
     this.controlContainer.style.display = 'none';
     uiLayout.release('replayControls');
   }
@@ -611,11 +621,10 @@ export class ReplayPanel {
   _setupKeyboard() {
     this._onKeyDown = (e) => {
       if (e.key === 'Escape') {
-        if (this.listContainer && this.listContainer.style.display === 'flex') {
+        if (this._listShown) {
           this.hideList();
           if (this.onHideList) this.onHideList();
-        }
-        if (this.controlContainer && this.controlContainer.style.display === 'flex') {
+        } else if (this._controlsShown) {
           if (this.onExitReplay) this.onExitReplay();
         }
       }
@@ -624,19 +633,24 @@ export class ReplayPanel {
   }
 
   destroy() {
+    this._listShown = false;
+    this._controlsShown = false;
     uiLayout.release('replayControls');
-    if (this.listContainer && this.listContainer.parentNode) {
-      this.listContainer.parentNode.removeChild(this.listContainer);
+    if (this._onKeyDown) {
+      window.removeEventListener('keydown', this._onKeyDown);
+      this._onKeyDown = null;
+    }
+    if (this.listContainer) {
+      this.listContainer.innerHTML = '';
+      if (this.listContainer.parentNode) {
+        this.listContainer.parentNode.removeChild(this.listContainer);
+      }
     }
     if (this.controlContainer && this.controlContainer.parentNode) {
       this.controlContainer.parentNode.removeChild(this.controlContainer);
     }
     this.listContainer = null;
     this.controlContainer = null;
-    if (this._onKeyDown) {
-      window.removeEventListener('keydown', this._onKeyDown);
-      this._onKeyDown = null;
-    }
     if (this._importTimeout) { clearTimeout(this._importTimeout); this._importTimeout = null; }
     document.querySelectorAll("#replay-import-input").forEach(el => { if (el.parentNode) el.parentNode.removeChild(el); });
   }

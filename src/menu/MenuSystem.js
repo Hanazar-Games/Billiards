@@ -153,7 +153,10 @@ export class MenuSystem {
   _hideAllPanels(except = new Set()) {
     const hide = (panel) => { if (panel && !except.has(panel)) panel.hide?.(); };
     hide(this.settingsScreen);
-    if (this.replayPanel && !except.has(this.replayPanel)) this.replayPanel.hideList?.();
+    if (this.replayPanel && !except.has(this.replayPanel)) {
+      this.replayPanel.hideList?.();
+      this.replayPanel.hideControls?.();
+    }
     hide(this.achievementPanel);
     hide(this.challengePanel);
     hide(this.challengeResult);
@@ -174,6 +177,10 @@ export class MenuSystem {
       this.tournamentResult.hide?.();
     }
     hide(this.careerPanel);
+    // Also hide any lingering analyzer panel
+    if (this.analyzerPanel && !except.has(this.analyzerPanel)) {
+      this.analyzerPanel.hide?.();
+    }
   }
 
   /** Dispose active game + loop + spectator. */
@@ -387,6 +394,7 @@ export class MenuSystem {
     if (this.state !== 'MENU') return;
     this.state = 'TRANSITION';
 
+    this._hideAllPanels();
     this._disposeCurrentGame();
     if (this.tournamentPanel) this.tournamentPanel.hide();
     const faded = await this._fadeToGame();
@@ -492,8 +500,8 @@ export class MenuSystem {
     if (this.state !== 'MENU') return;
     this.state = 'TRANSITION';
 
+    this._hideAllPanels();
     this._disposeCurrentGame();
-    if (this.careerPanel) this.careerPanel.hide();
     const faded = await this._fadeToGame();
     if (!faded) return;
     if (this.audio) this.audio.stopBGM(false);
@@ -625,8 +633,8 @@ export class MenuSystem {
     if (this.state !== 'MENU') return;
     this.state = 'TRANSITION';
 
+    this._hideAllPanels();
     this._disposeCurrentGame();
-    if (this.careerPanel) this.careerPanel.hide();
     const faded = await this._fadeToGame();
     if (!faded) return;
     if (this.audio) this.audio.stopBGM(false);
@@ -762,10 +770,8 @@ export class MenuSystem {
     }
     this.state = 'TRANSITION';
 
+    this._hideAllPanels();
     this._disposeCurrentGame();
-    if (this.replayPanel) this.replayPanel.hideList();
-    if (this.achievementPanel) this.achievementPanel.hideWall();
-    if (this.careerPanel) this.careerPanel.hide();
     const faded = await this._fadeToGame();
     if (!faded) return;
     if (this.audio) this.audio.stopBGM(false);
@@ -1008,11 +1014,10 @@ export class MenuSystem {
     this.state = 'REPLAY';
     if (this.audio) this.audio.stopBGM(false);
 
+    this._hideAllPanels();
+
     // Clean up any lingering replay resources
     this._cleanupReplayScene();
-
-    // Hide replay list
-    if (this.replayPanel) this.replayPanel.hideList();
 
     // Hide menu layer and game UI
     const menuLayer = document.getElementById('menu-layer');

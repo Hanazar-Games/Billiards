@@ -20,7 +20,7 @@ import {
   getUnlockRequirement,
 } from './ChallengeData.js';
 import { ChallengeManager } from './ChallengeManager.js';
-import { animMs } from '../core/AnimSpeed.js';
+import { animMs, isReducedMotion } from '../core/AnimSpeed.js';
 
 export class ChallengePanel {
   constructor(onSelectChallenge, onBack, { growthPath } = {}) {
@@ -28,6 +28,7 @@ export class ChallengePanel {
     this.onBack = onBack;
     this.growthPath = growthPath;
     this.container = null;
+    this._shown = false;
     this.activeFilter = 0; // 0 = all
     this._buildUI();
     this._setupKeyboard();
@@ -140,18 +141,23 @@ export class ChallengePanel {
   }
 
   show() {
+    if (this._shown) return;
+    this._shown = true;
     this.container.style.display = 'flex';
-    this.container.style.animation = 'panelIn 260ms cubic-bezier(0.2,0.8,0.2,1) both';
+    this.container.style.animation = isReducedMotion()
+      ? 'none'
+      : 'panelIn 260ms cubic-bezier(0.2,0.8,0.2,1) both';
     this._renderList();
   }
 
   hide() {
+    this._shown = false;
     this.container.style.display = 'none';
   }
 
   _setupKeyboard() {
     this._onKeyDown = (e) => {
-      if (e.key === 'Escape' && this.container && this.container.style.display === 'flex') {
+      if (e.key === 'Escape' && this._shown) {
         if (this.onBack) this.onBack();
       }
     };
@@ -159,14 +165,20 @@ export class ChallengePanel {
   }
 
   destroy() {
-    if (this.container && this.container.parentNode) {
-      this.container.parentNode.removeChild(this.container);
-    }
-    this.container = null;
+    this._shown = false;
     if (this._onKeyDown) {
       window.removeEventListener('keydown', this._onKeyDown);
       this._onKeyDown = null;
     }
+    if (this.container) {
+      this.container.innerHTML = '';
+      if (this.container.parentNode) {
+        this.container.parentNode.removeChild(this.container);
+      }
+    }
+    this.container = null;
+    this.progressWrap = null;
+    this._forYouWrap = null;
   }
 
   // ── Rendering ──

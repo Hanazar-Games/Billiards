@@ -20,7 +20,9 @@ export class TournamentResult {
     this.onBack = onBack;
     this.container = null;
     this._timer = null;
+    this._shown = false;
     this._buildUI();
+    this._setupKeyboard();
   }
 
   _buildUI() {
@@ -58,6 +60,8 @@ export class TournamentResult {
   }
 
   showChampion(playerName, opponentName, mode) {
+    if (this._shown) return;
+    this._shown = true;
     this._render({
       isChampion: true,
       playerName,
@@ -72,6 +76,8 @@ export class TournamentResult {
   }
 
   showEliminated(playerName, roundName, trophy) {
+    if (this._shown) return;
+    this._shown = true;
     this._render({
       isChampion: false,
       playerName,
@@ -86,14 +92,34 @@ export class TournamentResult {
 
   /** v2 rich summary with opponents list and season context. */
   showSummary(summary, seasonStats) {
-    if (!summary) return;
+    if (!summary || this._shown) return;
+    this._shown = true;
     if (summary.isChampion) {
       const finalOpponent = summary.opponentsFaced[summary.opponentsFaced.length - 1];
-      this.showChampion(summary.player?.name, finalOpponent?.name, summary.mode);
+      this._render({
+        isChampion: true,
+        playerName: summary.player?.name,
+        opponentName: finalOpponent?.name,
+        mode: summary.mode,
+        trophyIcon: '🏆',
+        trophyName: '冠军金杯',
+        trophyColor: '#ffd700',
+        headline: '锦标赛冠军',
+        subline: `你在决赛中击败了 ${_esc(finalOpponent?.name || '???')}`,
+      });
     } else {
       const lastMatch = summary.opponentsFaced[summary.opponentsFaced.length - 1];
       const roundName = lastMatch ? (lastMatch.round === 0 ? '八强赛' : lastMatch.round === 1 ? '半决赛' : '决赛') : '八强赛';
-      this.showEliminated(summary.player?.name, roundName, summary.trophy);
+      this._render({
+        isChampion: false,
+        playerName: summary.player?.name,
+        roundName,
+        trophyIcon: summary.trophy?.icon || '',
+        trophyName: summary.trophy?.name || '',
+        trophyColor: summary.trophy?.color || 'rgba(255,255,255,0.5)',
+        headline: '锦标赛结束',
+        subline: `你在 ${roundName} 中止步`,
+      });
     }
     // Append extra content to card
     this._appendOpponentsList(summary.opponentsFaced);
@@ -282,6 +308,7 @@ export class TournamentResult {
   }
 
   hide() {
+    this._shown = false;
     if (!this.container) return;
     this.container.style.opacity = '0';
     if (this._timer) clearTimeout(this._timer);
@@ -291,11 +318,30 @@ export class TournamentResult {
   }
 
   destroy() {
+    this._shown = false;
     if (this._timer) { clearTimeout(this._timer); this._timer = null; }
-    if (this.container && this.container.parentNode) {
-      this.container.parentNode.removeChild(this.container);
+    if (this._onKeyDown) {
+      window.removeEventListener('keydown', this._onKeyDown);
+      this._onKeyDown = null;
+    }
+    if (this.container) {
+      this.container.innerHTML = '';
+      if (this.container.parentNode) {
+        this.container.parentNode.removeChild(this.container);
+      }
     }
     this.container = null;
+    this.card = null;
+  }
+
+  _setupKeyboard() {
+    this._onKeyDown = (e) => {
+      if (e.key === 'Escape' && this._shown) {
+        this.hide();
+        if (this.onBack) this.onBack();
+      }
+    };
+    window.addEventListener('keydown', this._onKeyDown);
   }
 }
 

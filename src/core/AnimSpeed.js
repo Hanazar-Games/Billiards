@@ -58,3 +58,11 @@ export function autoSyncAnimSpeed() {
   window.addEventListener('settingsChanged', handler);
   return () => window.removeEventListener('settingsChanged', handler);
 }
+
+/**
+ * Check whether reduced motion is currently requested (via setting or OS preference).
+ */
+export function isReducedMotion() {
+  if (typeof document === 'undefined') return false;
+  return document.documentElement.classList.contains('reduce-motion');
+}

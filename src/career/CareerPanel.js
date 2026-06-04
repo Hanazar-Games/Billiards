@@ -8,6 +8,7 @@
 import { ShotProfiler } from './ShotProfiler.js';
 import { careerStore } from './CareerStore.js';
 import { GrowthPath } from './GrowthPath.js';
+import { isReducedMotion } from '../core/AnimSpeed.js';
 
 const GLASS_BG = `
   background:
@@ -30,6 +31,7 @@ export class CareerPanel {
     this.profiler = new ShotProfiler(careerStore);
     this.growthPath = new GrowthPath(this.profiler);
     this.container = null;
+    this._shown = false;
     this._buildUI();
     this._setupKeyboard();
   }
@@ -37,37 +39,46 @@ export class CareerPanel {
   /* ── Lifecycle ── */
 
   show() {
+    if (this._shown) return;
+    this._shown = true;
     if (!this.container) this._buildUI();
     this._render();
-    const wasHidden = this.container.style.display !== 'flex';
     this.container.style.display = 'flex';
-    if (wasHidden) {
-      this.container.style.animation = 'panelIn 260ms cubic-bezier(0.2,0.8,0.2,1) both';
-    }
+    this.container.style.animation = isReducedMotion()
+      ? 'none'
+      : 'panelIn 260ms cubic-bezier(0.2,0.8,0.2,1) both';
   }
 
   hide() {
+    this._shown = false;
     if (this.container) this.container.style.display = 'none';
   }
 
   destroy() {
+    this._shown = false;
     if (this._onKeyDown) {
       document.removeEventListener('keydown', this._onKeyDown);
       this._onKeyDown = null;
     }
-    // Null all inline event handlers on close button before removal
-    const closeBtn = this.container?.querySelector('#career-close-btn');
-    if (closeBtn) {
-      closeBtn.onmouseenter = null;
-      closeBtn.onmouseleave = null;
-      closeBtn.onclick = null;
-    }
-    if (this.container && this.container.parentNode) {
-      this.container.parentNode.removeChild(this.container);
+    if (this.container) {
+      this.container.innerHTML = '';
+      if (this.container.parentNode) {
+        this.container.parentNode.removeChild(this.container);
+      }
     }
     const mq = document.getElementById('career-panel-mq');
     if (mq && mq.parentNode) mq.parentNode.removeChild(mq);
     this.container = null;
+    this._overviewSection = null;
+    this._tipsSection = null;
+    this._styleSection = null;
+    this._modeSection = null;
+    this._spinSection = null;
+    this._powerSection = null;
+    this._specialSection = null;
+    this._recordsSection = null;
+    this._growthPathSection = null;
+    this._emptyState = null;
     this.profiler = null;
   }
 
@@ -667,10 +678,10 @@ export class CareerPanel {
 
   _setupKeyboard() {
     this._onKeyDown = (e) => {
-      if (e.key === 'Escape' && this.container && this.container.style.display === 'flex') {
+      if (e.key === 'Escape' && this._shown) {
         if (this.onBack) this.onBack();
       }
     };
-    document.addEventListener('keydown', this._onKeyDown);
+    window.addEventListener('keydown', this._onKeyDown);
   }
 }

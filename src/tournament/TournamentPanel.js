@@ -27,8 +27,10 @@ export class TournamentPanel {
     this.store = new TournamentStore();
     this.bracket = null;
     this._fadeTimer = null;
+    this._shown = false;
     this._screen = 'setup'; // setup | bracket | prematch | history
     this._buildUI();
+    this._setupKeyboard();
   }
 
   _buildUI() {
@@ -89,12 +91,18 @@ export class TournamentPanel {
   // ── Public API ──
 
   show() {
-    if (!this.container) return;
+    if (!this.container || this._shown) return;
+    this._shown = true;
     this.container.style.display = 'flex';
-    this.container.style.opacity = '0';
-    requestAnimationFrame(() => {
-      if (this.container) this.container.style.opacity = '1';
-    });
+    const reduced = typeof document !== 'undefined' && document.documentElement.classList.contains('reduce-motion');
+    if (reduced) {
+      this.container.style.opacity = '1';
+    } else {
+      this.container.style.opacity = '0';
+      requestAnimationFrame(() => {
+        if (this.container) this.container.style.opacity = '1';
+      });
+    }
     if (this.engine.state && this.engine.state.status === 'active') {
       this._showBracket();
     } else {
@@ -103,6 +111,7 @@ export class TournamentPanel {
   }
 
   hide() {
+    this._shown = false;
     if (!this.container) return;
     this.container.style.opacity = '0';
     if (this._fadeTimer) clearTimeout(this._fadeTimer);
@@ -112,12 +121,31 @@ export class TournamentPanel {
   }
 
   destroy() {
+    this._shown = false;
     if (this._fadeTimer) { clearTimeout(this._fadeTimer); this._fadeTimer = null; }
     if (this.bracket) { this.bracket.destroy(); this.bracket = null; }
-    if (this.container && this.container.parentNode) {
-      this.container.parentNode.removeChild(this.container);
+    if (this._onKeyDown) {
+      window.removeEventListener('keydown', this._onKeyDown);
+      this._onKeyDown = null;
+    }
+    if (this.container) {
+      this.container.innerHTML = '';
+      if (this.container.parentNode) {
+        this.container.parentNode.removeChild(this.container);
+      }
     }
     this.container = null;
+    this.content = null;
+    this.header = null;
+  }
+
+  _setupKeyboard() {
+    this._onKeyDown = (e) => {
+      if (e.key === 'Escape' && this._shown) {
+        this._goBack();
+      }
+    };
+    window.addEventListener('keydown', this._onKeyDown);
   }
 
   /** Called by MenuSystem after a tournament game ends. */

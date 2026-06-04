@@ -8,6 +8,7 @@ export class TrainerResult {
     this.onRetry = onRetry;
     this.onExit = onExit;
     this.container = null;
+    this._shown = false;
     this._buildUI();
     this._setupKeyboard();
   }
@@ -118,6 +119,8 @@ export class TrainerResult {
   }
 
   show(name, completed, stars, stats = {}) {
+    if (this._shown) return;
+    this._shown = true;
     this.container.style.display = 'flex';
 
     const { powerError, isNewBestStars, isNewBestPowerError, completions, prevBestStars } = stats;
@@ -173,6 +176,7 @@ export class TrainerResult {
   }
 
   hide() {
+    this._shown = false;
     this.container.style.display = 'none';
   }
 
@@ -191,13 +195,17 @@ export class TrainerResult {
   }
 
   destroy() {
-    if (this.container && this.container.parentNode) {
-      this.container.parentNode.removeChild(this.container);
-    }
-    this.container = null;
+    this._shown = false;
     if (this._onKeyDown) {
       window.removeEventListener('keydown', this._onKeyDown);
       this._onKeyDown = null;
     }
+    if (this.container) {
+      this.container.innerHTML = '';
+      if (this.container.parentNode) {
+        this.container.parentNode.removeChild(this.container);
+      }
+    }
+    this.container = null;
   }
 }
