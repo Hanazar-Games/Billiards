@@ -1,4 +1,5 @@
 import { animMs } from '../core/AnimSpeed.js';
+import { uiLayout } from '../ui/UILayout.js';
 
 /**
  * BroadcastUI — Live broadcast overlay for Spectator Mode.
@@ -305,6 +306,9 @@ export class BroadcastUI {
     }
     this._visible = true;
     this._matchStartTime = performance.now();
+    // Claim layout zones so other HUD elements avoid the broadcast overlay
+    uiLayout.claim('broadcastTop', 'top', 52);
+    uiLayout.claim('broadcastBottom', 'bottom', 110);
   }
 
   hide() {
@@ -317,6 +321,8 @@ export class BroadcastUI {
       }, animMs(300));
     }
     this._visible = false;
+    uiLayout.release('broadcastTop');
+    uiLayout.release('broadcastBottom');
   }
 
   update(dt) {
@@ -336,6 +342,8 @@ export class BroadcastUI {
 
   destroy() {
     this.hide();
+    uiLayout.release('broadcastTop');
+    uiLayout.release('broadcastBottom');
     if (this._showRafId) { cancelAnimationFrame(this._showRafId); this._showRafId = null; }
     if (this._badgeTimer) { clearTimeout(this._badgeTimer); this._badgeTimer = null; }
     if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }

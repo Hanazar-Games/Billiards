@@ -1,3 +1,5 @@
+import { uiLayout } from '../ui/UILayout.js';
+
 /**
  * ReplayPanel — UI for browsing and playing back recorded shots.
  *
@@ -355,7 +357,7 @@ export class ReplayPanel {
     this.controlContainer = document.createElement('div');
     this.controlContainer.id = 'replay-controls';
     this.controlContainer.style.cssText = `
-      position: fixed; bottom: 24px; left: 50%;
+      position: fixed; bottom: calc(var(--hud-bottom-safe) + 24px); left: 50%;
       transform: translateX(-50%);
       display: none; align-items: center; gap: 14px;
       padding: 12px 24px;
@@ -507,10 +509,12 @@ export class ReplayPanel {
 
   showControls() {
     this.controlContainer.style.display = 'flex';
+    uiLayout.claim('replayControls', 'bottom', 84);
   }
 
   hideControls() {
     this.controlContainer.style.display = 'none';
+    uiLayout.release('replayControls');
   }
 
   updateControls(replayEngine) {
@@ -579,6 +583,7 @@ export class ReplayPanel {
   }
 
   destroy() {
+    uiLayout.release('replayControls');
     if (this.listContainer && this.listContainer.parentNode) {
       this.listContainer.parentNode.removeChild(this.listContainer);
     }

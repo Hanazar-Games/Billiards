@@ -1,4 +1,5 @@
 import { animMs } from '../core/AnimSpeed.js';
+import { uiLayout } from '../ui/UILayout.js';
 
 /**
  * InstantReplayUI — HUD overlay for instant replay mode.
@@ -77,8 +78,8 @@ export class InstantReplayUI {
     const labelWrap = document.createElement('div');
     labelWrap.style.cssText = `
       position: absolute;
-      top: 16px;
-      left: 16px;
+      top: calc(var(--hud-top-safe) + 16px);
+      left: calc(var(--hud-left-safe) + 16px);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -120,7 +121,7 @@ export class InstantReplayUI {
     const progressWrap = document.createElement('div');
     progressWrap.style.cssText = `
       position: absolute;
-      bottom: 110px;
+      bottom: calc(var(--hud-bottom-safe) + 24px);
       left: 50%;
       transform: translateX(-50%);
       width: min(400px, 80vw);
@@ -146,8 +147,8 @@ export class InstantReplayUI {
     this._skipBtn.textContent = '跳过';
     this._skipBtn.style.cssText = `
       position: absolute;
-      top: 16px;
-      right: 16px;
+      top: calc(var(--hud-top-safe) + 16px);
+      right: calc(var(--hud-right-safe) + 16px);
       padding: 6px 14px;
       font-size: 12px;
       font-weight: 700;

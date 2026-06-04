@@ -338,8 +338,8 @@
 
     #version-tag {
       position: absolute;
-      bottom: 10px;
-      right: 14px;
+      bottom: calc(var(--hud-bottom-safe) + 10px);
+      right: calc(var(--hud-right-safe) + 14px);
       font-size: 11px;
       color: rgba(255,255,255,0.35);
       pointer-events: none;
@@ -870,7 +870,7 @@
       <div id="power-bar-fill"></div>
     </div>
     <div id="turn-timer">--</div>
-    <div id="version-tag">v1.12.0</div>
+    <div id="version-tag">v1.13.0</div>
   </div>
 
   <!-- Diagnostic overlay for JS errors -->

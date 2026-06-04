@@ -152,6 +152,19 @@ export class UI {
       uiLayout.observeElement('bottomHud', this.bottomHud, 'bottom', { priority: 0, mode: 'stack' });
     }
 
+    // Observe other persistent HUD elements so safe zones reflect their real footprint.
+    const powerBar = document.getElementById('power-bar-container');
+    if (powerBar) {
+      uiLayout.observeElement('powerBar', powerBar, 'bottom', { priority: 1, mode: 'stack' });
+    }
+    if (this.turnTimerEl) {
+      uiLayout.observeElement('turnTimer', this.turnTimerEl, 'bottom', { priority: 2, mode: 'stack' });
+    }
+    const topBar = document.getElementById('top-bar');
+    if (topBar) {
+      uiLayout.observeElement('topBar', topBar, 'top', { priority: 0, mode: 'stack' });
+    }
+
     // ── Pause overlay ──
     this.pauseOverlay = document.createElement('div');
     this.pauseOverlay.style.cssText = `
@@ -732,7 +745,7 @@ export class UI {
     if (!this._fpsEl && v) {
       this._fpsEl = document.createElement('div');
       this._fpsEl.style.cssText = `
-        position: absolute; top: 14px; left: 14px;
+        position: absolute; top: calc(var(--hud-top-safe) + 14px); left: calc(var(--hud-left-safe) + 14px);
         font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.6);
         font-family: ui-monospace, SFMono-Regular, monospace;
         pointer-events: none; z-index: 10;
@@ -818,7 +831,7 @@ export class UI {
     if (!this._comboEl && v) {
       this._comboEl = document.createElement('div');
       this._comboEl.style.cssText = `
-        position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
+        position: absolute; top: calc(var(--hud-top-safe) + 50px); left: 50%; transform: translateX(-50%);
         font-size: 14px; font-weight: 800; color: rgba(216,177,95,0.9);
         text-shadow: 0 2px 8px rgba(0,0,0,0.7); pointer-events: none; z-index: 10;
         white-space: nowrap; letter-spacing: 1px;
@@ -1100,7 +1113,7 @@ export class UI {
     if (!this._threeFoulBadge) {
       this._threeFoulBadge = document.createElement('div');
       this._threeFoulBadge.style.cssText = `
-        position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
+        position: absolute; top: calc(var(--hud-top-safe) + 16px); left: 50%; transform: translateX(-50%);
         padding: 8px 18px; font-size: 14px; font-weight: 800;
         background: rgba(185,18,63,0.22); border: 1px solid rgba(185,18,63,0.55);
         color: #ff8a9a; border-radius: 10px; pointer-events: none;
@@ -1261,6 +1274,9 @@ export class UI {
     this.turnTimerEl = null;
 
     uiLayout.release('bottomHud');
+    uiLayout.release('powerBar');
+    uiLayout.release('turnTimer');
+    uiLayout.release('topBar');
     if (this.bottomHud && this.bottomHud.parentNode) {
       this.bottomHud.parentNode.removeChild(this.bottomHud);
     }
