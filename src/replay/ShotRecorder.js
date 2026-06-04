@@ -32,6 +32,9 @@ export class ShotRecorder {
     this.frames = new Float32Array(MAX_FRAMES * FLOATS_PER_FRAME);
     this.frameIndex = 0;
     this.accumulator = 0;
+    const safePower = Number.isFinite(power) ? Math.max(0, power) : 0;
+    const sx = spin?.x ?? 0;
+    const sy = spin?.y ?? 0;
     this.metadata = {
       startTime: performance.now(),
       endTime: null,
@@ -40,8 +43,8 @@ export class ShotRecorder {
       pocketedIds: [],
       collisionCount: 0,
       cushionCount: 0,
-      spinUsed: Math.abs(spin.x) > 0.05 || Math.abs(spin.y) > 0.05,
-      maxPower: power,
+      spinUsed: Math.abs(sx) > 0.05 || Math.abs(sy) > 0.05,
+      maxPower: safePower,
       duration: 0,
     };
     // Record first frame immediately
@@ -77,8 +80,16 @@ export class ShotRecorder {
           this.frames[base + i * 2] = POCKETED_SENTINEL;
           this.frames[base + i * 2 + 1] = POCKETED_SENTINEL;
         } else {
-          this.frames[base + i * 2] = ball.mesh.position.x;
-          this.frames[base + i * 2 + 1] = ball.mesh.position.z;
+          const x = ball.mesh.position.x;
+          const z = ball.mesh.position.z;
+          // Defensive: guard against NaN/Inf from physics corruption
+          if (!Number.isFinite(x) || !Number.isFinite(z)) {
+            this.frames[base + i * 2] = POCKETED_SENTINEL;
+            this.frames[base + i * 2 + 1] = POCKETED_SENTINEL;
+          } else {
+            this.frames[base + i * 2] = x;
+            this.frames[base + i * 2 + 1] = z;
+          }
         }
       } else {
         this.frames[base + i * 2] = 0;
@@ -93,7 +104,8 @@ export class ShotRecorder {
     if (!this.recording) return;
     this.recording = false;
     this.metadata.endTime = performance.now();
-    this.metadata.duration = (this.metadata.endTime - this.metadata.startTime) / 1000;
+    const dur = (this.metadata.endTime - this.metadata.startTime) / 1000;
+    this.metadata.duration = Number.isFinite(dur) && dur >= 0 ? dur : 0;
   }
 
   /** Record a pocketed ball ID. */
@@ -127,34 +139,41 @@ export class ShotRecorder {
     let score = 0;
 
     // Pocketed balls (excluding cue ball)
-    const nonCue = m.pocketedIds.filter((id) => id !== 0).length;
+    const nonCue = (m.pocketedIds || []).filter((id) => id !== 0).length;
     score += nonCue * 20;
 
     // Collisions
-    score += Math.min(m.collisionCount, 10) * 3;
+    score += Math.min(Math.max(0, m.collisionCount || 0), 10) * 3;
 
     // Cushion hits
-    score += Math.min(m.cushionCount, 8) * 2;
+    score += Math.min(Math.max(0, m.cushionCount || 0), 8) * 2;
 
     // Spin used
     if (m.spinUsed) score += 10;
 
     // High power
-    if (m.maxPower >= 80) score += 5;
+    if ((m.maxPower || 0) >= 80) score += 5;
 
     // Duration (longer = more happened)
-    if (m.duration > 5) score += 5;
+    if ((m.duration || 0) > 5) score += 5;
 
     return Math.min(100, Math.round(score));
   }
 
   /** Get the recorded data as a serializable object. */
   getReplayData() {
-    if (this.frameIndex === 0) return null;
+    if (this.frameIndex < 2) return null;
 
     // Trim unused frames
     const usedFloats = this.frameIndex * FLOATS_PER_FRAME;
     const trimmedFrames = this.frames.slice(0, usedFloats);
+
+    // Final validation: ensure no NaN/Inf in trimmed data
+    for (let i = 0; i < trimmedFrames.length; i++) {
+      if (!Number.isFinite(trimmedFrames[i])) {
+        trimmedFrames[i] = POCKETED_SENTINEL;
+      }
+    }
 
     return {
       metadata: { ...this.metadata },
@@ -163,6 +182,26 @@ export class ShotRecorder {
       frameRate: 60,
       score: this.calculateScore(),
     };
+  }
+
+  /**
+   * Validate externally-loaded replay data.
+   * Returns true if data is structurally sound and safe to load.
+   */
+  static validateReplayData(data) {
+    if (!data || typeof data !== 'object') return false;
+    if (!Array.isArray(data.frames)) return false;
+    const fc = Number(data.frameCount);
+    if (!Number.isFinite(fc) || fc < 2 || fc > MAX_FRAMES) return false;
+    const expectedLen = fc * FLOATS_PER_FRAME;
+    if (data.frames.length < expectedLen) return false;
+    // Check for NaN/Inf in frame data (allow sentinel)
+    for (let i = 0; i < expectedLen; i++) {
+      const v = data.frames[i];
+      if (Number.isNaN(v) || v === Infinity || v === -Infinity) return false;
+    }
+    if (!data.metadata || typeof data.metadata !== 'object') return false;
+    return true;
   }
 
   /** Reset for next shot. */

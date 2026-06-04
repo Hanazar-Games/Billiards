@@ -6,7 +6,7 @@
  *
  * Playback speeds: 0.25x, 0.5x, 1.0x, 2.0x
  */
-import { POCKETED_SENTINEL, BALL_COUNT, FLOATS_PER_FRAME } from './ShotRecorder.js';
+import { POCKETED_SENTINEL, BALL_COUNT, FLOATS_PER_FRAME, ShotRecorder } from './ShotRecorder.js';
 import { BALL } from '../config.js';
 import { settings } from '../core/SettingsStore.js';
 
@@ -30,7 +30,7 @@ export class ShotReplay {
 
   /** Load replay data and prepare for playback. */
   load(data) {
-    if (!data || !data.frames || data.frameCount < 2) {
+    if (!ShotRecorder.validateReplayData(data)) {
       this.frames = null;
       this.frameCount = 0;
       return false;
@@ -39,7 +39,7 @@ export class ShotReplay {
     this.frames = new Float32Array(data.frames);
     this.frameCount = data.frameCount;
     this.frameRate = (typeof data.frameRate === 'number' && data.frameRate > 0 && isFinite(data.frameRate))
-      ? data.frameRate : 20;
+      ? data.frameRate : 60;
     this.frameInterval = 1 / this.frameRate;
     this.currentFrame = 0;
     this.accumulator = 0;
@@ -180,7 +180,10 @@ export class ShotReplay {
       const x = this.frames[base + i * 2];
       const z = this.frames[base + i * 2 + 1];
 
-      if (x === POCKETED_SENTINEL && z === POCKETED_SENTINEL) {
+      // Defensive: treat sentinel or invalid coords as pocketed
+      const isSentinel = x === POCKETED_SENTINEL && z === POCKETED_SENTINEL;
+      const isInvalid = !Number.isFinite(x) || !Number.isFinite(z);
+      if (isSentinel || isInvalid) {
         ball.mesh.visible = false;
         ball.pocketed = true;
         continue;
@@ -210,12 +213,17 @@ export class ShotReplay {
       const x2 = this.frames[base2 + i * 2];
       const z2 = this.frames[base2 + i * 2 + 1];
 
-      if (x1 === POCKETED_SENTINEL && z1 === POCKETED_SENTINEL) {
+      const isSentinel1 = x1 === POCKETED_SENTINEL && z1 === POCKETED_SENTINEL;
+      const isInvalid1 = !Number.isFinite(x1) || !Number.isFinite(z1);
+      const isSentinel2 = x2 === POCKETED_SENTINEL && z2 === POCKETED_SENTINEL;
+      const isInvalid2 = !Number.isFinite(x2) || !Number.isFinite(z2);
+
+      if (isSentinel1 || isInvalid1) {
         ball.mesh.visible = false;
         continue;
       }
-      // Next frame is pocketed — hide immediately rather than interpolating to sentinel
-      if (x2 === POCKETED_SENTINEL && z2 === POCKETED_SENTINEL) {
+      // Next frame is pocketed or invalid — hide immediately rather than interpolating
+      if (isSentinel2 || isInvalid2) {
         ball.mesh.visible = false;
         continue;
       }

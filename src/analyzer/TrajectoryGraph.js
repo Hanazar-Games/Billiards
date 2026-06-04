@@ -75,15 +75,32 @@ export class TrajectoryGraph {
       return false;
     }
 
-    this.frames = new Float32Array(data.frames);
+    const frames = new Float32Array(data.frames);
+    const expectedLen = data.frameCount * FLOATS_PER_FRAME;
+    if (frames.length < expectedLen) {
+      this.frames = null;
+      this.frameCount = 0;
+      return false;
+    }
+    // Guard against NaN/Inf
+    for (let i = 0; i < expectedLen; i++) {
+      const v = frames[i];
+      if (Number.isNaN(v) || v === Infinity || v === -Infinity) {
+        this.frames = null;
+        this.frameCount = 0;
+        return false;
+      }
+    }
+
+    this.frames = frames;
     this.frameCount = data.frameCount;
-    this.frameRate = data.frameRate || 60;
-    this.tableWidth = tableInfo.width || 600;
-    this.tableDepth = tableInfo.depth || 300;
-    this.ballRadius = tableInfo.ballRadius || 10;
-    this.pocketPositions = tableInfo.pocketPositions || [];
-    this.collisions = tableInfo.collisions || [];
-    this.pockets = tableInfo.pockets || [];
+    this.frameRate = (Number.isFinite(data.frameRate) && data.frameRate > 0) ? data.frameRate : 60;
+    this.tableWidth = Number.isFinite(tableInfo.width) && tableInfo.width > 0 ? tableInfo.width : 600;
+    this.tableDepth = Number.isFinite(tableInfo.depth) && tableInfo.depth > 0 ? tableInfo.depth : 300;
+    this.ballRadius = Number.isFinite(tableInfo.ballRadius) && tableInfo.ballRadius > 0 ? tableInfo.ballRadius : 10;
+    this.pocketPositions = Array.isArray(tableInfo.pocketPositions) ? tableInfo.pocketPositions : [];
+    this.collisions = Array.isArray(tableInfo.collisions) ? tableInfo.collisions : [];
+    this.pockets = Array.isArray(tableInfo.pockets) ? tableInfo.pockets : [];
     this.currentFrame = 0;
     this.accumulator = 0;
     this.playing = false;
@@ -237,7 +254,9 @@ export class TrajectoryGraph {
         const base = f * FLOATS_PER_FRAME + b * 2;
         const x = this.frames[base];
         const z = this.frames[base + 1];
-        if (x === POCKETED_SENTINEL && z === POCKETED_SENTINEL) {
+        const isSentinel = x === POCKETED_SENTINEL && z === POCKETED_SENTINEL;
+        const isInvalid = !Number.isFinite(x) || !Number.isFinite(z);
+        if (isSentinel || isInvalid) {
           started = false;
           continue;
         }
@@ -260,7 +279,9 @@ export class TrajectoryGraph {
       const base = f * FLOATS_PER_FRAME + b * 2;
       const x = this.frames[base];
       const z = this.frames[base + 1];
-      if (x === POCKETED_SENTINEL && z === POCKETED_SENTINEL) continue;
+      const isSentinel = x === POCKETED_SENTINEL && z === POCKETED_SENTINEL;
+      const isInvalid = !Number.isFinite(x) || !Number.isFinite(z);
+      if (isSentinel || isInvalid) continue;
 
       const color = BALL_COLORS[b] || '#888';
 
@@ -355,8 +376,9 @@ export class TrajectoryGraph {
     ctx.fillRect(barX, barY, barW * progress, barH);
 
     // Time text
-    const time = (frameIdx / this.frameRate).toFixed(1);
-    const total = (this.frameCount / this.frameRate).toFixed(1);
+    const safeRate = (Number.isFinite(this.frameRate) && this.frameRate > 0) ? this.frameRate : 60;
+    const time = (frameIdx / safeRate).toFixed(1);
+    const total = (this.frameCount / safeRate).toFixed(1);
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'right';

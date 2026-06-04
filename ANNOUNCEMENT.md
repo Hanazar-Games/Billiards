@@ -1,4 +1,68 @@
-# 3D Billiards v1.14.0 — Latest Update
+# 3D Billiards v1.15.0 — Latest Update
+
+## What's New in v1.15.0
+
+### 🔗 击球数据链路深度修复
+
+对从「一杆记录」到「生涯统计」的全链路进行了系统性防御加固，确保无效数据不会污染 UI，也不会残留上一杆的旧图表或旧统计。
+
+**ShotRecorder — 记录层防御：**
+- 录制时检测并丢弃 NaN/Inf 物理坐标（写入 POCKETED_SENTINEL 作为失效标记）
+- `start()` 中规范化 power/spin 输入（防负数、防 NaN）
+- `stop()` 中 clamp duration 为非负数
+- `getReplayData()` 最终输出前遍历替换所有非 finite 值为 sentinel
+- 新增 `ShotRecorder.validateReplayData()` 静态方法，供下游统一校验
+
+**ShotReplay — 回放层防御：**
+- `load()` 调用 `validateReplayData()`，拒绝任何结构不完整或含 NaN 的数据
+- `_applyFrame()` / `_applyInterpolated()` 同时检查 sentinel 和 `!Number.isFinite()`，防止 NaN 污染 Three.js 场景
+
+**ReplayLibrary — 存储层防御：**
+- `_load()` 加载后自动 `_sanitizeReplay()` 清洗，损坏条目会被过滤或修复
+- `save()` / `importAll()` 强制通过校验，拒绝脏数据入库
+- `_sanitizeReplay()` 修复：metadata 字段类型归一化、数组过滤非 finite ID、pocketedIds 重建
+
+**ShotAnalyzer — 分析层防御：**
+- `analyze()` 前置检查 frames 长度、NaN/Inf、frameRate 合法性
+- 所有元数据字段读取时强制类型转换（`String(mode)`、`Boolean(spinUsed)`、`Math.max(0, duration)`）
+- `_computeScore()` 所有分项计算防御 NaN，最终 clamp 到 0–100
+- `getSummaryText()` 防御 null/缺失 metadata
+
+**TrajectoryGraph — 图表层防御：**
+- `load()` 拒绝含 NaN 的帧数据
+- 所有绘制函数（轨迹、球体、碰撞标记）同时检查 sentinel 和 `!Number.isFinite()`
+- `_drawFrameIndicator()` 防御 frameRate 为 0 的除零
+
+**ShotAnalyzerPanel — UI 层防御：**
+- `show()` 分析失败时不再静默隐藏，而是显示明确的错误状态 `_showErrorState('无法分析此击球：数据无效或已损坏')`
+- 切换 tab 时自动清理旧图表（`_cleanupGraph`）
+- `_renderOverview()` 所有元数据字段读取时防御非 finite / 非数组
+- `_renderCollisions()` 防御碰撞时间非 finite
+
+**CareerStore — 生涯统计防御：**
+- `_load()` 后执行 `_sanitizeData()`，修复 localStorage 旧数据损坏导致的类型漂移
+- `_mergeDeep()` 增加类型守卫：字符串不会覆盖数字字段，数组长度不会溢出
+- `_sanitizeData()` 归一化：powerBuckets 固定 5 个数字、spin 计数强制 number、records/totals 强制 number
+- `recordShot()` 防御 `totalShotPower` 为字符串时的拼接错误
+- `recordGame()` 防御 `recentGames` 非数组
+
+**ShotProfiler — 画像分析防御：**
+- `analyzeStyle()` / `getAveragePower()` / `getPocketRate()` 等全部 getter 使用 `Number()` 包裹，防字符串/NaN 污染
+- `getSummary()` 中所有 records 字段读取时做 `Number.isFinite` 检查
+
+**Game.js — 调用点加固：**
+- `shoot()` 中统一使用 `safePower = Number.isFinite(this.power) ? Math.max(0, this.power) : 0`
+- `resolveTurn()` 中传给 `careerStore.recordShot()` 的参数全部经过 `Number.isFinite` 检查
+- `dispose()` 中清理 `_lastReplayData`，防止旧回放数据残留
+
+**新增测试：**
+- `test/analyzer.test.js`：NaN 帧数据拒绝、帧长度不足拒绝、元数据损坏归一化、score clamp
+- `test/instant-replay.test.js`：`validateReplayData`、ShotReplay NaN 拒绝、ReplayLibrary `_sanitizeReplay`、损坏元数据修复
+- `test/career.test.js`：字符串 totalShotPower 修复、非数组 recentGames 修复、powerBuckets 溢出修复、ShotProfiler NaN 防御
+
+---
+
+# 3D Billiards v1.14.0 — Previous Update
 
 ## What's New in v1.14.0
 

@@ -325,6 +325,93 @@ test('camera director collision-aware side angle for heavy collisions', async ()
   assert.ok(sideX > 40);
 });
 
+/* ── Data validation & corruption resistance ── */
+
+import { ShotRecorder } from '../src/replay/ShotRecorder.js';
+import { ShotReplay } from '../src/replay/ShotReplay.js';
+import { ReplayLibrary } from '../src/replay/ReplayLibrary.js';
+
+test('validateReplayData rejects null', () => {
+  assert.strictEqual(ShotRecorder.validateReplayData(null), false);
+  assert.strictEqual(ShotRecorder.validateReplayData({}), false);
+});
+
+test('validateReplayData rejects too few frames', () => {
+  assert.strictEqual(ShotRecorder.validateReplayData({ frames: [1], frameCount: 1 }), false);
+});
+
+test('validateReplayData rejects NaN in frames', () => {
+  const frames = new Array(16 * 2 * 3).fill(1);
+  frames[5] = NaN;
+  assert.strictEqual(ShotRecorder.validateReplayData({ frames, frameCount: 3, metadata: {} }), false);
+});
+
+test('validateReplayData accepts valid data', () => {
+  const frames = new Array(16 * 2 * 3).fill(1);
+  assert.strictEqual(ShotRecorder.validateReplayData({ frames, frameCount: 3, metadata: {} }), true);
+});
+
+test('ShotReplay.load rejects invalid data', () => {
+  const scene = new THREE.Scene();
+  const replay = new ShotReplay(scene, makeMockBallsManager());
+  assert.strictEqual(replay.load(null), false);
+  assert.strictEqual(replay.load({ frames: [], frameCount: 0 }), false);
+});
+
+test('ShotReplay.load rejects NaN frames', () => {
+  const scene = new THREE.Scene();
+  const bm = makeMockBallsManager();
+  const replay = new ShotReplay(scene, bm);
+  const data = makeReplayData(10);
+  data.frames[3] = NaN;
+  assert.strictEqual(replay.load(data), false);
+});
+
+test('ShotReplay._applyFrame handles sentinel and NaN gracefully', () => {
+  const scene = new THREE.Scene();
+  const bm = makeMockBallsManager();
+  const replay = new ShotReplay(scene, bm);
+  const data = makeReplayData(5);
+  assert.strictEqual(replay.load(data), true);
+  // Manually inject NaN into frames
+  replay.frames[2] = NaN;
+  replay.frames[3] = NaN;
+  // Should not throw
+  replay._applyFrame(0);
+});
+
+test('ReplayLibrary._sanitizeReplay repairs corrupted metadata', () => {
+  const lib = new ReplayLibrary();
+  const dirty = {
+    id: 'r_123',
+    savedAt: Date.now(),
+    frames: new Array(16 * 2 * 5).fill(1),
+    frameCount: 5,
+    score: 30,
+    metadata: {
+      mode: '8ball',
+      maxPower: NaN,
+      duration: -10,
+      collisionCount: 'many',
+      pocketedIds: [0, NaN, 3, 'bad'],
+      spinUsed: 1,
+    },
+  };
+  const clean = lib._sanitizeReplay(dirty);
+  assert.ok(clean);
+  assert.strictEqual(clean.metadata.maxPower, 0);
+  assert.strictEqual(clean.metadata.duration, 0);
+  assert.strictEqual(clean.metadata.collisionCount, 0);
+  assert.deepStrictEqual(clean.metadata.pocketedIds, [0, 3]);
+  assert.strictEqual(clean.metadata.spinUsed, true);
+});
+
+test('ReplayLibrary._sanitizeReplay returns null for irreparable data', () => {
+  const lib = new ReplayLibrary();
+  assert.strictEqual(lib._sanitizeReplay(null), null);
+  assert.strictEqual(lib._sanitizeReplay({ frames: 'not-an-array', frameCount: 5, metadata: {} }), null);
+});
+
 /* ── Summary ── */
 
 console.log(`\n▶ Instant Replay`);

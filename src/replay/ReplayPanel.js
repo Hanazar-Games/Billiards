@@ -151,6 +151,7 @@ export class ReplayPanel {
 
     if (replays.length === 0) {
       const empty = document.createElement('div');
+      empty.id = 'replay-empty-state';
       empty.style.cssText = `
         text-align: center; color: rgba(255,255,255,0.4);
         font-size: 16px; padding: 60px 0; grid-column: 1 / -1;
@@ -160,7 +161,16 @@ export class ReplayPanel {
       return;
     }
 
+    // Show corrupted-count badge if any replays failed sanitization
+    const corrupted = (this.library.replays || []).filter((r) => !r || !r.metadata).length;
+    if (corrupted > 0 && countLabel) {
+      countLabel.textContent += `  ·  ${corrupted} 条已损坏`;
+    }
+
     replays.forEach((replay) => {
+      const meta = replay?.metadata || {};
+      const isCorrupted = !replay || !replay.frames || !Array.isArray(replay.frames);
+
       const card = document.createElement('div');
       card.style.cssText = `
         padding: 16px;
@@ -172,20 +182,46 @@ export class ReplayPanel {
         box-shadow: 0 14px 38px rgba(0,0,0,0.25);
         display: flex; flex-direction: column; gap: 8px;
       `;
+      if (isCorrupted) {
+        card.style.borderColor = 'rgba(255,50,50,0.3)';
+        card.style.background = 'rgba(40,10,10,0.6)';
+      }
       card.onmouseenter = () => {
-        card.style.background = 'rgba(20,26,30,0.86)';
-        card.style.borderColor = 'rgba(216,177,95,0.45)';
+        card.style.background = isCorrupted ? 'rgba(50,15,15,0.7)' : 'rgba(20,26,30,0.86)';
+        card.style.borderColor = isCorrupted ? 'rgba(255,50,50,0.5)' : 'rgba(216,177,95,0.45)';
         card.style.transform = 'translateY(-2px)';
         card.style.boxShadow = '0 20px 54px rgba(0,0,0,0.34)';
       };
       card.onmouseleave = () => {
-        card.style.background = 'rgba(12,15,18,0.7)';
-        card.style.borderColor = 'rgba(255,255,255,0.14)';
+        card.style.background = isCorrupted ? 'rgba(40,10,10,0.6)' : 'rgba(12,15,18,0.7)';
+        card.style.borderColor = isCorrupted ? 'rgba(255,50,50,0.3)' : 'rgba(255,255,255,0.14)';
         card.style.transform = 'translateY(0)';
         card.style.boxShadow = '0 14px 38px rgba(0,0,0,0.25)';
       };
 
-      const meta = replay.metadata || {};
+      if (isCorrupted) {
+        const errRow = document.createElement('div');
+        errRow.textContent = '⚠️ 回放数据已损坏，无法播放';
+        errRow.style.cssText = 'color: #ff8a8a; font-size: 13px; font-weight: 600;';
+        card.appendChild(errRow);
+        const delRow = document.createElement('div');
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '删除';
+        delBtn.style.cssText = `
+          padding: 6px 14px; font-size: 12px; color: #fff;
+          background: rgba(255,50,50,0.2); border: 1px solid rgba(255,50,50,0.4);
+          border-radius: 6px; cursor: pointer; pointer-events: auto;
+        `;
+        delBtn.onclick = () => {
+          this.library.delete(replay?.id);
+          this._renderList();
+        };
+        delRow.appendChild(delBtn);
+        card.appendChild(delRow);
+        grid.appendChild(card);
+        return;
+      }
+
       const modeLabel = meta.mode === '9ball' ? '9球' : (meta.mode === 'freeplay' ? '练习' : '8球');
       const spinLabel = meta.spinUsed ? '旋转 ✓' : '旋转 ✗';
       const duration = Number.isFinite(meta.duration) ? meta.duration.toFixed(1) + '秒' : 'N/A';
@@ -546,13 +582,13 @@ export class ReplayPanel {
 
     // Update metadata if available on the loaded replay data
     const meta = replayEngine._meta;
-    if (meta && this.metaDisplay) {
+    if (meta && this.metaDisplay && typeof meta === 'object') {
       const parts = [];
-      if (meta.maxPower > 0) parts.push(`力度 ${Math.round(meta.maxPower)}`);
-      const nonCue = (meta.pocketedIds || []).filter(id => id !== 0).length;
+      if ((meta.maxPower || 0) > 0) parts.push(`力度 ${Math.round(meta.maxPower)}`);
+      const nonCue = (Array.isArray(meta.pocketedIds) ? meta.pocketedIds : []).filter(id => id !== 0).length;
       if (nonCue > 0) parts.push(`进球 ${nonCue}`);
-      if (meta.collisionCount > 0) parts.push(`碰撞 ${meta.collisionCount}`);
-      if (meta.cushionCount > 0) parts.push(`库边 ${meta.cushionCount}`);
+      if ((meta.collisionCount || 0) > 0) parts.push(`碰撞 ${meta.collisionCount}`);
+      if ((meta.cushionCount || 0) > 0) parts.push(`库边 ${meta.cushionCount}`);
       if (meta.spinUsed) parts.push('旋转');
       const metaText = parts.join('  ·  ');
       if (this._lastMetaText !== metaText) {

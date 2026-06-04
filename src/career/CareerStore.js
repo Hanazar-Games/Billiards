@@ -85,6 +85,8 @@ export class CareerStore {
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
         // Merge loaded data over defaults (handles schema migration)
         this._data = this._mergeDeep(_deepClone(DEFAULTS), parsed);
+        // Sanitize after merge to fix type mismatches from old/corrupted data
+        this._sanitizeData(this._data);
       }
     } catch (e) {
       console.warn('[CareerStore] Load failed, using defaults');
@@ -109,10 +111,66 @@ export class CareerStore {
         }
         this._mergeDeep(target[key], source[key]);
       } else {
-        target[key] = source[key];
+        // Type guard: only overwrite if types match, or target default is falsy
+        const srcVal = source[key];
+        const tgtVal = target[key];
+        const srcType = typeof srcVal;
+        const tgtType = typeof tgtVal;
+        if (srcType === tgtType || tgtVal == null || tgtVal === 0 || tgtVal === '') {
+          target[key] = srcVal;
+        } else if (tgtType === 'number' && srcType === 'string') {
+          const parsed = Number(srcVal);
+          if (Number.isFinite(parsed)) target[key] = parsed;
+        } else if (Array.isArray(tgtVal) && Array.isArray(srcVal)) {
+          target[key] = srcVal;
+        }
+        // Otherwise keep default (type mismatch from corrupted data)
       }
     }
     return target;
+  }
+
+  /** Sanitize data structure to fix type mismatches from old/corrupted storage. */
+  _sanitizeData(d) {
+    // Ensure numeric totals are actually numbers
+    if (typeof d.gamesPlayed !== 'number') d.gamesPlayed = Number(d.gamesPlayed) || 0;
+    if (typeof d.gamesWon !== 'number') d.gamesWon = Number(d.gamesWon) || 0;
+    if (typeof d.gamesLost !== 'number') d.gamesLost = Number(d.gamesLost) || 0;
+    if (typeof d.shotsTaken !== 'number') d.shotsTaken = Number(d.shotsTaken) || 0;
+
+    // Ensure arrays
+    if (!Array.isArray(d.recentGames)) d.recentGames = [];
+    if (!Array.isArray(d.shotStyle?.powerBuckets)) {
+      d.shotStyle = d.shotStyle || {};
+      d.shotStyle.powerBuckets = [0, 0, 0, 0, 0];
+    } else {
+      // Ensure exactly 5 numeric buckets
+      d.shotStyle.powerBuckets = d.shotStyle.powerBuckets.map((v) => Number.isFinite(v) ? v : 0);
+      while (d.shotStyle.powerBuckets.length < 5) d.shotStyle.powerBuckets.push(0);
+      if (d.shotStyle.powerBuckets.length > 5) d.shotStyle.powerBuckets = d.shotStyle.powerBuckets.slice(0, 5);
+    }
+
+    // Ensure spin counts are numbers
+    const spin = d.shotStyle?.spin || {};
+    for (const k of ['top', 'bottom', 'left', 'right', 'center']) {
+      if (typeof spin[k] !== 'number') spin[k] = Number(spin[k]) || 0;
+    }
+
+    // Ensure records are numbers or null
+    const rec = d.records || {};
+    for (const k of ['maxConsecutivePockets', 'maxConsecutivePocketsInGame', 'highestBallsInOneTurn', 'mostCollisionsInOneShot', 'mostCushionsInOneShot', 'highestShotPower']) {
+      if (typeof rec[k] !== 'number') rec[k] = Number(rec[k]) || 0;
+    }
+    if (rec.fastestWinSeconds != null && !Number.isFinite(rec.fastestWinSeconds)) rec.fastestWinSeconds = null;
+
+    // Ensure totals are numbers
+    const tot = d.totals || {};
+    for (const k of ['ballsPocketed', 'fouls', 'scratches', 'ballCollisions', 'cushionCollisions', 'totalShotPower']) {
+      if (typeof tot[k] !== 'number') tot[k] = Number(tot[k]) || 0;
+    }
+
+    // Clean recentGames: remove entries with invalid structure
+    d.recentGames = d.recentGames.filter((g) => g && typeof g === 'object');
   }
 
   /* ── Public getters ── */
@@ -164,6 +222,8 @@ export class CareerStore {
     const power = Math.max(0, Math.min(100, Number(params.power) || 0));
     const bucket = Math.min(4, Math.floor(power / 20));
     d.shotStyle.powerBuckets[bucket]++;
+    // Defensive: ensure totalShotPower is numeric before adding (protect against string concatenation from corrupted data)
+    if (typeof d.totals.totalShotPower !== 'number') d.totals.totalShotPower = Number(d.totals.totalShotPower) || 0;
     d.totals.totalShotPower += power;
 
     // Records
@@ -227,8 +287,9 @@ export class CareerStore {
     d.totals.cushionCollisions += cushions;
 
     // Pocketed record
-    if ((params.pocketedCount || 0) > d.records.highestBallsInOneTurn) {
-      d.records.highestBallsInOneTurn = params.pocketedCount;
+    const pocketedCount = Math.max(0, Number.isFinite(params.pocketedCount) ? params.pocketedCount : 0);
+    if (pocketedCount > d.records.highestBallsInOneTurn) {
+      d.records.highestBallsInOneTurn = pocketedCount;
     }
 
     this._scheduleSave();
@@ -305,13 +366,14 @@ export class CareerStore {
     }
 
     // Recent games buffer
+    if (!Array.isArray(d.recentGames)) d.recentGames = [];
     d.recentGames.push({
       mode,
       result,
-      duration: params.durationSeconds || 0,
-      myPockets: params.myPockets || 0,
-      myShots: params.myShots || 0,
-      maxStreak: params.maxStreak || 0,
+      duration: Number.isFinite(params.durationSeconds) ? params.durationSeconds : 0,
+      myPockets: Number.isFinite(params.myPockets) ? params.myPockets : 0,
+      myShots: Number.isFinite(params.myShots) ? params.myShots : 0,
+      maxStreak: safeStreak,
       timestamp: Date.now(),
     });
     if (d.recentGames.length > MAX_RECENT_GAMES) {

@@ -214,4 +214,52 @@ describe('ShotAnalyzer', () => {
     assert.ok(analysis);
     assert.strictEqual(analysis.pockets.length, 0);
   });
+
+  it('returns null for NaN in frame data', () => {
+    const data = makeReplayData({ frameCount: 10 });
+    data.frames[5] = NaN;
+    assert.strictEqual(ShotAnalyzer.analyze(data, DEFAULT_TABLE_INFO), null);
+  });
+
+  it('returns null for Infinity in frame data', () => {
+    const data = makeReplayData({ frameCount: 10 });
+    data.frames[5] = Infinity;
+    assert.strictEqual(ShotAnalyzer.analyze(data, DEFAULT_TABLE_INFO), null);
+  });
+
+  it('returns null when frames length < expected', () => {
+    const data = makeReplayData({ frameCount: 10 });
+    data.frames = data.frames.slice(0, 20);
+    assert.strictEqual(ShotAnalyzer.analyze(data, DEFAULT_TABLE_INFO), null);
+  });
+
+  it('normalizes corrupted metadata', () => {
+    const data = makeReplayData();
+    data.metadata.maxPower = NaN;
+    data.metadata.duration = -5;
+    data.metadata.collisionCount = 'oops';
+    data.metadata.pocketedIds = [1, NaN, 2, 'bad'];
+    const analysis = ShotAnalyzer.analyze(data, DEFAULT_TABLE_INFO);
+    assert.ok(analysis);
+    assert.strictEqual(analysis.metadata.power, 0);
+    assert.strictEqual(analysis.metadata.duration, 0);
+    assert.strictEqual(analysis.metadata.collisionCount, 0);
+    assert.deepStrictEqual(analysis.metadata.pocketedIds, [1, 2]);
+  });
+
+  it('getSummaryText returns empty string for null', () => {
+    assert.strictEqual(ShotAnalyzer.getSummaryText(null), '');
+    assert.strictEqual(ShotAnalyzer.getSummaryText({}), '');
+  });
+
+  it('score breakdown clamps to 0-100 even with weird data', () => {
+    const data = makeReplayData({ power: NaN, collisionCount: -10, cushionCount: 999 });
+    const analysis = ShotAnalyzer.analyze(data, DEFAULT_TABLE_INFO);
+    assert.ok(analysis);
+    assert.ok(analysis.breakdown.accuracy >= 0 && analysis.breakdown.accuracy <= 100);
+    assert.ok(analysis.breakdown.efficiency >= 0 && analysis.breakdown.efficiency <= 100);
+    assert.ok(analysis.breakdown.control >= 0 && analysis.breakdown.control <= 100);
+    assert.ok(analysis.breakdown.difficulty >= 0 && analysis.breakdown.difficulty <= 100);
+    assert.ok(analysis.score >= 0 && analysis.score <= 100);
+  });
 });

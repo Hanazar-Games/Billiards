@@ -5,6 +5,7 @@
  * Stores up to replayMaxSaved replays (default 50), evicting lowest-score replays first.
  */
 import { settings } from '../core/SettingsStore.js';
+import { ShotRecorder } from './ShotRecorder.js';
 
 const STORAGE_KEY = 'billiards_replays_v1';
 const DEFAULT_MAX_REPLAYS = 50;
@@ -23,9 +24,15 @@ export class ReplayLibrary {
   _load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed.map((r) => this._sanitizeReplay(r)).filter(Boolean);
+        }
+      }
     } catch (e) {
-      console.warn('ReplayLibrary: failed to load', e);
+      console.warn('ReplayLibrary: failed to load, clearing corrupted storage', e);
+      try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
     }
     return [];
   }
@@ -62,7 +69,8 @@ export class ReplayLibrary {
   /** Try to save a replay. Returns true if saved, false if score too low or auto-save disabled. */
   save(replayData) {
     if (settings.get('autoSaveReplays') === false) return false;
-    if (!replayData || !replayData.frames || replayData.frameCount < 5) return false;
+    if (!ShotRecorder.validateReplayData(replayData)) return false;
+    if (replayData.frameCount < 5) return false;
     if ((replayData.score || 0) < MIN_SCORE_TO_SAVE) return false;
 
     const entry = {
@@ -142,15 +150,14 @@ export class ReplayLibrary {
       let count = 0;
       const seenIds = new Set(this.replays.map((r) => r.id));
       for (const item of data) {
-        if (!item || typeof item !== 'object') continue;
-        if (!Array.isArray(item.frames) || typeof item.frameCount !== 'number' || item.frameCount < 2) continue;
-        if (typeof item.score !== 'number') continue;
+        const sanitized = this._sanitizeReplay(item);
+        if (!sanitized) continue;
         // Ensure ID uniqueness (both existing and within this batch)
-        if (seenIds.has(item.id)) {
-          item.id = this._generateId();
+        if (seenIds.has(sanitized.id)) {
+          sanitized.id = this._generateId();
         }
-        seenIds.add(item.id);
-        this.replays.push(item);
+        seenIds.add(sanitized.id);
+        this.replays.push(sanitized);
         count++;
       }
       // Enforce limit
@@ -165,6 +172,42 @@ export class ReplayLibrary {
       console.warn('ReplayLibrary: import failed', e);
       return 0;
     }
+  }
+
+  /**
+   * Sanitize a raw replay object from storage/import.
+   * Returns a clean object or null if irreparably invalid.
+   */
+  _sanitizeReplay(item) {
+    if (!item || typeof item !== 'object') return null;
+    if (!ShotRecorder.validateReplayData(item)) return null;
+
+    // Ensure metadata fields exist and are valid types
+    const rawMeta = item.metadata || {};
+    const meta = {
+      startTime: Number(rawMeta.startTime) || 0,
+      endTime: rawMeta.endTime != null ? Number(rawMeta.endTime) : null,
+      mode: String(rawMeta.mode || 'unknown'),
+      tableProfileId: rawMeta.tableProfileId != null ? String(rawMeta.tableProfileId) : null,
+      pocketedIds: Array.isArray(rawMeta.pocketedIds)
+        ? rawMeta.pocketedIds.filter((id) => Number.isFinite(id))
+        : [],
+      collisionCount: Math.max(0, Number(rawMeta.collisionCount) || 0),
+      cushionCount: Math.max(0, Number(rawMeta.cushionCount) || 0),
+      spinUsed: Boolean(rawMeta.spinUsed),
+      maxPower: Math.max(0, Number(rawMeta.maxPower) || 0),
+      duration: Math.max(0, Number(rawMeta.duration) || 0),
+    };
+
+    return {
+      id: typeof item.id === 'string' && item.id ? item.id : this._generateId(),
+      savedAt: Number.isFinite(item.savedAt) ? item.savedAt : Date.now(),
+      name: typeof item.name === 'string' ? item.name : '',
+      score: Math.max(0, Number(item.score) || 0),
+      frameCount: item.frameCount,
+      frames: item.frames,
+      metadata: meta,
+    };
   }
 
   /** Clear all replays. */

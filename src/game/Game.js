@@ -896,6 +896,10 @@ export class Game {
       return;
     }
 
+    // Normalize power so downstream systems always get a finite number
+    const safePower = Number.isFinite(this.power) ? Math.max(0, this.power) : 0;
+    this._lastShotPower = safePower;
+
     // Client sends shot intent to host; host executes physically
     if (this.networkMode && this.networkRole === 'client' && this.isLocalPlayerTurn()) {
       if (this._turnTimerEnabled && this._turnTimerRemaining <= 0) {
@@ -907,8 +911,7 @@ export class Game {
         this._enterAimState();
         return;
       }
-      const force = Math.max(this.power, SHOT.minPower);
-      this._lastShotPower = this.power;
+      const force = Math.max(safePower, SHOT.minPower);
       this.networkController.sendShotInput(this.aimDirection, force, this.cueTipOffset);
       this.state = 'SHOOTING';
       this._shotStartTime = performance.now();
@@ -938,8 +941,7 @@ export class Game {
     this._isBreakShot = this.rules?.breakShot || false;
     this.rules?.startShot(this.currentPlayer);
 
-    const force = Math.max(this.power, SHOT.minPower);
-    this._lastShotPower = this.power;
+    const force = Math.max(safePower, SHOT.minPower);
     cueBall.applyImpulse(
       this.aimDirection.x * force,
       0,
@@ -1705,12 +1707,13 @@ export class Game {
     if (!this.networkMode && !this.bothAI) {
       const myPlayerNum = this.aiEnabled ? 1 : this.currentPlayer;
       const stats = this.statsTracker.playerStats[myPlayerNum] || {};
+      const safePower = Number.isFinite(this._lastShotPower) ? Math.max(0, this._lastShotPower) : 0;
       careerStore.recordShot({
-        power: (this._lastShotPower || 0) * 100,
+        power: safePower * 100,
         spin: this.cueTipOffset || { x: 0, y: 0 },
         pocketedCount: effectivePocketedIds.length,
-        collisions: stats.ballCollisions || 0,
-        cushions: stats.cushionCollisions || 0,
+        collisions: Number.isFinite(stats.ballCollisions) ? stats.ballCollisions : 0,
+        cushions: Number.isFinite(stats.cushionCollisions) ? stats.cushionCollisions : 0,
         isBreak: this._isBreakShot,
         isFoul: result.foul,
         isScratch: result.scratch,
@@ -3421,6 +3424,7 @@ export class Game {
 
     // Null out remaining references to aid GC
     this.onReturnToMenu = null;
+    this._lastReplayData = null;
     if (this.recorder) {
       this.recorder.reset();
       this.recorder = null;

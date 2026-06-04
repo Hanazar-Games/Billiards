@@ -28,16 +28,15 @@ export class ShotProfiler {
   analyzeStyle() {
     const style = this.store.getShotStyle();
     const totals = this.store.getTotals();
-    const records = this.store.getRecords();
-    const shots = this.store.getShotsTaken() || 1;
+    const shots = Math.max(1, this.store.getShotsTaken() || 0);
 
     const scores = [];
 
     // Power hitter vs touch player (based on power distribution)
-    const heavyPower = (style.powerBuckets[3] || 0) + (style.powerBuckets[4] || 0);
-    const lightPower = (style.powerBuckets[0] || 0) + (style.powerBuckets[1] || 0);
-    const powerRatio = heavyPower / Math.max(1, shots);
-    const touchRatio = lightPower / Math.max(1, shots);
+    const heavyPower = (Number(style.powerBuckets?.[3]) || 0) + (Number(style.powerBuckets?.[4]) || 0);
+    const lightPower = (Number(style.powerBuckets?.[0]) || 0) + (Number(style.powerBuckets?.[1]) || 0);
+    const powerRatio = heavyPower / shots;
+    const touchRatio = lightPower / shots;
 
     if (powerRatio > 0.45) {
       scores.push({ ...STYLE_LABELS.powerHitter, score: powerRatio });
@@ -47,9 +46,10 @@ export class ShotProfiler {
     }
 
     // Spin artist vs straight shooter
-    const spinTotal = (style.spin.top + style.spin.bottom + style.spin.left + style.spin.right);
-    const spinRatio = spinTotal / Math.max(1, shots);
-    const centerRatio = (style.spin.center || 0) / Math.max(1, shots);
+    const spinTotal = (Number(style.spin?.top) || 0) + (Number(style.spin?.bottom) || 0)
+      + (Number(style.spin?.left) || 0) + (Number(style.spin?.right) || 0);
+    const spinRatio = spinTotal / shots;
+    const centerRatio = (Number(style.spin?.center) || 0) / shots;
 
     if (spinRatio > 0.35) {
       scores.push({ ...STYLE_LABELS.spinArtist, score: spinRatio });
@@ -59,39 +59,43 @@ export class ShotProfiler {
     }
 
     // Long range
-    if (style.longShotAttempts >= 5) {
-      const rate = style.longShotSuccess / style.longShotAttempts;
+    const longAttempts = Number(style.longShotAttempts) || 0;
+    if (longAttempts >= 5) {
+      const rate = (Number(style.longShotSuccess) || 0) / longAttempts;
       if (rate > 0.35) {
         scores.push({ ...STYLE_LABELS.longRange, score: rate });
       }
     }
 
     // Thin cut master
-    if (style.thinCutAttempts >= 5) {
-      const rate = style.thinCutSuccess / style.thinCutAttempts;
+    const thinAttempts = Number(style.thinCutAttempts) || 0;
+    if (thinAttempts >= 5) {
+      const rate = (Number(style.thinCutSuccess) || 0) / thinAttempts;
       if (rate > 0.3) {
         scores.push({ ...STYLE_LABELS.thinCutMaster, score: rate });
       }
     }
 
     // Bank specialist
-    if (style.bankAttempts >= 5) {
-      const rate = style.bankSuccess / style.bankAttempts;
+    const bankAttempts = Number(style.bankAttempts) || 0;
+    if (bankAttempts >= 5) {
+      const rate = (Number(style.bankSuccess) || 0) / bankAttempts;
       if (rate > 0.25) {
         scores.push({ ...STYLE_LABELS.bankSpecialist, score: rate });
       }
     }
 
     // Breaker
-    if (style.breakShots >= 5) {
-      const breakRate = style.breakPocketedTotal / style.breakShots;
+    const breakShots = Number(style.breakShots) || 0;
+    if (breakShots >= 5) {
+      const breakRate = (Number(style.breakPocketedTotal) || 0) / breakShots;
       if (breakRate > 0.8) {
         scores.push({ ...STYLE_LABELS.breaker, score: Math.min(1, breakRate / 2) });
       }
     }
 
     // Steady vs aggressive (based on foul rate and power variance)
-    const foulRate = (totals.fouls + totals.scratches) / Math.max(1, shots);
+    const foulRate = ((Number(totals.fouls) || 0) + (Number(totals.scratches) || 0)) / shots;
     if (foulRate < 0.08 && shots > 20) {
       scores.push({ ...STYLE_LABELS.steady, score: 1 - foulRate * 5 });
     }
@@ -109,24 +113,30 @@ export class ShotProfiler {
   getAveragePower() {
     const totals = this.store.getTotals();
     const shots = this.store.getShotsTaken();
-    return shots > 0 ? (totals.totalShotPower / shots).toFixed(1) : '0.0';
+    const tsp = Number.isFinite(totals.totalShotPower) ? totals.totalShotPower : 0;
+    return shots > 0 ? (tsp / shots).toFixed(1) : '0.0';
   }
 
   getPocketRate() {
     const totals = this.store.getTotals();
     const shots = this.store.getShotsTaken();
-    return shots > 0 ? ((totals.ballsPocketed / shots) * 100).toFixed(1) : '0.0';
+    const bp = Number.isFinite(totals.ballsPocketed) ? totals.ballsPocketed : 0;
+    return shots > 0 ? ((bp / shots) * 100).toFixed(1) : '0.0';
   }
 
   getFoulRate() {
     const totals = this.store.getTotals();
     const shots = this.store.getShotsTaken();
-    return shots > 0 ? (((totals.fouls + totals.scratches) / shots) * 100).toFixed(1) : '0.0';
+    const fouls = Number.isFinite(totals.fouls) ? totals.fouls : 0;
+    const scratches = Number.isFinite(totals.scratches) ? totals.scratches : 0;
+    return shots > 0 ? (((fouls + scratches) / shots) * 100).toFixed(1) : '0.0';
   }
 
   getSpinPreference() {
     const style = this.store.getShotStyle();
-    const total = style.spin.top + style.spin.bottom + style.spin.left + style.spin.right + style.spin.center;
+    const total = (Number(style.spin?.top) || 0) + (Number(style.spin?.bottom) || 0)
+      + (Number(style.spin?.left) || 0) + (Number(style.spin?.right) || 0)
+      + (Number(style.spin?.center) || 0);
     if (total === 0) return [];
     return [
       { name: '高杆', count: style.spin.top, pct: (style.spin.top / total * 100).toFixed(0) },
@@ -140,13 +150,13 @@ export class ShotProfiler {
   /** Win rate trend over recent games (array of 0-1 values). */
   getWinTrend(windowSize = 10) {
     const recent = this.store.getRecentGames();
-    if (recent.length === 0) return [];
+    if (!Array.isArray(recent) || recent.length === 0) return [];
 
     const trend = [];
     for (let i = 0; i < recent.length; i++) {
       const start = Math.max(0, i - windowSize + 1);
       const slice = recent.slice(start, i + 1);
-      const decisive = slice.filter(g => g.result === 'win' || g.result === 'loss');
+      const decisive = slice.filter(g => g && (g.result === 'win' || g.result === 'loss'));
       if (decisive.length === 0) {
         trend.push(null);
       } else {
@@ -163,13 +173,16 @@ export class ShotProfiler {
     const labels = { vsai: 'VS AI', local2p: '本地对战', '9ball': '9球', freeplay: '练习', trainer: '训练', challenge: '挑战' };
     return modes.map(key => {
       const s = this.store.getByMode(key);
+      const played = Number.isFinite(s.played) ? s.played : 0;
+      const won = Number.isFinite(s.won) ? s.won : 0;
+      const lost = Number.isFinite(s.lost) ? s.lost : 0;
       return {
         mode: key,
         label: labels[key] || key,
-        played: s.played || 0,
-        won: s.won || 0,
-        lost: s.lost || 0,
-        winRate: s.played > 0 ? ((s.won || 0) / s.played * 100).toFixed(0) : '0',
+        played,
+        won,
+        lost,
+        winRate: played > 0 ? ((won / played) * 100).toFixed(0) : '0',
       };
     }).filter(m => m.played > 0);
   }
@@ -179,36 +192,44 @@ export class ShotProfiler {
     const style = this.store.getShotStyle();
     const items = [];
 
-    if (style.longShotAttempts > 0) {
+    const longAttempts = Number(style.longShotAttempts) || 0;
+    if (longAttempts > 0) {
+      const success = Number(style.longShotSuccess) || 0;
       items.push({
         name: '长台进攻',
-        attempts: style.longShotAttempts,
-        success: style.longShotSuccess,
-        rate: (style.longShotSuccess / style.longShotAttempts * 100).toFixed(1),
+        attempts: longAttempts,
+        success,
+        rate: (success / longAttempts * 100).toFixed(1),
       });
     }
-    if (style.thinCutAttempts > 0) {
+    const thinAttempts = Number(style.thinCutAttempts) || 0;
+    if (thinAttempts > 0) {
+      const success = Number(style.thinCutSuccess) || 0;
       items.push({
         name: '薄球',
-        attempts: style.thinCutAttempts,
-        success: style.thinCutSuccess,
-        rate: (style.thinCutSuccess / style.thinCutAttempts * 100).toFixed(1),
+        attempts: thinAttempts,
+        success,
+        rate: (success / thinAttempts * 100).toFixed(1),
       });
     }
-    if (style.bankAttempts > 0) {
+    const bankAttempts = Number(style.bankAttempts) || 0;
+    if (bankAttempts > 0) {
+      const success = Number(style.bankSuccess) || 0;
       items.push({
         name: '库边球',
-        attempts: style.bankAttempts,
-        success: style.bankSuccess,
-        rate: (style.bankSuccess / style.bankAttempts * 100).toFixed(1),
+        attempts: bankAttempts,
+        success,
+        rate: (success / bankAttempts * 100).toFixed(1),
       });
     }
-    if (style.breakShots > 0) {
+    const breakShots = Number(style.breakShots) || 0;
+    if (breakShots > 0) {
+      const success = Number(style.breakPocketedTotal) || 0;
       items.push({
         name: '开球',
-        attempts: style.breakShots,
-        success: style.breakPocketedTotal,
-        rate: (style.breakPocketedTotal / style.breakShots).toFixed(1),
+        attempts: breakShots,
+        success,
+        rate: (success / breakShots).toFixed(1),
       });
     }
     return items;
@@ -232,11 +253,11 @@ export class ShotProfiler {
       avgPower: this.getAveragePower(),
       pocketRate: this.getPocketRate(),
       foulRate: this.getFoulRate(),
-      ballsPocketed: totals.ballsPocketed,
-      maxConsecutive: records.maxConsecutivePockets,
-      maxConsecutiveInGame: records.maxConsecutivePocketsInGame,
-      fastestWin: records.fastestWinSeconds,
-      highestPower: records.highestShotPower,
+      ballsPocketed: Number.isFinite(totals.ballsPocketed) ? totals.ballsPocketed : 0,
+      maxConsecutive: Number.isFinite(records.maxConsecutivePockets) ? records.maxConsecutivePockets : 0,
+      maxConsecutiveInGame: Number.isFinite(records.maxConsecutivePocketsInGame) ? records.maxConsecutivePocketsInGame : 0,
+      fastestWin: Number.isFinite(records.fastestWinSeconds) ? records.fastestWinSeconds : null,
+      highestPower: Number.isFinite(records.highestShotPower) ? records.highestShotPower : 0,
       labels: this.analyzeStyle(),
     };
   }
@@ -251,19 +272,19 @@ export class ShotProfiler {
     const tips = [];
     const style = this.store.getShotStyle();
     const totals = this.store.getTotals();
-    const shots = this.store.getShotsTaken() || 0;
-    const games = this.store.getGamesPlayed() || 0;
-    const avgPower = parseFloat(this.getAveragePower());
-    const pocketRate = parseFloat(this.getPocketRate());
-    const foulRate = parseFloat(this.getFoulRate());
+    const shots = Math.max(0, this.store.getShotsTaken() || 0);
+    const games = Math.max(0, this.store.getGamesPlayed() || 0);
+    const avgPower = parseFloat(this.getAveragePower()) || 0;
+    const pocketRate = parseFloat(this.getPocketRate()) || 0;
+    const foulRate = parseFloat(this.getFoulRate()) || 0;
 
     // Need some baseline data
     if (shots < 5 && games < 2) return [];
 
     // 1. Power preference
     if (shots >= 10) {
-      const heavy = (style.powerBuckets[3] || 0) + (style.powerBuckets[4] || 0);
-      const light = (style.powerBuckets[0] || 0) + (style.powerBuckets[1] || 0);
+      const heavy = (Number(style.powerBuckets?.[3]) || 0) + (Number(style.powerBuckets?.[4]) || 0);
+      const light = (Number(style.powerBuckets?.[0]) || 0) + (Number(style.powerBuckets?.[1]) || 0);
       const heavyRatio = heavy / shots;
       const lightRatio = light / shots;
 
@@ -296,9 +317,10 @@ export class ShotProfiler {
 
     // 2. Spin usage
     if (shots >= 10) {
-      const spinTotal = (style.spin.top + style.spin.bottom + style.spin.left + style.spin.right);
+      const spinTotal = (Number(style.spin?.top) || 0) + (Number(style.spin?.bottom) || 0)
+        + (Number(style.spin?.left) || 0) + (Number(style.spin?.right) || 0);
       const spinRatio = spinTotal / shots;
-      const centerRatio = (style.spin.center || 0) / shots;
+      const centerRatio = (Number(style.spin?.center) || 0) / shots;
 
       if (centerRatio > 0.7) {
         tips.push({
@@ -328,8 +350,9 @@ export class ShotProfiler {
     }
 
     // 3. Long shot accuracy
-    if (style.longShotAttempts >= 5) {
-      const rate = style.longShotSuccess / style.longShotAttempts;
+    const longAttempts = Number(style.longShotAttempts) || 0;
+    if (longAttempts >= 5) {
+      const rate = (Number(style.longShotSuccess) || 0) / longAttempts;
       if (rate < 0.3) {
         tips.push({
           category: '长台',
@@ -350,8 +373,9 @@ export class ShotProfiler {
     }
 
     // 4. Thin cut accuracy
-    if (style.thinCutAttempts >= 5) {
-      const rate = style.thinCutSuccess / style.thinCutAttempts;
+    const thinAttempts = Number(style.thinCutAttempts) || 0;
+    if (thinAttempts >= 5) {
+      const rate = (Number(style.thinCutSuccess) || 0) / thinAttempts;
       if (rate < 0.25) {
         tips.push({
           category: '薄球',

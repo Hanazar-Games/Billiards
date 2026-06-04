@@ -157,12 +157,14 @@ export class ShotAnalyzerPanel {
    */
   show(replayData, tableInfo = {}) {
     this._tableInfo = tableInfo;
+    // Always clean up previous graph/analysis before starting new one
+    this._cleanupGraph();
+    this.analysis = null;
+
     const analysis = ShotAnalyzer.analyze(replayData, tableInfo);
     if (!analysis) {
       this._lastReplayData = null;
-      this.analysis = null;
-      this._cleanupGraph();
-      this.hide();
+      this._showErrorState('无法分析此击球：数据无效或已损坏');
       console.warn('ShotAnalyzerPanel: no analysis data');
       return;
     }
@@ -170,7 +172,7 @@ export class ShotAnalyzerPanel {
     this.analysis = analysis;
 
     // Update header
-    const score = this.analysis.score;
+    const score = Number.isFinite(this.analysis.score) ? this.analysis.score : 0;
     this.scoreBadge.textContent = `评分 ${score}`;
     const scoreColor = score >= 80 ? '#00e676' : score >= 60 ? '#ffab00' : score >= 40 ? '#ff9100' : '#ff5252';
     const scoreBg = score >= 80 ? 'rgba(0,230,118,0.15)' : score >= 60 ? 'rgba(255,171,0,0.15)' : score >= 40 ? 'rgba(255,145,0,0.15)' : 'rgba(255,82,82,0.15)';
@@ -181,6 +183,23 @@ export class ShotAnalyzerPanel {
 
     this.overlay.style.display = 'flex';
     this._switchTab(0);
+  }
+
+  _showErrorState(message) {
+    this.overlay.style.display = 'flex';
+    this.content.innerHTML = '';
+    this.tabButtons.forEach((btn) => {
+      btn.style.color = 'rgba(255,255,255,0.2)';
+      btn.style.borderBottomColor = 'transparent';
+      btn.style.pointerEvents = 'none';
+    });
+    const err = document.createElement('div');
+    err.style.cssText = `
+      text-align: center; color: rgba(255,138,138,0.9);
+      font-size: 15px; padding: 50px 20px; line-height: 1.6;
+    `;
+    err.textContent = message;
+    this.content.appendChild(err);
   }
 
   hide() {
@@ -219,6 +238,7 @@ export class ShotAnalyzerPanel {
 
     // Update tab styles
     this.tabButtons.forEach((btn, i) => {
+      btn.style.pointerEvents = 'auto';
       if (i === idx) {
         btn.style.color = '#f4f7f4';
         btn.style.borderBottomColor = 'rgba(216,177,95,0.8)';
@@ -301,13 +321,14 @@ export class ShotAnalyzerPanel {
       background: rgba(255,255,255,0.03); border-radius: 10px;
     `;
 
+    const pocketedIds = Array.isArray(meta.pocketedIds) ? meta.pocketedIds : [];
     const metaItems = [
-      { label: '力度', value: `${meta.power}%` },
+      { label: '力度', value: `${Number.isFinite(meta.power) ? Math.round(meta.power) : 0}%` },
       { label: '旋转', value: meta.spinUsed ? '使用 ✓' : '未使用' },
       { label: '时长', value: `${Number.isFinite(meta.duration) ? meta.duration.toFixed(1) : '0.0'}s` },
-      { label: '进球', value: String(meta.pocketedIds.filter(id => id !== 0).length) },
-      { label: '碰撞', value: String(meta.collisionCount) },
-      { label: '库边', value: String(meta.cushionCount) },
+      { label: '进球', value: String(pocketedIds.filter(id => id !== 0).length) },
+      { label: '碰撞', value: String(Number.isFinite(meta.collisionCount) ? meta.collisionCount : 0) },
+      { label: '库边', value: String(Number.isFinite(meta.cushionCount) ? meta.cushionCount : 0) },
     ];
 
     metaItems.forEach((item) => {
@@ -530,7 +551,8 @@ export class ShotAnalyzerPanel {
       row.appendChild(numCell);
 
       const timeCell = document.createElement('div');
-      timeCell.textContent = c.time?.toFixed(2) + 's';
+      const timeVal = Number.isFinite(c.time) ? c.time.toFixed(2) : '—';
+      timeCell.textContent = timeVal + 's';
       row.appendChild(timeCell);
 
       const ballsCell = document.createElement('div');

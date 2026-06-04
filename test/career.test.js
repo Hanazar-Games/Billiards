@@ -325,4 +325,64 @@ describe('ShotProfiler', () => {
     const tips = profiler.getTrainingTips();
     assert(tips.length >= 2 && tips.length <= 5);
   });
+
+  test('CareerStore _sanitizeData fixes string totalShotPower', () => {
+    store = new CareerStore();
+    // Simulate corrupted data where totalShotPower became a string
+    store._data.totals.totalShotPower = '100';
+    store._sanitizeData(store._data);
+    store.recordShot({ power: 50 });
+    assert.strictEqual(typeof store.getTotals().totalShotPower, 'number');
+    assert.strictEqual(store.getTotals().totalShotPower, 150);
+  });
+
+  test('CareerStore _sanitizeData fixes non-array recentGames', () => {
+    store = new CareerStore();
+    store._data.recentGames = 'corrupted';
+    store._sanitizeData(store._data);
+    assert.deepStrictEqual(store.getRecentGames(), []);
+  });
+
+  test('CareerStore _sanitizeData normalizes powerBuckets', () => {
+    store = new CareerStore();
+    store._data.shotStyle.powerBuckets = [1, 2, '3', 4, 5, 6];
+    store._sanitizeData(store._data);
+    const buckets = store.getShotStyle().powerBuckets;
+    assert.strictEqual(buckets.length, 5);
+    assert.strictEqual(typeof buckets[2], 'number');
+  });
+
+  test('ShotProfiler handles NaN totals gracefully', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    store._data.totals.totalShotPower = NaN;
+    store._data.totals.ballsPocketed = NaN;
+    store._data.shotsTaken = 5;
+    assert.strictEqual(profiler.getAveragePower(), '0.0');
+    assert.strictEqual(profiler.getPocketRate(), '0.0');
+  });
+
+  test('ShotProfiler getSummary handles corrupted records', () => {
+    store = new CareerStore();
+    profiler = new ShotProfiler(store);
+    store._data.records.maxConsecutivePockets = NaN;
+    store._data.records.highestShotPower = 'high';
+    store._data.records.fastestWinSeconds = 'fast';
+    const summary = profiler.getSummary();
+    assert.strictEqual(summary.maxConsecutive, 0);
+    assert.strictEqual(summary.highestPower, 0);
+    assert.strictEqual(summary.fastestWin, null);
+  });
+
+  test('recordShot clamps pocketedCount to non-negative', () => {
+    store = new CareerStore();
+    store.recordShot({ pocketedCount: -3 });
+    assert.strictEqual(store.getTotals().ballsPocketed, 0);
+  });
+
+  test('recordGame ignores non-finite duration', () => {
+    store = new CareerStore();
+    store.recordGame({ mode: 'vsai', result: 'win', durationSeconds: NaN });
+    assert.strictEqual(store.getRecords().fastestWinSeconds, null);
+  });
 });

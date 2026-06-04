@@ -50,24 +50,36 @@ export class ShotAnalyzer {
 
     const frames = new Float32Array(replayData.frames);
     const frameCount = replayData.frameCount;
-    if (frames.length < frameCount * FLOATS_PER_FRAME) {
+    const expectedLen = frameCount * FLOATS_PER_FRAME;
+    if (frames.length < expectedLen) {
       return null;
     }
-    const frameRate = replayData.frameRate || 60;
+    // Guard against NaN/Inf in frame data (allow sentinel)
+    for (let i = 0; i < expectedLen; i++) {
+      const v = frames[i];
+      if (Number.isNaN(v) || v === Infinity || v === -Infinity) {
+        return null;
+      }
+    }
+    const frameRate = (Number.isFinite(replayData.frameRate) && replayData.frameRate > 0)
+      ? replayData.frameRate : 60;
     const meta = replayData.metadata || {};
-    const pocketPositions = options.pocketPositions || [];
-    const ballRadius = options.ballRadius || 0;
+    const pocketPositions = Array.isArray(options.pocketPositions) ? options.pocketPositions : [];
+    const ballRadius = Number.isFinite(options.ballRadius) && options.ballRadius > 0
+      ? options.ballRadius : 1;
 
     const analysis = {
       metadata: {
-        mode: meta.mode || 'unknown',
-        power: meta.maxPower || 0,
-        spinUsed: meta.spinUsed || false,
-        duration: meta.duration || 0,
-        pocketedIds: [...(meta.pocketedIds || [])],
-        collisionCount: meta.collisionCount || 0,
-        cushionCount: meta.cushionCount || 0,
-        tableProfileId: meta.tableProfileId || null,
+        mode: String(meta.mode || 'unknown'),
+        power: Math.max(0, Number.isFinite(meta.maxPower) ? meta.maxPower : 0),
+        spinUsed: Boolean(meta.spinUsed),
+        duration: Math.max(0, Number.isFinite(meta.duration) ? meta.duration : 0),
+        pocketedIds: Array.isArray(meta.pocketedIds)
+          ? meta.pocketedIds.filter((id) => Number.isFinite(id))
+          : [],
+        collisionCount: Math.max(0, Number.isFinite(meta.collisionCount) ? meta.collisionCount : 0),
+        cushionCount: Math.max(0, Number.isFinite(meta.cushionCount) ? meta.cushionCount : 0),
+        tableProfileId: meta.tableProfileId != null ? String(meta.tableProfileId) : null,
       },
       paths: [],          // per-ball path data
       collisions: [],     // detected collision events
@@ -258,7 +270,7 @@ export class ShotAnalyzer {
 
     // ── Accuracy: pocket precision ──
     if (pockets.length > 0) {
-      const avgAccuracy = pockets.reduce((s, p) => s + (p.accuracy || 0), 0) / pockets.length;
+      const avgAccuracy = pockets.reduce((s, p) => s + (Number.isFinite(p.accuracy) ? p.accuracy : 0), 0) / pockets.length;
       accuracy = 30 + avgAccuracy * 0.4;
       // Bonus for multiple pockets
       if (pockets.length >= 2) accuracy += 10;
@@ -269,7 +281,7 @@ export class ShotAnalyzer {
 
     // ── Efficiency: path directness ──
     const cuePath = paths[0];
-    if (cuePath && cuePath.points.length > 1) {
+    if (cuePath && cuePath.points.length > 1 && Number.isFinite(cuePath.totalDistance)) {
       const start = cuePath.points[0];
       const end = cuePath.points[cuePath.points.length - 1];
       const straightDist = dist(start.x, start.z, end.x, end.z);
@@ -287,8 +299,10 @@ export class ShotAnalyzer {
       control += 25;
       // Bonus for short cue ball travel (good position play)
       const cuePath = paths[0];
-      if (cuePath && cuePath.totalDistance < 150) control += 15;
-      else if (cuePath && cuePath.totalDistance < 300) control += 8;
+      if (cuePath && Number.isFinite(cuePath.totalDistance)) {
+        if (cuePath.totalDistance < 150) control += 15;
+        else if (cuePath.totalDistance < 300) control += 8;
+      }
     }
     // Spin usage = controlled play
     if (meta.spinUsed) control += 10;
@@ -300,10 +314,10 @@ export class ShotAnalyzer {
     if (meta.power >= 70) difficulty += 5;
     if (pockets.length >= 2) difficulty += 10;
 
-    analysis.breakdown.accuracy = Math.max(0, Math.min(100, Math.round(accuracy)));
-    analysis.breakdown.efficiency = Math.max(0, Math.min(100, Math.round(efficiency)));
-    analysis.breakdown.control = Math.max(0, Math.min(100, Math.round(control)));
-    analysis.breakdown.difficulty = Math.max(0, Math.min(100, Math.round(difficulty)));
+    analysis.breakdown.accuracy = Math.max(0, Math.min(100, Math.round(accuracy || 0)));
+    analysis.breakdown.efficiency = Math.max(0, Math.min(100, Math.round(efficiency || 0)));
+    analysis.breakdown.control = Math.max(0, Math.min(100, Math.round(control || 0)));
+    analysis.breakdown.difficulty = Math.max(0, Math.min(100, Math.round(difficulty || 0)));
 
     // Weighted total
     analysis.score = Math.round(
@@ -366,14 +380,15 @@ export class ShotAnalyzer {
 
   /** Get a human-readable summary string. */
   static getSummaryText(analysis) {
-    if (!analysis) return '';
+    if (!analysis || !analysis.metadata) return '';
     const meta = analysis.metadata;
     const parts = [];
-    const nonCuePocketed = meta.pocketedIds.filter(id => id !== 0).length;
+    const pocketedIds = Array.isArray(meta.pocketedIds) ? meta.pocketedIds : [];
+    const nonCuePocketed = pocketedIds.filter(id => id !== 0).length;
     if (nonCuePocketed > 0) parts.push(`进球 ${nonCuePocketed}`);
-    parts.push(`碰撞 ${meta.collisionCount}`);
-    parts.push(`库边 ${meta.cushionCount}`);
-    parts.push(`评分 ${analysis.score}`);
+    parts.push(`碰撞 ${meta.collisionCount || 0}`);
+    parts.push(`库边 ${meta.cushionCount || 0}`);
+    parts.push(`评分 ${Number.isFinite(analysis.score) ? analysis.score : 0}`);
     return parts.join(' · ');
   }
 }
