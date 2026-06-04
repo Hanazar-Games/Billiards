@@ -8,7 +8,7 @@
    *   - Progress counters
    */
 import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from './AchievementData.js';
-import { animMs } from '../core/AnimSpeed.js';
+import { animMs, isReducedMotion } from '../core/AnimSpeed.js';
 
 
 export class AchievementPanel {
@@ -17,9 +17,11 @@ export class AchievementPanel {
     this.toastContainer = null;
     this.wallContainer = null;
     this._wallShown = false;
-    this._toastTimers = [];
-    this._toastShowRaf = null;
+    this._activeToasts = [];   // { element, dismissTimer, removeTimer }
+    this._toastQueue = [];     // queued achievement ids
+    this._toastRaf = null;
     this._ownsToastContainer = false;
+    this._maxVisibleToasts = 3;
     this._buildToast();
     this._setupKeyboard();
   }
@@ -38,9 +40,17 @@ export class AchievementPanel {
     this.toastContainer = document.createElement('div');
     this.toastContainer.id = 'achievement-toast-container';
     this.toastContainer.style.cssText = `
-      position: fixed; bottom: 24px; right: 24px;
-      display: flex; flex-direction: column; gap: 10px;
-      z-index: 100; pointer-events: none;
+      position: fixed;
+      top: calc(var(--hud-top-safe) + 16px);
+      right: calc(var(--hud-right-safe) + 16px);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+      z-index: 100;
+      pointer-events: none;
+      max-height: calc(100vh - var(--hud-top-safe) - var(--hud-bottom-safe) - 32px);
+      overflow: hidden;
     `;
     document.body.appendChild(this.toastContainer);
     this._ownsToastContainer = true;
@@ -51,7 +61,17 @@ export class AchievementPanel {
     const ach = ACHIEVEMENTS.find((a) => a.id === id);
     if (!ach) return;
 
+    if (this._activeToasts.length >= this._maxVisibleToasts) {
+      if (!this._toastQueue.includes(id)) this._toastQueue.push(id);
+      return;
+    }
+
+    this._renderToast(ach);
+  }
+
+  _renderToast(ach) {
     const cat = ACHIEVEMENT_CATEGORIES[ach.category];
+    const reduced = isReducedMotion();
 
     const toast = document.createElement('div');
     toast.style.cssText = `
@@ -64,9 +84,10 @@ export class AchievementPanel {
       box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 16px ${cat.color}22;
       transform: translateX(120%);
       opacity: 0;
-      transition: transform calc(0.5s / var(--ui-anim-speed)) cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+      transition: transform ${reduced ? '0.01ms' : 'calc(0.5s / var(--ui-anim-speed))'} cubic-bezier(0.34, 1.56, 0.64, 1), opacity ${reduced ? '0.01ms' : '0.4s'} ease;
       pointer-events: auto;
       min-width: 280px;
+      max-width: min(400px, calc(100vw - var(--hud-right-safe) - var(--hud-left-safe) - 32px));
     `;
 
     const icon = document.createElement('div');
@@ -94,26 +115,51 @@ export class AchievementPanel {
     toast.appendChild(textBlock);
     this.toastContainer.appendChild(toast);
 
+    const entry = { element: toast, dismissTimer: null, removeTimer: null };
+    this._activeToasts.push(entry);
+
     // Animate in
-    if (this._toastShowRaf) cancelAnimationFrame(this._toastShowRaf);
-    this._toastShowRaf = requestAnimationFrame(() => {
-      this._toastShowRaf = null;
+    const animateIn = () => {
       toast.style.transform = 'translateX(0)';
       toast.style.opacity = '1';
-    });
+    };
+
+    if (reduced) {
+      animateIn();
+    } else {
+      if (this._toastRaf) cancelAnimationFrame(this._toastRaf);
+      this._toastRaf = requestAnimationFrame(() => {
+        this._toastRaf = null;
+        animateIn();
+      });
+    }
 
     // Auto dismiss
-    const dismissTimer = setTimeout(() => {
+    const dismissMs = reduced ? 2000 : 3500;
+    entry.dismissTimer = setTimeout(() => {
       toast.style.transform = 'translateX(120%)';
       toast.style.opacity = '0';
-      const removeTimer = setTimeout(() => {
-        if (toast.parentNode) toast.parentNode.removeChild(toast);
-        this._toastTimers = this._toastTimers.filter(t => t !== removeTimer);
-      }, 500);
-      this._toastTimers.push(removeTimer);
-      this._toastTimers = this._toastTimers.filter(t => t !== dismissTimer);
-    }, 3500);
-    this._toastTimers.push(dismissTimer);
+      entry.removeTimer = setTimeout(() => {
+        this._removeToastEntry(entry);
+      }, reduced ? 50 : animMs(500));
+    }, dismissMs);
+  }
+
+  _removeToastEntry(entry) {
+    const idx = this._activeToasts.indexOf(entry);
+    if (idx !== -1) this._activeToasts.splice(idx, 1);
+    if (entry.element && entry.element.parentNode) {
+      entry.element.parentNode.removeChild(entry.element);
+    }
+    if (entry.dismissTimer) { clearTimeout(entry.dismissTimer); entry.dismissTimer = null; }
+    if (entry.removeTimer) { clearTimeout(entry.removeTimer); entry.removeTimer = null; }
+
+    // Process queue
+    if (this._toastQueue.length > 0) {
+      const nextId = this._toastQueue.shift();
+      const ach = ACHIEVEMENTS.find((a) => a.id === nextId);
+      if (ach) this._renderToast(ach);
+    }
   }
 
   // ── Achievement Wall (Full Screen) ──
@@ -309,9 +355,19 @@ export class AchievementPanel {
 
   destroy() {
     this._wallShown = false;
-    for (const t of this._toastTimers) clearTimeout(t);
-    this._toastTimers = [];
-    if (this._toastShowRaf) { cancelAnimationFrame(this._toastShowRaf); this._toastShowRaf = null; }
+
+    // Clear all active toasts and their timers
+    this._toastQueue = [];
+    for (const entry of this._activeToasts) {
+      if (entry.dismissTimer) clearTimeout(entry.dismissTimer);
+      if (entry.removeTimer) clearTimeout(entry.removeTimer);
+      if (entry.element && entry.element.parentNode) {
+        entry.element.parentNode.removeChild(entry.element);
+      }
+    }
+    this._activeToasts = [];
+    if (this._toastRaf) { cancelAnimationFrame(this._toastRaf); this._toastRaf = null; }
+
     if (this.toastContainer && this.toastContainer.parentNode && this._ownsToastContainer) {
       this.toastContainer.parentNode.removeChild(this.toastContainer);
     }

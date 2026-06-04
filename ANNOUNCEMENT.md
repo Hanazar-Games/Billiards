@@ -1,4 +1,37 @@
-# 3D Billiards v1.20.0 — Latest Update
+# 3D Billiards v1.21.0 — Latest Update
+
+## What's New in v1.21.0
+
+### 🔔 成就 Toast 布局重构 — 不再遮挡 HUD
+
+将成就解锁通知从硬编码的右下角迁移到**右上角 UILayout safe-zone**，彻底避免与 minimap、力度条、bottom HUD、统计面板、设置按钮重叠。
+
+**布局安全：**
+- Toast container 位置改为 `top: calc(var(--hud-top-safe) + 16px); right: calc(var(--hud-right-safe) + 16px);`
+- 不再硬编码 `bottom: 24px; right: 24px`
+- 最大宽度受 safe-zone 限制，小屏幕自动收缩：`max-width: min(400px, calc(100vw - var(--hud-right-safe) - var(--hud-left-safe) - 32px))`
+- Container 设 `max-height` 与 `overflow: hidden`，防止极端情况下无限向下延伸
+
+**队列与堆叠：**
+- 最多同时显示 **3** 个 toast，超出的进入队列 `_toastQueue`
+- 队列自动去重，同一成就不会重复排队
+- Toast 消失后自动从队列取出下一个渲染，避免一次性全部弹出造成的视觉混乱
+
+**动画可访问性：**
+- `reducedMotion` 下 transition 设为 `0.01ms`（立即生效），停留时间从 3.5s 缩短到 2s
+- 非 reducedMotion 下继续使用 `calc(0.5s / var(--ui-anim-speed))` 与 `animMs(500)`，尊重用户动画速度设置
+
+**生命周期安全：**
+- 每个 toast 独立管理 `dismissTimer` 和 `removeTimer`
+- `destroy()` 清空 `_toastQueue`、取消所有 active toast 的 timer、取消 RAF、移除 DOM
+- 修复了旧版 `_toastShowRaf` 被多次覆盖导致早期 RAF 无法取消的隐患
+
+**新增测试：**
+- `test/achievement-toast.test.js` 覆盖 7 个场景：safe-zone 定位、队列上限、去重、destroy 清理、reducedMotion、未知 ID 忽略、队列自动出队
+
+---
+
+# 3D Billiards v1.20.0
 
 ## What's New in v1.20.0
 
