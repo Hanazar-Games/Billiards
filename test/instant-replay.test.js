@@ -253,6 +253,78 @@ test('camera state is restored after replay', () => {
   controller.dispose();
 });
 
+/* ── Camera director cinematic logic ── */
+
+test('camera director receives replay metadata', () => {
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera();
+  const bm = makeMockBallsManager();
+  const controller = new InstantReplayController(scene, camera, bm);
+  const data = makeReplayData(10);
+  data.metadata.collisionCount = 5;
+  data.metadata.pocketedIds = [3];
+
+  controller.start(data);
+  assert.ok(controller.cameraDirector._metadata);
+  assert.strictEqual(controller.cameraDirector._hasCollisions, true);
+  assert.strictEqual(controller.cameraDirector._hasPockets, true);
+  controller.skip();
+  controller.dispose();
+});
+
+test('camera director reducedMotion uses stable overhead', async () => {
+  const { InstantReplayCamera } = await import('../src/replay/InstantReplayCamera.js');
+  settings.set('reducedMotion', true);
+  const camera = new THREE.PerspectiveCamera();
+  const director = new InstantReplayCamera(camera);
+  director.setReplayData({ metadata: { pocketedIds: [3], collisionCount: 0 } });
+
+  const bm = makeMockBallsManager();
+  // progress 0.5 should land in overhead phase for reduced motion
+  director.update(0.5, 3, bm);
+  // Overhead position is high Y
+  assert.ok(director._targetPos.y > 80);
+  settings.set('reducedMotion', false);
+});
+
+test('camera director normal mode switches through cinematic phases', async () => {
+  const { InstantReplayCamera } = await import('../src/replay/InstantReplayCamera.js');
+  settings.set('reducedMotion', false);
+  const camera = new THREE.PerspectiveCamera();
+  const director = new InstantReplayCamera(camera);
+  director.setReplayData({ metadata: { pocketedIds: [], collisionCount: 0 } });
+
+  const bm = makeMockBallsManager();
+  // Impact phase — low, close to cue ball
+  director.update(0.02, 3, bm);
+  const impactY = director._targetPos.y;
+  assert.ok(impactY < 15);
+
+  // Action phase — higher follow cam
+  director.update(0.15, 3, bm);
+  const actionY = director._targetPos.y;
+  assert.ok(actionY > impactY);
+
+  // Settle phase — wide side
+  director.update(0.95, 3, bm);
+  const settleX = Math.abs(director._targetPos.x);
+  assert.ok(settleX > 40);
+});
+
+test('camera director collision-aware side angle for heavy collisions', async () => {
+  const { InstantReplayCamera } = await import('../src/replay/InstantReplayCamera.js');
+  settings.set('reducedMotion', false);
+  const camera = new THREE.PerspectiveCamera();
+  const director = new InstantReplayCamera(camera);
+  director.setReplayData({ metadata: { pocketedIds: [], collisionCount: 6 } });
+
+  const bm = makeMockBallsManager();
+  director.update(0.12, 3, bm);
+  const sideX = Math.abs(director._targetPos.x);
+  // Side angle should be far from center
+  assert.ok(sideX > 40);
+});
+
 /* ── Summary ── */
 
 console.log(`\n▶ Instant Replay`);

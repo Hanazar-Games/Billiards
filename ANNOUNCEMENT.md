@@ -1,4 +1,38 @@
-# 3D Billiards v1.11.0 — Latest Update
+# 3D Billiards v1.12.0 — Latest Update
+
+## What's New in v1.12.0
+
+### 🎬 Cinematic Instant Replay & Spectator Mode Upgrade
+
+即时回放与观赛模式的电影感全面升级。
+
+**即时回放镜头系统重设计：**
+- **Impact (0-5%)** — 更低更近的母球后 close-up，强化击球瞬间张力
+- **Action (5-30%)** — 母球追踪 + 智能碰撞侧视角：当碰撞数 ≥ 4 时自动切换戏剧性侧面角度
+- **Target Track (30-60%)** — 追踪被击中的目标球，模拟第一视角跟随
+- **Pocket Close-up (60-85%)** — 进球时自动 close-up 袋口，营造落袋仪式感
+- **Settle (85-100%)** — 根据母球位置交替选择宽角侧面，避免千篇一律
+- **Reduced Motion 兼容** — 开启减弱动态效果后，镜头切换大幅减少，以稳定 overhead +  gentle follow 为主，过渡更柔和
+
+**Spectator Mode 修复与增强：**
+- 修复 bank shot 检测 TODO：利用 `Game._shotIsBank`（击球时根据「先碰库再碰球」自动标记）为解说系统提供真实的翻袋信号，不再硬编码 `false`
+- `SpectatorMode.update()` 已存在 `state === 'REPLAYING'` 提前返回，与即时回放相机互不抢占
+
+**回放 HUD 防遮挡：**
+- 进度条从 `bottom: 20px` 抬高到 `bottom: 110px`，彻底避开 power bar、minimap、bottom HUD
+- 「跳过」按钮从右下角移至右上角，不与任何底部游戏元素重叠
+
+**设置尊重：**
+- `reducedMotion` — 减少镜头切换频率与移动速度
+- `instantReplayEnabled` / `autoInstantReplay` / `instantReplayThreshold` — 保持原有逻辑不变
+- `replaySpeed` — 由 `ShotReplay` 读取设置后映射到 0.25x/0.5x/1.0x/2.0x，未覆盖
+
+**测试覆盖：**
+- `test/instant-replay.test.js` 新增 4 项测试：metadata 传递、reducedMotion 稳定 overhead、正常模式阶段切换、碰撞侧视角检测
+
+---
+
+# 3D Billiards v1.11.0 — Previous Update
 
 ## What's New in v1.11.0
 

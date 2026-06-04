@@ -116,11 +116,11 @@ export class InstantReplayUI {
 
     this.container.appendChild(labelWrap);
 
-    // Bottom progress bar
+    // Bottom progress bar (elevated to avoid overlapping power bar, minimap, stats panel)
     const progressWrap = document.createElement('div');
     progressWrap.style.cssText = `
       position: absolute;
-      bottom: 20px;
+      bottom: 110px;
       left: 50%;
       transform: translateX(-50%);
       width: min(400px, 80vw);
@@ -141,12 +141,12 @@ export class InstantReplayUI {
     progressWrap.appendChild(this._progressFill);
     this.container.appendChild(progressWrap);
 
-    // Skip button (bottom-right, pointer-events: auto)
+    // Skip button (top-right, pointer-events: auto) — avoids bottom HUD overlap
     this._skipBtn = document.createElement('button');
     this._skipBtn.textContent = '跳过';
     this._skipBtn.style.cssText = `
       position: absolute;
-      bottom: 20px;
+      top: 16px;
       right: 16px;
       padding: 6px 14px;
       font-size: 12px;

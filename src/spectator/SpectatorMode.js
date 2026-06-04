@@ -253,7 +253,7 @@ export class SpectatorMode {
   _onBallPocketed(ballId, game) {
     const isDifficult = this._isDifficultShot(game);
     const isLong = this._isLongShot(game);
-    const isBank = false; // TODO: detect bank shots
+    const isBank = game._shotIsBank || false;
 
     this.commentary.onPocket(
       ballId,

@@ -53,6 +53,9 @@ export class InstantReplayController {
       return false;
     }
 
+    // Feed metadata to camera director for cinematic planning
+    this.cameraDirector.setReplayData(replayData);
+
     // Respect user's replaySpeed setting (load() already resolved it)
     // Intentionally do NOT override — instant replays use the same speed preference
     this.replayEngine.play();
