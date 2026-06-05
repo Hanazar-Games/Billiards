@@ -216,6 +216,9 @@ export class MenuSystem {
       menuLayer.style.opacity = '0';
       requestAnimationFrame(() => { menuLayer.style.opacity = '1'; });
     }
+    if (this.audio && this.audio.soundEnabled) {
+      this.audio.startBGM();
+    }
   }
 
   /** Clear common timeouts that may be pending across modes. */

@@ -136,7 +136,7 @@ export class ChallengePanel {
     return `
       padding: 6px 16px; font-size: 13px; font-weight: 600; color: #fff;
       background: ${bg}; border: 1px solid ${border}; border-radius: 20px;
-      cursor: pointer; transition: all 180ms ease; pointer-events: auto;
+      cursor: pointer; transition: all calc(0.18s / var(--ui-anim-speed)) ease; pointer-events: auto;
     `;
   }
 
@@ -248,7 +248,7 @@ export class ChallengePanel {
     const barFill = document.createElement('div');
     barFill.style.cssText = `
       width: ${pct}%; height: 100%; background: linear-gradient(90deg, #d8b15f, #ffd700);
-      border-radius: 5px; transition: width 400ms ease;
+      border-radius: 5px; transition: width calc(0.4s / var(--ui-anim-speed)) ease;
     `;
     barBg.appendChild(barFill);
 
@@ -271,7 +271,7 @@ export class ChallengePanel {
       padding: 16px; border-radius: 10px; cursor: pointer; pointer-events: auto;
       background: ${unlocked ? `linear-gradient(135deg, ${accent}22, rgba(12,15,18,0.9))` : 'rgba(12,15,18,0.7)'};
       border: 1px solid ${unlocked ? accent + '55' : 'rgba(255,255,255,0.1)'};
-      transition: transform 180ms ease, box-shadow 180ms ease;
+      transition: transform calc(0.18s / var(--ui-anim-speed)) ease, box-shadow calc(0.18s / var(--ui-anim-speed)) ease;
     `;
     el.onmouseenter = () => { if (unlocked) { el.style.transform = 'translateY(-2px)'; el.style.boxShadow = '0 12px 32px rgba(0,0,0,0.3)'; } };
     el.onmouseleave = () => { el.style.transform = 'translateY(0)'; el.style.boxShadow = 'none'; };
@@ -332,7 +332,7 @@ export class ChallengePanel {
         padding: 8px 14px; font-size: 13px; font-weight: 700; color: #fff;
         background: linear-gradient(135deg, rgba(255,107,107,0.25), rgba(255,107,107,0.10));
         border: 1px solid rgba(255,107,107,0.45); border-radius: 8px;
-        cursor: ${unlocked ? 'pointer' : 'default'}; pointer-events: auto; transition: all 180ms ease;
+        cursor: ${unlocked ? 'pointer' : 'default'}; pointer-events: auto; transition: all calc(0.18s / var(--ui-anim-speed)) ease;
         display: flex; align-items: center; gap: 8px;
         opacity: ${unlocked ? '1' : '0.5'};
       `;
@@ -369,7 +369,7 @@ export class ChallengePanel {
       background: ${unlocked ? 'rgba(12,15,18,0.7)' : 'rgba(12,15,18,0.45)'};
       border: 1px solid ${borderColor};
       border-radius: 8px;
-      transition: transform 180ms cubic-bezier(0.2,0.8,0.2,1), background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+      transition: transform calc(0.18s / var(--ui-anim-speed)) cubic-bezier(0.2,0.8,0.2,1), background calc(0.18s / var(--ui-anim-speed)) ease, border-color calc(0.18s / var(--ui-anim-speed)) ease, box-shadow calc(0.18s / var(--ui-anim-speed)) ease;
       pointer-events: ${unlocked ? 'auto' : 'none'};
       cursor: ${unlocked ? 'pointer' : 'default'};
       box-shadow: 0 14px 38px rgba(0,0,0,0.25);

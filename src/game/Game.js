@@ -885,6 +885,8 @@ export class Game {
   }
 
   shoot() {
+    if (this._strikeHideTimer) { clearTimeout(this._strikeHideTimer); this._strikeHideTimer = null; }
+    if (this._cameraResetTimer) { clearTimeout(this._cameraResetTimer); this._cameraResetTimer = null; }
     const cueBall = this.ballsManager.getCueBall();
     if (!cueBall) return;
 
@@ -1006,6 +1008,7 @@ export class Game {
   }
 
   async startAITurn() {
+    if (this.state === 'DISPOSED') return;
     if (this.state === 'AI_THINKING') return;
     this.state = 'AI_THINKING';
     this.ui.setHUDState('AI_THINKING');
@@ -1048,7 +1051,7 @@ export class Game {
 
     // Animate AI cue rotating toward aim direction
     const aimStart = performance.now();
-    const aimDuration = 350 + Math.random() * 300;
+    const aimDuration = animMs(350 + Math.random() * 300);
     const startAim = this.aimDirection.clone();
     if (this.cue) this.cue.show();
     await new Promise(resolve => {
@@ -1070,12 +1073,14 @@ export class Game {
         // Smooth ease-out
         const eased = 1 - Math.pow(1 - t, 3);
         this.aimDirection.lerpVectors(startAim, targetAim, eased).normalize();
-        if (this.cue) this.cue.setAim(this.ballsManager.getCueBall().mesh.position, this.aimDirection);
+        const cb = this.ballsManager ? this.ballsManager.getCueBall() : null;
+        if (this.cue && cb) this.cue.setAim(cb.mesh.position, this.aimDirection);
         if (t < 1 && this.state === 'AI_THINKING') {
           requestAnimationFrame(tick);
         } else {
           this.aimDirection.copy(targetAim);
-          if (this.cue) this.cue.setAim(this.ballsManager.getCueBall().mesh.position, this.aimDirection);
+          const cb2 = this.ballsManager ? this.ballsManager.getCueBall() : null;
+          if (this.cue && cb2) this.cue.setAim(cb2.mesh.position, this.aimDirection);
           resolve();
         }
       };
@@ -2251,6 +2256,7 @@ export class Game {
 
   _setupSpinControls() {
     this._onKeyDown = (e) => {
+      if (this.state === 'DISPOSED') return;
       // In spectator mode, only allow Escape and camera controls
       const key = e.key.toLowerCase();
       if (this.bothAI) {
@@ -2682,6 +2688,7 @@ export class Game {
       };
       this._onNetPocketEvent = (e) => {
         if (this.networkRole === 'client') {
+          if (this.paused) return;
           const detail = e.detail;
           const pocket = detail.pocket;
           if (pocket) {
@@ -2728,6 +2735,7 @@ export class Game {
           : reason === 'hostDisconnected' ? UIText.hostDisconnected
           : UIText.networkDisconnect;
         this.ui.setMessage(msg, 3000, 2);
+        if (this._netDisconnectTimer) { clearTimeout(this._netDisconnectTimer); this._netDisconnectTimer = null; }
         this._netDisconnectTimer = setTimeout(() => {
           this._netDisconnectTimer = null;
           if (this.onReturnToMenu) this.onReturnToMenu();
@@ -2738,6 +2746,7 @@ export class Game {
         this._netDisconnectHandled = true;
         settings.clearLockedKeys();
         this.ui.setMessage(UIText.networkDisconnect, 3000, 2);
+        if (this._netDisconnectTimer) { clearTimeout(this._netDisconnectTimer); this._netDisconnectTimer = null; }
         this._netDisconnectTimer = setTimeout(() => {
           this._netDisconnectTimer = null;
           if (this.onReturnToMenu) this.onReturnToMenu();
@@ -2827,7 +2836,8 @@ export class Game {
       });
     }
 
-    this.audio?.playWin();
+    this.audio?.playFoul();
+    this.ui.flashRed();
     if (this.matchManager) {
       this.matchManager.onGameEnd(winner);
     } else {
@@ -3277,6 +3287,10 @@ export class Game {
         ball.material.dispose();
       }
       this._ballCollideListeners.clear();
+      if (this.ballsManager) {
+        this.ballsManager.onManualBallContact = null;
+        this.ballsManager.onManualCushionContact = null;
+      }
       this.ballsManager = null;
     }
 

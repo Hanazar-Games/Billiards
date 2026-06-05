@@ -409,6 +409,7 @@ export class AudioManager {
   }
 
   playCushionBounce(velocity = 5) {
+    if (!Number.isFinite(velocity)) velocity = 5;
     if (!this._canPlay()) return;
     const intensity = Math.min(velocity / 15, 1);
     if (intensity < 0.05) return;
@@ -540,6 +541,7 @@ export class AudioManager {
   }
 
   dispose() {
+    if (this._disposing) return;
     this._disposing = true;
     this.stopBGM();
     this._removeResilienceListeners();

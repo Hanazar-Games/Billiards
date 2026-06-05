@@ -11,7 +11,7 @@
  *   - Rich post-match summary
  */
 
-import { animMs } from '../core/AnimSpeed.js';
+import { animMs, isReducedMotion } from '../core/AnimSpeed.js';
 import { getStyleMeta } from './TournamentData.js';
 
 export class TournamentResult {
@@ -20,6 +20,7 @@ export class TournamentResult {
     this.onBack = onBack;
     this.container = null;
     this._timer = null;
+    this._showRafId = null;
     this._shown = false;
     this._buildUI();
     this._setupKeyboard();
@@ -52,7 +53,7 @@ export class TournamentResult {
       align-items: center; gap: 18px;
       box-shadow: 0 32px 100px rgba(0,0,0,0.6);
       text-align: center;
-      animation: panelIn calc(0.5s / var(--ui-anim-speed)) var(--ease) both;
+      animation: ${isReducedMotion() ? 'none' : 'panelIn calc(0.5s / var(--ui-anim-speed)) var(--ease) both'};
     `;
 
     this.container.appendChild(this.card);
@@ -303,7 +304,8 @@ export class TournamentResult {
 
     this.container.style.display = 'flex';
     this.container.style.opacity = '0';
-    requestAnimationFrame(() => {
+    this._showRafId = requestAnimationFrame(() => {
+      this._showRafId = null;
       if (this.container) this.container.style.opacity = '1';
     });
   }
@@ -321,6 +323,7 @@ export class TournamentResult {
   destroy() {
     this._shown = false;
     if (this._timer) { clearTimeout(this._timer); this._timer = null; }
+    if (this._showRafId) { cancelAnimationFrame(this._showRafId); this._showRafId = null; }
     if (this._onKeyDown) {
       window.removeEventListener('keydown', this._onKeyDown);
       this._onKeyDown = null;

@@ -1,5 +1,5 @@
 import { settings } from '../core/SettingsStore.js';
-import { animMs } from '../core/AnimSpeed.js';
+import { animMs, isReducedMotion } from '../core/AnimSpeed.js';
 import { UIText } from '../core/UIText.js';
 import { uiLayout } from './UILayout.js';
 
@@ -186,7 +186,7 @@ export class UI {
       display: flex; flex-direction: column;
       gap: 14px; align-items: center;
       box-shadow: 0 24px 80px rgba(0,0,0,0.5);
-      animation: panelIn calc(0.4s / var(--ui-anim-speed)) var(--ease) both;
+      animation: ${isReducedMotion() ? 'none' : 'panelIn calc(0.4s / var(--ui-anim-speed)) var(--ease) both'};
     `;
 
     const pauseTitle = document.createElement('div');
@@ -440,7 +440,7 @@ export class UI {
         this._turnPulseTimer = setTimeout(() => {
           this._turnPulseTimer = null;
           if (activeBadge) activeBadge.style.transform = '';
-        }, 180);
+        }, animMs(180));
       });
     }
   }

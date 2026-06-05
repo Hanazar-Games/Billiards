@@ -1,4 +1,41 @@
-# 3D Billiards v1.23.0 — Latest Update
+# 3D Billiards v1.24.0 — Latest Update
+
+## What's New in v1.24.0
+
+### 🔍 UI/UX/SFX/BGM 深度审计 Round 2 — 修复 6 项 Critical + 8 项 High + 6 项 Medium
+
+在 v1.23.0 第一轮审计基础上，启动 4 条并行 background audit 流水线（Game.js dispose/safety、SFX/BGM 状态切换、面板生命周期 + RAF/timer、CSS 动画 + reducedMotion），并辅以手动走查，共发现并修复 20 项问题。
+
+**Critical（崩溃/泄漏级）：**
+- `TournamentPanel.show()` / `TournamentResult.show()`：使用匿名 `requestAnimationFrame()` 做淡入动画，但 `destroy()` 未存储/取消该 RAF ID。若面板在淡入期间被销毁，回调会在已释放的 DOM 节点上执行，轻则无意义 RAF 泄漏，重则访问已移除元素的 `style` 抛出异常。已统一添加 `_showRafId` 字段并在 `destroy()` 中 `cancelAnimationFrame`。
+- `Game.js shoot()`：`this._cameraResetTimer` 未在每次出杆前清理，快速连续出杆时旧 timer 仍存活，导致相机在不应该的时候跳回默认视角。已在 `shoot()` 入口与 `_enterAimState()` 前统一清理。
+- `Game.js _wireBallsManagerEvents()`：`onManualBallContact` / `onManualCushionContact` 闭包持有 `this` 引用，但 `dispose()` 仅 `this.ballsManager = null`，未将 callbacks 设为 `null`，旧的 `BallsManager` 实例仍保留对 `Game` 的强引用，造成内存泄漏。已在 `dispose()` 中补充 callback nullification。
+- `Game.js startAITurn()`：未在入口检查 `this.state === 'DISPOSED'`，游戏销毁后 AI 仍在计划/瞄准阶段时会继续执行并访问已释放资源。已在顶部添加 DISPOSED 守卫。
+- `MenuSystem` 错误路径 BGM 丢失：`startTournamentMatch` / `startTrainer` / `startChallenge` / `startGame` 的 `try…catch` 失败分支均调用 `_fadeToMenu()` 返回菜单，但未重启 BGM，用户回到菜单后无背景音乐。已将 BGM 重启逻辑统一到 `_fadeToMenu()`，保证任何回退到菜单的场景都有音乐。
+
+**High（严重影响级）：**
+- 硬编码 CSS 过渡时长（8 处）：ChallengePanel、TrainerPanel、ReplayPanel 中的 hover/卡片交互 transition 使用 `180ms` / `400ms` 字面量，未接入 `--ui-anim-speed`，与用户设置的动画速度不一致。已全部改为 `calc(0.18s / var(--ui-anim-speed))` / `calc(0.4s / var(--ui-anim-speed))`。
+- `panelIn` 动画缺少 `isReducedMotion()` 守卫（5 个文件）：StatsPanel、TournamentResult、TournamentBracket、TournamentPanel、UI.js（暂停面板）的入场动画均未检查 reduced-motion 偏好， motion-sensitive 用户仍会看到缩放淡入。已统一添加 `isReducedMotion() ? 'none' : 'panelIn ...'` 条件。
+- `Game.js` AI aiming 时长硬编码：`const aimDuration = 350 + Math.random() * 300;` 不受 `fxAnimSpeed` 影响。已改为 `animMs(350 + Math.random() * 300)`。
+- `UI.js` turn-badge pulse 硬编码：`setTimeout(..., 180)` 不受 `fxAnimSpeed` 影响。已改为 `animMs(180)`。
+- `main.js` intro 清理硬编码：`setTimeout(() => introScreen?.remove(), 1400)` 不受 `fxAnimSpeed` 影响。已改为 `animMs(1400)`。
+- `Game.js _concede()` 错误 SFX：认输时播放 `playWin()`（胜利音效），应为 `playFoul()`（犯规音效）+ `flashRed()`。已修正。
+- `AudioManager.playCushionBounce()`：缺少 `Number.isFinite(velocity)` 守卫，与 `playBallCollision` 不一致。已补充 `if (!Number.isFinite(velocity)) velocity = 5;`。
+- `AudioManager.dispose()`：重复调用时 `_disposing` 会被末尾的 `= false` 重置，导致第二次 dispose 不生效。已在入口添加 `if (this._disposing) return;` 防护。
+
+**Medium（明显缺陷级）：**
+- `ReplayPanel.showControls()` / `hideControls()`：缺少 `_controlsShown` 去重，重复调用会导致 `uiLayout.claim/release` 失衡。已添加早期返回。
+- `Game.js` 网络 client pocket SFX：`_onNetPocketEvent` 未检查 `this.paused`，游戏暂停时仍收到网络 packet 会播放口袋音效。已添加 `if (this.paused) return;` 守卫。
+- `Game.js` AI aim RAF tick 中 `this.ballsManager.getCueBall()` 未做空守卫：dispose 期间可能返回 `null`。已补充 `const cb = this.ballsManager ? this.ballsManager.getCueBall() : null;` 并做空判断。
+- `Game.js _onKeyDown`：未检查 `this.state === 'DISPOSED'`，游戏销毁后键盘事件仍可触发逻辑。已添加 DISPOSED 守卫。
+
+**构建与测试：**
+- 全部 13 组非浏览器测试通过（54/54）
+- `npm run build` 成功
+
+---
+
+# 3D Billiards v1.23.0
 
 ## What's New in v1.23.0
 

@@ -18,7 +18,7 @@ function hideIntroScreen(delay = 600) {
   if (!introScreen) return;
   setTimeout(() => {
     introScreen.classList.add('hidden');
-    setTimeout(() => introScreen?.remove(), 1400);
+    setTimeout(() => introScreen?.remove(), animMs(1400));
   }, delay);
 }
 

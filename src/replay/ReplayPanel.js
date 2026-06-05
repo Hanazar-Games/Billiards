@@ -186,7 +186,7 @@ export class ReplayPanel {
         background: rgba(12,15,18,0.7);
         border: 1px solid rgba(255,255,255,0.14);
         border-radius: 10px;
-        transition: transform 180ms cubic-bezier(0.2,0.8,0.2,1), background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+        transition: transform calc(0.18s / var(--ui-anim-speed)) cubic-bezier(0.2,0.8,0.2,1), background calc(0.18s / var(--ui-anim-speed)) ease, border-color calc(0.18s / var(--ui-anim-speed)) ease, box-shadow calc(0.18s / var(--ui-anim-speed)) ease;
         pointer-events: auto;
         box-shadow: 0 14px 38px rgba(0,0,0,0.25);
         display: flex; flex-direction: column; gap: 8px;
@@ -557,12 +557,14 @@ export class ReplayPanel {
   }
 
   showControls() {
+    if (this._controlsShown) return;
     this._controlsShown = true;
     this.controlContainer.style.display = 'flex';
     uiLayout.claim('replayControls', 'bottom', 84);
   }
 
   hideControls() {
+    if (!this._controlsShown) return;
     this._controlsShown = false;
     this.controlContainer.style.display = 'none';
     uiLayout.release('replayControls');

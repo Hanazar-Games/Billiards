@@ -9,7 +9,7 @@
  * Each match card shows both players, scores, and a connector line.
  */
 
-import { animMs } from '../core/AnimSpeed.js';
+import { animMs, isReducedMotion } from '../core/AnimSpeed.js';
 import { TournamentEngine } from './TournamentEngine.js';
 import { getStyleMeta } from './TournamentData.js';
 
@@ -82,7 +82,7 @@ export class TournamentBracket {
         border: 1px solid rgba(216,177,95,0.55);
         text-align: center; color: #fff;
         box-shadow: 0 8px 32px rgba(216,177,95,0.18);
-        animation: panelIn calc(0.5s / var(--ui-anim-speed)) var(--ease) both;
+        animation: ${isReducedMotion() ? 'none' : 'panelIn calc(0.5s / var(--ui-anim-speed)) var(--ease) both'};
       `;
       champCard.innerHTML = `
         <div style="font-size:32px;margin-bottom:6px;">🏆</div>

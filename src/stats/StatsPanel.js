@@ -6,6 +6,7 @@
  */
 import { uiLayout } from '../ui/UILayout.js';
 import { settings } from '../core/SettingsStore.js';
+import { isReducedMotion } from '../core/AnimSpeed.js';
 
 export class StatsPanel {
   constructor() {
@@ -242,7 +243,7 @@ export class StatsPanel {
         max-width: 90vw;
         text-align: center;
         box-shadow: 0 24px 80px rgba(0,0,0,0.5);
-        animation: panelIn calc(0.4s / var(--ui-anim-speed)) var(--ease) both;
+        animation: ${isReducedMotion() ? 'none' : 'panelIn calc(0.4s / var(--ui-anim-speed)) var(--ease) both'};
       ">
         <div style="font-weight:bold;font-size:18px;color:#ffd700;margin-bottom:6px;">🏆 ${winnerName} 获胜！</div>
         <div style="font-size:12px;color:rgba(255,255,255,0.5);">对局时长 ${this._fmtTime(summary.duration)}</div>
@@ -278,7 +279,7 @@ export class StatsPanel {
         max-height: 85vh;
         overflow: auto;
         box-shadow: 0 24px 80px rgba(0,0,0,0.5);
-        animation: panelIn calc(0.4s / var(--ui-anim-speed)) var(--ease) both;
+        animation: ${isReducedMotion() ? 'none' : 'panelIn calc(0.4s / var(--ui-anim-speed)) var(--ease) both'};
         color: #fff;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         font-size: 13px;

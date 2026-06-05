@@ -8,7 +8,7 @@
  *   4. History  — browse past tournaments as rich cards
  */
 
-import { animMs } from '../core/AnimSpeed.js';
+import { animMs, isReducedMotion } from '../core/AnimSpeed.js';
 import { TournamentEngine } from './TournamentEngine.js';
 import { TournamentStore } from './TournamentStore.js';
 import { TournamentBracket } from './TournamentBracket.js';
@@ -27,6 +27,7 @@ export class TournamentPanel {
     this.store = new TournamentStore();
     this.bracket = null;
     this._fadeTimer = null;
+    this._showRafId = null;
     this._shown = false;
     this._screen = 'setup'; // setup | bracket | prematch | history
     this._buildUI();
@@ -99,7 +100,8 @@ export class TournamentPanel {
       this.container.style.opacity = '1';
     } else {
       this.container.style.opacity = '0';
-      requestAnimationFrame(() => {
+      this._showRafId = requestAnimationFrame(() => {
+        this._showRafId = null;
         if (this.container) this.container.style.opacity = '1';
       });
     }
@@ -123,6 +125,7 @@ export class TournamentPanel {
   destroy() {
     this._shown = false;
     if (this._fadeTimer) { clearTimeout(this._fadeTimer); this._fadeTimer = null; }
+    if (this._showRafId) { cancelAnimationFrame(this._showRafId); this._showRafId = null; }
     if (this.bracket) { this.bracket.destroy(); this.bracket = null; }
     if (this._onKeyDown) {
       window.removeEventListener('keydown', this._onKeyDown);
@@ -799,7 +802,7 @@ export class TournamentPanel {
       gap: 16px; align-items: stretch;
       box-shadow: 0 24px 80px rgba(0,0,0,0.5);
       backdrop-filter: blur(12px);
-      animation: panelIn calc(0.4s / var(--ui-anim-speed)) var(--ease) both;
+      animation: ${isReducedMotion() ? 'none' : 'panelIn calc(0.4s / var(--ui-anim-speed)) var(--ease) both'};
     `;
     return card;
   }

@@ -246,7 +246,7 @@ export class TrainerPanel {
       width: ${pct}%; height: 100%;
       background: linear-gradient(90deg, #00e676, #448aff);
       border-radius: 3px;
-      transition: width 400ms ease;
+      transition: width calc(0.4s / var(--ui-anim-speed)) ease;
     `;
     barWrap.appendChild(barFill);
     this._progressWrap.appendChild(barWrap);
@@ -272,7 +272,7 @@ export class TrainerPanel {
         padding: 8px 14px; font-size: 13px; font-weight: 700; color: #fff;
         background: linear-gradient(135deg, rgba(68,138,255,0.25), rgba(68,138,255,0.10));
         border: 1px solid rgba(68,138,255,0.45); border-radius: 8px;
-        cursor: pointer; pointer-events: auto; transition: all 180ms ease;
+        cursor: pointer; pointer-events: auto; transition: all calc(0.18s / var(--ui-anim-speed)) ease;
         display: flex; align-items: center; gap: 8px;
       `;
       chip.innerHTML = `
@@ -314,7 +314,7 @@ export class TrainerPanel {
       background: ${unlocked ? 'rgba(12,15,18,0.7)' : 'rgba(8,10,12,0.85)'};
       border: 1px solid ${borderColor};
       border-radius: 8px;
-      transition: transform 180ms cubic-bezier(0.2,0.8,0.2,1), background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+      transition: transform calc(0.18s / var(--ui-anim-speed)) cubic-bezier(0.2,0.8,0.2,1), background calc(0.18s / var(--ui-anim-speed)) ease, border-color calc(0.18s / var(--ui-anim-speed)) ease, box-shadow calc(0.18s / var(--ui-anim-speed)) ease;
       pointer-events: ${unlocked ? 'auto' : 'none'};
       cursor: ${unlocked ? 'pointer' : 'default'};
       box-shadow: 0 14px 38px rgba(0,0,0,0.25);
