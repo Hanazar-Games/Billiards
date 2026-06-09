@@ -1156,9 +1156,8 @@ export class MenuSystem {
 
     // Show main menu
     if (this.trainerResult) { this.trainerResult.destroy(); this.trainerResult = null; }
-    this.mainMenu.show();
+    this._showMainMenu();
     this._fadeToMenu();
-    this.state = 'MENU';
     this._startMenuLoop();
 
     // Restart menu BGM

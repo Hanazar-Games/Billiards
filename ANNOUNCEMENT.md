@@ -1,4 +1,23 @@
-# 3D Billiards v1.26.2 — Latest Update
+# 3D Billiards v1.26.3 — Latest Update
+
+## What's New in v1.26.3
+
+### 🔧 第三轮深度审计修复 — Medium 1 + Regression fix 1
+
+在 v1.26.2 第二轮审计后，继续深入检查 MenuSystem 回放生命周期与 Highlight 面板的交互，发现并修复 2 项问题。
+
+**Medium（代码异味、边界情况）：**
+- `MenuSystem._stopReplayPlayback()` 未调用 `_showMainMenu()`：回放退出后直接使用 `this.mainMenu.show()` + `_fadeToMenu()`，导致 `this.highlightPanel` 和 `this.replayPanel` 不被销毁，DOM 引用残留。已改为调用 `_showMainMenu()`，由其统一清理面板生命周期。
+
+**Regression fix：**
+- 上一轮修改 `_stopReplayPlayback` 时移除了原有的 `_fadeToMenu()` 和 `_startMenuLoop()`，导致菜单层可能无法正确显示且渲染循环未重启。已在 `_showMainMenu()` 调用后补充 `_fadeToMenu()` 和 `_startMenuLoop()`。
+
+**构建与测试：**
+- 全部 20 项 highlight 单元测试通过
+- 全部 131 项 Node 测试通过（0 失败）
+- `npm run build` 成功
+
+---
 
 ## What's New in v1.26.2
 
