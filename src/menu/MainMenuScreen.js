@@ -275,5 +275,7 @@ export class MainMenuScreen {
     this.onMatchSetup = null;
     this.onShowTrainer = null;
     this.onShowTournament = null;
+    this.onShowCareer = null;
+    this.onShowHighlights = null;
   }
 }

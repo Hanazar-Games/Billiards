@@ -1,4 +1,32 @@
-# 3D Billiards v1.26.1 — Latest Update
+# 3D Billiards v1.26.2 — Latest Update
+
+## What's New in v1.26.2
+
+### 🔧 第二轮深度审计修复 — High 1 + Medium 6 + Low 2
+
+在 v1.26.1 第一轮审计修复后，再次对 Highlight 系统及全项目进行手动深度走查，发现并修复 9 项问题。
+
+**High（明确的 bug 或不一致）：**
+- `HighlightPanel.show()` 未清除 `_fadeTimer`：若用户在 `hide()` 的 350ms fade-out 期间重新打开面板，`show()` 不会取消旧 timer，导致面板在剩余时间后突然消失。已在 `show()` 入口补充 `clearTimeout(this._fadeTimer)`。
+
+**Medium（代码异味、边界情况、可维护性）：**
+- `Game.js` 三处 `highlightStore.save()` 中 `this.recorder.calculateScore()` 在 `this.recorder.reset()` 之后调用：`reset()` 将 `metadata` 清空，`calculateScore()` 永远返回 0。虽然 `replayData.score` 已在 `getReplayData()` 时正确计算，fallback 逻辑无实际影响，但代码存在误导性。已将三处均改为直接赋值 `replayData.metadata.score = replayData.score`。
+- `HighlightStore._save()` 未处理 `QuotaExceededError`：localStorage 写满时静默失败，新保存的 highlight 丢失。已捕获 `QuotaExceededError`，自动移除最旧条目并重试一次。
+- `HighlightStore.save()` ID 冲突风险：`${timestamp}-${6位随机}` 在极快连续保存时可能重复。已增强为 `${timestamp}-${6位随机}-${2位随机}`，冲突概率降至可忽略。
+- `HighlightStore._isValid()` 未校验 `replayData`：若存储损坏导致条目缺少 `replayData`，面板尝试回放时会报错。已添加 `h.replayData && typeof h.replayData === 'object'` 校验。
+- `MainMenuScreen.destroy()` 未清理 `onShowCareer` 和 `onShowHighlights`：销毁后旧回调引用仍存，可能阻止 GC。已补充 null 化。
+- `HighlightPanel._exportHighlight()` 的 `<a>` 元素从未加入 DOM：`a.click()` 在部分浏览器（如 Firefox 的某些配置）中不触发下载，因为元素不在 document 流中。已改为 `appendChild → click → removeChild` 标准模式。
+
+**Low（代码整洁度）：**
+- `HighlightPanel._modeLabel()` 缺少 `network` / `match` 模式映射：联机和对局模式的精彩瞬间会显示原始英文 mode 名。已补充映射为「联机」和「比赛」。
+- 全项目 `src/` 目录地毯式扫描硬编码 `setTimeout`：确认除 `SettingsScreen._blobRevokeTimer`（60 秒资源清理，与动画无关）外，其余全部已接入 `animMs()`。
+
+**构建与测试：**
+- 全部 20 项 highlight 单元测试通过
+- 全部 131 项 Node 测试通过（0 失败）
+- `npm run build` 成功
+
+---
 
 ## What's New in v1.26.1
 

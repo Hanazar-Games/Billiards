@@ -59,6 +59,16 @@ export class HighlightStore {
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify(this._data));
     } catch (e) {
+      if (e.name === 'QuotaExceededError' || e.code === 22) {
+        // Storage full: evict oldest entry and retry once
+        if (this._data.highlights.length > 0) {
+          this._data.highlights.shift();
+          try {
+            localStorage.setItem(STORE_KEY, JSON.stringify(this._data));
+            return;
+          } catch (e2) {}
+        }
+      }
       console.warn('[HighlightStore] save failed');
     }
   }
@@ -66,7 +76,8 @@ export class HighlightStore {
   _isValid(h) {
     return h && typeof h.id === 'string' && typeof h.savedAt === 'number' &&
            Number.isFinite(h.starRating) && h.starRating >= 1 && h.starRating <= 3 &&
-           Array.isArray(h.tags) && h.tags.length > 0;
+           Array.isArray(h.tags) && h.tags.length > 0 &&
+           h.replayData && typeof h.replayData === 'object';
   }
 
   /**
@@ -93,7 +104,7 @@ export class HighlightStore {
     this._lastSaveAt = now;
 
     const entry = {
-      id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `${now}-${Math.random().toString(36).slice(2, 8)}-${Math.random().toString(36).slice(2, 4)}`,
       savedAt: now,
       title: getHighlightTitle(highlight, replayData.metadata),
       tags: highlight.tags,

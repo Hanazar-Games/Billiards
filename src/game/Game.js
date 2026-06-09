@@ -1684,7 +1684,7 @@ export class Game {
         this._enterAimState({ showCue: true, showTrajectory: true, updateAim: false });
       }
       if (replayData) {
-        replayData.metadata.score = replayData.score || this.recorder.calculateScore();
+        replayData.metadata.score = replayData.score;
         const streak = this.statsTracker.playerStats[this.currentPlayer]?.consecutivePockets || 0;
         highlightStore.save(replayData, {
           mode: this.mode,
@@ -1728,7 +1728,7 @@ export class Game {
         this.ui.setMessage(feedback, 2500, 1);
       }
       if (replayData) {
-        replayData.metadata.score = replayData.score || this.recorder.calculateScore();
+        replayData.metadata.score = replayData.score;
         const streak = this.statsTracker.playerStats[this.currentPlayer]?.consecutivePockets || 0;
         highlightStore.save(replayData, {
           mode: this.mode,
@@ -1794,7 +1794,7 @@ export class Game {
 
     // Highlight detection: save memorable shots (normal modes only)
     if (replayData) {
-      replayData.metadata.score = replayData.score || this.recorder.calculateScore();
+      replayData.metadata.score = replayData.score;
       const streak = this.statsTracker.playerStats[this.currentPlayer]?.consecutivePockets || 0;
       highlightStore.save(replayData, {
         mode: this.mode,

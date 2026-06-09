@@ -140,6 +140,7 @@ export class HighlightPanel {
   show() {
     if (!this.container || this._shown) return;
     this._shown = true;
+    if (this._fadeTimer) { clearTimeout(this._fadeTimer); this._fadeTimer = null; }
     this.container.style.display = 'flex';
     this.container.style.opacity = '0';
     if (!isReducedMotion()) {
@@ -362,7 +363,8 @@ export class HighlightPanel {
     const map = {
       freeplay: '练习', local2p: '本地对战', vsai: 'VS AI',
       nineball: '9球', trainer: '训练', challenge: '挑战',
-      tournament: '锦标赛', spectator: '观赛', unknown: '未知',
+      tournament: '锦标赛', spectator: '观赛', network: '联机',
+      match: '比赛', unknown: '未知',
     };
     return map[mode] || mode;
   }
@@ -374,7 +376,10 @@ export class HighlightPanel {
       const a = document.createElement('a');
       a.href = url;
       a.download = `highlight-${h.id}.json`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (e) {
       console.warn('Export highlight failed', e);
