@@ -173,6 +173,10 @@ export class HighlightPanel {
       window.removeEventListener('keydown', this._onKeyDown);
       this._onKeyDown = null;
     }
+    if (this._confirmOverlay) {
+      if (this._confirmOverlay.parentNode) this._confirmOverlay.parentNode.removeChild(this._confirmOverlay);
+      this._confirmOverlay = null;
+    }
     if (this.container) {
       this.container.innerHTML = '';
       if (this.container.parentNode) {
@@ -348,10 +352,10 @@ export class HighlightPanel {
     delBtn.onmouseenter = () => { delBtn.style.background = 'rgba(185,18,63,0.22)'; };
     delBtn.onmouseleave = () => { delBtn.style.background = 'rgba(185,18,63,0.12)'; };
     delBtn.onclick = () => {
-      if (confirm('确定要删除这条精彩瞬间吗？')) {
+      this._showConfirm('确定要删除这条精彩瞬间吗？', () => {
         highlightStore.delete(h.id);
         this._render();
-      }
+      });
     };
     actions.appendChild(delBtn);
 
@@ -370,9 +374,10 @@ export class HighlightPanel {
   }
 
   _exportHighlight(h) {
+    let url = null;
     try {
       const blob = new Blob([JSON.stringify(h.replayData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
+      url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `highlight-${h.id}.json`;
@@ -380,9 +385,77 @@ export class HighlightPanel {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Delay revoke to ensure the browser has started the download
+      setTimeout(() => { if (url) URL.revokeObjectURL(url); }, 30000);
     } catch (e) {
       console.warn('Export highlight failed', e);
+      if (url) URL.revokeObjectURL(url);
     }
+  }
+
+  _showConfirm(message, onConfirm) {
+    if (this._confirmOverlay) return; // already showing
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(6px);
+      transition: opacity calc(0.2s / var(--ui-anim-speed)) ease;
+      opacity: 0; pointer-events: auto;
+    `;
+    const box = document.createElement('div');
+    box.style.cssText = `
+      background: var(--panel-strong, rgba(20,24,28,0.95));
+      border: 1px solid var(--line, rgba(255,255,255,0.12));
+      border-radius: 16px; padding: 24px 28px;
+      max-width: 360px; width: 90%;
+      display: flex; flex-direction: column; gap: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    `;
+    const msg = document.createElement('div');
+    msg.textContent = message;
+    msg.style.cssText = 'font-size: 15px; color: #fff; line-height: 1.5; font-weight: 600;';
+    box.appendChild(msg);
+    const btns = document.createElement('div');
+    btns.style.cssText = 'display: flex; gap: 10px; justify-content: flex-end;';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.textContent = '取消';
+    cancelBtn.style.cssText = `
+      padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 700;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.7); cursor: pointer; pointer-events: auto;
+      transition: all calc(0.15s / var(--ui-anim-speed)) ease;
+    `;
+    cancelBtn.onmouseenter = () => { cancelBtn.style.background = 'rgba(255,255,255,0.12)'; };
+    cancelBtn.onmouseleave = () => { cancelBtn.style.background = 'rgba(255,255,255,0.06)'; };
+    const okBtn = document.createElement('button');
+    okBtn.type = 'button';
+    okBtn.textContent = '确定';
+    okBtn.style.cssText = `
+      padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 700;
+      background: rgba(185,18,63,0.18); border: 1px solid rgba(185,18,63,0.45);
+      color: #ff8a9a; cursor: pointer; pointer-events: auto;
+      transition: all calc(0.15s / var(--ui-anim-speed)) ease;
+    `;
+    okBtn.onmouseenter = () => { okBtn.style.background = 'rgba(185,18,63,0.28)'; };
+    okBtn.onmouseleave = () => { okBtn.style.background = 'rgba(185,18,63,0.18)'; };
+    const close = () => {
+      overlay.style.opacity = '0';
+      setTimeout(() => {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        if (this._confirmOverlay === overlay) this._confirmOverlay = null;
+      }, animMs(200));
+    };
+    cancelBtn.onclick = close;
+    okBtn.onclick = () => { close(); if (onConfirm) onConfirm(); };
+    btns.appendChild(cancelBtn);
+    btns.appendChild(okBtn);
+    box.appendChild(btns);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    this._confirmOverlay = overlay;
+    requestAnimationFrame(() => { overlay.style.opacity = '1'; });
   }
 }

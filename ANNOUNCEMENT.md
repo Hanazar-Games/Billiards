@@ -1,4 +1,20 @@
-# 3D Billiards v1.26.3 — Latest Update
+# 3D Billiards v1.26.4 — Latest Update
+
+## What's New in v1.26.4
+
+### 🔧 第四轮深度审计修复 — Medium 2
+
+在 v1.26.3 第三轮审计后，继续深入检查 Highlight 面板的导出与删除交互，发现并修复 2 项问题。
+
+**Medium（用户体验、边界情况）：**
+- `HighlightPanel._exportHighlight()` 中 `URL.revokeObjectURL(url)` 在 `a.click()` 后立即调用：在某些浏览器中，下载可能尚未开始，URL 已被撤销，导致下载失败。已改为延迟 30 秒后清理，并在异常时立即释放。
+- `HighlightPanel` 删除操作使用原生 `confirm()`：玻璃拟态（glassmorphism）风格面板中弹出系统默认对话框，视觉风格严重割裂。已替换为与面板风格一致的自定义确认覆盖层（glassmorphism + 模糊背景 + 淡入淡出），并在 `destroy()` 中正确清理。
+
+**构建与测试：**
+- 全部 131 项 Node 测试通过（0 失败）
+- `npm run build` 成功
+
+---
 
 ## What's New in v1.26.3
 
