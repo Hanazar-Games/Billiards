@@ -241,7 +241,7 @@ export class TournamentPanel {
         width: 32px; height: 32px; border-radius: 50%;
         background: ${c}; border: 2px solid transparent;
         cursor: pointer; pointer-events: auto;
-        transition: transform 0.15s ease;
+        transition: transform calc(0.15s / var(--ui-anim-speed)) ease;
       `;
       dot.onclick = () => {
         this._selectedColorIndex = i;

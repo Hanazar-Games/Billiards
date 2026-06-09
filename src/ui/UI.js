@@ -233,11 +233,6 @@ export class UI {
 
   }
 
-  _addTrackedListener(el, type, fn) {
-    el.addEventListener(type, fn);
-    this._aiListeners.push({ el, type, fn });
-  }
-
   _installPlayerBadgeLayout(badge, fallbackName) {
     const existingName = badge.querySelector('[data-ui-player-name]')?.textContent?.trim();
     const textName = Array.from(badge.childNodes)
@@ -431,7 +426,7 @@ export class UI {
     }
     // Subtle scale pulse on turn change for clearer feedback
     const activeBadge = player === 1 ? this.player1Badge : this.player2Badge;
-    if (activeBadge && !document.documentElement.classList.contains('reduce-motion')) {
+    if (activeBadge && !isReducedMotion()) {
       if (this._turnPulseRaf) { cancelAnimationFrame(this._turnPulseRaf); this._turnPulseRaf = null; }
       if (this._turnPulseTimer) { clearTimeout(this._turnPulseTimer); this._turnPulseTimer = null; }
       activeBadge.style.transform = 'scale(1.03)';
@@ -636,7 +631,7 @@ export class UI {
   }
 
   flashRed() {
-    const reduced = document.documentElement.classList.contains('reduce-motion');
+    const reduced = isReducedMotion();
     if (reduced) return;
     const uiLayer = document.getElementById('ui-layer');
     if (!uiLayer) return;
@@ -677,7 +672,7 @@ export class UI {
     const vh = window.innerHeight || 1;
     const clampedX = Math.max(0, Math.min(vw, screenX));
     const clampedY = Math.max(0, Math.min(vh, screenY));
-    const reduced = document.documentElement.classList.contains('reduce-motion');
+    const reduced = isReducedMotion();
     const el = document.createElement('div');
     el.className = 'ui-float-text';
     el.textContent = text;
@@ -1148,7 +1143,7 @@ export class UI {
 
   showThreeFoulWarning() {
     if (!this._threeFoulBadge) {
-      const reduced = document.documentElement.classList.contains('reduce-motion');
+      const reduced = isReducedMotion();
       this._threeFoulBadge = document.createElement('div');
       this._threeFoulBadge.style.cssText = `
         position: absolute; top: calc(var(--hud-top-safe) + 16px); left: 50%; transform: translateX(-50%);

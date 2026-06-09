@@ -1,4 +1,40 @@
-# 3D Billiards v1.26.0 — Latest Update
+# 3D Billiards v1.26.1 — Latest Update
+
+## What's New in v1.26.1
+
+### 🔧 v1.26.0 深度审计修复 — Critical 1 + High 6 + Medium 5 + Low 3
+
+在 v1.26.0「精彩瞬间」功能发布后，立即启动 3 条并行深度审计流水线（Highlight 系统、UI/UX 全项目、SFX/BGM 音频），并辅以手动走查，共发现并修复 15 项问题。
+
+**Critical（崩溃/功能异常级）：**
+- `Game.js resolveTurn()` 中 `highlightStore.save()` 使用了尚未定义的 `result` 变量：`result = this.rules.resolveShot()` 在 save 调用之后才执行，导致 `isGameWinner` 永远是 `undefined`，CLUTCH_WIN 标签和决胜球星级评分完全失效。已将 save 逻辑分别移到 trainer / freeplay / normal 三个分支的正确位置。
+- `AudioManager.init()` 未重置 `_disposing`：`dispose()` 将其设为 `true` 后，`reinit()`（如切换低延迟模式）复用同一实例，`_disposing` 仍为 `true`，导致 `_autoDisconnect` 跳过断开 SFX 节点，每次音效都泄漏 Web Audio 节点。已在 `init()` 入口重置 `_disposing = false`。
+
+**High（明确的 bug 或不一致）：**
+- `MenuSystem._hideAllPanels()` 遗漏 `this.highlightPanel`：打开其他面板（如成就、回放）时，精彩瞬间面板不会被隐藏，造成 z-index 重叠。已补充 `hide(this.highlightPanel)`。
+- `SettingsScreen` 缺失 Escape 键盘关闭：作为唯一不响应 Escape 的主要模态面板，破坏键盘无障碍一致性。已添加 `_setupKeyboard()`，支持 Escape 关闭并 `stopPropagation()`。
+- `LanRoomPanel` / `MatchSetupPanel` 缺失 Escape 键盘关闭：两个网络/匹配模态面板均无键盘关闭支持。已分别为两者添加 `_setupKeyboard()`。
+- `SettingsScreen` 两处 `setTimeout` 硬编码：`400ms` 保存 toast 延迟和 `600ms` 首次提示延迟未接入 `animMs()`。已统一改为 `animMs(400)` / `animMs(600)`。
+- 15 处 CSS transition 硬编码未接入 `--ui-anim-speed`：`ShotAnalyzerPanel.js`（3 处）、`CareerPanel.js`（4 处）、`TournamentPanel.js`（2 处）、`StatsPanel.js`（2 处）、`LanRoomPanel.js`（1 处）、`MatchSetupPanel.js`（2 处）、`HighlightPanel.js`（1 处）均使用固定秒数。已全部替换为 `calc(Xs / var(--ui-anim-speed))`。
+
+**Medium（代码异味、边界情况、可维护性）：**
+- `AudioManager.playPocket()` 绕过 `_safeVolumeScale()`：直接读取 `settings.get('pocketVolumeScale') ?? 1.0`，若设置值为 `NaN` 会导致 gain 为 `NaN` 并抛出 DOMException。已改为 `this._safeVolumeScale('pocketVolumeScale')`。
+- `_safeVolumeScale()` 无上界钳制：若设置注入大于 1.0 的值（如 `Infinity`），会直接传入 Web Audio 导致削波失真。已添加 `Math.min(..., 2.0)` 上限。
+- `AudioManager.toggleSound()` 未规范化 `enabled`：传入 `undefined` 时 `this.soundEnabled` 变为 `undefined`，逻辑判断异常。已改为 `Boolean(enabled)`。
+- `AudioManager.stopBGM()` 直接切断振荡器：非零交叉处停止正弦波会产生可闻 click/pop。已添加 `this._bgmGain.gain` 的 80ms 指数淡出，并将 `node.stop(t)` 推迟到 `t + 0.08`。
+- `UI.js` 4 处 `reduce-motion` 检查未使用 `isReducedMotion()` 辅助函数：内联 `document.documentElement.classList.contains('reduce-motion')` 与全代码库风格不一致。已统一替换为 `isReducedMotion()`。
+
+**Low（代码整洁度）：**
+- `UI.js` `_addTrackedListener()` 死代码：方法存在但从未被调用，`_aiListeners` 数组始终为空。已移除该方法。
+- `MenuSystem._delay()` 未暴露 timer/resolve：`_clearPendingTimeouts()` 引用 `this._delayTimer` / `this._delayResolve` 但 `_delay()` 从不设置它们，导致延迟无法被取消。已改为存储 timer 和 resolve 引用。
+- `index.html` 错误覆盖层按钮缺少 `type="button"`：虽然不在 `<form>` 内，但存在未来意外提交风险。已补充 `type="button"`。
+
+**构建与测试：**
+- 全部 20 项 highlight 单元测试通过
+- 全部 131 项 Node 测试通过（0 失败）
+- `npm run build` 成功
+
+---
 
 ## What's New in v1.26.0
 

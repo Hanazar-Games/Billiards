@@ -1643,20 +1643,6 @@ export class Game {
       this.replayLibrary.save(replayData);
     }
 
-    // Highlight detection: save memorable shots
-    if (replayData) {
-      replayData.metadata.score = replayData.score || this.recorder.calculateScore();
-      const streak = this.statsTracker.playerStats[this.currentPlayer]?.consecutivePockets || 0;
-      highlightStore.save(replayData, {
-        mode: this.mode,
-        isGameWinner: result?.gameOver && result?.winner === this.currentPlayer,
-        isBreakShot: this._isBreakShot,
-        consecutivePockets: streak,
-        tableProfileId: this.tableProfileId,
-        opponentName: this.aiEnabled ? `AI(${this.aiPlayer?.difficulty || 'normal'})` : null,
-      });
-    }
-
     // Shot Analyzer: show analysis panel for recorded shots
     if (replayData && settings.get('shotAnalyzerEnabled') !== false
         && this.mode !== 'trainer' && !this.bothAI
@@ -1697,6 +1683,18 @@ export class Game {
         }
         this._enterAimState({ showCue: true, showTrajectory: true, updateAim: false });
       }
+      if (replayData) {
+        replayData.metadata.score = replayData.score || this.recorder.calculateScore();
+        const streak = this.statsTracker.playerStats[this.currentPlayer]?.consecutivePockets || 0;
+        highlightStore.save(replayData, {
+          mode: this.mode,
+          isGameWinner: false,
+          isBreakShot: this._isBreakShot,
+          consecutivePockets: streak,
+          tableProfileId: this.tableProfileId,
+          opponentName: this.aiEnabled ? `AI(${this.aiPlayer?.difficulty || 'normal'})` : null,
+        });
+      }
       return;
     }
 
@@ -1728,6 +1726,18 @@ export class Game {
       });
       if (feedback) {
         this.ui.setMessage(feedback, 2500, 1);
+      }
+      if (replayData) {
+        replayData.metadata.score = replayData.score || this.recorder.calculateScore();
+        const streak = this.statsTracker.playerStats[this.currentPlayer]?.consecutivePockets || 0;
+        highlightStore.save(replayData, {
+          mode: this.mode,
+          isGameWinner: false,
+          isBreakShot: this._isBreakShot,
+          consecutivePockets: streak,
+          tableProfileId: this.tableProfileId,
+          opponentName: this.aiEnabled ? `AI(${this.aiPlayer?.difficulty || 'normal'})` : null,
+        });
       }
       this._enterAimState({ showCue: true, showTrajectory: true, updateAim: false });
       return;
@@ -1780,6 +1790,20 @@ export class Game {
     } else {
       const streak = this.statsTracker.playerStats[this.currentPlayer].consecutivePockets;
       if (this.ui) this.ui.updateComboCounter(streak);
+    }
+
+    // Highlight detection: save memorable shots (normal modes only)
+    if (replayData) {
+      replayData.metadata.score = replayData.score || this.recorder.calculateScore();
+      const streak = this.statsTracker.playerStats[this.currentPlayer]?.consecutivePockets || 0;
+      highlightStore.save(replayData, {
+        mode: this.mode,
+        isGameWinner: result.gameOver && result.winner === this.currentPlayer,
+        isBreakShot: this._isBreakShot,
+        consecutivePockets: streak,
+        tableProfileId: this.tableProfileId,
+        opponentName: this.aiEnabled ? `AI(${this.aiPlayer?.difficulty || 'normal'})` : null,
+      });
     }
 
     if (result.gameOver) {

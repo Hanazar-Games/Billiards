@@ -77,11 +77,12 @@ export class AudioManager {
 
   _safeVolumeScale(key) {
     const v = settings.get(key);
-    return Number.isFinite(v) && v >= 0 ? v : 1.0;
+    return Math.min(Number.isFinite(v) && v >= 0 ? v : 1.0, 2.0);
   }
 
   init() {
     if (this.initialized) return;
+    this._disposing = false;
     try {
       const latencyHint = settings.get('lowLatencyMode') ? 'interactive' : 'playback';
       this.ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint });
@@ -203,7 +204,7 @@ export class AudioManager {
   }
 
   toggleSound(enabled) {
-    this.soundEnabled = enabled;
+    this.soundEnabled = Boolean(enabled);
     if (this._masterGain && this.ctx && this.ctx.state !== 'closed') {
       const v = enabled ? this._masterVolume : 0.0;
       this._masterGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
@@ -331,16 +332,20 @@ export class AudioManager {
       return;
     }
     const t = this.ctx.currentTime;
+    // Fade out BGM gain to avoid click/pop
+    if (this._bgmGain && this._bgmGain.gain) {
+      try {
+        this._bgmGain.gain.cancelScheduledValues(t);
+        this._bgmGain.gain.setValueAtTime(this._bgmGain.gain.value, t);
+        this._bgmGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+      } catch (e) {}
+    }
     for (const node of this.bgmNodes) {
-      try { if (node.stop) node.stop(t); } catch (e) {}
+      try { if (node.stop) node.stop(t + 0.08); } catch (e) {}
       try { if (node.disconnect) node.disconnect(); } catch (e) {}
     }
     this.bgmNodes = [];
     this._pendingBGMStart = false;
-    // Cancel any pending BGM-specific auto-disconnect timeouts
-    // (SFX timeouts are left alone — BGM lifecycle should not touch SFX)
-    // When called from game entry (preserveFlag=false), reset the flag so
-    // visibilitychange does not accidentally restart BGM while in-game.
     if (!preserveFlag) {
       this._bgmWasPlaying = false;
     }
@@ -467,7 +472,7 @@ export class AudioManager {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(150, t);
     osc.frequency.exponentialRampToValueAtTime(40, t + 0.2);
-    gain.gain.setValueAtTime(0.2 * (settings.get('pocketVolumeScale') ?? 1.0), t);
+    gain.gain.setValueAtTime(0.2 * this._safeVolumeScale('pocketVolumeScale'), t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
     osc.connect(gain);
     gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);

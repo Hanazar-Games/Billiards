@@ -158,6 +158,7 @@ export class MenuSystem {
       this.replayPanel.hideList?.();
       this.replayPanel.hideControls?.();
     }
+    hide(this.highlightPanel);
     hide(this.achievementPanel);
     hide(this.challengePanel);
     hide(this.challengeResult);
@@ -1275,6 +1276,13 @@ export class MenuSystem {
   }
 
   _delay(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise((resolve) => {
+      this._delayResolve = resolve;
+      this._delayTimer = setTimeout(() => {
+        this._delayTimer = null;
+        this._delayResolve = null;
+        resolve();
+      }, ms);
+    });
   }
 }

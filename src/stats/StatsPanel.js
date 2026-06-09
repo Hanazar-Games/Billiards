@@ -38,7 +38,7 @@ export class StatsPanel {
       cursor: pointer;
       pointer-events: auto;
       backdrop-filter: blur(4px);
-      transition: background calc(0.2s / var(--ui-anim-speed)), transform 0.2s, right calc(0.35s / var(--ui-anim-speed)) var(--ease);
+      transition: background calc(0.2s / var(--ui-anim-speed)), transform calc(0.2s / var(--ui-anim-speed)), right calc(0.35s / var(--ui-anim-speed)) var(--ease);
       z-index: 10;
     `;
     this.toggleBtn.onmouseenter = () => {
@@ -66,7 +66,7 @@ export class StatsPanel {
       border-radius: 12px;
       backdrop-filter: blur(10px);
       pointer-events: auto;
-      transition: max-height calc(0.35s / var(--ui-anim-speed)) ease, opacity 0.25s ease, right calc(0.35s / var(--ui-anim-speed)) var(--ease);
+      transition: max-height calc(0.35s / var(--ui-anim-speed)) ease, opacity calc(0.25s / var(--ui-anim-speed)) ease, right calc(0.35s / var(--ui-anim-speed)) var(--ease);
       opacity: 0;
       padding: 0 14px;
       color: #fff;

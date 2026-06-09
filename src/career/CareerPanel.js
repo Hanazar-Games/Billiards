@@ -177,7 +177,7 @@ export class CareerPanel {
       background:rgba(12,15,18,0.7);border:1px solid rgba(255,255,255,0.12);
       color:rgba(255,255,255,0.7);font-size:18px;cursor:pointer;
       display:flex;align-items:center;justify-content:center;
-      transition:all 0.2s ease;
+      transition:all calc(0.2s / var(--ui-anim-speed)) ease;
     `;
     close.onmouseenter = () => {
       close.style.background = 'rgba(255,255,255,0.1)';
@@ -331,7 +331,7 @@ export class CareerPanel {
         btn.style.cssText = `
           padding:6px 14px;font-size:12px;font-weight:700;color:#fff;
           background:${accent};border:none;border-radius:6px;cursor:pointer;
-          pointer-events:auto;transition:opacity 0.2s ease;
+          pointer-events:auto;transition:opacity calc(0.2s / var(--ui-anim-speed)) ease;
         `;
         btn.onmouseenter = () => { btn.style.opacity = '0.85'; };
         btn.onmouseleave = () => { btn.style.opacity = '1'; };
@@ -370,7 +370,7 @@ export class CareerPanel {
     this._overviewSection.innerHTML = '';
     for (const c of cards) {
       const card = document.createElement('div');
-      card.style.cssText = `${CARD_BG} padding:16px;text-align:center;transition:transform 0.2s ease;cursor:default;`;
+      card.style.cssText = `${CARD_BG} padding:16px;text-align:center;transition:transform calc(0.2s / var(--ui-anim-speed)) ease;cursor:default;`;
       card.onmouseenter = () => { card.style.transform = 'translateY(-2px)'; };
       card.onmouseleave = () => { card.style.transform = 'translateY(0)'; };
 
@@ -457,7 +457,7 @@ export class CareerPanel {
       barWrap.style.cssText = 'height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;margin-bottom:8px;';
       const bar = document.createElement('div');
       const pct = Math.min(100, parseFloat(m.winRate) || 0);
-      bar.style.cssText = `height:100%;width:${pct}%;background:${ACCENT_TEAL};border-radius:3px;transition:width 0.6s ease;`;
+      bar.style.cssText = `height:100%;width:${pct}%;background:${ACCENT_TEAL};border-radius:3px;transition:width calc(0.6s / var(--ui-anim-speed)) ease;`;
       barWrap.appendChild(bar);
 
       const footer = document.createElement('div');

@@ -111,7 +111,7 @@ export class ShotAnalyzerPanel {
     closeBtn.style.cssText = `
       width: 34px; height: 34px; font-size: 18px; color: rgba(255,255,255,0.6);
       background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 50%; cursor: pointer; transition: all 0.2s ease;
+      border-radius: 50%; cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed)) ease;
       pointer-events: auto;
     `;
     closeBtn.onmouseenter = () => { closeBtn.style.background = 'rgba(255,50,50,0.2)'; closeBtn.style.color = '#ff8a8a'; };
@@ -138,7 +138,7 @@ export class ShotAnalyzerPanel {
         padding: 10px 18px; font-size: 13px; font-weight: 600;
         color: rgba(255,255,255,0.45); background: transparent;
         border: none; border-bottom: 2px solid transparent;
-        cursor: pointer; transition: all 0.2s ease;
+        cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed)) ease;
         pointer-events: auto;
       `;
       btn.onclick = () => this._switchTab(idx);
@@ -504,7 +504,7 @@ export class ShotAnalyzerPanel {
       padding: 6px 12px; font-size: 13px; font-weight: 600;
       color: #fff; background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.14); border-radius: 6px;
-      cursor: pointer; transition: all 0.2s ease;
+      cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed)) ease;
       pointer-events: auto; min-width: ${width}; text-align: center;
     `;
   }

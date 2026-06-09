@@ -222,9 +222,21 @@ export class SettingsScreen {
         if (this.container && this.container.style.display !== 'none') {
           this._toast('设置已保存');
         }
-      }, 400);
+      }, animMs(400));
     };
     window.addEventListener('settingsChanged', this._onSettingsChangedToast);
+    this._setupKeyboard();
+  }
+
+  _setupKeyboard() {
+    this._onKeyDown = (e) => {
+      if (e.key === 'Escape' && this._shown) {
+        e.stopPropagation();
+        this.hide();
+        if (this.onBack) this.onBack();
+      }
+    };
+    window.addEventListener('keydown', this._onKeyDown);
   }
 
   setBackHandler(onBack) {
@@ -2144,7 +2156,7 @@ export class SettingsScreen {
           this._toast('提示：轨迹线、小地图和音效开关可在「图形」和「音频」分类中找到');
         }
         this._settingsTipTimer = null;
-      }, 600);
+      }, animMs(600));
     }
   }
 
@@ -2181,6 +2193,7 @@ export class SettingsScreen {
     if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
     if (this._saveToastTimer) { clearTimeout(this._saveToastTimer); this._saveToastTimer = null; }
     if (this._settingsTipTimer) { clearTimeout(this._settingsTipTimer); this._settingsTipTimer = null; }
+    if (this._onKeyDown) { window.removeEventListener('keydown', this._onKeyDown); this._onKeyDown = null; }
     if (this._onSettingsChangedToast) {
       window.removeEventListener('settingsChanged', this._onSettingsChangedToast);
       this._onSettingsChangedToast = null;

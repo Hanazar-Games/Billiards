@@ -14,6 +14,17 @@ export class MatchSetupPanel {
     this.container = null;
     this._fadeTimer = null;
     this._buildUI();
+    this._setupKeyboard();
+  }
+
+  _setupKeyboard() {
+    this._onKeyDown = (e) => {
+      if (e.key === 'Escape' && this.container) {
+        e.stopPropagation();
+        this.hide();
+      }
+    };
+    window.addEventListener('keydown', this._onKeyDown);
   }
 
   _buildUI() {
@@ -160,7 +171,7 @@ export class MatchSetupPanel {
         border: 1px solid ${active ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)'};
         color: ${active ? '#fff' : 'rgba(255,255,255,0.55)'};
         font-size: 13px; font-weight: 700; cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all calc(0.2s / var(--ui-anim-speed)) ease;
       `;
       btn.onclick = () => {
         wrap.querySelectorAll('button').forEach((b) => {
@@ -187,7 +198,7 @@ export class MatchSetupPanel {
       padding: 10px 24px; font-size: 14px; font-weight: 700;
       color: #fff; background: ${primary ? 'rgba(16,100,66,0.45)' : 'rgba(255,255,255,0.1)'};
       border: 1px solid ${primary ? 'rgba(16,100,66,0.6)' : 'rgba(255,255,255,0.2)'};
-      border-radius: 8px; cursor: pointer; transition: all 0.2s ease;
+      border-radius: 8px; cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed)) ease;
     `;
     btn.onmouseenter = () => {
       btn.style.background = primary ? 'rgba(16,100,66,0.6)' : 'rgba(255,255,255,0.2)';
@@ -241,6 +252,7 @@ export class MatchSetupPanel {
 
   destroy() {
     if (this._fadeTimer) { clearTimeout(this._fadeTimer); this._fadeTimer = null; }
+    if (this._onKeyDown) { window.removeEventListener('keydown', this._onKeyDown); this._onKeyDown = null; }
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }

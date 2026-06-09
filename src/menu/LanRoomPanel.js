@@ -22,6 +22,17 @@ export class LanRoomPanel {
     this._fadeTimer = null;
     this._clientListeners = [];
     this._joinInputHandler = null;
+    this._setupKeyboard();
+  }
+
+  _setupKeyboard() {
+    this._onKeyDown = (e) => {
+      if (e.key === 'Escape' && this.container) {
+        e.stopPropagation();
+        this.hide();
+      }
+    };
+    window.addEventListener('keydown', this._onKeyDown);
   }
 
   show() {
@@ -163,7 +174,7 @@ export class LanRoomPanel {
       padding: 10px 20px; font-size: 14px; font-weight: 700;
       color: #fff; background: rgba(255,255,255,0.1);
       border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;
-      cursor: pointer; transition: all 0.2s ease;
+      cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed)) ease;
     `;
     btn.onmouseenter = () => {
       btn.style.background = 'rgba(255,255,255,0.2)';
@@ -434,6 +445,7 @@ export class LanRoomPanel {
       this._joinInput.removeEventListener('input', this._joinInputHandler);
       this._joinInputHandler = null;
     }
+    if (this._onKeyDown) { window.removeEventListener('keydown', this._onKeyDown); this._onKeyDown = null; }
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }
