@@ -26,6 +26,7 @@ import { InstantReplayController } from '../replay/InstantReplayController.js';
 import { ShotAnalyzerPanel } from '../analyzer/ShotAnalyzerPanel.js';
 import { settings, MATCH_FAIRNESS_KEYS } from '../core/SettingsStore.js';
 import { careerStore } from '../career/CareerStore.js';
+import { highlightStore } from '../highlight/HighlightStore.js';
 import { keyBindings } from '../input/KeyBindings.js';
 import { BALL, SHOT, CAMERA, TABLE } from '../config.js';
 import { getTableProfile, resolveTableProfileId, validateModeTableProfile } from './TableProfiles.js';
@@ -435,6 +436,11 @@ export class Game {
             if (this._shotHadCushionBeforeHit) {
               this._shotIsBank = true;
             }
+            // Highlight tracking
+            this.recorder.setExtra({
+              firstHitDistance: this._shotFirstHitDistance,
+              isBank: this._shotIsBank,
+            });
           }
 
           // Deduplicate: cannon-es fires collide on BOTH bodies.
@@ -1635,6 +1641,20 @@ export class Game {
     }
     if (replayData && this.replayLibrary) {
       this.replayLibrary.save(replayData);
+    }
+
+    // Highlight detection: save memorable shots
+    if (replayData) {
+      replayData.metadata.score = replayData.score || this.recorder.calculateScore();
+      const streak = this.statsTracker.playerStats[this.currentPlayer]?.consecutivePockets || 0;
+      highlightStore.save(replayData, {
+        mode: this.mode,
+        isGameWinner: result?.gameOver && result?.winner === this.currentPlayer,
+        isBreakShot: this._isBreakShot,
+        consecutivePockets: streak,
+        tableProfileId: this.tableProfileId,
+        opponentName: this.aiEnabled ? `AI(${this.aiPlayer?.difficulty || 'normal'})` : null,
+      });
     }
 
     // Shot Analyzer: show analysis panel for recorded shots

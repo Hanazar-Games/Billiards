@@ -129,6 +129,14 @@ export class ShotRecorder {
   }
 
   /**
+   * Merge extra fields into metadata. Safe to call mid-recording or after stop().
+   */
+  setExtra(extra) {
+    if (!this.metadata || !extra) return;
+    Object.assign(this.metadata, extra);
+  }
+
+  /**
    * Calculate excitement score (0-100) for this shot.
    * Higher = more interesting, worth saving for replay.
    */

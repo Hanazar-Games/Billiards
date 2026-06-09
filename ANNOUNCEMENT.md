@@ -1,4 +1,46 @@
-# 3D Billiards v1.25.0 — Latest Update
+# 3D Billiards v1.26.0 — Latest Update
+
+## What's New in v1.26.0
+
+### ✨ 精彩瞬间 — 自动识别 & 收藏墙
+
+新增 **Highlight / 精彩瞬间** 系统，自动检测并收藏游戏中的难忘击球，无需手动操作。
+
+**自动识别引擎（10 种标签）：**
+- 📏 长台进攻（距离 > 160cm）
+- 🔪 精准薄球（高分 + 低碰撞 + 短距离）
+- 🏦 翻袋进球（碰库后再进球）
+- 💥 重炮击球（力量 > 75%）
+- 🌀 旋转进球（使用 spin）
+- 🔢 多球连进（单杆 ≥ 2 球）
+- 💢 高频碰撞（≥ 4 次球-球碰撞）
+- 🏆 决胜球（制胜一击）
+- ⚡ 连杆（连续 ≥ 3 杆进球）
+- ✨ 完美走位（ShotRecorder 评分 ≥ 70）
+
+**星级评分（1–3 ⭐）：** 综合进球数、难度标签、评分自动计算，最高三星。
+
+**收藏墙面板：**
+- 玻璃拟态卡片网格，按标签筛选（全部 / 10 种分类）
+- 每条瞬间显示标题、标签、星级、摘要、日期、模式
+- 一键回放（直接调用即时回放引擎）
+- 导出 JSON（可分享或备份）
+- 单条删除 + 全局清空
+- 顶部统计栏：总数、平均星级、三星数量
+- 支持 `reducedMotion` 无障碍模式
+- 支持 `uiAnimSpeed` 动画速度缩放
+
+**技术实现：**
+- `src/highlight/HighlightData.js` — 纯数据检测逻辑，零 DOM 依赖
+- `src/highlight/HighlightStore.js` — localStorage 持久化，最大 50 条 FIFO，5s 防重复
+- `src/highlight/HighlightPanel.js` — 独立面板，遵循面板生命周期规范
+- `Game.js resolveTurn()` — 每杆结束后自动调用 `highlightStore.save()`
+- `ShotRecorder.setExtra()` — 补充 `firstHitDistance` / `isBank` 等元数据
+- 菜单入口集成到「资料与社交」分组
+
+**测试：** 新增 20 项单元测试，覆盖检测逻辑、存储生命周期、去重、FIFO、统计
+
+---
 
 ## What's New in v1.25.0
 

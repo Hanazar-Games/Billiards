@@ -12,7 +12,7 @@ import { VERSION_TAG } from '../core/Version.js';
  *  - Back button when returning from settings
  */
 export class MainMenuScreen {
-  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onShowChallenges, onQuit, onLanMultiplayer, onMatchSetup, onShowTrainer, onShowTournament, onShowCareer) {
+  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onShowChallenges, onQuit, onLanMultiplayer, onMatchSetup, onShowTrainer, onShowTournament, onShowCareer, onShowHighlights) {
     this.onSelectMode = onSelectMode || (() => {});
     this.onSettings = onSettings;
     this.onAchievements = onAchievements;
@@ -24,6 +24,7 @@ export class MainMenuScreen {
     this.onShowTrainer = onShowTrainer;
     this.onShowTournament = onShowTournament;
     this.onShowCareer = onShowCareer;
+    this.onShowHighlights = onShowHighlights;
     this.container = null;
     this._fadeTimer = null;
     this._hideTimer = null;
@@ -114,6 +115,9 @@ export class MainMenuScreen {
     });
     this._addButton(socialGroup, '精彩回放', '浏览并播放自动保存的高分击球', () => {
       if (this.onShowReplays) this.onShowReplays();
+    });
+    this._addButton(socialGroup, '精彩瞬间', '自动记录的难忘击球 · 回放 · 导出', () => {
+      if (this.onShowHighlights) this.onShowHighlights();
     });
     this._addButton(socialGroup, 'AI 对战观赛', '两台电脑自动对弈 · 转播视角 · 实时解说', () => {
       this._fadeOut(() => this.onSelectMode('spectator'));

@@ -43,6 +43,7 @@ import { TournamentResult } from '../tournament/TournamentResult.js';
 import { TournamentEngine } from '../tournament/TournamentEngine.js';
 import { CareerPanel } from '../career/CareerPanel.js';
 import { GrowthPath } from '../career/GrowthPath.js';
+import { HighlightPanel } from '../highlight/HighlightPanel.js';
 import { ShotProfiler } from '../career/ShotProfiler.js';
 import { careerStore } from '../career/CareerStore.js';
 import { getDrill } from '../trainer/DrillData.js';
@@ -260,7 +261,8 @@ export class MenuSystem {
       () => this._showMatchSetup(),
       () => this._showTrainer(),
       () => this._showTournament(),
-      () => this._showCareerStats()
+      () => this._showCareerStats(),
+      () => this._showHighlights()
     );
 
     // Create achievement panel (for viewing from menu)
@@ -308,6 +310,7 @@ export class MenuSystem {
     this.state = 'MENU';
     this._hideAllPanels(new Set([this.mainMenu]));
     if (this.replayPanel) { this.replayPanel.destroy(); this.replayPanel = null; }
+    if (this.highlightPanel) { this.highlightPanel.destroy(); this.highlightPanel = null; }
     this.mainMenu.show();
     if (this.audio && this.audio.soundEnabled) {
       this.audio.startBGM();
@@ -331,6 +334,17 @@ export class MenuSystem {
       );
     }
     this.replayPanel.showList();
+  }
+
+  _showHighlights() {
+    this._hideAllPanels(new Set([this.highlightPanel]));
+    if (!this.highlightPanel) {
+      this.highlightPanel = new HighlightPanel(
+        (replay) => this._startReplayPlayback(replay),
+        () => this._showMainMenu()
+      );
+    }
+    this.highlightPanel.show();
   }
 
   _showChallenges() {
@@ -1231,6 +1245,7 @@ export class MenuSystem {
     try { if (this.tournamentPanel) { this.tournamentPanel.destroy(); this.tournamentPanel = null; } } catch (e) {}
     try { if (this.tournamentResult) { this.tournamentResult.destroy(); this.tournamentResult = null; } } catch (e) {}
     try { if (this.careerPanel) { this.careerPanel.destroy(); this.careerPanel = null; } } catch (e) {}
+    try { if (this.highlightPanel) { this.highlightPanel.destroy(); this.highlightPanel = null; } } catch (e) {}
 
     // Clean up shared core
     this.renderer.dispose();
