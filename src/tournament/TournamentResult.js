@@ -302,12 +302,16 @@ export class TournamentResult {
 
     this.card.appendChild(btnRow);
 
-    this.container.style.display = 'flex';
-    this.container.style.opacity = '0';
-    this._showRafId = requestAnimationFrame(() => {
-      this._showRafId = null;
-      if (this.container) this.container.style.opacity = '1';
-    });
+    // Fade-in is already handled by _render() for showChampion/showEliminated,
+    // and by showSummary() calling _render() first. Only trigger RAF if not already visible.
+    if (this.container.style.display !== 'flex') {
+      this.container.style.display = 'flex';
+      this.container.style.opacity = '0';
+      this._showRafId = requestAnimationFrame(() => {
+        this._showRafId = null;
+        if (this.container) this.container.style.opacity = '1';
+      });
+    }
   }
 
   hide() {
@@ -340,7 +344,7 @@ export class TournamentResult {
 
   _setupKeyboard() {
     this._onKeyDown = (e) => {
-      if (e.key === 'Escape' && this._shown) {
+      if (e.key === 'Escape' && this._shown) { e.stopPropagation();
         this.hide();
         if (this.onBack) this.onBack();
       }

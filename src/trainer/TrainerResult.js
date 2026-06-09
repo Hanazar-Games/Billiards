@@ -184,7 +184,7 @@ export class TrainerResult {
   _setupKeyboard() {
     this._onKeyDown = (e) => {
       if (!this.container || this.container.style.display !== 'flex') return;
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape') { e.stopPropagation();
         this.hide();
         if (this.onExit) this.onExit();
       } else if (e.key === 'Enter') {

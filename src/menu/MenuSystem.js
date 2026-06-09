@@ -475,6 +475,7 @@ export class MenuSystem {
     if (uiLayer) uiLayer.style.display = 'none';
 
     this._startMenuLoop();
+    this._hideAllPanels();
     this._fadeToMenu();
     this.state = 'MENU';
 
@@ -1015,13 +1016,12 @@ export class MenuSystem {
 
   async _startReplayPlayback(replayData) {
     if (this.state !== 'MENU') return;
+    // Defensive: clean up any stale replay resources before state change
+    this._cleanupReplayScene();
     this.state = 'REPLAY';
     if (this.audio) this.audio.stopBGM(false);
 
     this._hideAllPanels();
-
-    // Clean up any lingering replay resources
-    this._cleanupReplayScene();
 
     // Hide menu layer and game UI
     const menuLayer = document.getElementById('menu-layer');

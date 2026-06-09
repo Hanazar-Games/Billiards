@@ -71,7 +71,7 @@ export class InstantReplayCamera {
     this._currentLook.lerp(this._targetLook, lerpFactor);
 
     this.camera.position.copy(this._currentPos);
-    this.camera.lookAt(this._targetLook);
+    this.camera.lookAt(this._currentLook);
   }
 
   _chooseTarget(progress, duration, ballsManager) {

@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { settings } from '../core/SettingsStore.js';
 import { SHOT } from '../config.js';
+import { animMs } from '../core/AnimSpeed.js';
 
 const _UP = new THREE.Vector3(0, 1, 0);
 
@@ -47,7 +48,9 @@ export class ScreenShake {
     }
     this.active = true;
     this.age = 0;
-    this.duration = (0.18 + t * 0.35) * shakeScale; // 0.18s … 0.53s
+    const fxSpeed = settings.get('fxAnimSpeed') ?? 1.0;
+    const speedMult = Number.isFinite(fxSpeed) && fxSpeed > 0 ? 1.0 / fxSpeed : 1.0;
+    this.duration = (0.18 + t * 0.35) * shakeScale * speedMult; // 0.18s … 0.53s
     this.intensity = (0.3 + t * 2.2) * shakeScale;  // 0.3 … 2.5 units
     this._currentOffset.set(0, 0, 0);
 

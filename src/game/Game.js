@@ -531,6 +531,7 @@ export class Game {
   }
 
   onMouseDown(e) {
+    if (this.state === 'DISPOSED') return;
     if (this.state === 'REPLAYING') return;
     if (this.paused) return;
     // In spectator mode, ignore all human input
@@ -590,6 +591,7 @@ export class Game {
   }
 
   onMouseUp() {
+    if (this.state === 'DISPOSED') return;
     if (this.state === 'REPLAYING') return;
     if (this.paused) return;
     if (this.bothAI) return; // spectator mode: no human input
@@ -1148,7 +1150,7 @@ export class Game {
     const isClient = this.networkRole === 'client';
     const pocketPositions = this.table?.getPocketPositions?.() || [];
 
-    if (!isClient && this.state !== 'REPLAYING') {
+    if (!isClient && this.state !== 'REPLAYING' && this.ballsManager) {
       this.ballsManager.updatePhysicsGuards(dt, pocketPositions);
       this.ballsManager.sync();
     }
@@ -1446,6 +1448,13 @@ export class Game {
     if (!InstantReplayController.isEnabled()) return;
     if (this.ballInHand) return;
 
+    // Cancel any active screen shake so it doesn't pollute camera restore
+    this.screenShake?.cancel();
+    // Clear camera reset timer so it doesn't interrupt replay
+    if (this._cameraResetTimer) { clearTimeout(this._cameraResetTimer); this._cameraResetTimer = null; }
+    // Pause BGM during replay for consistency with library replay
+    this.audio?.stopBGM(false);
+
     // Hide game UI elements during replay
     if (this.cue) this.cue.hide();
     this.setAimTrajectoryVisible(false);
@@ -1469,6 +1478,7 @@ export class Game {
   _endInstantReplay() {
     if (this.state === 'DISPOSED') return;
     if (this.state !== 'REPLAYING') return;
+    if (this._cameraResetTimer) { clearTimeout(this._cameraResetTimer); this._cameraResetTimer = null; }
 
     if (this.ballInHand) {
       this.state = 'AIM';
@@ -1614,6 +1624,7 @@ export class Game {
   }
 
   resolveTurn(pocketedIds) {
+    if (this.state === 'DISPOSED') return;
     this.trails.stopRecording();
 
     // Save replay if shot was interesting
@@ -1633,7 +1644,7 @@ export class Game {
       if (!this.analyzerPanel) {
         this.analyzerPanel = new ShotAnalyzerPanel();
       }
-      const pocketPositions = (this.table?.pocketPositions || []).map(p => ({ x: p.x, z: p.z }));
+      const pocketPositions = (this.table?.getPocketPositions?.() || []).map(p => ({ x: p.x, z: p.z }));
       const tableInfo = {
         width: this.tableProfile?.width || TABLE.width,
         depth: this.tableProfile?.depth || TABLE.depth,
@@ -2689,6 +2700,7 @@ export class Game {
       this._onNetPocketEvent = (e) => {
         if (this.networkRole === 'client') {
           if (this.paused) return;
+          if (this.state === 'REPLAYING') return;
           const detail = e.detail;
           const pocket = detail.pocket;
           if (pocket) {
@@ -3059,6 +3071,18 @@ export class Game {
       case 'instantReplayThreshold':
         // Instant replay settings are read live; refresh hint visibility
         if (this.state === 'AIM') this._updateReplayHint();
+        break;
+      case 'masterVolume':
+      case 'musicVolume':
+      case 'sfxVolume':
+      case 'ambientVolumeScale':
+      case 'hitFeedbackVolumeScale':
+      case 'cueHitVolumeScale':
+      case 'collisionVolumeScale':
+      case 'pocketVolumeScale':
+      case 'winVolumeScale':
+      case 'foulVolumeScale':
+        if (this.audio) this.audio.syncVolumesFromSettings();
         break;
       case 'language':
         // Language switch requires page reload or full text refresh

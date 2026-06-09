@@ -117,7 +117,7 @@ export class TrainerPanel {
 
   _setupKeyboard() {
     this._onKeyDown = (e) => {
-      if (e.key === 'Escape' && this._shown) {
+      if (e.key === 'Escape' && this._shown) { e.stopPropagation();
         if (this.onBack) this.onBack();
       }
     };

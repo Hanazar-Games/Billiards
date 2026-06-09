@@ -576,7 +576,11 @@ export class UI {
       overlay.style.opacity = '0';
       document.removeEventListener('keydown', this._confirmKeyHandler);
       this._confirmKeyHandler = null;
-      setTimeout(() => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, animMs(250));
+      if (this._confirmCloseTimer) clearTimeout(this._confirmCloseTimer);
+      this._confirmCloseTimer = setTimeout(() => {
+        this._confirmCloseTimer = null;
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      }, animMs(250));
       // Restore focus to the element that had it before the dialog opened
       if (previousFocus && previousFocus.focus) {
         try { previousFocus.focus(); } catch (e) {}
@@ -1049,7 +1053,9 @@ export class UI {
     }
     this._replayHintEl.style.display = 'block';
     this._replayHintEl.onclick = onClick;
-    requestAnimationFrame(() => {
+    if (this._replayHintRaf) cancelAnimationFrame(this._replayHintRaf);
+    this._replayHintRaf = requestAnimationFrame(() => {
+      this._replayHintRaf = null;
       if (this._replayHintEl) {
         const hudOp = getComputedStyle(document.documentElement).getPropertyValue('--hud-opacity').trim() || '1';
         this._replayHintEl.style.opacity = hudOp;
@@ -1150,7 +1156,7 @@ export class UI {
         background: rgba(185,18,63,0.22); border: 1px solid rgba(185,18,63,0.55);
         color: #ff8a9a; border-radius: 10px; pointer-events: none;
         backdrop-filter: blur(8px); z-index: 12; white-space: nowrap;
-        ${reduced ? '' : 'animation: badgePulse 2s ease-in-out infinite;'}
+        ${reduced ? '' : 'animation: badgePulse calc(2s / var(--ui-anim-speed)) ease-in-out infinite;'}
         opacity: var(--hud-opacity, 1);
       `;
       const uiLayer = document.getElementById('ui-layer');
@@ -1192,6 +1198,8 @@ export class UI {
     }
     if (this._turnPulseRaf) { cancelAnimationFrame(this._turnPulseRaf); this._turnPulseRaf = null; }
     if (this._turnPulseTimer) { clearTimeout(this._turnPulseTimer); this._turnPulseTimer = null; }
+    if (this._replayHintRaf) { cancelAnimationFrame(this._replayHintRaf); this._replayHintRaf = null; }
+    if (this._confirmCloseTimer) { clearTimeout(this._confirmCloseTimer); this._confirmCloseTimer = null; }
     this._floatTimers.forEach(t => clearTimeout(t));
     this._floatTimers = [];
     const flash = document.getElementById('ui-red-flash');

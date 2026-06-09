@@ -66,12 +66,18 @@ export class AudioManager {
       source.addEventListener('ended', doDisconnect);
     } else {
       // Fallback: estimate max duration and disconnect later
+      if (this._disposing) return; // don't create new timers while disposing
       const tid = setTimeout(() => {
         this._pendingDisconnects.delete(tid);
         doDisconnect();
       }, 500);
       this._pendingDisconnects.add(tid);
     }
+  }
+
+  _safeVolumeScale(key) {
+    const v = settings.get(key);
+    return Number.isFinite(v) && v >= 0 ? v : 1.0;
   }
 
   init() {
@@ -164,6 +170,11 @@ export class AudioManager {
           this._bgmWasPlaying = true;
           this.stopBGM();
         }
+      }
+      if (key === 'masterVolume' || key === 'musicVolume' || key === 'sfxVolume' || key === 'ambientVolumeScale' ||
+          key === 'hitFeedbackVolumeScale' || key === 'cueHitVolumeScale' || key === 'collisionVolumeScale' ||
+          key === 'pocketVolumeScale' || key === 'winVolumeScale' || key === 'foulVolumeScale') {
+        this.syncVolumesFromSettings();
       }
     };
     window.addEventListener('settingsChanged', this._settingsChangedHandler);
@@ -368,8 +379,8 @@ export class AudioManager {
     osc.frequency.setValueAtTime(200 + Math.max(0, power) * 3, t);
     osc.frequency.exponentialRampToValueAtTime(80, t + 0.08);
 
-    const feedbackScale = settings.get('hitFeedbackVolumeScale') ?? 1.0;
-    const vol = (0.05 + Math.min(power / 100, 1) * 0.35) * (settings.get('cueHitVolumeScale') ?? 1.0) * feedbackScale;
+    const feedbackScale = this._safeVolumeScale('hitFeedbackVolumeScale');
+    const vol = (0.05 + Math.min(power / 100, 1) * 0.35) * this._safeVolumeScale('cueHitVolumeScale') * feedbackScale;
     gain.gain.setValueAtTime(vol, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
 
@@ -397,7 +408,7 @@ export class AudioManager {
     osc.frequency.exponentialRampToValueAtTime(300, t + 0.05);
 
     // Non-linear volume curve: soft touches audible, hard hits punchy
-    const vol = (0.05 + intensity * intensity * 0.12) * (settings.get('collisionVolumeScale') ?? 1.0);
+    const vol = (0.05 + intensity * intensity * 0.12) * this._safeVolumeScale('collisionVolumeScale');
     gain.gain.setValueAtTime(vol, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06 + intensity * 0.04);
 
@@ -433,7 +444,7 @@ export class AudioManager {
 
     const gain = this.ctx.createGain();
     // Non-linear volume curve for more dynamic cushion feedback
-    const vol = (0.06 + intensity * intensity * 0.14) * (settings.get('collisionVolumeScale') ?? 1.0);
+    const vol = (0.06 + intensity * intensity * 0.14) * this._safeVolumeScale('collisionVolumeScale');
     gain.gain.setValueAtTime(vol, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08 + intensity * 0.04);
 
@@ -494,7 +505,7 @@ export class AudioManager {
       const gain = this.ctx.createGain();
       osc.type = 'sine';
       osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.18 * (settings.get('winVolumeScale') ?? 1.0), t + i * 0.08);
+      gain.gain.setValueAtTime(0.18 * this._safeVolumeScale('winVolumeScale'), t + i * 0.08);
       gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.22);
       osc.connect(gain);
       gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
@@ -517,7 +528,7 @@ export class AudioManager {
       osc.type = 'square';
       osc.frequency.setValueAtTime(180, t + offset);
       osc.frequency.exponentialRampToValueAtTime(90, t + offset + 0.12);
-      gain.gain.setValueAtTime(0.12 * (settings.get('foulVolumeScale') ?? 1.0), t + offset);
+      gain.gain.setValueAtTime(0.12 * this._safeVolumeScale('foulVolumeScale'), t + offset);
       gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.14);
       osc.connect(gain);
       gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
@@ -563,6 +574,6 @@ export class AudioManager {
     this._lastUserGestureAt = -Infinity;
     for (const tid of this._pendingDisconnects) clearTimeout(tid);
     this._pendingDisconnects.clear();
-    this._disposing = false;
+    // Keep _disposing = true so async callbacks know we're done
   }
 }

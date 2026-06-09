@@ -124,6 +124,25 @@ export class BallReturnSystem {
     const drop = new THREE.Vector3(pocketPosition.x, -9, pocketPosition.z);
     const slide = new THREE.Vector3(target.x, -10, target.z);
 
+    // In reduced-motion mode, skip the drop/slide animation and place immediately
+    const reduced = settings.get('reducedMotion');
+    if (reduced) {
+      clone.position.copy(target);
+      this.active.push({
+        mesh: clone,
+        stage: 2,
+        age: 0,
+        settleDur: fxAnimMs(180) / 1000,
+        start: target,
+        drop: target,
+        slide: target,
+        target,
+        rotAxis,
+        rotSpeed,
+      });
+      return;
+    }
+
     this.active.push({
       mesh: clone,
       stage: 0, // 0 = drop, 1 = slide, 2 = settle

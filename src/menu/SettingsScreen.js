@@ -437,7 +437,7 @@ export class SettingsScreen {
       requestAnimationFrame(() => {
         if (this._contentArea) this._contentArea.classList.remove('switching');
       });
-    }, 120);
+    }, animMs(120));
   }
 
   // ──────────────────────────
@@ -2003,7 +2003,7 @@ export class SettingsScreen {
       this._toastTimers.push(removeTimer);
       // Remove the now-fired fade timer from tracking
       this._toastTimers = this._toastTimers.filter(t => t !== fadeTimer);
-    }, 2000);
+    }, animMs(2000));
     if (!this._toastTimers) this._toastTimers = [];
     this._toastTimers.push(fadeTimer);
   }

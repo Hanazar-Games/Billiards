@@ -74,7 +74,7 @@ export class ShotAnalyzerPanel {
     document.body.appendChild(this.overlay);
 
     this._onKeyDown = (e) => {
-      if (e.key === 'Escape' && this.isVisible()) {
+      if (e.key === 'Escape' && this.isVisible()) { e.stopPropagation();
         this.hide();
       }
     };
@@ -298,12 +298,13 @@ export class ShotAnalyzerPanel {
       const barWrap = document.createElement('div');
       barWrap.style.cssText = 'flex:1; height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden;';
 
+      const reduced = isReducedMotion();
       const barFill = document.createElement('div');
       barFill.style.cssText = `
         width: ${item.value}%; height: 100%;
         background: ${item.color};
         border-radius: 4px;
-        transition: width 0.6s cubic-bezier(0.2,0.8,0.2,1);
+        transition: width ${reduced ? '0.001s' : 'calc(0.6s / var(--ui-anim-speed))'} cubic-bezier(0.2,0.8,0.2,1);
       `;
       barWrap.appendChild(barFill);
       row.appendChild(barWrap);

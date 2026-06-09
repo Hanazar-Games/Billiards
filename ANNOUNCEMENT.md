@@ -1,4 +1,56 @@
-# 3D Billiards v1.24.0 — Latest Update
+# 3D Billiards v1.25.0 — Latest Update
+
+## What's New in v1.25.0
+
+### 🔍 第三轮总体深度审计 — UI/UX/SFX/BGM/Core 全维度修复 8 项 Critical + 14 项 High + 12 项 Medium
+
+在 v1.24.0 第二轮审计基础上，启动 4 条并行 background audit 流水线（UI/UX 面板、SFX/BGM 音频、FX 视觉效果、核心游戏逻辑），并辅以手动走查，共发现并修复 34 项问题。
+
+**Critical（崩溃/功能异常级）：**
+- `StatsPanel` Game Over 键盘监听器泄漏：`_gameOverKeyHandler` 通过 `document.addEventListener` 注册，但 `_hideGameOver()` 从未移除，每局游戏结束后按 Escape 都会触发且监听器累积。已在 `_hideGameOver()` 中补充 `removeEventListener`。
+- `MenuSystem` 回放资源竞态：`_startReplayPlayback()` 在状态改为 `'REPLAY'` 后才清理旧场景，快速连点可能导致旧 `Three.js` 对象和 physics body 泄漏。已在函数入口前置 `this._cleanupReplayScene()`。
+- `UI.js` Confirm Dialog 快速重复打开：旧的 overlay 在 250ms 过渡期间仍留在 DOM，且 `close()` 的 `setTimeout` 未被追踪，快速打开→关闭→打开会导致旧 handler 引用丢失。已保存 `_confirmCloseTimer` 并在 `destroy()` 中清理。
+- `AudioManager.dispose()` 不停止 SFX：dispose 后 `_disposing` 被重置为 `false`，异步回调（如 `_autoDisconnect` 的 timeout）无法判断生命周期已结束。已改为保留 `_disposing = true`，并在 `_autoDisconnect` 中增加 disposing 时禁止创建新 timer 的防护。
+- `AudioManager` 各 `settings.get('xxxVolumeScale')` 使用 `?? 1.0` 无法过滤 `NaN/Infinity`，直接传入 Web Audio API 会抛出 `DOMException`。已新增 `_safeVolumeScale()` 统一过滤非有限值。
+- `Game.js` 网络客户端在即时回放期间收到延迟的口袋事件会播放不该播放的音效：`_onNetPocketEvent` 检查了 `this.paused`，但未检查 `this.state === 'REPLAYING'`。已补充 `REPLAYING` 守卫。
+- `ScreenShake.js` 完全未接入 `fxAnimSpeed`：高强度击球时震动时长固定，无法通过设置加速/减速。已在 `trigger()` 中读取 `settings.get('fxAnimSpeed')` 并缩放时长。
+- `BallReturnSystem.js` 无任何 `reducedMotion` 检查：减弱动态模式下仍执行完整的掉落→滑动→归位 3 阶段动画。已添加 `reducedMotion` 分支，直接放置到目标位置。
+- `index.html` 缺失 `@keyframes badgePulse`：Three-foul 警告徽章内联样式引用 `badgePulse`，但全局 CSS 中不存在该 keyframe，导致动画实际永不生效。已补充 keyframe 定义。
+- `Game.js _startInstantReplay()` 未调用 `this.screenShake?.cancel()`：若回放开始时 screenShake 仍在衰减，`_restoreCameraState()` 会把带有震动偏移的脏相机状态保存并恢复，导致回放结束后相机残留偏移。已补充 `cancel()` 调用，并同步暂停 BGM、清理 `_cameraResetTimer`。
+- `InstantReplayCamera.js` 平滑注视方向未生效：`_currentLook` 被逐帧 lerp，但 `lookAt` 直接指向了未平滑的 `_targetLook`，导致 `_currentLook` 的计算完全浪费，相机注视点会出现跳变/抖动。已修正为 `this.camera.lookAt(this._currentLook)`。
+- `Game.js resolveTurn()` 使用 `this.table?.pocketPositions`（属性），但 `Table` 实际暴露的是 `getPocketPositions()` 方法，导致击球分析面板拿不到袋口坐标。已统一改为方法调用。
+
+**High（明确的 bug 或不一致）：**
+- 全部 10 个面板/结果屏幕的 Escape 键盘事件未 `stopPropagation()`：当多个面板同时处于显示状态时，按 Escape 会同时触发多个面板的关闭逻辑。已在每个 Escape handler 中加入 `e.stopPropagation()`。
+- `SettingsScreen._switchCategory` 使用硬编码 `120ms` 延迟：未接入 `animMs()`，当用户将 `--ui-anim-speed` 调至很慢时，切换动画与 CSS transition 时长不一致。已改为 `animMs(120)`。
+- `AchievementPanel` Toast opacity transition 硬编码 `0.4s`：未接入 `--ui-anim-speed`。已改为 `calc(0.4s / var(--ui-anim-speed))`。
+- `AchievementPanel` Toast auto-dismiss 时长硬编码 `3500ms`：未使用 `animMs(3500)`。已接入动画速度。
+- `SettingsScreen` Toast 系统硬编码 `2000ms` 停留时间：不受 `animMs()` 影响。已改为 `animMs(2000)`。
+- `UI.js` `showReplayHint` 的 RAF 未保存 ID：在 `destroy()` 中无法取消。已保存到 `this._replayHintRaf`。
+- `UI.js` Three-foul 警告徽章 `animation: badgePulse 2s` 硬编码：未接入 `--ui-anim-speed`。已改为 `calc(2s / var(--ui-anim-speed))`。
+- `index.html` `#turn-timer.warning` / `.danger` 的 `animation: timerPulse` 时长完全硬编码：未使用 `--ui-anim-speed`。已改为 `calc(0.6s / ...)` 和 `calc(0.35s / ...)`。
+- `TournamentResult._appendSeasonContext` 重复操作 DOM：在 `_render()` 已设置 `display = 'flex'` 后，再次设置 `opacity = '0'` 并触发 RAF 淡入，视觉上可能出现闪烁。已添加 `display !== 'flex'` 守卫，避免重复淡入。
+- `ReplayPanel._importReplays` 的 `<input type="file">` 未作为实例属性追踪：若用户在 5 秒 timeout 内销毁 ReplayPanel，input 可能残留 DOM。已改为 `this._importInput` 并在 `destroy()` 中清理。
+- `ShotAnalyzerPanel` 缺少 `isReducedMotion()` 检查：bar fill transition 未考虑无障碍设置。已添加 `reducedMotion` 判断。
+- `Game.js _handleSettingsChange()` 完全不处理音量相关 key：非 UI 路径修改音量不会同步到 AudioManager。已补充 10 个音量 key 的 `syncVolumesFromSettings()` 调用。
+- `AudioManager._settingsChangedHandler` 仅监听 `muteWhenUnfocused`：不监听音量变化。已补充全部音量 key 的监听。
+- `main.js` Intro screen 清理不完整：嵌套 `setTimeout` 若应用在初始化阶段崩溃无法被取消。已导出 `__introHideTimer` / `__introRemoveTimer` 以便取消。
+
+**Medium（代码异味、边界情况、可维护性）：**
+- `TournamentPanel.destroy()` 未清理 `_nameInput`、`_selectedColorIndex` 等 DOM 引用。已补充 null 化。
+- `ReplayPanel.destroy()` 未清理 `playBtn.onclick`、`speedBtn.onclick`、`progressBar.onclick` 等事件处理器。已补充清空。
+- `Game.js onMouseDown/onMouseUp` 入口缺少 `this.state === 'DISPOSED'` 末段防护：浏览器事件队列中可能存在待执行的 mouseup，回调一旦执行会访问已被 dispose 的资源。已添加 DISPOSED 守卫。
+- `Game.js resolveTurn()` 入口缺少 `DISPOSED` 防护：若 `dispose()` 恰好在同一帧稍早被调用，update() 顶部的守卫可能挡不住已进入调用栈的 `resolveTurn`。已添加 DISPOSED 守卫。
+- `Game.js update()` 对 `ballsManager` 缺少空指针防御：若在 `resetGame()` 或 `dispose()` 执行过程中意外进入一帧 `update`，会直接抛异常。已前置判空。
+- `Game.js _endInstantReplay()` 未清理 `_cameraResetTimer`：与 `_startInstantReplay` 类似，回放被手动跳过时延时器可能突然拉走相机。已补充清理。
+
+**构建与测试：**
+- 全部 10 组非浏览器测试通过（227/227）
+- `npm run build` 成功
+
+---
+
+# 3D Billiards v1.24.0
 
 ## What's New in v1.24.0
 

@@ -14,11 +14,16 @@ window.updateLoadingProgress = (percent, text) => {
   if (introText && text) introText.textContent = text;
 };
 
+let __introHideTimer = null;
+let __introRemoveTimer = null;
 function hideIntroScreen(delay = 600) {
   if (!introScreen) return;
-  setTimeout(() => {
+  if (__introHideTimer) clearTimeout(__introHideTimer);
+  if (__introRemoveTimer) clearTimeout(__introRemoveTimer);
+  __introHideTimer = setTimeout(() => {
+    __introHideTimer = null;
     introScreen.classList.add('hidden');
-    setTimeout(() => introScreen?.remove(), animMs(1400));
+    __introRemoveTimer = setTimeout(() => { __introRemoveTimer = null; introScreen?.remove(); }, animMs(1400));
   }, delay);
 }
 

@@ -140,11 +140,13 @@ export class TournamentPanel {
     this.container = null;
     this.content = null;
     this.header = null;
+    this._nameInput = null;
+    this._selectedColorIndex = 0;
   }
 
   _setupKeyboard() {
     this._onKeyDown = (e) => {
-      if (e.key === 'Escape' && this._shown) {
+      if (e.key === 'Escape' && this._shown) { e.stopPropagation();
         this._goBack();
       }
     };

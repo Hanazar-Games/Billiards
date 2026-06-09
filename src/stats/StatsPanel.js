@@ -354,7 +354,7 @@ export class StatsPanel {
 
     // ESC to close
     this._gameOverKeyHandler = (e) => {
-      if (e.key === 'Escape') this._hideGameOver();
+      if (e.key === 'Escape') { e.stopPropagation(); this._hideGameOver(); }
     };
     document.addEventListener('keydown', this._gameOverKeyHandler);
 
@@ -368,7 +368,10 @@ export class StatsPanel {
     this._gameOverHideTimer = setTimeout(() => {
       if (this._gameOverOverlay) this._gameOverOverlay.style.display = 'none';
       this._gameOverHideTimer = null;
-    }, 300);
+    }, animMs(300));
+    if (this._gameOverKeyHandler) {
+      document.removeEventListener('keydown', this._gameOverKeyHandler);
+    }
   }
 
   _fmtTime(seconds) {

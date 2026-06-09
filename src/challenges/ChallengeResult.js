@@ -207,7 +207,7 @@ export class ChallengeResult {
 
   _setupKeyboard() {
     this._onKeyDown = (e) => {
-      if (e.key === 'Escape' && this.container && this.container.style.display === 'flex') {
+      if (e.key === 'Escape' && this.container && this.container.style.display === 'flex') { e.stopPropagation();
         this.hide();
         if (this.onExit) this.onExit();
       }

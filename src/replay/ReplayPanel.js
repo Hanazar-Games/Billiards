@@ -531,11 +531,16 @@ export class ReplayPanel {
   }
 
   _importReplays() {
+    if (this._importInput) {
+      if (this._importInput.parentNode) this._importInput.parentNode.removeChild(this._importInput);
+      this._importInput = null;
+    }
     const input = document.createElement('input');
     input.id = 'replay-import-input';
     input.type = 'file';
     input.accept = '.json';
     input.style.display = 'none';
+    this._importInput = input;
     input.onchange = (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -552,6 +557,7 @@ export class ReplayPanel {
     input.click();
     this._importTimeout = setTimeout(() => {
       if (input.parentNode) input.parentNode.removeChild(input);
+      this._importInput = null;
       this._importTimeout = null;
     }, 5000);
   }
@@ -622,7 +628,7 @@ export class ReplayPanel {
 
   _setupKeyboard() {
     this._onKeyDown = (e) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape') { e.stopPropagation();
         if (this._listShown) {
           this.hideList();
           if (this.onHideList) this.onHideList();
@@ -654,6 +660,14 @@ export class ReplayPanel {
     this.listContainer = null;
     this.controlContainer = null;
     if (this._importTimeout) { clearTimeout(this._importTimeout); this._importTimeout = null; }
+    if (this._importInput && this._importInput.parentNode) {
+      this._importInput.parentNode.removeChild(this._importInput);
+      this._importInput = null;
+    }
     document.querySelectorAll("#replay-import-input").forEach(el => { if (el.parentNode) el.parentNode.removeChild(el); });
+    if (this.playBtn) this.playBtn.onclick = null;
+    if (this.speedBtn) this.speedBtn.onclick = null;
+    if (this.exitBtn) this.exitBtn.onclick = null;
+    if (this.progressBar) this.progressBar.onclick = null;
   }
 }
