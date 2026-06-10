@@ -525,8 +525,10 @@ export class Game {
     }
     // Track highlight metadata for manual placement collisions too
     if (hitBall && this._shotFirstHitDistance === 0) {
+      // Always measure from the cue ball (id === 0), not the hit ball
+      const cueBallMesh = ballA.id === 0 ? ballA.mesh : ballB.mesh;
       this._shotFirstHitDistance = this._shotStartPosition
-        ? ballA.mesh.position.distanceTo(this._shotStartPosition)
+        ? cueBallMesh.position.distanceTo(this._shotStartPosition)
         : 0;
       if (this._shotFirstHitDistance > 150) {
         this._shotIsLongShot = true;
@@ -1713,7 +1715,7 @@ export class Game {
         }
         this._enterAimState({ showCue: true, showTrajectory: true, updateAim: false });
       }
-      if (replayData) {
+      if (replayData && !this.networkMode && !this.bothAI) {
         replayData.metadata.score = replayData.score;
         const streak = this.statsTracker.playerStats[this.currentPlayer]?.consecutivePockets || 0;
         highlightStore.save(replayData, {
@@ -1757,7 +1759,7 @@ export class Game {
       if (feedback) {
         this.ui.setMessage(feedback, 2500, 1);
       }
-      if (replayData) {
+      if (replayData && !this.networkMode && !this.bothAI) {
         replayData.metadata.score = replayData.score;
         const streak = this.statsTracker.playerStats[this.currentPlayer]?.consecutivePockets || 0;
         highlightStore.save(replayData, {
@@ -1822,8 +1824,8 @@ export class Game {
       if (this.ui) this.ui.updateComboCounter(streak);
     }
 
-    // Highlight detection: save memorable shots (normal modes only)
-    if (replayData) {
+    // Highlight detection: save memorable shots (local play only)
+    if (replayData && !this.networkMode && !this.bothAI) {
       replayData.metadata.score = replayData.score;
       const streak = this.statsTracker.playerStats[this.currentPlayer]?.consecutivePockets || 0;
       highlightStore.save(replayData, {
@@ -3565,6 +3567,9 @@ export class Game {
     // Null out remaining references to aid GC
     this.onReturnToMenu = null;
     this._lastReplayData = null;
+    this.replayLibrary = null;
+    this.turnPocketedIds = [];
+    this._shotStartPosition = null;
     if (this.recorder) {
       this.recorder.reset();
       this.recorder = null;

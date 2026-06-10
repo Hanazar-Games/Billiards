@@ -1,4 +1,26 @@
-# 3D Billiards v1.26.5 — Latest Update
+# 3D Billiards v1.26.6 — Latest Update
+
+## What's New in v1.26.6
+
+### 🔧 第六轮深度审计修复 — Critical 1 + High 1 + Medium 2
+
+在 v1.26.5 第五轮审计提交后，立即对本轮修改进行回查（regression 扫描），并对之前遗漏的边界情况进行补漏，发现并修复 4 项问题。
+
+**Critical（上轮修改引入的 regression）：**
+- **`AudioManager.playPocket()` noise 路径被重复连接和启动**：v1.26.5 修复 noise 路径音量安全时，新写的 `if/else` 块后**没有删除原来的 4 行旧代码**，导致 `noise.connect(nGain)`、`nGain.connect(destination)`、`noise.start(t)`、`_autoDisconnect(noise, nGain)` 被执行了**两次**。这会创建两个并行的 noise buffer source，产生音量翻倍和潜在爆音。已删除重复的旧代码。
+
+**High（明确的逻辑错误）：**
+- **`Game.js` `_handleManualBallContact()` 距离测量使用了错误的球**：当 `ballB` 是母球（id === 0）时，`hitBall = ballA`（被击中的球），但代码使用 `ballA.mesh.position` 测量距离——测量的是**被击中球**到起点的距离，而非母球。已改为始终使用 `ballA.id === 0 ? ballA.mesh : ballB.mesh`（母球）进行测量。
+
+**Medium（边界情况、一致性）：**
+- **`Game.js` `dispose()` 遗漏新引用清理**：上轮新增的 `_shotStartPosition` 未在 `dispose()` 中设为 `null`；注入的 `replayLibrary` 和 `turnPocketedIds` 也未清理。已补充全部三项的 null/empty 化。
+- **`Game.js` highlight save 缺少 network/bothAI guard**：`careerStore.recordShot()` 有 `!this.networkMode && !this.bothAI` 保护，但 `highlightStore.save()`（trainer / freeplay / normal 三处）完全没有。网络对局和观赛模式会错误生成 highlights。已为三处 save 统一添加相同 guard。
+
+**构建与测试：**
+- 全部 131 项 Node 测试通过（0 失败）
+- `npm run build` 成功
+
+---
 
 ## What's New in v1.26.5
 

@@ -519,10 +519,6 @@ export class AudioManager {
       noise.start(t);
       this._autoDisconnect(noise, nGain);
     }
-    noise.connect(nGain);
-    nGain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
-    noise.start(t);
-    this._autoDisconnect(noise, nGain);
   }
 
   playWin() {
