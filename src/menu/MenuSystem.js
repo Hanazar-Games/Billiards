@@ -338,6 +338,7 @@ export class MenuSystem {
   }
 
   _showHighlights() {
+    if (this.state !== 'MENU') return;
     this._hideAllPanels(new Set([this.highlightPanel]));
     if (!this.highlightPanel) {
       this.highlightPanel = new HighlightPanel(
@@ -1031,6 +1032,21 @@ export class MenuSystem {
 
   async _startReplayPlayback(replayData) {
     if (this.state !== 'MENU') return;
+    if (!replayData || !replayData.metadata) {
+      console.warn('[MenuSystem] Invalid replay data, aborting');
+      return;
+    }
+
+    // Save camera state so we can restore it after replay
+    this._preReplayCamera = {
+      position: this.renderer.camera.position.clone(),
+      quaternion: this.renderer.camera.quaternion.clone(),
+    };
+    if (this.renderer.controls) {
+      this._preReplayControlsTarget = this.renderer.controls.target.clone();
+      this._preReplayControlsEnabled = this.renderer.controls.enabled;
+    }
+
     // Defensive: clean up any stale replay resources before state change
     this._cleanupReplayScene();
     this.state = 'REPLAY';
@@ -1044,30 +1060,36 @@ export class MenuSystem {
     const uiLayer = document.getElementById('ui-layer');
     if (uiLayer) uiLayer.style.display = 'none';
 
-    // Create table and balls for replay (visual only, no physics step)
-    const replayProfileId = replayData.metadata?.tableProfileId || null;
-    const replayProfile = replayProfileId ? getTableProfile(replayProfileId) : null;
-    this._replayTable = new Table(this.physics, replayProfile || getDefaultTableProfile());
-    this._replayTable.addToScene(this.renderer.scene);
+    try {
+      // Create table and balls for replay (visual only, no physics step)
+      const replayProfileId = replayData.metadata?.tableProfileId || null;
+      const replayProfile = replayProfileId ? getTableProfile(replayProfileId) : null;
+      this._replayTable = new Table(this.physics, replayProfile || getDefaultTableProfile());
+      this._replayTable.addToScene(this.renderer.scene);
 
-    this._replayBalls = new BallsManager(this.physics);
-    this._replayBalls.createBalls();
-    this._replayBalls.addToScene(this.renderer.scene);
+      this._replayBalls = new BallsManager(this.physics, replayProfile || getDefaultTableProfile());
+      this._replayBalls.createBalls();
+      this._replayBalls.addToScene(this.renderer.scene);
 
-    // Position camera for replay view
-    const cam = this.renderer.camera;
-    cam.position.set(0, 280, 250);
-    cam.lookAt(0, 0, 0);
-    if (this.renderer.controls) {
-      this.renderer.controls.target.set(0, 0, 0);
-      this.renderer.controls.enabled = true;
-    }
+      // Position camera for replay view
+      const cam = this.renderer.camera;
+      cam.position.set(0, 280, 250);
+      cam.lookAt(0, 0, 0);
+      if (this.renderer.controls) {
+        this.renderer.controls.target.set(0, 0, 0);
+        this.renderer.controls.enabled = true;
+      }
 
-    // Load and start replay
-    this.replayEngine = new ShotReplay(this.renderer.scene, this._replayBalls);
-    if (!this.replayEngine.load(replayData)) {
-      // Invalid replay data — abort and return to menu
-      this._stopReplayPlayback();
+      // Load and start replay
+      this.replayEngine = new ShotReplay(this.renderer.scene, this._replayBalls);
+      if (!this.replayEngine.load(replayData)) {
+        // Invalid replay data — abort and return to menu
+        this._abortReplayAndReturn();
+        return;
+      }
+    } catch (e) {
+      console.error('[MenuSystem] Replay setup failed', e);
+      this._abortReplayAndReturn();
       return;
     }
     // Attach metadata for HUD display
@@ -1078,7 +1100,7 @@ export class MenuSystem {
       this._replayCompleteTimeout = setTimeout(() => this._stopReplayPlayback(), animMs(800));
     };
 
-    // Show controls
+    // Show controls (ReplayPanel if available, otherwise a minimal exit overlay)
     if (this.replayPanel) {
       this.replayPanel.showControls();
       this.replayPanel.updateControls(this.replayEngine);
@@ -1095,11 +1117,78 @@ export class MenuSystem {
         const ratio = (e.clientX - rect.left) / rect.width;
         this.replayEngine.seekRatio(ratio);
       };
+    } else {
+      // Minimal exit overlay for highlight replays (no ReplayPanel)
+      this._showReplayExitOverlay();
     }
+
+    // Global Escape handler for replay
+    this._replayEscapeHandler = (e) => {
+      if (e.key === 'Escape' && this.state === 'REPLAY') {
+        e.stopPropagation();
+        this._stopReplayPlayback();
+      }
+    };
+    window.addEventListener('keydown', this._replayEscapeHandler);
 
     // Start replay loop
     this._replayLastTime = performance.now();
     this._replayRafId = requestAnimationFrame(() => this._replayTick());
+  }
+
+  _showReplayExitOverlay() {
+    if (this._replayExitOverlay) return;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed; top: 20px; right: 20px; z-index: 100;
+      pointer-events: auto;
+    `;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = '✕ 退出回放';
+    btn.style.cssText = `
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 700;
+      background: rgba(20,24,28,0.85); border: 1px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.8); cursor: pointer;
+      backdrop-filter: blur(4px);
+      transition: all calc(0.15s / var(--ui-anim-speed)) ease;
+    `;
+    btn.onmouseenter = () => { btn.style.background = 'rgba(40,48,56,0.9)'; btn.style.color = '#fff'; };
+    btn.onmouseleave = () => { btn.style.background = 'rgba(20,24,28,0.85)'; btn.style.color = 'rgba(255,255,255,0.8)'; };
+    btn.onclick = () => this._stopReplayPlayback();
+    overlay.appendChild(btn);
+    document.body.appendChild(overlay);
+    this._replayExitOverlay = overlay;
+  }
+
+  _hideReplayExitOverlay() {
+    if (this._replayExitOverlay) {
+      if (this._replayExitOverlay.parentNode) this._replayExitOverlay.parentNode.removeChild(this._replayExitOverlay);
+      this._replayExitOverlay = null;
+    }
+  }
+
+  _abortReplayAndReturn() {
+    this._cleanupReplayScene();
+    this._restorePreReplayCamera();
+    this.state = 'MENU';
+    const menuLayer = document.getElementById('menu-layer');
+    if (menuLayer) menuLayer.style.display = 'flex';
+    this._showMainMenu();
+    this._startMenuLoop();
+  }
+
+  _restorePreReplayCamera() {
+    if (this._preReplayCamera) {
+      this.renderer.camera.position.copy(this._preReplayCamera.position);
+      this.renderer.camera.quaternion.copy(this._preReplayCamera.quaternion);
+      this._preReplayCamera = null;
+    }
+    if (this.renderer.controls && this._preReplayControlsTarget) {
+      this.renderer.controls.target.copy(this._preReplayControlsTarget);
+      this.renderer.controls.enabled = this._preReplayControlsEnabled;
+      this._preReplayControlsTarget = null;
+    }
   }
 
   _replayTick() {
@@ -1132,6 +1221,11 @@ export class MenuSystem {
       cancelAnimationFrame(this._replayRafId);
       this._replayRafId = null;
     }
+    // Remove global Escape handler
+    if (this._replayEscapeHandler) {
+      window.removeEventListener('keydown', this._replayEscapeHandler);
+      this._replayEscapeHandler = null;
+    }
     // Clear replay panel button handlers to prevent stale closures
     if (this.replayPanel) {
       this.replayPanel.playBtn.onclick = null;
@@ -1139,6 +1233,7 @@ export class MenuSystem {
       this.replayPanel.exitBtn.onclick = null;
       this.replayPanel.progressBar.onclick = null;
     }
+    this._hideReplayExitOverlay();
 
     // Stop replay engine
     if (this.replayEngine) {
@@ -1154,16 +1249,17 @@ export class MenuSystem {
     // Clean up replay scene objects
     this._cleanupReplayScene();
 
+    // Restore camera / controls
+    this._restorePreReplayCamera();
+
     // Show main menu
     if (this.trainerResult) { this.trainerResult.destroy(); this.trainerResult = null; }
     this._showMainMenu();
     this._fadeToMenu();
     this._startMenuLoop();
 
-    // Restart menu BGM
-    if (this.audio && this.audio.soundEnabled) {
-      this.audio.startBGM();
-    }
+    // Restart menu BGM (_showMainMenu already starts BGM; avoid double-start)
+    // BGM restart is handled inside _showMainMenu -> mainMenu.show -> audio.startBGM
   }
 
   /** Helper: remove replay table/balls from scene and physics. */
@@ -1179,7 +1275,7 @@ export class MenuSystem {
       this._replayBalls = null;
     }
     if (this._replayTable) {
-      this.physics.removeTableBody();
+      // Table.dispose() already handles removeTableBody; don't double-call
       this._replayTable.dispose();
       this._replayTable = null;
     }

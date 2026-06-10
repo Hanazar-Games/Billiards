@@ -63,7 +63,7 @@ export class AudioManager {
       } catch (e) {}
     };
     if (source.onended !== undefined) {
-      source.addEventListener('ended', doDisconnect);
+      source.addEventListener('ended', doDisconnect, { once: true });
     } else {
       // Fallback: estimate max duration and disconnect later
       if (this._disposing) return; // don't create new timers while disposing
@@ -193,8 +193,8 @@ export class AudioManager {
       document.removeEventListener('visibilitychange', this._visibilityHandler);
       this._visibilityHandler = null;
     }
-    if (this._stateHandler && this.ctx) {
-      this.ctx.removeEventListener('statechange', this._stateHandler);
+    if (this._stateHandler) {
+      this.ctx?.removeEventListener('statechange', this._stateHandler);
       this._stateHandler = null;
     }
     if (this._settingsChangedHandler) {
@@ -270,6 +270,9 @@ export class AudioManager {
     this._pendingBGMStart = false;
     this.resume();
 
+    // Restore _bgmGain after stopBGM() fade-out so BGM is audible
+    this._updateBGMVolume();
+
     const t = this.ctx.currentTime;
 
     // Ambient drone: two low sine waves with slight detune
@@ -336,8 +339,13 @@ export class AudioManager {
     if (this._bgmGain && this._bgmGain.gain) {
       try {
         this._bgmGain.gain.cancelScheduledValues(t);
-        this._bgmGain.gain.setValueAtTime(this._bgmGain.gain.value, t);
-        this._bgmGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+        const current = this._bgmGain.gain.value;
+        if (current > 0.001) {
+          this._bgmGain.gain.setValueAtTime(current, t);
+          this._bgmGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+        } else {
+          this._bgmGain.gain.setValueAtTime(0, t);
+        }
       } catch (e) {}
     }
     for (const node of this.bgmNodes) {
@@ -386,6 +394,7 @@ export class AudioManager {
 
     const feedbackScale = this._safeVolumeScale('hitFeedbackVolumeScale');
     const vol = (0.05 + Math.min(power / 100, 1) * 0.35) * this._safeVolumeScale('cueHitVolumeScale') * feedbackScale;
+    if (vol <= 0) { osc.disconnect(); gain.disconnect(); return; }
     gain.gain.setValueAtTime(vol, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
 
@@ -414,6 +423,7 @@ export class AudioManager {
 
     // Non-linear volume curve: soft touches audible, hard hits punchy
     const vol = (0.05 + intensity * intensity * 0.12) * this._safeVolumeScale('collisionVolumeScale');
+    if (vol <= 0) { osc.disconnect(); gain.disconnect(); return; }
     gain.gain.setValueAtTime(vol, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06 + intensity * 0.04);
 
@@ -425,8 +435,8 @@ export class AudioManager {
   }
 
   playCushionBounce(velocity = 5) {
-    if (!Number.isFinite(velocity)) velocity = 5;
     if (!this._canPlay()) return;
+    if (!Number.isFinite(velocity)) velocity = 5;
     const intensity = Math.min(velocity / 15, 1);
     if (intensity < 0.05) return;
     if (!this._cooldown('cushionBounce')) return;
@@ -450,6 +460,7 @@ export class AudioManager {
     const gain = this.ctx.createGain();
     // Non-linear volume curve for more dynamic cushion feedback
     const vol = (0.06 + intensity * intensity * 0.14) * this._safeVolumeScale('collisionVolumeScale');
+    if (vol <= 0) { noise.disconnect(); filter.disconnect(); gain.disconnect(); return; }
     gain.gain.setValueAtTime(vol, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08 + intensity * 0.04);
 
@@ -472,13 +483,19 @@ export class AudioManager {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(150, t);
     osc.frequency.exponentialRampToValueAtTime(40, t + 0.2);
-    gain.gain.setValueAtTime(0.2 * this._safeVolumeScale('pocketVolumeScale'), t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-    osc.connect(gain);
-    gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
-    osc.start(t);
-    osc.stop(t + 0.25);
-    this._autoDisconnect(osc, gain);
+    const pocketOscVol = 0.2 * this._safeVolumeScale('pocketVolumeScale');
+    if (pocketOscVol > 0) {
+      gain.gain.setValueAtTime(pocketOscVol, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.connect(gain);
+      gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.25);
+      this._autoDisconnect(osc, gain);
+    } else {
+      osc.disconnect();
+      gain.disconnect();
+    }
 
     const bufferSize = Math.ceil(this.ctx.sampleRate * 0.15);
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
@@ -489,8 +506,19 @@ export class AudioManager {
     const noise = this.ctx.createBufferSource();
     noise.buffer = buffer;
     const nGain = this.ctx.createGain();
-    nGain.gain.setValueAtTime(0.08 * (settings.get('pocketVolumeScale') ?? 1.0), t);
-    nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    const pocketVol = 0.08 * this._safeVolumeScale('pocketVolumeScale');
+    if (pocketVol <= 0) {
+      // Volume is zero — skip noise path entirely
+      noise.disconnect();
+      nGain.disconnect();
+    } else {
+      nGain.gain.setValueAtTime(pocketVol, t);
+      nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+      noise.connect(nGain);
+      nGain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
+      noise.start(t);
+      this._autoDisconnect(noise, nGain);
+    }
     noise.connect(nGain);
     nGain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
     noise.start(t);
@@ -510,8 +538,13 @@ export class AudioManager {
       const gain = this.ctx.createGain();
       osc.type = 'sine';
       osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.18 * this._safeVolumeScale('winVolumeScale'), t + i * 0.08);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.22);
+      const winVol = 0.18 * this._safeVolumeScale('winVolumeScale');
+      if (winVol > 0) {
+        gain.gain.setValueAtTime(winVol, t + i * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.22);
+      } else {
+        osc.disconnect(); gain.disconnect(); return;
+      }
       osc.connect(gain);
       gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
       osc.start(t + i * 0.08);
@@ -533,8 +566,13 @@ export class AudioManager {
       osc.type = 'square';
       osc.frequency.setValueAtTime(180, t + offset);
       osc.frequency.exponentialRampToValueAtTime(90, t + offset + 0.12);
-      gain.gain.setValueAtTime(0.12 * this._safeVolumeScale('foulVolumeScale'), t + offset);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.14);
+      const foulVol = 0.12 * this._safeVolumeScale('foulVolumeScale');
+      if (foulVol > 0) {
+        gain.gain.setValueAtTime(foulVol, t + offset);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.14);
+      } else {
+        osc.disconnect(); gain.disconnect(); return;
+      }
       osc.connect(gain);
       gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
       osc.start(t + offset);

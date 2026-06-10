@@ -1,4 +1,46 @@
-# 3D Billiards v1.26.4 — Latest Update
+# 3D Billiards v1.26.5 — Latest Update
+
+## What's New in v1.26.5
+
+### 🔧 第五轮全面深度审计修复 — Critical 2 + High 4 + Medium 7 + Low 3
+
+在 v1.26.4 第四轮审计后，启动全项目最认真的深度检查（UI/UX/SFX/BGM + 新功能 Highlight 系统），覆盖 `src/game/Game.js`、`src/menu/MenuSystem.js`、`src/audio/AudioManager.js`、`src/ui/UI.js` 四大核心模块，发现并修复 16 项问题。
+
+**Critical（功能完全失效或用户被困）：**
+- **`Game.js` `_shotFirstHitDistance` 逻辑错误**：碰撞处理器中测量的是「两球心间距」（恒约 5.7cm），而非「母球从击球点出发的行进距离」。导致长台进攻（>150cm）检测**永久失效**，薄球启发式判断**永远为 true**，产生大量虚假薄球 highlight。已改为在 `shoot()` 中记录 `_shotStartPosition`，碰撞时测量 `distanceTo(_shotStartPosition)`。
+- **`MenuSystem.js` Highlight 回放无退出控制**：从「精彩瞬间」面板点击回放后，由于 `ReplayPanel` 不存在，没有任何控制按钮和 Escape 处理器，用户只能等待回放自动结束或刷新页面。已添加：
+  - 最小化退出覆盖层（右上角玻璃拟态「✕ 退出回放」按钮）
+  - 全局 Escape 键监听（`window.addEventListener('keydown')`），停止时自动清理
+  - replayData `null` 前置校验 + `try/catch` 包装 setup 流程，异常时安全回退到菜单
+
+**High（明确的 bug 或状态泄漏）：**
+- **`Game.js` `_shotHadCushionBeforeHit` 从未重置**：该标志在碰撞时设为 `true` 后，从未在 `shoot()` / `resetGame()` / `_resetTrainerDrill()` 中重置。一旦某杆有库边碰球，**此后所有杆都被错误标记为 bank shot**，永久产生虚假翻袋 highlight。已在所有相关入口重置。
+- **`Game.js` 网络客户端 shoot() 未重置 per-shot flags**：客户端分支在 `return` 前跳过了 flag 重置块，导致从本地切换到网络对局时，旧状态的 bank/long-shot 标志泄漏到客户端碰撞事件。已在客户端路径补充重置。
+- **`MenuSystem.js` `_startReplayPlayback` 未校验 `replayData`**：直接访问 `replayData.metadata` 而无前置 null guard，若 localStorage 损坏或回调传入非法数据会抛出未捕获异常。已添加 `if (!replayData || !replayData.metadata) { warn; return; }`。
+- **`MenuSystem.js` replay 异常后状态卡死**：`this.state = 'REPLAY'` 在 table/balls/camera 创建**之前**赋值，若任何同步步骤抛出异常，菜单渲染循环已停止而 replay RAF 未启动，应用冻结在不可恢复的 `REPLAY` 状态。已将 setup 逻辑移入 `try/catch`，异常时调用 `_abortReplayAndReturn()` 恢复 `MENU` 状态。
+
+**Medium（用户体验、边界情况、可维护性）：**
+- **`AudioManager.startBGM()` BGM 音量在 fade-out 后从不恢复**：`stopBGM()` 将 `_bgmGain` fade 到 0.001，`startBGM()` 创建新 oscillator 时从不重置 gain，导致 BGM **几乎听不见**。已在 `startBGM()` 入口调用 `_updateBGMVolume()` 恢复正确音量。
+- **`AudioManager.playPocket()` noise 路径绕过 `_safeVolumeScale()`**：noise gain 直接读取 `settings.get('pocketVolumeScale')`，缺失 clamp 和非负检查。已替换为 `this._safeVolumeScale('pocketVolumeScale')`。
+- **`AudioManager.stopBGM()` fade-out 方向错误**：当 gain 已 ≤ 0.001 时，`exponentialRampToValueAtTime(0.001, ...)` 实际从 0 向上 ramp，产生爆音。已添加 `current > 0.001` guard，否则直接设为 0。
+- **所有 SFX 在 volume scale = 0 时仍创建 gain ramp**：`exponentialRampToValueAtTime(0.001, ...)` 从 0 开始 ramp 在部分 Web Audio 实现中未定义。已在 `playCueHit`、`playBallCollision`、`playCushionBounce`、`playPocket`、`playWin`、`playFoul` 中，若计算出的 `vol <= 0` 则提前断开节点并返回，不播放。
+- **`Game.js` `_handleManualBallContact()` 未更新 recorder 元数据**：手动摆球导致的碰撞没有设置 `firstHitDistance` 和 `isBank`，highlight 数据不完整。已补充与碰撞处理器一致的追踪逻辑。
+- **`MenuSystem.js` `_showHighlights()` 缺少 state guard**：其他面板（`_showReplays`、`_showChallenges` 等）均有 `this.state === 'MENU'` 检查，Highlights 缺失。若在 `PLAYING` 或 `REPLAY` 状态被调用，会覆盖活跃 UI。已补充 guard。
+- **`MenuSystem.js` replay BallsManager 未使用正确桌型**：`new BallsManager(this.physics)` 省略了 `tableProfile`，回退到默认桌型，与录制时的桌型可能不一致。已传入 `replayProfile`。
+- **`MenuSystem.js` replay 退出时 BGM 三重启动**：`_stopReplayPlayback` 中显式调用 `startBGM()`，但 `_showMainMenu()` 和 `_fadeToMenu()` 内部也会启动，冗余且脆弱。已移除显式调用，由 `_showMainMenu()` 统一处理。
+- **`MenuSystem.js` `_cleanupReplayScene()` 重复 `removeTableBody()`**：`_replayTable.dispose()` 内部已调用 `removeTableBody()`，外部再调用一次属于维护风险。已移除外部调用。
+
+**Low（代码整洁度、防御性）：**
+- **`UI.js` `_lastMessage` 未初始化**：构造函数未赋值，首次 `setMessage()` 的优先级判断 `this._lastMessage !== ''` 中 `undefined !== ''` 为 `true`，导致首条低优先级消息被错误丢弃。已初始化为 `''`。
+- **`UI.js` `setMessage()` 未防御 `undefined`**：传入无参调用会渲染 `"undefined"` 文本到 HUD。已添加 `text ?? ''`。
+- **`UI.js` `setMatchScore()` / `setPlayerStats()` 解构无默认值**：无参调用会抛出 `TypeError: Cannot destructure property 'p1Name' of 'undefined'`。已添加 `= {}` 默认参数。
+- **`AudioManager._autoDisconnect()` 未使用 `{ once: true }`**：`ended` 监听器会长期引用节点，阻碍 GC。已添加 `{ once: true }`。
+
+**构建与测试：**
+- 全部 131 项 Node 测试通过（0 失败）
+- `npm run build` 成功
+
+---
 
 ## What's New in v1.26.4
 

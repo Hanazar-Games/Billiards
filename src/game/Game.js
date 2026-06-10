@@ -427,7 +427,10 @@ export class Game {
             if (this.challengeManager) this.challengeManager.onBallCollision(ball, otherBall);
             // Career: long-shot detection (distance > 150cm)
             if (this._shotFirstHitDistance === 0) {
-              this._shotFirstHitDistance = ball.mesh.position.distanceTo(otherBall.mesh.position);
+              // Measure distance from cue ball's starting position, not center-to-center gap
+              this._shotFirstHitDistance = this._shotStartPosition
+                ? ball.mesh.position.distanceTo(this._shotStartPosition)
+                : 0;
               if (this._shotFirstHitDistance > 150) {
                 this._shotIsLongShot = true;
               }
@@ -508,14 +511,33 @@ export class Game {
   _handleManualBallContact(ballA, ballB, relVel) {
     if (this.state !== 'SHOOTING') return;
 
+    let hitBall = null;
     if (ballA.id === 0 && ballB.id !== 0) {
+      hitBall = ballB;
       this.rules?.recordFirstHit(ballB.id);
       this.achievements.onBallCollision(relVel);
-              if (this.challengeManager) this.challengeManager.onBallCollision(ballA, ballB);
+      if (this.challengeManager) this.challengeManager.onBallCollision(ballA, ballB);
     } else if (ballB.id === 0 && ballA.id !== 0) {
+      hitBall = ballA;
       this.rules?.recordFirstHit(ballA.id);
       this.achievements.onBallCollision(relVel);
-              if (this.challengeManager) this.challengeManager.onBallCollision(ballA, ballB);
+      if (this.challengeManager) this.challengeManager.onBallCollision(ballA, ballB);
+    }
+    // Track highlight metadata for manual placement collisions too
+    if (hitBall && this._shotFirstHitDistance === 0) {
+      this._shotFirstHitDistance = this._shotStartPosition
+        ? ballA.mesh.position.distanceTo(this._shotStartPosition)
+        : 0;
+      if (this._shotFirstHitDistance > 150) {
+        this._shotIsLongShot = true;
+      }
+      if (this._shotHadCushionBeforeHit) {
+        this._shotIsBank = true;
+      }
+      this.recorder.setExtra({
+        firstHitDistance: this._shotFirstHitDistance,
+        isBank: this._shotIsBank,
+      });
     }
   }
 
@@ -946,6 +968,12 @@ export class Game {
       this.powerLabel?.show(force);
       this.trails.startRecording(cueBall);
       this.recorder.start(this.ballsManager, this.mode, force, this.cueTipOffset, this.tableProfileId);
+      // Reset per-shot tracking flags (client path also needs clean state)
+      this._shotIsLongShot = false;
+      this._shotIsBank = false;
+      this._shotFirstHitDistance = 0;
+      this._shotHadCushionBeforeHit = false;
+      this._shotStartPosition = cueBall.mesh.position.clone();
       return;
     }
 
@@ -992,6 +1020,8 @@ export class Game {
     this._shotIsLongShot = false;
     this._shotIsBank = false;
     this._shotFirstHitDistance = 0;
+    this._shotHadCushionBeforeHit = false;
+    this._shotStartPosition = cueBall.mesh.position.clone();
 
     // Strike snap: cue visually touches the ball for one frame before hiding
     if (this.cue) this.cue.strikeSnap(cueBall.mesh.position, this.aimDirection);
@@ -2114,6 +2144,11 @@ export class Game {
     this.turnPocketedIds = [];
     this._shotStartTime = null;
     this._isBreakShot = false;
+    this._shotIsLongShot = false;
+    this._shotIsBank = false;
+    this._shotFirstHitDistance = 0;
+    this._shotHadCushionBeforeHit = false;
+    this._shotStartPosition = null;
     this.gameStartTime = performance.now();
     this._applyCameraMode(settings.get('defaultCamera') || 'free');
     this.powerLabel?.dispose();
@@ -3285,6 +3320,11 @@ export class Game {
     this.ui.setPower(0);
     this.recorder.reset();
     this._lastReplayData = null;
+    this._shotIsLongShot = false;
+    this._shotIsBank = false;
+    this._shotFirstHitDistance = 0;
+    this._shotHadCushionBeforeHit = false;
+    this._shotStartPosition = null;
     if (this.analyzerPanel) {
       this.analyzerPanel.destroy();
       this.analyzerPanel = null;

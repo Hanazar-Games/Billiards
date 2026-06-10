@@ -32,6 +32,7 @@ export class UI {
     this._hudState = 'AIM';
     this._messagePriority = 0;
     this._baseMessagePriority = 0;
+    this._lastMessage = '';
 
     const uiLayer = document.getElementById('ui-layer');
 
@@ -277,10 +278,11 @@ export class UI {
    */
   setMessage(text, duration = 0, priority = 0) {
     if (!this.message) return;
+    const safeText = text ?? '';
     // Higher-priority messages override lower ones; equal or lower are dropped
     // unless the current message is empty.
     if (priority < this._messagePriority && this._lastMessage !== '') return;
-    this.message.textContent = text;
+    this.message.textContent = safeText;
     this._lastMessage = text;
     this._messagePriority = priority;
     this._messageId++;
@@ -320,7 +322,7 @@ export class UI {
     if (this._hudObjective) this._hudObjective.textContent = objectiveText || '';
   }
 
-  setMatchScore({ p1Name, p2Name, p1Score, p2Score, currentGame, gamesNeeded, visible }) {
+  setMatchScore({ p1Name, p2Name, p1Score, p2Score, currentGame, gamesNeeded, visible } = {}) {
     if (!this._hudScore) return;
     if (!visible) {
       this._hudScore.style.display = 'none';
@@ -377,7 +379,7 @@ export class UI {
     }
   }
 
-  setPlayerStats({ p1Name, p1Group, p1Remaining, p2Name, p2Group, p2Remaining, mode, targetBall }) {
+  setPlayerStats({ p1Name, p1Group, p1Remaining, p2Name, p2Group, p2Remaining, mode, targetBall } = {}) {
     if (this._player1Name) this._player1Name.textContent = p1Name || '玩家 1';
     if (this._player2Name) this._player2Name.textContent = p2Name || '玩家 2';
 
