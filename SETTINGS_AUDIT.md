@@ -240,23 +240,18 @@ The settings panel now displays a small badge next to every disabled or special-
 
 ---
 
-## 10. Replay & Stats (13 keys)
+## 10. Replay & Stats (8 keys)
 
 | Key | Status | Consumer | Notes |
 |-----|--------|----------|-------|
 | `statsPanelEnabled` | ✅ | `Game._applySettings()` → `UI.setStatsPanelEnabled()` | |
-| `autoSaveReplays` | ❌ | — | **Was active in UI** — now disabled with badge `未实现` |
+| `autoSaveReplays` | ✅ | `ReplayLibrary.save()` | |
 | `replayQuality` | ❌ | — | Dormant; not exposed in UI |
-| `replayMaxSaved` | ❌ | — | **Was active in UI** — now disabled with badge `未实现` |
+| `replayMaxSaved` | ✅ | `ReplayLibrary.getMaxReplays()` | |
 | `replayShowHud` | ❌ | — | Dormant; not exposed in UI |
 | `replayShowShotTrail` | ❌ | — | Dormant; not exposed in UI |
 | `statsPrivacyMode` | ❌ | — | Dormant; not exposed in UI |
-| `showShotData` | ❌ | — | **Was active in UI** — now disabled with badge `未实现` |
-| `showHeatmap` | ❌ | — | UI disabled with badge `未实现` |
-| `showWinProbability` | ❌ | — | UI disabled with badge `未实现` |
-| `showDetailedStats` | ❌ | — | UI disabled with badge `未实现` |
-| `shotHistoryTracking` | ❌ | — | UI disabled with badge `未实现` |
-| `replaySpeed` | ❌ | — | **Was active in UI** — now disabled with badge `未实现` |
+| `replaySpeed` | ✅ | `ShotReplay._resolveInitialSpeedIndex()` | |
 
 ---
 
@@ -357,10 +352,6 @@ The following settings were incorrectly shown as interactive controls despite ha
 
 1. **色盲模式** (`colorBlindMode`) — Accessibility tab
 2. **瞄准响应速度** (`aimSens`) — Controls → 击球与瞄准灵敏度
-3. **自动保存回放** (`autoSaveReplays`) — Replay tab
-4. **最大回放数** (`replayMaxSaved`) — Replay tab
-5. **显示击球数据** (`showShotData`) — Replay tab
-6. **回放速度** (`replaySpeed`) — Replay tab
 
 ### Previously Mislabeled → Now Accurate
 1. **渲染缩放** (`renderScale`) — badge changed from `未实现` → `需重启`; shows current numeric value

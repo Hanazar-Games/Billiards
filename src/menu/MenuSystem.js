@@ -15,7 +15,6 @@ import { Game } from '../game/Game.js';
 import { Table } from '../game/Table.js';
 import { BallsManager } from '../game/BallsManager.js';
 import { getTableProfile, getDefaultTableProfile, validateModeTableProfile } from '../game/TableProfiles.js';
-// NOTE: getTableProfile re-exported below for analyzer — keep this import
 import { MainMenuScreen } from './MainMenuScreen.js';
 import { keyBindings } from '../input/KeyBindings.js';
 import { SettingsScreen } from './SettingsScreen.js';
@@ -24,8 +23,6 @@ import { AchievementPanel } from '../achievements/AchievementPanel.js';
 import { ReplayLibrary } from '../replay/ReplayLibrary.js';
 import { ReplayPanel } from '../replay/ReplayPanel.js';
 import { ShotReplay } from '../replay/ShotReplay.js';
-import { ShotAnalyzerPanel } from '../analyzer/ShotAnalyzerPanel.js';
-import { BALL } from '../config.js';
 import { ChallengePanel } from '../challenges/ChallengePanel.js';
 import { ChallengeManager } from '../challenges/ChallengeManager.js';
 import { ChallengeResult } from '../challenges/ChallengeResult.js';
@@ -82,7 +79,6 @@ export class MenuSystem {
     this.replayPanel = null;
     this.replayEngine = null;
     // NOTE: replayBallsManager removed — was never used
-    this.analyzerPanel = null;
 
     // Challenge system
     this.challengePanel = null;
@@ -179,10 +175,6 @@ export class MenuSystem {
       this.tournamentResult.hide?.();
     }
     hide(this.careerPanel);
-    // Also hide any lingering analyzer panel
-    if (this.analyzerPanel && !except.has(this.analyzerPanel)) {
-      this.analyzerPanel.hide?.();
-    }
   }
 
   /** Dispose active game + loop + spectator. */
@@ -330,8 +322,7 @@ export class MenuSystem {
         this.replayLibrary,
         (replay) => this._startReplayPlayback(replay),
         () => this.mainMenu.show(),
-        () => this._stopReplayPlayback(),
-        (replay) => this._showReplayAnalysis(replay)
+        () => this._stopReplayPlayback()
       );
     }
     this.replayPanel.showList();
@@ -590,9 +581,8 @@ export class MenuSystem {
       this.game = null;
     }
 
-    // Dispose spectator/analyzer if lingering
+    // Dispose spectator if lingering
     if (this.spectator) { this.spectator.dispose(); this.spectator = null; }
-    if (this.analyzerPanel) { this.analyzerPanel.destroy(); this.analyzerPanel = null; }
     if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; }
 
     // Hide game UI
@@ -730,9 +720,8 @@ export class MenuSystem {
       this.game = null;
     }
 
-    // Dispose spectator/analyzer if lingering
+    // Dispose spectator if lingering
     if (this.spectator) { this.spectator.dispose(); this.spectator = null; }
-    if (this.analyzerPanel) { this.analyzerPanel.destroy(); this.analyzerPanel = null; }
     if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; }
 
     // Hide game UI
@@ -1008,9 +997,8 @@ export class MenuSystem {
     if (this.drillManager) { this.drillManager = null; }
     if (this.activeDrill) { this.activeDrill = null; }
 
-    // Clean up LAN room panel / analyzer panel if present
+    // Clean up LAN room panel if present
     if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; }
-    if (this.analyzerPanel) { this.analyzerPanel.destroy(); this.analyzerPanel = null; }
     if (this.tournamentPanel) { this.tournamentPanel.destroy(); this.tournamentPanel = null; }
     if (this.tournamentResult) { this.tournamentResult.destroy(); this.tournamentResult = null; }
 
@@ -1281,36 +1269,6 @@ export class MenuSystem {
     }
   }
 
-  _showReplayAnalysis(replayData) {
-    if (!replayData) return;
-    if (!this.analyzerPanel) {
-      this.analyzerPanel = new ShotAnalyzerPanel();
-    }
-    const profile = getTableProfile(replayData.metadata?.tableProfileId);
-    if (!profile) {
-      console.warn('[MenuSystem] Unknown table profile for replay analysis:', replayData.metadata?.tableProfileId);
-      return;
-    }
-    const halfW = profile.width / 2;
-    const halfD = profile.depth / 2;
-    const pocketPositions = [
-      { x: -halfW, z: -halfD },
-      { x: halfW, z: -halfD },
-      { x: -halfW, z: 0 },
-      { x: halfW, z: 0 },
-      { x: -halfW, z: halfD },
-      { x: halfW, z: halfD },
-    ];
-    const tableInfo = {
-      width: profile.width,
-      depth: profile.depth,
-      ballRadius: BALL.radius,
-      pocketPositions,
-    };
-    this.analyzerPanel.setReplayData(replayData);
-    this.analyzerPanel.show(replayData, tableInfo);
-  }
-
   _quit() {
     this.state = 'DESTROYED';
     this._clearPendingTimeouts();
@@ -1336,7 +1294,6 @@ export class MenuSystem {
     try { if (this.trainerPanel) { this.trainerPanel.destroy(); this.trainerPanel = null; } } catch (e) {}
     try { if (this.trainerResult) { this.trainerResult.destroy(); this.trainerResult = null; } } catch (e) {}
     try { if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; } } catch (e) {}
-    try { if (this.analyzerPanel) { this.analyzerPanel.destroy(); this.analyzerPanel = null; } } catch (e) {}
     try { if (this.matchSetupPanel) { this.matchSetupPanel.destroy(); this.matchSetupPanel = null; } } catch (e) {}
     try { if (this.tournamentPanel) { this.tournamentPanel.destroy(); this.tournamentPanel = null; } } catch (e) {}
     try { if (this.tournamentResult) { this.tournamentResult.destroy(); this.tournamentResult = null; } } catch (e) {}

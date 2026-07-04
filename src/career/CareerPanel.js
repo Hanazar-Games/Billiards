@@ -551,7 +551,7 @@ export class CareerPanel {
       bar.style.cssText = `
         position:absolute;bottom:0;left:0;right:0;
         height:${h}%;background:${gradient};border-radius:4px;
-        transition:height 0.5s ease;
+        transition:height calc(0.5s / var(--ui-anim-speed)) ease;
       `;
       barWrap.appendChild(bar);
 

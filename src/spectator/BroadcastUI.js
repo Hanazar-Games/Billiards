@@ -1,4 +1,4 @@
-import { animMs } from '../core/AnimSpeed.js';
+import { animMs, isReducedMotion } from '../core/AnimSpeed.js';
 import { uiLayout } from '../ui/UILayout.js';
 
 /**
@@ -120,7 +120,7 @@ export class BroadcastUI {
     // Typing cursor indicator
     this._cursorEl = document.createElement('span');
     this._cursorEl.textContent = '▎';
-    this._cursorEl.style.cssText = `color: rgba(216,177,95,0.8); animation: blink 0.8s step-end infinite;`;
+    this._cursorEl.style.cssText = `color: rgba(216,177,95,0.8); animation: ${isReducedMotion() ? 'none' : 'blink calc(0.8s / var(--ui-anim-speed)) step-end infinite'};`;
     this._commentaryText.appendChild(this._cursorEl);
 
     this.container.appendChild(this._commentaryBox);

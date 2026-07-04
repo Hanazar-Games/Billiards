@@ -1,4 +1,4 @@
-import { animMs } from '../core/AnimSpeed.js';
+import { animMs, isReducedMotion } from '../core/AnimSpeed.js';
 import { uiLayout } from '../ui/UILayout.js';
 
 /**
@@ -137,7 +137,7 @@ export class InstantReplayUI {
       width: 0%;
       background: linear-gradient(90deg, #ffd700, #ff8c00);
       border-radius: 2px;
-      transition: width 0.08s linear;
+      transition: ${isReducedMotion() ? 'none' : 'width calc(0.08s / var(--ui-anim-speed)) linear'};
     `;
     progressWrap.appendChild(this._progressFill);
     this.container.appendChild(progressWrap);
@@ -159,7 +159,7 @@ export class InstantReplayUI {
       cursor: pointer;
       pointer-events: auto;
       backdrop-filter: blur(4px);
-      transition: all 0.2s ease;
+      transition: all calc(0.2s / var(--ui-anim-speed)) ease;
     `;
     this._skipBtn.onmouseenter = () => {
       if (this._skipBtn) this._skipBtn.style.background = 'rgba(255,255,255,0.15)';

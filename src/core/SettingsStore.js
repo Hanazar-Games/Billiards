@@ -179,7 +179,6 @@ const DEFAULTS = {
   touchButtonScale: 1.0,
 
   // ── Replay & Stats ──
-  shotAnalyzerEnabled: true,
   autoSaveReplays: true,
   replayQuality: 'standard', // 'compact' | 'standard' | 'high'
   replayMaxSaved: 50,
@@ -187,11 +186,6 @@ const DEFAULTS = {
   replayShowShotTrail: true,
   statsPanelEnabled: true,
   statsPrivacyMode: false,
-  showShotData: true,
-  showHeatmap: false,
-  showWinProbability: false,
-  showDetailedStats: true,
-  shotHistoryTracking: true,
   replaySpeed: 1.0,
   instantReplayEnabled: true,
   autoInstantReplay: true,
@@ -414,7 +408,7 @@ export const MATCH_FAIRNESS_KEYS = new Set([
   'shotPowerSens',
   'showCrosshair',
   // NOTE: removed dormant keys — add back only when implemented:
-  // 'showWinProbability', 'showOpponentTrajectory', 'skipOpponentTurn',
+  // 'showOpponentTrajectory', 'skipOpponentTurn',
   // 'autoHints', 'hintFrequency'
 ]);
 

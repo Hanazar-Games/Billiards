@@ -21,7 +21,7 @@ function startServer() {
   return new Promise((resolve, reject) => {
     const proc = spawn('node', ['server/lan-server.js'], {
       cwd: process.cwd(),
-      env: { ...process.env, LAN_SERVER_PORT: String(SERVER_PORT) },
+      env: { ...process.env, LAN_SERVER_PORT: String(SERVER_PORT), LAN_SERVER_HOST: '127.0.0.1' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     serverProcess = proc;

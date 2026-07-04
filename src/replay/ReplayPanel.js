@@ -1,5 +1,5 @@
 import { uiLayout } from '../ui/UILayout.js';
-import { isReducedMotion } from '../core/AnimSpeed.js';
+import { animMs, isReducedMotion } from '../core/AnimSpeed.js';
 
 /**
  * ReplayPanel — UI for browsing and playing back recorded shots.
@@ -9,17 +9,21 @@ import { isReducedMotion } from '../core/AnimSpeed.js';
  *   2. Playback controls (during replay) — overlay with play/pause/speed/time
  */
 export class ReplayPanel {
-  constructor(replayLibrary, onPlayReplay, onHideList, onExitReplay, onAnalyzeReplay = null) {
+  constructor(replayLibrary, onPlayReplay, onHideList, onExitReplay) {
     this.library = replayLibrary;
     this.onPlayReplay = onPlayReplay;
     this.onHideList = onHideList;
     this.onExitReplay = onExitReplay;
-    this.onAnalyzeReplay = onAnalyzeReplay;
     this.listContainer = null;
     this.controlContainer = null;
     this._listShown = false;
     this._controlsShown = false;
     this._importTimeout = null;
+    this._exportRevokeTimers = new Map();
+    this._confirmOverlay = null;
+    this._confirmCloseTimer = null;
+    this._noticeTimer = null;
+    this._noticeEl = null;
     this._buildListUI();
     this._buildControlUI();
     this._setupKeyboard();
@@ -91,9 +95,11 @@ export class ReplayPanel {
       clearBtn.style.borderColor = 'rgba(255,255,255,0.15)';
     };
     clearBtn.onclick = () => {
-      if (this.library.getCount() > 0 && confirm('确定要删除全部回放吗？此操作不可撤销。')) {
+      if (this.library.getCount() > 0) {
+        this._showConfirm('确定要删除全部回放吗？此操作不可撤销。', () => {
         this.library.clear();
         this._renderList();
+        });
       }
     };
     headerActions.appendChild(clearBtn);
@@ -288,7 +294,7 @@ export class ReplayPanel {
         border-bottom: 1px solid rgba(255,255,255,0.08);
         color: rgba(255,255,255,0.85); font-size: 14px; font-weight: 600;
         padding: 2px 0; outline: none;
-        transition: border-color 0.2s ease;
+        transition: border-color calc(0.2s / var(--ui-anim-speed)) ease;
       `;
       nameInput.onfocus = () => { nameInput.style.borderColor = 'rgba(216,177,95,0.5)'; };
       nameInput.onblur = () => {
@@ -328,25 +334,6 @@ export class ReplayPanel {
       playBtn.onmouseleave = () => { playBtn.style.background = 'rgba(0,230,118,0.2)'; };
       playBtn.onclick = () => { if (this.onPlayReplay) this.onPlayReplay(replay); };
       btnRow.appendChild(playBtn);
-
-      if (this.onAnalyzeReplay) {
-        const analyzeBtn = document.createElement('button');
-        analyzeBtn.textContent = '分析';
-        analyzeBtn.title = '查看击球分析';
-        analyzeBtn.style.cssText = `
-          flex: 1; padding: 9px 0;
-          font-size: 13px; font-weight: 600; color: #fff;
-          background: rgba(68,138,255,0.2);
-          border: 1px solid rgba(68,138,255,0.4);
-          border-radius: 8px;
-          cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed));
-          pointer-events: auto;
-        `;
-        analyzeBtn.onmouseenter = () => { analyzeBtn.style.background = 'rgba(68,138,255,0.3)'; };
-        analyzeBtn.onmouseleave = () => { analyzeBtn.style.background = 'rgba(68,138,255,0.2)'; };
-        analyzeBtn.onclick = () => { if (this.onAnalyzeReplay) this.onAnalyzeReplay(replay); };
-        btnRow.appendChild(analyzeBtn);
-      }
 
       const exportOneBtn = document.createElement('button');
       exportOneBtn.textContent = '⬇';
@@ -390,8 +377,10 @@ export class ReplayPanel {
         delBtn.style.color = 'rgba(255,255,255,0.5)';
       };
       delBtn.onclick = () => {
-        this.library.delete(replay.id);
-        this._renderList();
+        this._showConfirm('确定要删除这条回放吗？', () => {
+          this.library.delete(replay.id);
+          this._renderList();
+        });
       };
       btnRow.appendChild(delBtn);
 
@@ -509,25 +498,37 @@ export class ReplayPanel {
 
   _exportSingle(replay) {
     const data = JSON.stringify(replay, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
     const name = (replay.name || 'replay').replace(/[^\w\u4e00-\u9fa5]/g, '_');
-    a.download = `billiards-replay-${name}-${replay.id.slice(-4)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    this._downloadJson(data, `billiards-replay-${name}-${replay.id.slice(-4)}.json`);
   }
 
   _exportReplays() {
     const data = this.library.exportAll();
+    this._downloadJson(data, `billiards-replays-${Date.now()}.json`);
+  }
+
+  _downloadJson(data, filename) {
     const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `billiards-replays-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    let url = null;
+    try {
+      url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      const revokeTimer = setTimeout(() => {
+        this._exportRevokeTimers.delete(revokeTimer);
+        if (url) URL.revokeObjectURL(url);
+      }, 30000);
+      this._exportRevokeTimers.set(revokeTimer, url);
+    } catch (err) {
+      console.warn('Replay export failed', err);
+      if (url) URL.revokeObjectURL(url);
+      this._showNotice('导出失败，请稍后重试', 'error');
+    }
   }
 
   _importReplays() {
@@ -548,9 +549,9 @@ export class ReplayPanel {
       reader.onload = (ev) => {
         const count = this.library.importAll(ev.target.result);
         this._renderList();
-        alert(count > 0 ? `成功导入 ${count} 条回放` : '导入失败：文件格式错误或数据无效');
+        this._showNotice(count > 0 ? `成功导入 ${count} 条回放` : '导入失败：文件格式错误或数据无效', count > 0 ? 'success' : 'error');
       };
-      reader.onerror = () => alert('文件读取失败');
+      reader.onerror = () => this._showNotice('文件读取失败', 'error');
       reader.readAsText(file);
     };
     document.body.appendChild(input);
@@ -560,6 +561,98 @@ export class ReplayPanel {
       this._importInput = null;
       this._importTimeout = null;
     }, 5000);
+  }
+
+  _showNotice(message, tone = 'neutral') {
+    if (this._noticeTimer) {
+      clearTimeout(this._noticeTimer);
+      this._noticeTimer = null;
+    }
+    if (!this._noticeEl) {
+      this._noticeEl = document.createElement('div');
+      this._noticeEl.style.cssText = `
+        position: fixed; top: 26px; left: 50%; transform: translateX(-50%);
+        z-index: 260; padding: 10px 16px; border-radius: 8px;
+        background: rgba(12,15,18,0.92); border: 1px solid rgba(255,255,255,0.16);
+        color: rgba(255,255,255,0.85); font-size: 13px; font-weight: 700;
+        box-shadow: 0 14px 40px rgba(0,0,0,0.32); pointer-events: none;
+        transition: opacity calc(0.2s / var(--ui-anim-speed)) ease;
+      `;
+      document.body.appendChild(this._noticeEl);
+    }
+    const colors = {
+      success: '#7ab860',
+      error: '#ff8a8a',
+      neutral: 'rgba(255,255,255,0.85)',
+    };
+    this._noticeEl.textContent = message;
+    this._noticeEl.style.color = colors[tone] || colors.neutral;
+    this._noticeEl.style.opacity = '1';
+    this._noticeTimer = setTimeout(() => {
+      if (this._noticeEl) this._noticeEl.style.opacity = '0';
+      this._noticeTimer = null;
+    }, animMs(2400));
+  }
+
+  _showConfirm(message, onConfirm) {
+    if (this._confirmOverlay) return;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed; inset: 0; z-index: 260;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(6px);
+      opacity: 0; pointer-events: auto;
+      transition: opacity calc(0.2s / var(--ui-anim-speed)) ease;
+    `;
+    const box = document.createElement('div');
+    box.style.cssText = `
+      width: min(360px, calc(100vw - 40px));
+      background: rgba(20,24,28,0.95); border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 8px; padding: 22px 24px;
+      display: flex; flex-direction: column; gap: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    `;
+    const msg = document.createElement('div');
+    msg.textContent = message;
+    msg.style.cssText = 'font-size:15px;line-height:1.5;color:#fff;font-weight:700;';
+    box.appendChild(msg);
+
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.textContent = '取消';
+    cancelBtn.style.cssText = this._smallBtnStyle();
+    const okBtn = document.createElement('button');
+    okBtn.type = 'button';
+    okBtn.textContent = '删除';
+    okBtn.style.cssText = this._smallBtnStyle() + 'background:rgba(185,18,63,0.18);border-color:rgba(185,18,63,0.45);color:#ff8a9a;';
+
+    const close = () => {
+      if (this._confirmCloseTimer) {
+        clearTimeout(this._confirmCloseTimer);
+        this._confirmCloseTimer = null;
+      }
+      overlay.style.opacity = '0';
+      this._confirmCloseTimer = setTimeout(() => {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        if (this._confirmOverlay === overlay) this._confirmOverlay = null;
+        this._confirmCloseTimer = null;
+      }, animMs(200));
+    };
+    cancelBtn.onclick = close;
+    okBtn.onclick = () => {
+      close();
+      if (onConfirm) onConfirm();
+    };
+
+    actions.appendChild(cancelBtn);
+    actions.appendChild(okBtn);
+    box.appendChild(actions);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    this._confirmOverlay = overlay;
+    requestAnimationFrame(() => { overlay.style.opacity = '1'; });
   }
 
   showControls() {
@@ -664,6 +757,21 @@ export class ReplayPanel {
       this._importInput.parentNode.removeChild(this._importInput);
       this._importInput = null;
     }
+    if (this._confirmCloseTimer) { clearTimeout(this._confirmCloseTimer); this._confirmCloseTimer = null; }
+    if (this._confirmOverlay && this._confirmOverlay.parentNode) {
+      this._confirmOverlay.parentNode.removeChild(this._confirmOverlay);
+    }
+    this._confirmOverlay = null;
+    if (this._noticeTimer) { clearTimeout(this._noticeTimer); this._noticeTimer = null; }
+    if (this._noticeEl && this._noticeEl.parentNode) {
+      this._noticeEl.parentNode.removeChild(this._noticeEl);
+    }
+    this._noticeEl = null;
+    for (const [tid, url] of this._exportRevokeTimers) {
+      clearTimeout(tid);
+      URL.revokeObjectURL(url);
+    }
+    this._exportRevokeTimers.clear();
     document.querySelectorAll("#replay-import-input").forEach(el => { if (el.parentNode) el.parentNode.removeChild(el); });
     if (this.playBtn) this.playBtn.onclick = null;
     if (this.speedBtn) this.speedBtn.onclick = null;

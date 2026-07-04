@@ -297,14 +297,46 @@ describe('MenuSystem _hideAllPanels coverage', () => {
     fake.tournamentPanel = { hide() { this._hidden = true; } };
     fake.tournamentResult = { hide() { this._hidden = true; } };
     fake.careerPanel = { hide() { this._hidden = true; } };
-    fake.analyzerPanel = { hide() { this._hidden = true; } };
 
     MenuSystem.prototype._hideAllPanels.call(fake);
 
     assert.strictEqual(fake.challengeResult._hidden, true);
     assert.strictEqual(fake.trainerResult._hidden, true);
     assert.strictEqual(fake.tournamentResult._hidden, true);
-    assert.strictEqual(fake.analyzerPanel._hidden, true);
     assert.strictEqual(fake.replayPanel._controlsHidden, true);
+  });
+});
+
+describe('LAN and Replay panel UX safeguards', () => {
+  test('LanRoomPanel does not auto-connect when opened', async () => {
+    clearListeners();
+    const layer = document.createElement('div');
+    layer.id = 'menu-layer';
+    document.body.appendChild(layer);
+
+    const { LanRoomPanel } = await import('../src/menu/LanRoomPanel.js');
+    const panel = new LanRoomPanel(() => {}, () => {});
+    panel.show();
+    assert.strictEqual(panel.client, null, 'opening LAN panel should not create a WebSocket client');
+    panel.destroy();
+    document.body.removeChild(layer);
+  });
+
+  test('ReplayPanel confirm uses in-app overlay callback', async () => {
+    clearListeners();
+    const { ReplayPanel } = await import('../src/replay/ReplayPanel.js');
+    const library = { getAll: () => [], getCount: () => 0, getMaxReplays: () => 50 };
+    const panel = new ReplayPanel(library, () => {}, () => {}, () => {});
+    let confirmed = false;
+
+    panel._showConfirm('Delete?', () => { confirmed = true; });
+    const overlay = panel._confirmOverlay;
+    assert.ok(overlay, 'confirm overlay should be created');
+    const box = overlay.children[0];
+    const actions = box.children[1];
+    const okBtn = actions.children[1];
+    okBtn.onclick();
+    assert.strictEqual(confirmed, true, 'confirm button should invoke callback');
+    panel.destroy();
   });
 });

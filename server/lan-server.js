@@ -13,6 +13,7 @@ import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 
 const PORT = process.env.LAN_SERVER_PORT || 3001;
+const HOST = process.env.LAN_SERVER_HOST || '0.0.0.0';
 
 // In-memory room storage: roomId -> Room
 const rooms = new Map();
@@ -342,7 +343,7 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-httpServer.listen(PORT, () => {
-  console.log(`LAN Room Server listening on ws://0.0.0.0:${PORT}`);
-  console.log(`HTTP health check: http://0.0.0.0:${PORT}`);
+httpServer.listen(PORT, HOST, () => {
+  console.log(`LAN Room Server listening on ws://${HOST}:${PORT}`);
+  console.log(`HTTP health check: http://${HOST}:${PORT}`);
 });

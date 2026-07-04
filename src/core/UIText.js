@@ -106,22 +106,6 @@ export const UIText = {
   trainerObjective: '练习击球技巧 — 进球后查看评分',
   trainerResetLabel: '重置球型',
 
-  // Shot Analyzer
-  shotAnalyzerTitle: '击球分析',
-  shotAnalyzerBtn: '分析',
-  shotAnalyzerAccuracy: '精准度',
-  shotAnalyzerEfficiency: '效率',
-  shotAnalyzerControl: '控制',
-  shotAnalyzerDifficulty: '难度',
-  shotAnalyzerPower: '力度',
-  shotAnalyzerSpin: '旋转',
-  shotAnalyzerDuration: '时长',
-  shotAnalyzerPocketed: '进球',
-  shotAnalyzerCollisions: '碰撞',
-  shotAnalyzerCushions: '库边',
-  shotAnalyzerSuggestions: '分析与建议',
-  shotAnalyzerNoCollisions: '本次击球没有检测到碰撞',
-
   // Objective lines
   objectiveChallenge: '挑战模式',
   objectiveFreeplay: '练习模式 · 自由击球',

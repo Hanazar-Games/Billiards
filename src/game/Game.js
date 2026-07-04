@@ -23,7 +23,6 @@ import { PowerLabel } from '../fx/PowerLabel.js';
 import { BallReturnSystem } from '../fx/BallReturnSystem.js';
 import { ShotRecorder } from '../replay/ShotRecorder.js';
 import { InstantReplayController } from '../replay/InstantReplayController.js';
-import { ShotAnalyzerPanel } from '../analyzer/ShotAnalyzerPanel.js';
 import { settings, MATCH_FAIRNESS_KEYS } from '../core/SettingsStore.js';
 import { careerStore } from '../career/CareerStore.js';
 import { highlightStore } from '../highlight/HighlightStore.js';
@@ -70,7 +69,6 @@ export class Game {
     this.recorder = new ShotRecorder();
     this.instantReplay = new InstantReplayController(this.scene, this.camera, null); // ballsManager injected in init
     this.replayLibrary = null; // injected by MenuSystem
-    this.analyzerPanel = null; // lazy-created
     this.onboardingTips = new OnboardingTips();
 
     this.state = 'AIM'; // AIM, CHARGING, SHOOTING, RESOLVING, AI_THINKING, GAME_OVER
@@ -1675,24 +1673,6 @@ export class Game {
       this.replayLibrary.save(replayData);
     }
 
-    // Shot Analyzer: show analysis panel for recorded shots
-    if (replayData && settings.get('shotAnalyzerEnabled') !== false
-        && this.mode !== 'trainer' && !this.bothAI
-        && this.networkRole !== 'client') {
-      if (!this.analyzerPanel) {
-        this.analyzerPanel = new ShotAnalyzerPanel();
-      }
-      const pocketPositions = (this.table?.getPocketPositions?.() || []).map(p => ({ x: p.x, z: p.z }));
-      const tableInfo = {
-        width: this.tableProfile?.width || TABLE.width,
-        depth: this.tableProfile?.depth || TABLE.depth,
-        ballRadius: BALL.radius,
-        pocketPositions,
-      };
-      this.analyzerPanel.setReplayData(replayData);
-      this.analyzerPanel.show(replayData, tableInfo);
-    }
-
     this.recorder.reset();
 
     const cueBall = this.ballsManager?.getCueBall?.();
@@ -2085,10 +2065,6 @@ export class Game {
       this.instantReplay.dispose();
     }
     this.instantReplay = new InstantReplayController(this.scene, this.camera, this.ballsManager);
-    if (this.analyzerPanel) {
-      this.analyzerPanel.destroy();
-      this.analyzerPanel = null;
-    }
     this.statsPanel.reset();
     if (this.challengeManager) this.challengeManager.resetMatch();
 
@@ -2259,7 +2235,7 @@ export class Game {
       background: #ff3b30; border: 1.5px solid #fff;
       box-shadow: 0 0 6px rgba(255,59,48,0.7);
       transform: translate(-50%, -50%); pointer-events: none;
-      top: 50%; left: 50%; transition: top calc(0.08s / var(--ui-anim-speed)), left 0.08s;
+      top: 50%; left: 50%; transition: top calc(0.08s / var(--ui-anim-speed)), left calc(0.08s / var(--ui-anim-speed));
     `;
     ballWrap.appendChild(marker);
 
@@ -3241,11 +3217,6 @@ export class Game {
       case 'autoSaveReplays':
       case 'replayMaxSaved':
       case 'replaySpeed':
-      case 'showShotData':
-      case 'showHeatmap':
-      case 'showWinProbability':
-      case 'showDetailedStats':
-      case 'shotHistoryTracking':
         // Replay / stats params are read live by ReplayLibrary / StatsTracker
         break;
       case 'singleHandMode':
@@ -3327,10 +3298,6 @@ export class Game {
     this._shotFirstHitDistance = 0;
     this._shotHadCushionBeforeHit = false;
     this._shotStartPosition = null;
-    if (this.analyzerPanel) {
-      this.analyzerPanel.destroy();
-      this.analyzerPanel = null;
-    }
     this.gameStartTime = performance.now();
   }
 
@@ -3534,11 +3501,6 @@ export class Game {
       try { this.inGameSettings.destroy(); } catch (e) {}
       this.inGameSettings = null;
     }
-    if (this.analyzerPanel) {
-      try { this.analyzerPanel.destroy(); } catch (e) {}
-      this.analyzerPanel = null;
-    }
-
     // Remove challenge HUD
     const chHud = document.getElementById('challenge-hud');
     if (chHud && chHud.parentNode) {

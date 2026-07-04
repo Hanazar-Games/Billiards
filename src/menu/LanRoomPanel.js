@@ -22,6 +22,7 @@ export class LanRoomPanel {
     this._fadeTimer = null;
     this._clientListeners = [];
     this._joinInputHandler = null;
+    this._connectingPromise = null;
     this._setupKeyboard();
   }
 
@@ -80,7 +81,7 @@ export class LanRoomPanel {
       font-size: 13px; color: rgba(255,255,255,0.55);
       text-align: center; min-height: 20px;
     `;
-    this._statusEl.textContent = '准备连接…';
+    this._statusEl.textContent = '创建或加入房间时连接服务器';
     card.appendChild(this._statusEl);
 
     // Room ID display
@@ -162,8 +163,6 @@ export class LanRoomPanel {
       if (this.container) this.container.style.opacity = '1';
     });
 
-    // Auto-connect
-    this._connect();
   }
 
   _makeBtn(text, onClick) {
@@ -194,8 +193,22 @@ export class LanRoomPanel {
     });
   }
 
+  async _ensureConnected() {
+    if (this.client?.connected) return true;
+    if (this._connectingPromise) return this._connectingPromise;
+    this._connectingPromise = this._connect().finally(() => {
+      this._connectingPromise = null;
+    });
+    return this._connectingPromise;
+  }
+
   async _connect() {
     this._setStatus('正在连接服务器…');
+    if (this.client) {
+      this._removeClientListeners();
+      this.client.disconnect();
+      this.client = null;
+    }
     this.client = new NetworkClient();
     const addClientListener = (event, handler) => {
       this.client.addEventListener(event, handler);
@@ -255,6 +268,7 @@ export class LanRoomPanel {
     });
     try {
       await this.client.connect();
+      return true;
     } catch (err) {
       const isRefused = err.message?.includes('closed') || err.message?.includes('refused') || err.message?.includes('failed');
       const msg = isRefused
@@ -262,15 +276,17 @@ export class LanRoomPanel {
         : '连接失败：' + (err.message || '请检查网络');
       this._setStatus(msg, 'error');
       this._setButtonsDisabled(false);
+      return false;
     }
   }
 
-  _onCreateRoom() {
-    if (!this.client || !this.client.connected) {
-      this._setStatus('尚未连接到服务器');
+  async _onCreateRoom() {
+    this._setButtonsDisabled(true);
+    const connected = await this._ensureConnected();
+    if (!connected) {
+      this._setButtonsDisabled(false);
       return;
     }
-    this._setButtonsDisabled(true);
     try {
       this.client.createRoom();
       this._setStatus('正在创建房间…');
@@ -297,17 +313,18 @@ export class LanRoomPanel {
     this._state = 'ready';
   }
 
-  _onJoinRoom() {
+  async _onJoinRoom() {
     const roomId = this._joinInput.value.trim();
     if (!roomId) {
       this._setStatus('请输入房间号');
       return;
     }
-    if (!this.client || !this.client.connected) {
-      this._setStatus('尚未连接到服务器');
+    this._setButtonsDisabled(true);
+    const connected = await this._ensureConnected();
+    if (!connected) {
+      this._setButtonsDisabled(false);
       return;
     }
-    this._setButtonsDisabled(true);
     try {
       this.client.joinRoom(roomId);
       this._setStatus('正在加入房间…');

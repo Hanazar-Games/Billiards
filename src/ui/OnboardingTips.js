@@ -154,7 +154,7 @@ export class OnboardingTips {
       border: none;
       border-radius: 6px;
       cursor: pointer;
-      transition: filter 0.15s;
+      transition: filter calc(0.15s / var(--ui-anim-speed));
     `;
     gotIt.onmouseenter = () => { gotIt.style.filter = 'brightness(1.15)'; };
     gotIt.onmouseleave = () => { gotIt.style.filter = 'brightness(1)'; };

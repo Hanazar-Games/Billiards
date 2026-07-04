@@ -88,7 +88,7 @@ export class AchievementPanel {
       box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 16px ${cat.color}22;
       transform: translateX(120%);
       opacity: 0;
-      transition: transform ${reduced ? '0.001s' : 'calc(0.5s / var(--ui-anim-speed))'} cubic-bezier(0.34, 1.56, 0.64, 1), opacity ${reduced ? '0.001s' : 'calc(0.4s / var(--ui-anim-speed))'} ease;
+      transition: ${reduced ? 'none' : 'transform calc(0.5s / var(--ui-anim-speed)) cubic-bezier(0.34, 1.56, 0.64, 1), opacity calc(0.4s / var(--ui-anim-speed)) ease'};
       pointer-events: none;
       min-width: 280px;
       max-width: min(400px, calc(100vw - var(--hud-right-safe) - var(--hud-left-safe) - 32px));

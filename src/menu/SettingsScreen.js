@@ -786,11 +786,11 @@ export class SettingsScreen {
     resetBtn.onmouseenter = () => { resetBtn.style.background = 'rgba(185,18,63,0.15)'; resetBtn.style.borderColor = 'rgba(185,18,63,0.5)'; };
     resetBtn.onmouseleave = () => { resetBtn.style.background = 'rgba(185,18,63,0.08)'; resetBtn.style.borderColor = 'rgba(185,18,63,0.35)'; };
     const onReset = () => {
-      if (confirm('确定要恢复为默认快捷键吗？所有自定义修改将丢失。')) {
+      this._showConfirmDialog('恢复默认快捷键', '确定要恢复为默认快捷键吗？所有自定义修改将丢失。', () => {
         keyBindings.resetToDefaults();
         this._toast('已恢复为默认快捷键');
         this._switchCategory('controls');
-      }
+      });
     };
     resetBtn.addEventListener('click', onReset);
     this._listeners.push({ el: resetBtn, type: 'click', fn: onReset });
@@ -896,18 +896,12 @@ export class SettingsScreen {
   }
 
   _buildReplayContent() {
-    this._sectionTitle('回放与分析');
-    this._sectionSubtitle('回放记录与击球分析');
+    this._sectionTitle('回放');
+    this._sectionSubtitle('回放记录与播放设置');
 
-    this._row('击球分析器', this._createSwitch(settings.get('shotAnalyzerEnabled'), (v) => settings.set('shotAnalyzerEnabled', v)), '每次击球后显示详细分析面板');
     this._row('自动保存回放', this._createSwitch(settings.get('autoSaveReplays'), (v) => settings.set('autoSaveReplays', v)), '自动将击球回放保存到回放库');
     this._rowSlider('最大回放数', settings.get('replayMaxSaved'), 10, 100, ' 条', (v) => settings.set('replayMaxSaved', v), '超过上限时自动删除最旧的回放');
-    this._rowDisabled('显示击球数据', this._createDisabledSwitch(settings.get('showShotData'), () => {}), '数据统计面板尚未实现');
-    this._rowDisabled('显示热力图', this._createDisabledSwitch(settings.get('showHeatmap'), () => {}), '数据统计面板尚未实现');
-    this._rowDisabled('显示胜率预测', this._createDisabledSwitch(settings.get('showWinProbability'), () => {}), '数据统计面板尚未实现');
-    this._rowDisabled('显示详细统计', this._createDisabledSwitch(settings.get('showDetailedStats'), () => {}), '数据统计面板尚未实现');
-    this._rowDisabled('击球历史追踪', this._createDisabledSwitch(settings.get('shotHistoryTracking'), () => {}), '数据统计面板尚未实现');
-    this._rowSlider('回放速度', Math.round((settings.get('replaySpeed') ?? 1.0) * 4), 1, 8, 'x', (v) => settings.set('replaySpeed', v / 4), '回放库和轨迹图的默认播放速度', (v) => (v / 4).toFixed(2) + 'x');
+    this._rowSlider('回放速度', Math.round((settings.get('replaySpeed') ?? 1.0) * 4), 1, 8, 'x', (v) => settings.set('replaySpeed', v / 4), '回放库的默认播放速度', (v) => (v / 4).toFixed(2) + 'x');
 
     this._sectionTitle('即时回放');
     this._sectionSubtitle('击球后自动/手动回放上一杆');
@@ -2028,7 +2022,7 @@ export class SettingsScreen {
 
   /**
    * Shows a styled confirmation dialog inside the settings modal.
-   * Replaces native confirm() for a consistent visual style.
+   * Replaces the browser confirmation dialog for a consistent visual style.
    */
   _showConfirmDialog(title, message, onConfirm, onCancel = null) {
     // Backdrop

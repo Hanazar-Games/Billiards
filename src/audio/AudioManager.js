@@ -49,6 +49,7 @@ export class AudioManager {
     this._pendingDisconnects = new Set();
     this._disposing = false;
     this._settingsChangedHandler = null;
+    this._bgmStopTimers = new Set();
   }
 
   /** Disconnect a chain of audio nodes after the source finishes playing. */
@@ -78,6 +79,12 @@ export class AudioManager {
   _safeVolumeScale(key) {
     const v = settings.get(key);
     return Math.min(Number.isFinite(v) && v >= 0 ? v : 1.0, 2.0);
+  }
+
+  _discardUnusedNodes(...nodes) {
+    for (const node of nodes) {
+      try { node?.disconnect?.(); } catch (_) {}
+    }
   }
 
   init() {
@@ -348,11 +355,26 @@ export class AudioManager {
         }
       } catch (e) {}
     }
-    for (const node of this.bgmNodes) {
-      try { if (node.stop) node.stop(t + 0.08); } catch (e) {}
-      try { if (node.disconnect) node.disconnect(); } catch (e) {}
-    }
+    const nodes = this.bgmNodes;
     this.bgmNodes = [];
+
+    if (this._disposing) {
+      for (const node of nodes) {
+        try { if (node.stop) node.stop(t); } catch (e) {}
+        try { if (node.disconnect) node.disconnect(); } catch (e) {}
+      }
+    } else {
+      for (const node of nodes) {
+        try { if (node.stop) node.stop(t + 0.08); } catch (e) {}
+      }
+      const tid = setTimeout(() => {
+        this._bgmStopTimers.delete(tid);
+        for (const node of nodes) {
+          try { if (node.disconnect) node.disconnect(); } catch (e) {}
+        }
+      }, 120);
+      this._bgmStopTimers.add(tid);
+    }
     this._pendingBGMStart = false;
     if (!preserveFlag) {
       this._bgmWasPlaying = false;
@@ -394,7 +416,7 @@ export class AudioManager {
 
     const feedbackScale = this._safeVolumeScale('hitFeedbackVolumeScale');
     const vol = (0.05 + Math.min(power / 100, 1) * 0.35) * this._safeVolumeScale('cueHitVolumeScale') * feedbackScale;
-    if (vol <= 0) { osc.disconnect(); gain.disconnect(); return; }
+    if (vol <= 0) { this._discardUnusedNodes(osc, gain); return; }
     gain.gain.setValueAtTime(vol, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
 
@@ -423,7 +445,7 @@ export class AudioManager {
 
     // Non-linear volume curve: soft touches audible, hard hits punchy
     const vol = (0.05 + intensity * intensity * 0.12) * this._safeVolumeScale('collisionVolumeScale');
-    if (vol <= 0) { osc.disconnect(); gain.disconnect(); return; }
+    if (vol <= 0) { this._discardUnusedNodes(osc, gain); return; }
     gain.gain.setValueAtTime(vol, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06 + intensity * 0.04);
 
@@ -460,7 +482,7 @@ export class AudioManager {
     const gain = this.ctx.createGain();
     // Non-linear volume curve for more dynamic cushion feedback
     const vol = (0.06 + intensity * intensity * 0.14) * this._safeVolumeScale('collisionVolumeScale');
-    if (vol <= 0) { noise.disconnect(); filter.disconnect(); gain.disconnect(); return; }
+    if (vol <= 0) { this._discardUnusedNodes(noise, filter, gain); return; }
     gain.gain.setValueAtTime(vol, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08 + intensity * 0.04);
 
@@ -493,8 +515,7 @@ export class AudioManager {
       osc.stop(t + 0.25);
       this._autoDisconnect(osc, gain);
     } else {
-      osc.disconnect();
-      gain.disconnect();
+      this._discardUnusedNodes(osc, gain);
     }
 
     const bufferSize = Math.ceil(this.ctx.sampleRate * 0.15);
@@ -509,8 +530,7 @@ export class AudioManager {
     const pocketVol = 0.08 * this._safeVolumeScale('pocketVolumeScale');
     if (pocketVol <= 0) {
       // Volume is zero — skip noise path entirely
-      noise.disconnect();
-      nGain.disconnect();
+      this._discardUnusedNodes(noise, nGain);
     } else {
       nGain.gain.setValueAtTime(pocketVol, t);
       nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
@@ -539,7 +559,7 @@ export class AudioManager {
         gain.gain.setValueAtTime(winVol, t + i * 0.08);
         gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.22);
       } else {
-        osc.disconnect(); gain.disconnect(); return;
+        this._discardUnusedNodes(osc, gain); return;
       }
       osc.connect(gain);
       gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
@@ -567,7 +587,7 @@ export class AudioManager {
         gain.gain.setValueAtTime(foulVol, t + offset);
         gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.14);
       } else {
-        osc.disconnect(); gain.disconnect(); return;
+        this._discardUnusedNodes(osc, gain); return;
       }
       osc.connect(gain);
       gain.connect(this._sfxGain || this._masterGain || this.ctx.destination);
@@ -613,6 +633,8 @@ export class AudioManager {
     this._lastUserGestureAt = -Infinity;
     for (const tid of this._pendingDisconnects) clearTimeout(tid);
     this._pendingDisconnects.clear();
+    for (const tid of this._bgmStopTimers) clearTimeout(tid);
+    this._bgmStopTimers.clear();
     // Keep _disposing = true so async callbacks know we're done
   }
 }

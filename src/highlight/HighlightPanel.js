@@ -20,6 +20,8 @@ export class HighlightPanel {
     this.container = null;
     this._shown = false;
     this._filter = 'all';
+    this._exportRevokeTimers = new Map();
+    this._confirmCloseTimer = null;
     this._buildUI();
     this._setupKeyboard();
   }
@@ -123,7 +125,7 @@ export class HighlightPanel {
       const active = this._filter === chip.key;
       btn.style.cssText = `
         padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700;
-        cursor: pointer; pointer-events: auto; border: 1px solid ${active ? 'rgba(216,177,95,0.6)' : 'rgba(255,255,255,0.12)'}};
+        cursor: pointer; pointer-events: auto; border: 1px solid ${active ? 'rgba(216,177,95,0.6)' : 'rgba(255,255,255,0.12)'};
         background: ${active ? 'rgba(216,177,95,0.18)' : 'rgba(255,255,255,0.05)'};
         color: ${active ? '#f0d78c' : 'rgba(255,255,255,0.7)'};
         transition: all calc(0.2s / var(--ui-anim-speed)) ease;
@@ -169,6 +171,12 @@ export class HighlightPanel {
     this._shown = false;
     if (this._fadeTimer) { clearTimeout(this._fadeTimer); this._fadeTimer = null; }
     if (this._showRaf) { cancelAnimationFrame(this._showRaf); this._showRaf = null; }
+    if (this._confirmCloseTimer) { clearTimeout(this._confirmCloseTimer); this._confirmCloseTimer = null; }
+    for (const [tid, url] of this._exportRevokeTimers) {
+      clearTimeout(tid);
+      URL.revokeObjectURL(url);
+    }
+    this._exportRevokeTimers.clear();
     if (this._onKeyDown) {
       window.removeEventListener('keydown', this._onKeyDown);
       this._onKeyDown = null;
@@ -386,7 +394,11 @@ export class HighlightPanel {
       a.click();
       document.body.removeChild(a);
       // Delay revoke to ensure the browser has started the download
-      setTimeout(() => { if (url) URL.revokeObjectURL(url); }, 30000);
+      const revokeTimer = setTimeout(() => {
+        this._exportRevokeTimers.delete(revokeTimer);
+        if (url) URL.revokeObjectURL(url);
+      }, 30000);
+      this._exportRevokeTimers.set(revokeTimer, url);
     } catch (e) {
       console.warn('Export highlight failed', e);
       if (url) URL.revokeObjectURL(url);
@@ -442,10 +454,15 @@ export class HighlightPanel {
     okBtn.onmouseenter = () => { okBtn.style.background = 'rgba(185,18,63,0.28)'; };
     okBtn.onmouseleave = () => { okBtn.style.background = 'rgba(185,18,63,0.18)'; };
     const close = () => {
+      if (this._confirmCloseTimer) {
+        clearTimeout(this._confirmCloseTimer);
+        this._confirmCloseTimer = null;
+      }
       overlay.style.opacity = '0';
-      setTimeout(() => {
+      this._confirmCloseTimer = setTimeout(() => {
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
         if (this._confirmOverlay === overlay) this._confirmOverlay = null;
+        this._confirmCloseTimer = null;
       }, animMs(200));
     };
     cancelBtn.onclick = close;
