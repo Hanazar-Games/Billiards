@@ -6,6 +6,9 @@
  */
 
 const STORAGE_KEY = 'billiards_settings_v1';
+const REMOVED_SETTINGS_KEYS = new Set([
+  'trajectoryAnimationEnabled',
+]);
 
 const DEFAULTS = {
   // ── Audio ──
@@ -147,7 +150,6 @@ const DEFAULTS = {
   trajectoryOpacity: 0.7,
   trajectoryWidth: 1.0,
   trajectoryColorMode: 'default', // 'default' | 'highContrast' | 'colorBlind'
-  trajectoryAnimationEnabled: true,
 
   // ── Trail & Particle FX ──
   trailOpacity: 0.75,
@@ -296,6 +298,7 @@ export class SettingsStore {
           this._data = _deepClone(DEFAULTS);
           for (const key of Object.keys(parsed)) {
             if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+            if (REMOVED_SETTINGS_KEYS.has(key)) continue;
             if (key in DEFAULTS) {
               const defVal = DEFAULTS[key];
               const val = parsed[key];
@@ -312,8 +315,8 @@ export class SettingsStore {
                 this._data[key] = _deepClone(val);
               }
             } else {
-              // Allow unknown keys (forward compatibility) but still clone
-              this._data[key] = _deepClone(val);
+              // Allow unknown keys (forward compatibility) but still clone.
+              this._data[key] = _deepClone(parsed[key]);
             }
           }
         }
@@ -344,6 +347,7 @@ export class SettingsStore {
 
   set(key, value) {
     if (key === '__proto__' || key === 'constructor' || key === 'prototype') return;
+    if (REMOVED_SETTINGS_KEYS.has(key)) return;
     if (this._lockedKeys.has(key)) {
       if (this.get('devMode')) {
         console.warn('[SettingsStore] Ignored mutation of locked key:', key);

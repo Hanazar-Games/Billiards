@@ -33,9 +33,6 @@ export class TrajectoryPredictor {
     this._opacity = settings.get('trajectoryOpacity') ?? 0.7;
     this._width = settings.get('trajectoryWidth') ?? 1.0;
     this._colorMode = settings.get('trajectoryColorMode') || 'default';
-    this._animationEnabled = settings.get('trajectoryAnimationEnabled') !== false;
-    this._animationTime = 0;
-
     const colors = COLOR_MODES[this._colorMode] || COLOR_MODES.default;
 
     this.lineMaterial = new THREE.LineBasicMaterial({
@@ -71,7 +68,7 @@ export class TrajectoryPredictor {
     this._onSettings = (e) => {
       const key = e.detail?.key;
       if (key === 'trajectoryOpacity' || key === 'trajectoryWidth' ||
-          key === 'trajectoryColorMode' || key === 'trajectoryAnimationEnabled') {
+          key === 'trajectoryColorMode') {
         this._readSettings();
       }
     };
@@ -82,8 +79,6 @@ export class TrajectoryPredictor {
     this._opacity = settings.get('trajectoryOpacity') ?? 0.7;
     this._width = settings.get('trajectoryWidth') ?? 1.0;
     this._colorMode = settings.get('trajectoryColorMode') || 'default';
-    this._animationEnabled = settings.get('trajectoryAnimationEnabled') !== false;
-
     const colors = COLOR_MODES[this._colorMode] || COLOR_MODES.default;
     this.lineMaterial.color.setHex(colors.line);
     this.hitLineMaterial.color.setHex(colors.hit);
@@ -144,11 +139,6 @@ export class TrajectoryPredictor {
       this.ghostBall.position.copy(ghostPos);
       this.ghostBall.visible = true;
 
-      if (this._animationEnabled) {
-        this._animationTime += dt;
-        const pulse = 0.5 + 0.15 * Math.sin(this._animationTime * 3);
-        this.ghostMaterial.opacity = Math.max(0.15, Math.min(0.8, this._opacity * pulse));
-      }
     } else {
       // No ball hit: draw line to table edge
       const edgeDist = this.rayToEdge(rayOrigin, rayDir);

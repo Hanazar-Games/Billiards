@@ -3033,7 +3033,6 @@ export class Game {
       case 'trajectoryOpacity':
       case 'trajectoryWidth':
       case 'trajectoryColorMode':
-      case 'trajectoryAnimationEnabled':
         // Applied live by TrajectoryPredictor
         break;
       case 'minimapBallSize':

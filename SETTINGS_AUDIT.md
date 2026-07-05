@@ -190,14 +190,13 @@ The settings panel now displays a small badge next to every disabled or special-
 
 ---
 
-## 7. Trajectory Appearance (4 keys)
+## 7. Trajectory Appearance (3 keys)
 
 | Key | Status | Consumer | Notes |
 |-----|--------|----------|-------|
 | `trajectoryOpacity` | ✅ | `TrajectoryPredictor` | v1.7.27 |
 | `trajectoryWidth` | ✅ | `TrajectoryPredictor` | v1.7.27 |
 | `trajectoryColorMode` | ✅ | `TrajectoryPredictor` | v1.7.27 |
-| `trajectoryAnimationEnabled` | ✅ | `TrajectoryPredictor` | v1.7.27 |
 
 ---
 
@@ -328,12 +327,12 @@ The settings panel now displays a small badge next to every disabled or special-
 | Category | Count | ✅ Effective | ⚠️ Partial | ❌ Dormant |
 |----------|-------|-------------|-----------|-----------|
 | Audio | 13 | 13 | 0 | 0 |
-| Graphics | 22 | 11 | 0 | 11 |
+| Graphics | 21 | 10 | 0 | 11 |
 | Appearance | 39 | 33 | 0 | 6 |
 | Camera | 17 | 12 | 0 | 5 |
 | UI/HUD | 21 | 17 | 0 | 4 |
 | Minimap | 5 | 5 | 0 | 0 |
-| Trajectory | 4 | 4 | 0 | 0 |
+| Trajectory | 3 | 3 | 0 | 0 |
 | FX/Trail | 7 | 4 | 0 | 3 |
 | Controls | 18 | 9 | 0 | 9 |
 | Replay/Stats | 13 | 1 | 0 | 12 |

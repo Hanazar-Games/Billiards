@@ -1,29 +1,22 @@
-# 3D Billiards v1.26.8 — Latest Update
+# 3D Billiards v1.26.9 — Latest Update
 
-## What's New in v1.26.8
+## What's New in v1.26.9
 
-### 深度总审计修复 — UI/UX/SFX/BGM + Analyzer Removal Cleanup
+### 击球分析动画残留清理
 
-本版本围绕“击球分析全部不要”的清理结果继续做全局回查，重点检查 UI/UX、SFX、BGM、LAN、Replay、Settings 和刚刚移除 Shot Analyzer 后的残留入口。旧版本公告已移至 [`ANNOUNCEMENT_HISTORY.md`](./ANNOUNCEMENT_HISTORY.md)。
+本版本继续收紧“击球分析整个模块不要”的范围，专门处理容易被理解成分析动画的预测线动画残留。旧版本公告已移至 [`ANNOUNCEMENT_HISTORY.md`](./ANNOUNCEMENT_HISTORY.md)。
 
 **功能清理：**
-- 已完整移除 Shot Analyzer 功能面：删除 analyzer 引擎、面板、轨迹图和对应测试，并清理主流程、回放按钮、菜单注入、设置项、文案、脚本引用中的残留入口。
-- Replay 面板不再出现“分析此杆”相关操作，结束击球后也不会再自动打开击球分析面板。
+- 删除 `TrajectoryPredictor` 内的 ghost ball 脉冲动画逻辑，瞄准预测线只保留静态显示，不再有分析式动画效果。
+- 删除设置页里的“轨迹动画”开关，以及 `trajectoryAnimationEnabled` 默认设置、实时设置分发和设置审计记录。
+- 旧存档里的 `trajectoryAnimationEnabled` 会在设置加载与写入时被忽略，不再作为未知键继续保留。
+- 清理空的 `src/analyzer` 目录残影，避免仓库结构里继续出现击球分析模块痕迹。
 
-**UI/UX 修复：**
-- LAN 房间面板打开时不再自动连接 WebSocket；现在只在“创建房间 / 加入房间”时连接。这样本机 `3001` 端口被其他非 WebSocket 服务占用时，不会一进面板就刷红色连接错误。
-- Replay 删除、清空、导入结果提示已从原生 `confirm()` / `alert()` 改成应用内玻璃拟态确认框和轻提示，视觉风格与其他面板保持一致。
-- 设置页“恢复默认快捷键”也改用应用内确认框，避免系统弹窗打断沉浸感。
-- Replay 导出延迟释放 Object URL，降低少数浏览器中下载尚未开始就撤销 URL 的风险。
-- 瞄准点、生涯统计柱状图、引导提示按钮、回放命名输入框等剩余硬编码动效已接入 `--ui-anim-speed`。
-
-**SFX/BGM 修复：**
-- 所有零音量 SFX 路径现在会安全丢弃未连接节点，避免严格 Web Audio 实现中 `disconnect()` 抛错。
-- Instant Replay 与 Broadcast 打字光标的动画已尊重减弱动态效果和 UI 动画速度设置。
-- BGM 未发现本轮新增回归，保留现有音量恢复与淡出保护。
+**兼容性修复：**
+- 修复 `SettingsStore` 读取旧 localStorage 中未知设置键时的兼容分支作用域错误；移除旧设置键后，老用户设置不会因此整包回退到默认值。
 
 **构建与测试：**
 - `npm run build` 成功
 - `npm test` 全量通过
-- `npm run test:dist` 通过，dist 版本标签确认 `v1.26.8`
-- 重点补充验证覆盖：`test:audio`、`test:lan`、`test:instant-replay`、`test:settings-audit`、`test:achievement-toast`、`test:smoke`
+- `npm run test:dist` 通过，dist 版本标签确认 `v1.26.9`
+- 设置兼容测试确认旧 `trajectoryAnimationEnabled` 会被丢弃，未知未来键仍保留

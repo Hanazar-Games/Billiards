@@ -99,6 +99,28 @@ test('SettingsStore.set clamps instantReplayThreshold', () => {
   assert.strictEqual(s.get('instantReplayThreshold'), 0);
 });
 
+test('SettingsStore ignores removed trajectory animation key', () => {
+  const originalStorage = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: () => JSON.stringify({
+      trajectoryAnimationEnabled: true,
+      unknownFutureKey: 3,
+    }),
+    setItem() {},
+  };
+
+  try {
+    const s = new SettingsStore();
+    assert.strictEqual(s.get('trajectoryAnimationEnabled'), undefined);
+    assert.strictEqual(s.get('unknownFutureKey'), 3);
+    s.set('trajectoryAnimationEnabled', false);
+    assert.strictEqual(s.get('trajectoryAnimationEnabled'), undefined);
+  } finally {
+    if (originalStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = originalStorage;
+  }
+});
+
 test('SettingsStore.set ignores locked keys', () => {
   const s = new SettingsStore();
   s.setLockedKeys(['trajectoryEnabled']);

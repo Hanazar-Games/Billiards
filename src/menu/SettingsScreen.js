@@ -518,7 +518,6 @@ export class SettingsScreen {
     );
     this._rowSlider('轨迹透明度', Math.round((settings.get('trajectoryOpacity') ?? 0.7) * 100), 20, 100, '%', (v) => settings.set('trajectoryOpacity', v / 100));
     this._rowSelect('轨迹颜色模式', TRAJECTORY_COLOR_MODE_OPTIONS, settings.get('trajectoryColorMode') || 'default', (v) => settings.set('trajectoryColorMode', v));
-    this._row('轨迹动画', this._createSwitch(settings.get('trajectoryAnimationEnabled') !== false, (v) => settings.set('trajectoryAnimationEnabled', v)));
 
     this._row('粒子效果',
       this._createSwitch(settings.get('particlesEnabled'), (v) => {
