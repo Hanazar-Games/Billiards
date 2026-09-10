@@ -321,6 +321,75 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     assert.ok(await page.evaluate(() => __menu.game.ui._lastMessage.includes('Alpha 赢得比赛')));
   });
 
+  await t.test('LAN lobby controls fit a narrow viewport', async () => {
+    await menu();
+    await page.setViewport({ width: 390, height: 700 });
+    await page.evaluate(() => __menu._showLanRoom());
+    const overflow = await page.evaluate(() => [...document.querySelectorAll('#lan-room-panel input, #lan-room-panel button')]
+      .filter(el => { const r = el.getBoundingClientRect(); return r.left < 0 || r.right > innerWidth; })
+      .map(el => el.textContent || el.placeholder));
+    assert.deepEqual(overflow, []);
+    await page.setViewport({ width: 1440, height: 1000, deviceScaleFactor: 2 });
+  });
+
+  await t.test('spin picker cannot change an AI shot or a paused shot', async () => {
+    await menu();
+    await page.evaluate(() => __menu._startGame('vsai'));
+    const result = await page.evaluate(() => {
+      const game = __menu.game;
+      __menu.loop.stop();
+      game.currentPlayer = 2; game.state = 'CHARGING';
+      game.cueTipOffset = { x: 0.2, y: 0.3 };
+      const picker = document.getElementById('cue-tip-ball');
+      const rect = picker.getBoundingClientRect();
+      const pointer = () => picker.dispatchEvent(new PointerEvent('pointerdown', {
+        pointerId: 1, clientX: rect.right - 5, clientY: rect.top + 5, bubbles: true,
+      }));
+      picker.setPointerCapture = () => {};
+      pointer();
+      const ai = { ...game.cueTipOffset };
+      game.currentPlayer = 1; game.paused = true;
+      pointer();
+      return { ai, paused: game.cueTipOffset };
+    });
+    assert.deepEqual(result, { ai: { x: 0.2, y: 0.3 }, paused: { x: 0.2, y: 0.3 } });
+  });
+
+  await t.test('cancelled and confirmed shots keep the HUD in the actual game state', async () => {
+    await menu();
+    await page.evaluate(() => __menu._startGame('freeplay'));
+    await page.evaluate(() => {
+      __menu.game.state = 'CHARGING'; __menu.game.charging = true;
+      __menu.game.power = 55; __menu.game.ui.setHUDState('CHARGING');
+    });
+    await page.keyboard.press('Escape');
+    assert.equal(await page.evaluate(() => __menu.game.ui._hudState), 'AIM');
+    await page.evaluate(async () => {
+      const { settings } = await import('/src/core/SettingsStore.js');
+      settings.set('confirmShotOnRelease', false);
+      __menu.game.power = 55;
+    });
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => __menu.game.ui._hudState), 'SHOOTING');
+    await page.evaluate(async () => (await import('/src/core/SettingsStore.js')).settings.set('confirmShotOnRelease', true));
+  });
+
+  await t.test('AI thinking feedback clears when the shot starts', async () => {
+    await menu();
+    await page.evaluate(() => __menu._startGame('vsai'));
+    await page.evaluate(async () => {
+      const game = __menu.game;
+      __menu.loop.stop();
+      game.currentPlayer = 2;
+      game.aiPlayer.takeTurn = async () => ({ aimDirection: { x: 0, z: 1 }, power: 30, cueTipOffset: { x: 0, y: 0 } });
+      await game.startAITurn();
+    });
+    const result = await page.evaluate(() => ({ state: __menu.game.state, hud: __menu.game.ui._hudState, message: __menu.game.ui._lastMessage }));
+    assert.equal(result.state, 'SHOOTING');
+    assert.equal(result.hud, 'SHOOTING');
+    assert.ok(!result.message.includes('思考中'));
+  });
+
   await t.test('two browsers keep their LAN connection through play and synchronize the clock', async t => {
     const socket = createSocketServer();
     await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve));
@@ -352,12 +421,14 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
       __menu._showLanRoom(); await __menu.lanRoomPanel._onCreateRoom();
     }, ws);
     await page.waitForFunction(() => __menu.lanRoomPanel?._roomId);
+    assert.equal(await page.evaluate(() => __menu.lanRoomPanel._startBtn.disabled), true);
     const room = await page.evaluate(() => __menu.lanRoomPanel._roomId);
     await guest.evaluate(async room => {
       __menu._showLanRoom(); __menu.lanRoomPanel._joinInput.value = room;
       await __menu.lanRoomPanel._onJoinRoom();
     }, room);
     await guest.waitForFunction(() => __menu.lanRoomPanel?._state === 'joined');
+    await page.waitForFunction(() => !__menu.lanRoomPanel._startBtn.disabled);
     await page.evaluate(() => __menu.lanRoomPanel.client.startGame('9ball', 'pool9ft'));
     await Promise.all([
       page.waitForFunction(() => __menu.state === 'PLAYING' && __menu.game?.networkController?.connected),
@@ -381,6 +452,24 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     await page.waitForFunction(() => __menu.game.statsTracker.playerStats[2].shots === 1);
     await guest.waitForFunction(() => __menu.game.statsTracker.playerStats[2].shots === 1);
     assert.equal(await guest.evaluate(() => __menu.game.statsTracker.playerStats[2].avgPower), 50);
+
+    await page.evaluate(() => {
+      const game = __menu.game;
+      for (const ball of game.ballsManager.balls) { ball.body.velocity.setZero(); ball.body.angularVelocity.setZero(); }
+      game.currentPlayer = 1; game.rules.gameOver = true; game.rules.winner = 2;
+      game.resolveTurn([], { gameOver: true, winner: 2, message: '玩家 2 获胜' });
+    });
+    await guest.waitForFunction(() => __menu.game.state === 'GAME_OVER' && __menu.game.statsPanel._gameOverOverlay?.style.display === 'flex');
+    await guest.keyboard.press('Escape');
+    await guest.evaluate(() => __menu.game.ui._hudNewGameBtn.click());
+    await Promise.all([
+      page.waitForFunction(() => __menu.game._rackId === 1 && __menu.game.state === 'AIM'),
+      guest.waitForFunction(() => __menu.game._rackId === 1 && __menu.game.state === 'AIM' && __menu.game.statsPanel._gameOverOverlay.style.display === 'none'),
+    ]);
+    await guest.evaluate(() => __menu.game._openInGameSettings());
+    await page.evaluate(() => __menu.game.resetGame());
+    await guest.waitForFunction(() => __menu.game._rackId === 2 && !__menu.game.paused && !__menu.game._settingsOpen);
+    assert.ok(await guest.evaluate(() => performance.now() - __menu.game.gameStartTime < 2000));
     await guest.evaluate(() => __menu.game.onReturnToMenu());
     await page.waitForFunction(() => __menu.state === 'MENU', { timeout: 6000 });
     await page.evaluate(() => history.replaceState(null, '', location.pathname));

@@ -1,4 +1,5 @@
 import { settings } from '../core/SettingsStore.js';
+import { UIText } from '../core/UIText.js';
 
 /**
  * GameStateSerializer — Serialize and deserialize game state for network sync.
@@ -60,6 +61,7 @@ export class GameStateSerializer {
       mode: game.mode,
       tableProfileId: game.tableProfileId || 'pool9ft',
       state: game.state,
+      rackId: game._rackId ?? 0,
       currentPlayer: game.currentPlayer,
       ballInHand: game.ballInHand,
       ballInHandBehindLine: game.ballInHandBehindLine || false,
@@ -94,7 +96,29 @@ export class GameStateSerializer {
     if (!game.ballsManager) return;
     const previousState = game.state;
     const hadBallInHand = game.ballInHand;
-    const keepCharge = game.state === 'CHARGING' && snapshot.state === 'AIM' &&
+    const newRack = Number.isInteger(snapshot.rackId) && snapshot.rackId !== (game._rackId ?? 0);
+    if (newRack) {
+      game._rackId = snapshot.rackId;
+      game._pendingShotNumber = null;
+      game.paused = false;
+      game._pausedAt = null;
+      game._settingsOpen = false;
+      game.inGameSettings?.hide();
+      game.ui?.hidePauseMenu?.();
+      game.ui?.hideResetButton?.();
+      game.ui?.clearMessage?.();
+      game.statsPanel?.reset?.();
+      game.recorder?.reset();
+      game.trails?.clear();
+      game.particles?.clear();
+      game.shockwaves?.clear();
+      game.screenShake?.cancel();
+      game.cueTipOffset = { x: 0, y: 0 };
+      game._updateCueTipPicker?.();
+    }
+    const keepPlacement = !newRack && hadBallInHand && snapshot.ballInHand &&
+      game.currentPlayer === game.localPlayerId && snapshot.currentPlayer === game.currentPlayer && !snapshot.paused;
+    const keepCharge = !newRack && game.state === 'CHARGING' && snapshot.state === 'AIM' &&
       snapshot.currentPlayer === game.currentPlayer && game.currentPlayer === game.localPlayerId &&
       !snapshot.ballInHand && !snapshot.paused;
 
@@ -113,6 +137,7 @@ export class GameStateSerializer {
     for (const bs of snapshot.balls) {
       const ball = game.ballsManager.getBall(bs.id);
       if (!ball) continue;
+      if (bs.id === 0 && keepPlacement) continue;
 
       ball.pocketed = bs.pocketed;
       ball.mesh.visible = bs.visible;
@@ -134,21 +159,23 @@ export class GameStateSerializer {
 
     // Update game state fields
     const ALLOWED_STATES = new Set(['AIM','CHARGING','SHOOTING','AI_THINKING','GAME_OVER','REPLAYING','BALL_IN_HAND','DISPOSED']);
-    const pendingShot = game.state === 'SHOOTING' && snapshot.state === 'AIM' &&
+    const pendingShot = !newRack && game.state === 'SHOOTING' && snapshot.state === 'AIM' &&
       game.currentPlayer === game.localPlayerId && snapshot.currentPlayer === game.currentPlayer &&
       !snapshot.ballInHand && !snapshot.paused && snapshot.stats?.totalTurns < game._pendingShotNumber;
     if (!pendingShot) game._pendingShotNumber = null;
     if (!keepCharge && !pendingShot && snapshot.state !== undefined && ALLOWED_STATES.has(snapshot.state)) {
       game.state = snapshot.state;
-      if (previousState !== game.state) {
+      if (newRack || previousState !== game.state) {
         game.charging = false;
         game.dragStart = null;
+        game.directPullAim = false;
         game.power = 0;
         game.ui?.setPower?.(0);
       }
     }
     if (snapshot.currentPlayer !== undefined) {
       game.currentPlayer = snapshot.currentPlayer;
+      if (game.rules) game.rules.currentPlayer = snapshot.currentPlayer;
       game.ui?.setPlayerTurn(snapshot.currentPlayer);
     }
     if (snapshot.ballInHand !== undefined) {
@@ -200,6 +227,7 @@ export class GameStateSerializer {
       game.statsTracker.matchStats = stats.match;
       game.statsTracker.gameStartTime = performance.now() - stats.duration * 1000;
       game.statsTracker.gameEndTime = game.state === 'GAME_OVER' ? performance.now() : null;
+      game.gameStartTime = game.statsTracker.gameStartTime;
       game.statsPanel?.update(game.statsTracker.getLiveStats());
     }
     if (game.state !== previousState && game.state === 'SHOOTING') {
@@ -209,13 +237,16 @@ export class GameStateSerializer {
       if (snapshot.rules?.winner === game.localPlayerId) game.audio?.playWin();
       else game.audio?.playFoul();
       if (snapshot.stats) game.statsPanel?.showGameOver(snapshot.stats, false);
+      game.ui?.showResetButton?.(() => game._onResetButtonClicked(), UIText.gameOverResetLabel);
     } else if (game.ballInHand && !hadBallInHand) {
       game.audio?.playFoul();
     }
 
     // Show message if changed
-    if (snapshot.message && game.ui && snapshot.message !== game.ui._lastMessage) {
-      game.ui.setMessage(snapshot.message);
+    const message = snapshot.paused ? '房主已暂停，等待继续…' : (snapshot.message || '');
+    if (game.ui && message !== game.ui._lastMessage) {
+      game.ui.clearMessage?.();
+      game.ui.setMessage?.(message, 0, game.state === 'GAME_OVER' ? 3 : 1);
     }
 
     // Update cue visibility based on state

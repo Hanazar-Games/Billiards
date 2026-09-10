@@ -37,7 +37,7 @@ export class NetworkClient extends EventTarget {
 
   connect() {
     return new Promise((resolve, reject) => {
-      this._connectResolved = false;
+      let opened = false;
       if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
         resolve();
         return;
@@ -52,8 +52,10 @@ export class NetworkClient extends EventTarget {
         return;
       }
 
+      const socket = this.ws;
       this.ws.onopen = () => {
-        this._connectResolved = true;
+        if (this.ws !== socket) return;
+        opened = true;
         this.connected = true;
         this._startPing();
         this.dispatchEvent(new CustomEvent('connected'));
@@ -61,6 +63,7 @@ export class NetworkClient extends EventTarget {
       };
 
       this.ws.onmessage = (event) => {
+        if (this.ws !== socket) return;
         let data;
         try {
           data = JSON.parse(event.data);
@@ -71,15 +74,17 @@ export class NetworkClient extends EventTarget {
       };
 
       this.ws.onerror = (err) => {
-        this.dispatchEvent(new CustomEvent('error', { detail: { message: 'WebSocket error', original: err } }));
+        if (this.ws === socket) this.dispatchEvent(new CustomEvent('error', { detail: { message: 'WebSocket error', original: err } }));
         reject(new Error('WebSocket connection failed'));
       };
 
       this.ws.onclose = () => {
-        this.connected = false;
-        this._stopPing();
-        this.dispatchEvent(new CustomEvent('disconnected'));
-        if (!this._connectResolved) {
+        if (this.ws === socket) {
+          this.connected = false;
+          this._stopPing();
+          this.dispatchEvent(new CustomEvent('disconnected'));
+        }
+        if (!opened) {
           reject(new Error('WebSocket closed'));
         }
       };

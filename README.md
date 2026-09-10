@@ -2,7 +2,7 @@
 
 A browser-based 3D pool game built with **Three.js** and **cannon-es** physics engine.
 
-**Current Version: v1.26.11**
+**Current Version: v1.26.12**
 
 ## 🎮 Game Modes
 

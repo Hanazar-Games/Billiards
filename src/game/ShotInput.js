@@ -26,18 +26,18 @@ export function createShotInput(game) {
  */
 export function applyShotInput(game, input) {
   if (!input || typeof input !== 'object') return false;
+  if (input.requestReset) {
+    if (game.networkMode && ![1, 2].includes(input.fromPlayer)) return false;
+    if (!['AIM', 'CHARGING', 'GAME_OVER'].includes(game.state)) return false;
+    game._onResetButtonClicked();
+    return true;
+  }
   if (game.networkMode && input.fromPlayer !== game.currentPlayer) return false;
 
   // State guards: only accept input during valid gameplay states
   if (game.state === 'GAME_OVER' || game.state === 'DISPOSED') return false;
   if (game.paused || !['AIM', 'CHARGING'].includes(game.state)) return false;
   if (game._turnTimerEnabled && game._turnTimerRemaining <= 0) return false;
-
-  // Reset request
-  if (input.requestReset) {
-    game._onResetButtonClicked();
-    return true;
-  }
 
   // Ball placement (free ball)
   if (input.ballPlacement) {

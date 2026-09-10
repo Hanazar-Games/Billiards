@@ -99,6 +99,7 @@ export class Game {
     this.localPlayerId = 1;
     this.networkController = null;
     this._lastSnapshotTime = 0;
+    this._rackId = 0;
     this.networkPlayer1Name = '玩家 1';
     this.networkPlayer2Name = '玩家 2';
     this._netDisconnectHandled = false;
@@ -542,8 +543,7 @@ export class Game {
   }
 
   onMouseMove() {
-    if (this.state === 'REPLAYING') return;
-    if (this.bothAI) return; // spectator mode: no human input
+    if (!this._canAdjustShot()) return;
     // Freeze aim while in camera-control mode
     if (this.renderer._shiftCameraControl) return;
     if (this.ballInHand && this.state === 'AIM') {
@@ -658,6 +658,7 @@ export class Game {
   }
 
   updateDragPower() {
+    if (!this._canAdjustShot()) return;
     const cueBall = this.ballsManager.getCueBall();
     if (!cueBall || cueBall.pocketed || !this.dragStart) return;
 
@@ -734,7 +735,7 @@ export class Game {
   }
 
   updateAimDirection() {
-    if (this.bothAI) return; // spectator mode: AI controls aim
+    if (!this._canAdjustShot()) return;
     const cueBall = this.ballsManager.getCueBall();
     if (!cueBall || cueBall.pocketed) return;
 
@@ -836,6 +837,7 @@ export class Game {
   }
 
   updateBallInHandPreview() {
+    if (!this._canAdjustShot()) return;
     const cueBall = this.ballsManager.getCueBall();
     const point = this.getMouseTablePoint(BALL.radius);
     if (!cueBall) return;
@@ -865,7 +867,7 @@ export class Game {
   }
 
   confirmBallInHandPlacement() {
-    if (this.paused) return;
+    if (!this._canAdjustShot()) return;
     this.updateBallInHandPreview();
     if (!this.ballInHandValid) {
       const reasonMap = {
@@ -1188,6 +1190,8 @@ export class Game {
 
     // Shoot
     this.state = 'SHOOTING';
+    this.ui.setHUDState('SHOOTING');
+    if (this.ui._lastMessage === UIText.aiThinking) this.ui.clearMessage();
     this.ui.hideReplayHint();
     this._shotStartTime = performance.now();
     this.charging = false;
@@ -1300,7 +1304,7 @@ export class Game {
 
     // Update match timer
     if (this.gameStartTime) {
-      this.ui.updateTimer(performance.now() - this.gameStartTime);
+      this.ui.updateTimer((this.statsTracker.gameEndTime ?? performance.now()) - this.gameStartTime);
     }
     const minimapActive = (this.networkRole === 'client' && this._hostFairness)
       ? (this._hostFairness.minimapEnabled !== false)
@@ -2070,6 +2074,7 @@ export class Game {
 
   resetGame() {
     if (this.state === 'DISPOSED') return;
+    this._rackId++;
     this.achievements.onGameStart();
     this._lastReplayData = null;
     if (this.instantReplay && this.instantReplay.active) {
@@ -2320,7 +2325,7 @@ export class Game {
     };
 
     const onPointerDown = (e) => {
-      if (this.state !== 'AIM' && this.state !== 'CHARGING') return;
+      if (!this._canAdjustShot()) return;
       dragging = true;
       ballWrap.setPointerCapture(e.pointerId);
       setOffsetFromEvent(e);
@@ -2328,6 +2333,7 @@ export class Game {
     };
     const onPointerMove = (e) => {
       if (!dragging) return;
+      if (!this._canAdjustShot()) { dragging = false; return; }
       setOffsetFromEvent(e);
       e.preventDefault();
     };
@@ -2402,12 +2408,7 @@ export class Game {
       // Escape cancels charging and ball-in-hand preview
       if (key === 'escape') {
         if (this.state === 'CHARGING' && !(this.aiEnabled && (this.bothAI || this.currentPlayer === 2))) {
-          this.state = 'AIM';
-          this.power = 0;
-          this.charging = false;
-          this.dragStart = null;
-          this.ui.setPower(0);
-          if (this.cue) this.cue.show();
+          this._enterAimState();
           return;
         }
         if (this.state === 'GAME_OVER') return;
@@ -2484,6 +2485,8 @@ export class Game {
         if (tag === 'INPUT' || tag === 'TEXTAREA') return;
         if (this.state === 'AIM' && this.power >= 1) {
           this.state = 'SHOOTING';
+          this.ui.setHUDState('SHOOTING');
+          this.ui.hideReplayHint();
           this.shoot();
           return;
         }
@@ -2517,6 +2520,11 @@ export class Game {
         changed = true;
       }
       if (changed) {
+        const length = Math.hypot(this.cueTipOffset.x, this.cueTipOffset.y);
+        if (length > 0.88) {
+          this.cueTipOffset.x *= 0.88 / length;
+          this.cueTipOffset.y *= 0.88 / length;
+        }
         this._updateCueTipPicker();
         if (this.ui) this.ui.setSpin(this.cueTipOffset);
       }
@@ -2865,6 +2873,8 @@ export class Game {
       this._onNetPushOutDeclare = (e) => {
         if (this.networkRole === 'host' && this.rules) {
           if (e.detail?.fromPlayer !== this.currentPlayer) return;
+          if (this.paused || this.state !== 'AIM' || this.ballInHand) return;
+          if (this._turnTimerEnabled && this._turnTimerRemaining <= 0) return;
           if (!this.rules.pushOutAvailable) return;
           this.rules.declarePushOut();
           this._broadcastSnapshot();
@@ -2873,6 +2883,8 @@ export class Game {
       this._onNetPushOutChoice = (e) => {
         if (this.networkRole === 'host' && this.rules) {
           if (e.detail?.fromPlayer !== this.currentPlayer) return;
+          if (this.paused || this.state !== 'AIM' || this.ballInHand) return;
+          if (this._turnTimerEnabled && this._turnTimerRemaining <= 0) return;
           const choice = e.detail?.choice;
           if (choice === 'accept' || choice === 'pass') {
             this._applyPushOutChoice(choice);
@@ -2933,6 +2945,11 @@ export class Game {
   isLocalPlayerTurn() {
     if (!this.networkMode) return true;
     return this.currentPlayer === this.localPlayerId;
+  }
+
+  _canAdjustShot() {
+    return ['AIM', 'CHARGING'].includes(this.state) && !this.paused && !this._hostPaused &&
+      !this.bothAI && !(this.aiEnabled && this.currentPlayer === 2) && this.isLocalPlayerTurn();
   }
 
   applyRemoteShot(shotInput) {

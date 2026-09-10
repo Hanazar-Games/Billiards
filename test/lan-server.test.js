@@ -147,6 +147,10 @@ async function main() {
   record('maxPlayers is 2', created.maxPlayers === 2);
   record('playerList has host', created.playerList?.length === 1 && created.playerList[0].isHost);
 
+  send(host, { type: 'startGame' });
+  await sleep(100);
+  record('cannot start without an opponent', host.messages.some(m => m.type === 'error' && m.error === 'Waiting for opponent'));
+
   // ── Test 2: joinRoom ──
   console.log('\n▶ Test 2: joinRoom');
   const guest = await connectClient();
@@ -185,6 +189,11 @@ async function main() {
   const guestStart = await waitForMessage(guest, 'startGame');
   record('host received startGame with tableProfileId', hostStart.mode === '8ball' && hostStart.tableProfileId === 'chinese8');
   record('guest received startGame with tableProfileId', guestStart.mode === '8ball' && guestStart.tableProfileId === 'chinese8');
+
+  clearMessages(host); clearMessages(guest);
+  send(host, { type: 'startGame' });
+  await sleep(100);
+  record('a started game cannot be started again', host.messages.some(m => m.type === 'error' && m.error === 'Game already started') && !guest.messages.some(m => m.type === 'startGame'));
 
   // ── Test 5: guest leaveRoom ──
   console.log('\n▶ Test 5: guest leaveRoom');

@@ -189,7 +189,8 @@ export class LanRoomPanel {
 
   _setButtonsDisabled(disabled) {
     [this._createBtn, this._joinBtn, this._startBtn, this._cancelBtn].forEach((btn) => {
-      if (btn) { btn.disabled = disabled; btn.style.opacity = disabled ? '0.5' : '1'; btn.style.pointerEvents = disabled ? 'none' : 'auto'; }
+      const blocked = disabled || (btn === this._startBtn && (this.client?.playerList.length ?? 0) < 2);
+      if (btn) { btn.disabled = blocked; btn.style.opacity = blocked ? '0.5' : '1'; btn.style.pointerEvents = blocked ? 'none' : 'auto'; }
     });
   }
 
@@ -229,6 +230,7 @@ export class LanRoomPanel {
         'Game already started': '游戏已开始，无法加入',
         'Already in a room': '你已在另一个房间中，请先退出',
         'Only host can start game': '只有房主可以开始游戏',
+        'Waiting for opponent': '等待另一位玩家加入后才能开始游戏',
         'Not in a room': '你不在任何房间中',
       };
       const raw = e.detail?.error || '未知错误';
@@ -354,6 +356,10 @@ export class LanRoomPanel {
 
   _onStartGame() {
     if (!this.client || !this.client.isHost) return;
+    if (this.client.playerList.length < 2) {
+      this._setStatus('等待另一位玩家加入后才能开始游戏');
+      return;
+    }
     this._setButtonsDisabled(true);
     try {
       const tableProfileId = this._tableSelect?.value || 'pool9ft';
@@ -385,6 +391,7 @@ export class LanRoomPanel {
   }
 
   _updatePlayerList(list) {
+    this._setButtonsDisabled(false);
     this._playerListEl.innerHTML = '';
     if (!list || list.length === 0) return;
     const header = document.createElement('div');

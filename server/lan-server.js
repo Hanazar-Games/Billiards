@@ -224,6 +224,14 @@ wss.on('connection', (ws, req) => {
         send(ws, { type: 'error', error: 'Only host can start game' });
         return;
       }
+      if (room.started) {
+        send(ws, { type: 'error', error: 'Game already started' });
+        return;
+      }
+      if (room.guests.size !== 1) {
+        send(ws, { type: 'error', error: 'Waiting for opponent' });
+        return;
+      }
       room.started = true;
       room.broadcast({ type: 'startGame', mode: data.mode || '8ball', tableProfileId: data.tableProfileId || 'pool9ft', startedBy: ws._playerId });
       return;

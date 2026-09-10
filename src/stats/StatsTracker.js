@@ -171,7 +171,7 @@ export class StatsTracker {
 
   /** Get lightweight live stats for in-game HUD updates. */
   getLiveStats() {
-    const duration = (performance.now() - this.gameStartTime) / 1000;
+    const duration = ((this.gameEndTime ?? performance.now()) - this.gameStartTime) / 1000;
     const p1 = this.playerStats[1];
     const p2 = this.playerStats[2];
 

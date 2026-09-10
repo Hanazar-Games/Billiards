@@ -52,6 +52,7 @@ const { GameStateSerializer } = await import('../src/net/GameStateSerializer.js'
 const { applyShotInput } = await import('../src/game/ShotInput.js');
 const { MenuSystem } = await import('../src/menu/MenuSystem.js');
 const { LanRoomPanel } = await import('../src/menu/LanRoomPanel.js');
+const { NetworkClient } = await import('../src/net/NetworkClient.js');
 const { BALL, SHOT } = await import('../src/config.js');
 
 test('natural instant replay completion restores the camera before returning', () => {
@@ -121,6 +122,130 @@ function remoteGame() {
     shoot() { calls.push('shot'); }, calls,
   };
 }
+
+test('either seated player can request a rematch after game over', () => {
+  const game = Object.assign(remoteGame(), { state: 'GAME_OVER', currentPlayer: 1 });
+  let resets = 0;
+  game._onResetButtonClicked = () => resets++;
+  assert.equal(applyShotInput(game, { fromPlayer: 2, requestReset: true }), true);
+  assert.equal(resets, 1);
+  game.state = 'SHOOTING';
+  assert.equal(applyShotInput(game, { fromPlayer: 2, requestReset: true }), false);
+  game.state = 'GAME_OVER';
+  assert.equal(applyShotInput(game, { fromPlayer: 3, requestReset: true }), false);
+});
+
+test('mouse movement cannot change AI, remote, or paused aiming and placement', () => {
+  for (const extra of [{ aiEnabled: true, currentPlayer: 2 },
+    { networkMode: 'lan', localPlayerId: 1, currentPlayer: 2 }, { paused: true }, { _hostPaused: true }]) {
+    const game = Object.assign(gameForTurn(), extra, { renderer: {} });
+    let changes = 0;
+    game.updateAimDirection = game.updateDragPower = game.updateBallInHandPreview = () => changes++;
+    game.updateTrajectory = noop;
+    for (const state of ['AIM', 'CHARGING']) {
+      game.state = state; game.onMouseMove();
+      game.ballInHand = true; game.onMouseMove(); game.ballInHand = false;
+    }
+    assert.equal(changes, 0, JSON.stringify(extra));
+  }
+});
+
+test('LAN rematches clear the client summary, pause and old clock', () => {
+  const calls = [];
+  const game = { state: 'GAME_OVER', currentPlayer: 1, localPlayerId: 2,
+    paused: true, _pausedAt: 5, _settingsOpen: true, gameStartTime: 1, _rackId: 0,
+    rules: new NineBallRules(), statsTracker: new StatsTracker(),
+    ballsManager: { getBall: noop },
+    ui: { setPlayerTurn: noop, setHUDState: noop, setPower: noop,
+      hidePauseMenu: () => calls.push('pause'), hideResetButton: () => calls.push('reset'),
+      clearMessage: noop, setMessage: noop },
+    inGameSettings: { hide: () => calls.push('settings') },
+    statsPanel: { reset: () => calls.push('summary'), update: noop },
+  };
+  const host = { state: 'AIM', currentPlayer: 1, _rackId: 1, statsTracker: new StatsTracker(), rules: new NineBallRules() };
+  GameStateSerializer.applyGameState(game, GameStateSerializer.serializeGameState(host));
+  assert.equal(game.paused, false);
+  assert.equal(game._settingsOpen, false);
+  assert.deepEqual(calls.sort(), ['pause', 'reset', 'settings', 'summary']);
+  assert.ok(Math.abs(performance.now() - game.gameStartTime) < 100);
+});
+
+test('LAN idle snapshots preserve a local ball-in-hand preview', () => {
+  const position = new THREE.Vector3(20, BALL.radius, -50);
+  const ball = { pocketed: false, mesh: { visible: true }, body: {
+    position, velocity: new THREE.Vector3(), angularVelocity: new THREE.Vector3(), quaternion: new THREE.Quaternion(),
+  }, sync: noop };
+  const game = { state: 'AIM', currentPlayer: 2, localPlayerId: 2, ballInHand: true,
+    ballsManager: { getBall: () => ball } };
+  GameStateSerializer.applyGameState(game, { state: 'AIM', currentPlayer: 2, ballInHand: true,
+    balls: [{ id: 0, x: 0, y: BALL.radius, z: -90, vx: 0, vy: 0, vz: 0, qx: 0, qy: 0, qz: 0, qw: 1, visible: true }] });
+  assert.deepEqual(position.toArray(), [20, BALL.radius, -50]);
+});
+
+test('remote push-out declarations cannot arrive after the shot starts or while paused', () => {
+  const game = Object.assign(gameForTurn('9ball'), { currentPlayer: 2, rules: new NineBallRules() });
+  game.setNetworkController(new EventTarget(), 'host', 1);
+  game._broadcastSnapshot = noop;
+  for (const extra of [{ state: 'SHOOTING' }, { state: 'AIM', paused: true }]) {
+    Object.assign(game, extra); game.rules.pushOutAvailable = true; game.rules.pushOutDeclared = false;
+    game._onNetPushOutDeclare({ detail: { fromPlayer: 2 } });
+    assert.equal(game.rules.pushOutDeclared, false);
+  }
+});
+
+test('late close events from an old socket cannot disconnect a new connection', async t => {
+  const OriginalSocket = globalThis.WebSocket;
+  globalThis.WebSocket = class {
+    static OPEN = 1; static CONNECTING = 0;
+    constructor() { this.readyState = 0; }
+    close() { this.readyState = 3; }
+  };
+  t.after(() => { globalThis.WebSocket = OriginalSocket; });
+  const client = new NetworkClient('ws://localhost');
+  t.after(() => client.disconnect());
+  const first = client.connect(); client.ws.readyState = 1; client.ws.onopen(); await first;
+  const lateClose = client.ws.onclose;
+  client.disconnect();
+  const second = client.connect(); client.ws.readyState = 1; client.ws.onopen(); await second;
+  lateClose();
+  assert.equal(client.connected, true);
+  assert.ok(client._pingInterval);
+});
+
+test('the live statistics clock stops when the game ends', t => {
+  let now = 1000;
+  t.mock.method(performance, 'now', () => now);
+  const stats = new StatsTracker();
+  now = 61000; stats.endGame(1);
+  now = 121000;
+  assert.equal(stats.getLiveStats().duration, '1:00');
+});
+
+test('keyboard spin stays inside the same rim as the pointer picker', () => {
+  const game = gameForTurn(); game.state = 'AIM'; game.cueTipOffset = { x: 0.88, y: 0.88 };
+  game._setupSpinControls();
+  try {
+    game._onKeyDown({ key: keyBindings.getBinding('spinUp'), preventDefault: noop });
+    assert.ok(Math.hypot(game.cueTipOffset.x, game.cueTipOffset.y) <= 0.88 + 1e-10);
+  } finally { window.removeEventListener('keydown', game._onKeyDown); }
+});
+
+test('Enter-confirmed shots switch the HUD to shooting', () => {
+  const game = gameForTurn(); game.state = 'AIM'; game.power = 55; game.shoot = noop;
+  let hud;
+  game.ui = { setHUDState: state => { hud = state; }, hideReplayHint: noop };
+  const previous = settings.get('confirmShotOnRelease');
+  settings.set('confirmShotOnRelease', false);
+  game._setupSpinControls();
+  try {
+    game._onKeyDown({ key: 'Enter', preventDefault: noop });
+    assert.equal(game.state, 'SHOOTING');
+    assert.equal(hud, 'SHOOTING');
+  } finally {
+    window.removeEventListener('keydown', game._onKeyDown);
+    settings.set('confirmShotOnRelease', previous);
+  }
+});
 
 test('remote ball placement cannot be made by the wrong player', () => {
   const game = remoteGame();
