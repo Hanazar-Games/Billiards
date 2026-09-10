@@ -73,9 +73,9 @@ export class InstantReplayController {
     // Wire callbacks
     this.replayEngine.onComplete = () => this._onReplayComplete();
     this.replayEngine.onProgress = (current, total) => {
-      const ratio = total > 0 ? current / total : 0;
+      if (!this.active) return;
+      const ratio = total > 1 ? current / (total - 1) : 0;
       this.ui.setProgress(ratio);
-      this.cameraDirector.update(ratio, this.replayEngine.getDuration(), this.ballsManager);
     };
 
     return true;
@@ -89,6 +89,7 @@ export class InstantReplayController {
     if (safeDt <= 0) return;
 
     this.replayEngine.update(safeDt);
+    if (!this.active) return;
     this.cameraDirector.update(
       this.replayEngine.getProgress(),
       this.replayEngine.getDuration(),
@@ -125,6 +126,7 @@ export class InstantReplayController {
 
   _restoreAndEnd() {
     this.active = false;
+    this._onComplete = null;
     this.ui.hide();
     this.replayEngine.stop();
     this._restoreBallStates();

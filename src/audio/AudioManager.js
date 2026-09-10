@@ -604,12 +604,12 @@ export class AudioManager {
   /** Re-create AudioContext so lowLatencyMode changes take effect immediately. */
   reinit() {
     if (!this.initialized) return;
-    const wasPlaying = this.bgmNodes.length > 0;
+    const wasPlaying = this._bgmWasPlaying;
     this.dispose();
     this.init();
     this.syncVolumesFromSettings();
     this.toggleSound(this.soundEnabled);
-    if (wasPlaying && this.soundEnabled) {
+    if (wasPlaying) {
       this.startBGM();
     }
   }

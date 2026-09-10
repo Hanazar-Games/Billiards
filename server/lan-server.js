@@ -39,13 +39,12 @@ class Room {
     this.id = id;
     this.host = hostWs;
     this.guests = new Map(); // ws -> { id, nickname }
-    this.nextGuestId = 2;
     this.started = false;
     this.maxPlayers = 2; // MVP: only 2-player matches
   }
 
   addGuest(ws, nickname = '') {
-    const guestId = this.nextGuestId++;
+    const guestId = 2;
     const info = { id: guestId, nickname: nickname || `玩家 ${guestId}` };
     this.guests.set(ws, info);
     return info;
@@ -55,7 +54,7 @@ class Room {
     const info = this.guests.get(ws);
     if (info) {
       this.guests.delete(ws);
-      this.broadcast({ type: 'playerLeft', playerId: info.id });
+      this.broadcast({ type: 'playerLeft', playerId: info.id, playerList: this.getPlayerList() });
     }
   }
 
@@ -330,11 +329,6 @@ wss.on('connection', (ws, req) => {
       rooms.delete(room.id);
     } else {
       room.removeGuest(ws);
-      if (room.guests.size === 0 && !room.started) {
-        // Empty idle room: clean up
-        if (room.host) room.host._room = null;
-        rooms.delete(room.id);
-      }
     }
   });
 

@@ -727,6 +727,7 @@ export class MenuSystem {
 
     // Show challenge result
     if (this.challengeManager) {
+      this.challengeManager.finish();
       const hud = this.challengeManager.getHUDData();
       if (!this.challengeResult) {
         this.challengeResult = new ChallengeResult(
@@ -869,6 +870,7 @@ export class MenuSystem {
   }
 
   async _startNetworkGame(client, mode, tableProfileId = null) {
+    if (this.lanRoomPanel?.client === client) this.lanRoomPanel.releaseClient();
     const role = client.isHost ? 'host' : 'client';
     const localId = client.playerId || 1;
     await this._startGame(mode, client, role, localId, null, tableProfileId);
@@ -900,7 +902,7 @@ export class MenuSystem {
   async _startMatchRound() {
     if (!this.matchManager) return;
     const status = this.matchManager.getStatus();
-    const mode = status.mode === '9ball' ? 'nineball' : 'local2p';
+    const mode = status.mode === '9ball' ? '9ball' : 'local2p';
     const tableProfileId = status.tableProfileId || null;
     await this._startGame(mode, null, null, null, status, tableProfileId);
   }
@@ -914,7 +916,7 @@ export class MenuSystem {
     if (status.finished) {
       // Match over — show result then return to menu
       const winnerName = status.winner === 1 ? status.p1Name : status.p2Name;
-      this.game.ui.setMessage(`🏆 ${winnerName} 赢得比赛！ 比分 ${status.p1Score} : ${status.p2Score}`, 0);
+      this.game.ui.setMessage(`🏆 ${winnerName} 赢得比赛！ 比分 ${status.p1Score} : ${status.p2Score}`, 0, 3);
       this.game.ui.showResetButton(() => {
         this.matchManager = null;
         this._returnToMenu();
@@ -923,7 +925,7 @@ export class MenuSystem {
     }
 
     // Next game
-    this.game.ui.setMessage(`第 ${status.currentGame} 局结束！比分 ${status.p1Score} : ${status.p2Score} — 点击"下一局"继续`, 0);
+    this.game.ui.setMessage(`第 ${status.currentGame} 局结束！比分 ${status.p1Score} : ${status.p2Score} — 点击"下一局"继续`, 0, 3);
     this.game.ui.showResetButton(() => {
       this.matchManager.startGame();
       this._restartMatchRound();
@@ -955,7 +957,7 @@ export class MenuSystem {
           return { mode: 'local2p', aiEnabled: false };
         case 'vsai':
           return { mode: 'vsai', aiEnabled: true, aiDifficulty: 'normal' };
-        case 'nineball':
+        case '9ball':
           return { mode: '9ball', aiEnabled: false };
         case 'spectator':
           return { mode: 'spectator', aiEnabled: true, aiDifficulty: 'normal', bothAI: true };

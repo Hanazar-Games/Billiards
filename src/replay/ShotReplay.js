@@ -157,8 +157,8 @@ export class ShotReplay {
       this.currentFrame = this.frameCount - 1;
       this._applyFrame(this.currentFrame);
       this.playing = false;
-      if (this.onComplete) this.onComplete();
       if (this.onProgress) this.onProgress(this.currentFrame, this.frameCount);
+      if (this.onComplete) this.onComplete();
       return;
     }
 

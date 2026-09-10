@@ -590,7 +590,9 @@ export class UI {
 
     this._confirmKeyHandler = (e) => {
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
-      else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); close(); if (onConfirm) onConfirm(); }
+      else if (e.key === 'Enter' && e.target?.tagName !== 'BUTTON') {
+        e.preventDefault(); e.stopPropagation(); close(); if (onConfirm) onConfirm();
+      }
     };
     document.addEventListener('keydown', this._confirmKeyHandler);
 

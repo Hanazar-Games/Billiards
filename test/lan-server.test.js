@@ -160,6 +160,14 @@ async function main() {
   record('host received playerJoined', playerJoined.playerId === 2);
   record('playerList updated', playerJoined.playerList?.length === 2);
 
+  clearMessages(host); clearMessages(guest);
+  send(guest, { type: 'leaveRoom' });
+  const lobbyLeft = await waitForMessage(host, 'playerLeft');
+  record('leaving updates the lobby roster', lobbyLeft.playerList?.length === 1);
+  send(guest, { type: 'joinRoom', roomId: created.roomId });
+  const rejoined = await waitForMessage(guest, 'joinedRoom');
+  record('returning guest keeps player slot 2', rejoined.playerId === 2);
+
   // ── Test 3: 2-player limit ──
   console.log('\n▶ Test 3: 2-player limit');
   const third = await connectClient();

@@ -1,4 +1,3 @@
-import * as CANNON from 'cannon-es';
 import { settings } from '../core/SettingsStore.js';
 
 /**
@@ -47,6 +46,7 @@ export class GameStateSerializer {
       breakShot: game.rules.breakShot,
       gameOver: game.rules.gameOver,
       winner: game.rules.winner,
+      foul: game.rules.foul,
       pocketedBalls: game.rules.pocketedBalls || [],
       player1ConsecutiveFouls: game.rules.player1ConsecutiveFouls,
       player2ConsecutiveFouls: game.rules.player2ConsecutiveFouls,
@@ -63,6 +63,11 @@ export class GameStateSerializer {
       currentPlayer: game.currentPlayer,
       ballInHand: game.ballInHand,
       ballInHandBehindLine: game.ballInHandBehindLine || false,
+      paused: Boolean(game.paused),
+      turnTimer: { enabled: Boolean(game._turnTimerEnabled), max: game._turnTimerMax || 0,
+        remaining: game._turnTimerRemaining || 0 },
+      shotPower: game._lastShotPower || 0,
+      stats: game.statsTracker?.getSummary(game.rules?.winner) || null,
       balls,
       rules,
       message: game.ui?._lastMessage || '',
@@ -87,6 +92,11 @@ export class GameStateSerializer {
    */
   static applyGameState(game, snapshot) {
     if (!game.ballsManager) return;
+    const previousState = game.state;
+    const hadBallInHand = game.ballInHand;
+    const keepCharge = game.state === 'CHARGING' && snapshot.state === 'AIM' &&
+      snapshot.currentPlayer === game.currentPlayer && game.currentPlayer === game.localPlayerId &&
+      !snapshot.ballInHand && !snapshot.paused;
 
     // Guard against table profile mismatches in networked games.
     // The host's choice is authoritative; if we somehow initialised
@@ -124,19 +134,37 @@ export class GameStateSerializer {
 
     // Update game state fields
     const ALLOWED_STATES = new Set(['AIM','CHARGING','SHOOTING','AI_THINKING','GAME_OVER','REPLAYING','BALL_IN_HAND','DISPOSED']);
-    if (snapshot.state !== undefined && ALLOWED_STATES.has(snapshot.state)) {
+    const pendingShot = game.state === 'SHOOTING' && snapshot.state === 'AIM' &&
+      game.currentPlayer === game.localPlayerId && snapshot.currentPlayer === game.currentPlayer &&
+      !snapshot.ballInHand && !snapshot.paused && snapshot.stats?.totalTurns < game._pendingShotNumber;
+    if (!pendingShot) game._pendingShotNumber = null;
+    if (!keepCharge && !pendingShot && snapshot.state !== undefined && ALLOWED_STATES.has(snapshot.state)) {
       game.state = snapshot.state;
+      if (previousState !== game.state) {
+        game.charging = false;
+        game.dragStart = null;
+        game.power = 0;
+        game.ui?.setPower?.(0);
+      }
     }
     if (snapshot.currentPlayer !== undefined) {
       game.currentPlayer = snapshot.currentPlayer;
       game.ui?.setPlayerTurn(snapshot.currentPlayer);
     }
     if (snapshot.ballInHand !== undefined) {
+      if (snapshot.ballInHand && !game.ballInHand) game.ballInHandValid = false;
       game.ballInHand = snapshot.ballInHand;
     }
     if (snapshot.ballInHandBehindLine !== undefined) {
       game.ballInHandBehindLine = snapshot.ballInHandBehindLine;
     }
+    game._hostPaused = Boolean(snapshot.paused);
+    if (snapshot.turnTimer) {
+      game._turnTimerEnabled = snapshot.turnTimer.enabled === true;
+      game._turnTimerMax = Math.max(0, snapshot.turnTimer.max);
+      game._turnTimerRemaining = Math.max(0, Math.min(game._turnTimerMax, snapshot.turnTimer.remaining));
+    }
+    game.ui?.setHUDState?.(game.ballInHand ? 'BALL_IN_HAND' : game.state);
 
     // Update rules state
     if (snapshot.rules && game.rules) {
@@ -148,6 +176,7 @@ export class GameStateSerializer {
       if (rs.breakShot !== undefined) game.rules.breakShot = rs.breakShot;
       if (rs.gameOver !== undefined) game.rules.gameOver = rs.gameOver;
       if (rs.winner !== undefined) game.rules.winner = rs.winner;
+      if (rs.foul !== undefined) game.rules.foul = rs.foul;
       if (rs.pocketedBalls !== undefined) game.rules.pocketedBalls = rs.pocketedBalls;
       if (rs.player1ConsecutiveFouls !== undefined) game.rules.player1ConsecutiveFouls = rs.player1ConsecutiveFouls;
       if (rs.player2ConsecutiveFouls !== undefined) game.rules.player2ConsecutiveFouls = rs.player2ConsecutiveFouls;
@@ -163,6 +192,26 @@ export class GameStateSerializer {
 
     // Refresh player stats / groups HUD
     game._updatePlayerStats?.();
+
+    if (snapshot.stats && game.statsTracker) {
+      const stats = snapshot.stats;
+      game.statsTracker.playerStats = { 1: stats.player1, 2: stats.player2 };
+      game.statsTracker.totalTurns = stats.totalTurns;
+      game.statsTracker.matchStats = stats.match;
+      game.statsTracker.gameStartTime = performance.now() - stats.duration * 1000;
+      game.statsTracker.gameEndTime = game.state === 'GAME_OVER' ? performance.now() : null;
+      game.statsPanel?.update(game.statsTracker.getLiveStats());
+    }
+    if (game.state !== previousState && game.state === 'SHOOTING') {
+      game.audio?.playCueHit(snapshot.shotPower);
+    }
+    if (game.state === 'GAME_OVER' && previousState !== 'GAME_OVER') {
+      if (snapshot.rules?.winner === game.localPlayerId) game.audio?.playWin();
+      else game.audio?.playFoul();
+      if (snapshot.stats) game.statsPanel?.showGameOver(snapshot.stats, false);
+    } else if (game.ballInHand && !hadBallInHand) {
+      game.audio?.playFoul();
+    }
 
     // Show message if changed
     if (snapshot.message && game.ui && snapshot.message !== game.ui._lastMessage) {

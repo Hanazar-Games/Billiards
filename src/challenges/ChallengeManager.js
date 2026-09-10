@@ -20,6 +20,7 @@ export class ChallengeManager {
     this.stars = 0;
     this.failureReason = '';
     this.startTime = 0;
+    this._trackingShot = true;
 
     // Per-shot tracking
     this.shotPocketedIds = [];
@@ -59,6 +60,8 @@ export class ChallengeManager {
   }
 
   resetMatch() {
+    this.startTime = performance.now();
+    this.gameDuration = 0;
     this._resetMatch();
   }
 
@@ -79,8 +82,10 @@ export class ChallengeManager {
 
   // ── Event hooks (called by Game.js) ──
 
-  onShot(cueBall, power, spin) {
+  onShot(cueBall, power, spin, player = 1) {
     this._shotReset();
+    this._trackingShot = player === 1;
+    if (!this._trackingShot) return;
     this.shotPower = power;
     const s = spin || { x: 0, y: 0 };
     this.shotUsedSpin = Math.abs(s.x) > 0.05 || Math.abs(s.y) > 0.05;
@@ -93,6 +98,7 @@ export class ChallengeManager {
   }
 
   onPocket(ballId) {
+    if (!this._trackingShot) return;
     this.shotPocketedIds.push(ballId);
     if (this.shotUsedSpin && ballId !== 0) {
       this.spinPocketCount++;
@@ -107,6 +113,7 @@ export class ChallengeManager {
   }
 
   onCushionHit(ballId) {
+    if (!this._trackingShot) return;
     this.shotCushionHits++;
     if (ballId !== undefined && ballId !== null) {
       const prev = this.ballCushionHits.get(ballId) || 0;
@@ -115,6 +122,7 @@ export class ChallengeManager {
   }
 
   onBallCollision(ballA, ballB) {
+    if (!this._trackingShot) return;
     // Track first hit for combo detection
     if (this.firstHitBallId !== null) return;
     const aId = ballA && ballA.id;
@@ -127,12 +135,14 @@ export class ChallengeManager {
   }
 
   onBreakShot(pocketedIds) {
+    if (!this._trackingShot) return;
     const ids = Array.isArray(pocketedIds) ? pocketedIds : [];
     this.breakPocketedCount = ids.filter((id) => id !== 0).length;
     this._checkBreakShot();
   }
 
   onTurnEnd(result) {
+    if (!this._trackingShot) return;
     const nonCue = this.shotPocketedIds.filter((id) => id !== 0);
     const hadPocket = nonCue.length > 0;
     const foul = result && result.foul;
@@ -173,6 +183,15 @@ export class ChallengeManager {
   onGameEnd(winner) {
     this.gameDuration = (performance.now() - this.startTime) / 1000;
     this._checkMatchConditions(winner);
+  }
+
+  finish() {
+    if (this.completed || this.failed) return;
+    this.gameDuration = (performance.now() - this.startTime) / 1000;
+    const { type, params } = this.challenge;
+    if (type === CHALLENGE_TYPE.CONSECUTIVE_POCKETS && this.maxConsecutivePocketShots >= params.count) {
+      this._complete(this._assignStars(this.maxConsecutivePocketShots, params.starThresholds));
+    }
   }
 
   // ── Internal checks ──
@@ -267,7 +286,9 @@ export class ChallengeManager {
     if (type !== CHALLENGE_TYPE.CONSECUTIVE_POCKETS) return;
     const t = params.starThresholds || [params.count, params.count + 1, params.count + 2];
     if (this.maxConsecutivePocketShots >= params.count) {
-      this._complete(this._assignStars(this.maxConsecutivePocketShots, t));
+      if (this.consecutivePocketShots === 0 || this.maxConsecutivePocketShots >= t[2]) {
+        this._complete(this._assignStars(this.maxConsecutivePocketShots, t));
+      }
     }
   }
 
@@ -339,6 +360,7 @@ export class ChallengeManager {
   _complete(stars) {
     if (this.completed || this.failed) return;
     this.completed = true;
+    this.gameDuration = (performance.now() - this.startTime) / 1000;
     this.stars = stars;
     const isNewRecord = stars > (this.best.stars || 0);
     this._saveBest(Math.max(stars, this.best.stars || 0), isNewRecord);
@@ -347,6 +369,7 @@ export class ChallengeManager {
   _fail(reason) {
     if (this.completed || this.failed) return;
     this.failed = true;
+    this.gameDuration = (performance.now() - this.startTime) / 1000;
     this.failureReason = reason || '未达到挑战条件';
     this._saveBest(this.best.stars || 0, false);
   }
@@ -393,7 +416,8 @@ export class ChallengeManager {
           : '走位: 等待击球结束';
         break;
       case CHALLENGE_TYPE.CONSECUTIVE_POCKETS:
-        progress = `连击: ${this.maxConsecutivePocketShots} / ${params.count}`;
+        progress = `连击: ${this.consecutivePocketShots} / ${params.starThresholds?.[2] || params.count}`;
+        if (!this.completed && this.maxConsecutivePocketShots >= params.count) progress += ' · 已达标，继续冲星';
         break;
       case CHALLENGE_TYPE.FLAWLESS_CLEAR:
         progress = `进球: ${this.totalBallsPocketed}/15　杆数: ${this.totalShots}`;

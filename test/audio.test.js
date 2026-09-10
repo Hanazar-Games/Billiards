@@ -164,4 +164,13 @@ describe('AudioManager lifecycle', () => {
     settings.set('soundEnabled', true);
     assert.equal(audio.soundEnabled, true);
   });
+
+  test('latency reinitialization preserves muted menu music intent', async t => {
+    const { audio, settings } = await createAudio(t);
+    audio.startBGM();
+    settings.set('soundEnabled', false);
+    audio.reinit();
+    settings.set('soundEnabled', true);
+    assert.ok(audio.bgmNodes.length > 0);
+  });
 });

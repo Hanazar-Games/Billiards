@@ -90,7 +90,7 @@ export class MainMenuScreen {
       this._fadeOut(() => this.onSelectMode('vsai'));
     });
     this._addButton(playGroup, '9 球模式', '先碰最小号码球 · 合法打进 9 号球获胜', () => {
-      this._fadeOut(() => this.onSelectMode('nineball'));
+      this._fadeOut(() => this.onSelectMode('9ball'));
     });
     this._addButton(playGroup, '本地比赛', '自定义名字与赛制 · 8 球或 9 球 · 单局/三局/五局', () => {
       if (this.onMatchSetup) this.onMatchSetup();

@@ -561,7 +561,7 @@ export class Game {
   onMouseDown(e) {
     if (this.state === 'DISPOSED') return;
     if (this.state === 'REPLAYING') return;
-    if (this.paused) return;
+    if (this.paused || this._hostPaused) return;
     // In spectator mode, ignore all human input
     if (this.bothAI) return;
     // Recover from soft-locked CHARGING state (e.g. missed mouseup)
@@ -618,12 +618,18 @@ export class Game {
     }
   }
 
-  onMouseUp() {
+  onMouseUp(e) {
     if (this.state === 'DISPOSED') return;
     if (this.state === 'REPLAYING') return;
     if (this.paused) return;
     if (this.bothAI) return; // spectator mode: no human input
+    if (this.aiEnabled && this.currentPlayer === 2) return;
+    if (!this.isLocalPlayerTurn()) return;
     if (this.state !== 'CHARGING') return;
+    if (['blur', 'pointercancel', 'lostpointercapture'].includes(e?.type) || this._hostPaused) {
+      this._enterAimState();
+      return;
+    }
     if (this.power < 1) {
       this._enterAimState();
       return;
@@ -915,6 +921,7 @@ export class Game {
   }
 
   shoot() {
+    if (this.networkRole === 'client' && (!this.isLocalPlayerTurn() || this._hostPaused)) return;
     if (this._strikeHideTimer) { clearTimeout(this._strikeHideTimer); this._strikeHideTimer = null; }
     if (this._cameraResetTimer) { clearTimeout(this._cameraResetTimer); this._cameraResetTimer = null; }
     const cueBall = this.ballsManager.getCueBall();
@@ -930,7 +937,7 @@ export class Game {
     }
 
     // Normalize power so downstream systems always get a finite number
-    const safePower = Number.isFinite(this.power) ? Math.max(0, this.power) : 0;
+    const safePower = Number.isFinite(this.power) ? Math.min(SHOT.maxPower, Math.max(0, this.power)) : 0;
     this._lastShotPower = safePower;
 
     // Client sends shot intent to host; host executes physically
@@ -946,6 +953,7 @@ export class Game {
         return;
       }
       const force = Math.max(safePower, SHOT.minPower);
+      this._pendingShotNumber = this.statsTracker.totalTurns + 1;
       this.networkController.sendShotInput(this.aimDirection, force, this.cueTipOffset);
       this.state = 'SHOOTING';
       this._shotStartTime = performance.now();
@@ -995,12 +1003,12 @@ export class Game {
     // Stats & effects
     this.turnPocketedIds = [];
     this.statsTracker.startTurn(this.currentPlayer);
-    this.statsTracker.recordShot(this.currentPlayer, force);
     const powerPercent = force / SHOT.maxPower * 100;
+    this.statsTracker.recordShot(this.currentPlayer, powerPercent);
     const trackAchievements = !this.bothAI && (!this.aiEnabled || this.currentPlayer === 1) &&
       (!this.networkMode || this.currentPlayer === this.localPlayerId);
     this.achievements.onShot(cueBall, powerPercent, this.cueTipOffset, this.currentPlayer, trackAchievements);
-    this.challengeManager?.onShot(cueBall, powerPercent, this.cueTipOffset);
+    this.challengeManager?.onShot(cueBall, powerPercent, this.cueTipOffset, this.currentPlayer);
     this.drillManager?.onShot(cueBall, powerPercent, this.cueTipOffset);
     this.particles.spawnChalkDust(
       cueBall.mesh.position,
@@ -1194,7 +1202,7 @@ export class Game {
 
   update(dt) {
     if (this.state === 'DISPOSED') return;
-    if (this.paused) return;
+    if (this.paused || this._hostPaused) return;
     const isClient = this.networkRole === 'client';
     const pocketPositions = this.table?.getPocketPositions?.() || [];
 
@@ -1349,10 +1357,11 @@ export class Game {
       this.room.updateCameraVisibility(this.camera);
     }
 
-    // Host broadcasts snapshot during shooting (20–30 Hz)
-    if (!isClient && this.networkRole === 'host' && this.state === 'SHOOTING' && this.networkController) {
+    // Keep idle clients synchronized too, including the shot clock and initial rack.
+    if (!isClient && this.networkRole === 'host' && this.networkController) {
       const now = performance.now();
-      if (now - this._lastSnapshotTime > 50) {
+      const interval = this.state === 'SHOOTING' ? 50 : 250;
+      if (now - this._lastSnapshotTime > interval) {
         this._lastSnapshotTime = now;
         const snapshot = GameStateSerializer.serializeGameState(this);
         this.networkController.sendStateSnapshot(snapshot);
@@ -1400,6 +1409,14 @@ export class Game {
   _updateTurnTimer(dt) {
     if (!this._turnTimerEnabled) return;
     if (!Number.isFinite(dt)) dt = 0.016;
+
+    if (this.networkRole === 'client') {
+      if (['AIM', 'CHARGING'].includes(this.state)) {
+        if (!this._hostPaused) this._turnTimerRemaining = Math.max(0, this._turnTimerRemaining - dt);
+        this.ui.setTurnTimer(this._turnTimerRemaining, this._turnTimerMax);
+      } else this.ui.hideTurnTimer();
+      return;
+    }
 
     const aiming = ['AIM', 'CHARGING'].includes(this.state);
     if (aiming && !this.paused && !this._turnTimerRunning) {
@@ -1768,6 +1785,8 @@ export class Game {
       else if (!pocketedIds.some(id => id !== 0)) this.statsTracker.recordMiss(this.currentPlayer);
       this._recordCareerShot(result, pocketedIds, replayData);
       this.challengeManager?.onTurnEnd(result);
+      this.achievements.onTurnEnd(result, pocketedIds.filter(id => id !== 0), this.mode);
+      if (result.foul) this.achievements.onFoul();
       this.statsPanel.update(this.statsTracker.getLiveStats());
       if (cuePocketed) {
         this.ballsManager.resetCueBallIfPocketed();
@@ -1846,7 +1865,7 @@ export class Game {
     const cueBallPos = cueBall ? { x: cueBall.mesh.position.x, z: cueBall.mesh.position.z } : null;
     this.challengeManager?.onTurnEnd({ ...result, cueBallPos });
     this.achievements.onTurnEnd(result, effectivePocketedIds, this.mode);
-    if (this._isBreakShot) {
+    if (this._isBreakShot && !result.foul) {
       this.achievements.onBreakShot(effectivePocketedIds, this.mode);
       this.challengeManager?.onBreakShot(effectivePocketedIds);
     }
@@ -1909,7 +1928,7 @@ export class Game {
         });
       }
 
-      if (result.winner === (this.aiEnabled ? 1 : this.currentPlayer)) {
+      if (result.winner === (this.networkMode ? this.localPlayerId : (this.aiEnabled ? 1 : this.currentPlayer))) {
         this.audio?.playWin();
       } else {
         this.audio?.playFoul();
@@ -2353,10 +2372,12 @@ export class Game {
   _setupSpinControls() {
     this._onKeyDown = (e) => {
       if (this.state === 'DISPOSED' || e.defaultPrevented) return;
+      if (document.getElementById('ui-confirm-dialog')) return;
       const inputTarget = e.target;
       if (inputTarget?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(inputTarget?.tagName)) return;
       // In spectator mode, only allow Escape and camera controls
       const key = e.key.toLowerCase();
+      const mods = { ctrl: e.ctrlKey, shift: e.shiftKey, alt: e.altKey, meta: e.metaKey };
       if (this.bothAI) {
         if (key === 'escape') {
           // Allow returning to menu
@@ -2367,7 +2388,7 @@ export class Game {
         }
       }
       // Ignore all game keys while paused (except Escape which toggles pause)
-      if (this.paused && key !== 'escape') return;
+      if (this.paused && key !== 'escape' && !keyBindings.matches('pause', key, mods)) return;
       // Ignore all game keys while in-game settings is open (except Escape which closes it)
       if (this._settingsOpen) {
         if (this.inGameSettings?._confirmHandlers.size) return;
@@ -2378,11 +2399,9 @@ export class Game {
         }
         return;
       }
-      const mods = { ctrl: e.ctrlKey, shift: e.shiftKey, alt: e.altKey, meta: e.metaKey };
-
       // Escape cancels charging and ball-in-hand preview
       if (key === 'escape') {
-        if (this.state === 'CHARGING') {
+        if (this.state === 'CHARGING' && !(this.aiEnabled && (this.bothAI || this.currentPlayer === 2))) {
           this.state = 'AIM';
           this.power = 0;
           this.charging = false;
@@ -2456,6 +2475,7 @@ export class Game {
       }
 
       // Enter to confirm shot when confirmShotOnRelease is disabled
+      if ((this.aiEnabled && this.currentPlayer === 2) || !this.isLocalPlayerTurn() || this._hostPaused) return;
       if (key === 'enter' && settings.get('confirmShotOnRelease') === false) {
         if (this.state === 'REPLAYING') return;
         if (this.paused) return;
@@ -2692,9 +2712,13 @@ export class Game {
 
   _showPause() {
     if (this.paused) return;
+    if (this.state === 'CHARGING' && !(this.aiEnabled && (this.bothAI || this.currentPlayer === 2))) {
+      this._enterAimState();
+    }
     this._pausedAt = performance.now();
     this.paused = true;
     this.ui.showPauseMenu();
+    this._broadcastSnapshot();
   }
 
   _hidePause() {
@@ -2702,10 +2726,15 @@ export class Game {
       const elapsed = performance.now() - this._pausedAt;
       if (this._shotStartTime != null) this._shotStartTime += elapsed;
       if (this.gameStartTime != null) this.gameStartTime += elapsed;
+      if (this.statsTracker?.gameEndTime == null && this.statsTracker?.gameStartTime != null) {
+        this.statsTracker.gameStartTime += elapsed;
+      }
+      if (this.challengeManager?.startTime != null) this.challengeManager.startTime += elapsed;
     }
     this._pausedAt = null;
     this.paused = false;
     this.ui?.hidePauseMenu();
+    this._broadcastSnapshot();
   }
 
   _getObjectiveText() {
@@ -2781,6 +2810,7 @@ export class Game {
       if (this._onNetPushOutDeclare) this.networkController.removeEventListener('pushOutDeclare', this._onNetPushOutDeclare);
       if (this._onNetPushOutChoice) this.networkController.removeEventListener('pushOutChoice', this._onNetPushOutChoice);
       if (this._onNetDisconnected) this.networkController.removeEventListener('disconnected', this._onNetDisconnected);
+      if (this._onNetDisconnected) this.networkController.removeEventListener('playerLeft', this._onNetDisconnected);
       if (this._onNetRoomClosed) this.networkController.removeEventListener('roomClosed', this._onNetRoomClosed);
     }
     this.networkController = controller;
@@ -2882,6 +2912,7 @@ export class Game {
       controller.addEventListener('pushOutChoice', this._onNetPushOutChoice);
       controller.addEventListener('roomClosed', this._onNetRoomClosed);
       controller.addEventListener('disconnected', this._onNetDisconnected);
+      controller.addEventListener('playerLeft', this._onNetDisconnected);
     }
   }
 
@@ -3524,6 +3555,7 @@ export class Game {
       if (this._onNetPushOutDeclare) this.networkController.removeEventListener('pushOutDeclare', this._onNetPushOutDeclare);
       if (this._onNetPushOutChoice) this.networkController.removeEventListener('pushOutChoice', this._onNetPushOutChoice);
       if (this._onNetDisconnected) this.networkController.removeEventListener('disconnected', this._onNetDisconnected);
+      if (this._onNetDisconnected) this.networkController.removeEventListener('playerLeft', this._onNetDisconnected);
       if (this._onNetRoomClosed) this.networkController.removeEventListener('roomClosed', this._onNetRoomClosed);
       this._onStateSnapshot = null;
       this._onNetShotInput = null;

@@ -132,7 +132,7 @@ export class NetworkClient extends EventTarget {
         this.dispatchEvent(new CustomEvent('playerJoined', { detail: data }));
         break;
       case 'playerLeft':
-        this.playerList = data.playerList || this.playerList;
+        this.playerList = data.playerList || this.playerList.filter(player => player.id !== data.playerId);
         this.dispatchEvent(new CustomEvent('playerLeft', { detail: data }));
         break;
       case 'startGame':

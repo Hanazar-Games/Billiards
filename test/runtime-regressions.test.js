@@ -31,6 +31,7 @@ globalThis.cancelAnimationFrame = clearTimeout;
 
 const { settings, SettingsStore } = await import('../src/core/SettingsStore.js');
 const { KeyBindings } = await import('../src/input/KeyBindings.js');
+const { keyBindings } = await import('../src/input/KeyBindings.js');
 const { GameLoop } = await import('../src/core/GameLoop.js');
 const { BallReturnSystem } = await import('../src/fx/BallReturnSystem.js');
 const { StatsPanel } = await import('../src/stats/StatsPanel.js');
@@ -46,6 +47,270 @@ const { Room } = await import('../src/game/Room.js');
 const { NineBallRules } = await import('../src/game/NineBallRules.js');
 const { DrillManager } = await import('../src/trainer/DrillManager.js');
 const { AchievementSystem } = await import('../src/achievements/AchievementSystem.js');
+const { ShotRecorder } = await import('../src/replay/ShotRecorder.js');
+const { GameStateSerializer } = await import('../src/net/GameStateSerializer.js');
+const { applyShotInput } = await import('../src/game/ShotInput.js');
+const { MenuSystem } = await import('../src/menu/MenuSystem.js');
+const { LanRoomPanel } = await import('../src/menu/LanRoomPanel.js');
+const { BALL, SHOT } = await import('../src/config.js');
+
+test('natural instant replay completion restores the camera before returning', () => {
+  const camera = new THREE.PerspectiveCamera();
+  camera.position.set(10, 300, 200); camera.lookAt(0, 0, 0);
+  camera.updateMatrixWorld();
+  const original = camera.matrixWorld.clone();
+  const ball = { id: 0, pocketed: false, mesh: new THREE.Object3D() };
+  const manager = { balls: [ball], getCueBall: () => ball };
+  const recorder = new ShotRecorder();
+  recorder.start(manager, 'freeplay', 50, {}); recorder.update(0.05, manager); recorder.stop();
+  const replay = new InstantReplayController(new THREE.Scene(), camera, manager);
+  let finished = 0;
+  try {
+    assert.equal(replay.start(recorder.getReplayData(), { onComplete: () => finished++ }), true);
+    for (let i = 0; i < 10; i++) replay.update(0.05);
+    camera.updateMatrixWorld();
+    assert.equal(finished, 1);
+    assert.ok(camera.matrixWorld.equals(original));
+  } finally { replay.dispose(); }
+});
+
+test('instant replay completion can dispose the controller synchronously', () => {
+  const ball = { id: 0, pocketed: false, mesh: new THREE.Object3D() };
+  const manager = { balls: [ball], getCueBall: () => ball };
+  const recorder = new ShotRecorder();
+  recorder.start(manager, 'freeplay', 50, {}); recorder.update(0.05, manager); recorder.stop();
+  const replay = new InstantReplayController(new THREE.Scene(), new THREE.PerspectiveCamera(), manager);
+  replay.start(recorder.getReplayData(), { onComplete: () => replay.dispose() });
+  assert.doesNotThrow(() => { for (let i = 0; i < 10; i++) replay.update(0.05); });
+});
+
+test('canonical 9-ball mode uses nine-ball rules', () => {
+  assert.equal(MenuSystem.prototype._getModeConfig('9ball').mode, '9ball');
+});
+
+test('starting a LAN game transfers the room connection without leaving', async () => {
+  let left = 0;
+  const client = { isHost: true, playerId: 1, leaveRoom: () => left++, removeEventListener: noop };
+  const panel = Object.assign(Object.create(LanRoomPanel.prototype), { client, _clientListeners: [] });
+  const menu = Object.assign(Object.create(MenuSystem.prototype), { lanRoomPanel: panel });
+  menu._startGame = async (_mode, connection) => {
+    menu._hideAllPanels();
+    assert.equal(connection, client);
+  };
+  await menu._startNetworkGame(client, '9ball');
+  assert.equal(left, 0);
+});
+
+test('closing the LAN lobby releases its socket and ping loop', () => {
+  let disconnected = false;
+  const panel = Object.assign(Object.create(LanRoomPanel.prototype), {
+    _clientListeners: [], client: { leaveRoom: noop, removeEventListener: noop, disconnect: () => { disconnected = true; } },
+  });
+  panel.destroy();
+  assert.equal(disconnected, true);
+});
+
+function remoteGame() {
+  const calls = [];
+  const cue = { setPosition: (...args) => calls.push(args), mesh: { position: new THREE.Vector3() } };
+  return {
+    state: 'AIM', currentPlayer: 2, networkMode: 'lan', ballInHand: true,
+    ballsManager: { getCueBall: () => cue }, ui: { setMessage: noop },
+    isCueBallPlacementLegal: () => true, _endBallInHand: noop, _broadcastSnapshot: noop,
+    aimDirection: new THREE.Vector3(0, 0, 1), lockedAimDirection: new THREE.Vector3(),
+    shoot() { calls.push('shot'); }, calls,
+  };
+}
+
+test('remote ball placement cannot be made by the wrong player', () => {
+  const game = remoteGame();
+  assert.equal(applyShotInput(game, { fromPlayer: 1, ballPlacement: { x: 0, y: 3, z: 0 } }), false);
+  assert.deepEqual(game.calls, []);
+});
+
+test('remote placement stays on the cloth and rejects non-finite coordinates', () => {
+  const game = remoteGame();
+  assert.equal(applyShotInput(game, { fromPlayer: 2, ballPlacement: { x: NaN, z: 0 } }), false);
+  assert.equal(applyShotInput(game, { fromPlayer: 2, ballPlacement: { x: 10, y: -1000, z: 20 } }), true);
+  assert.deepEqual(game.calls, [[10, BALL.radius, 20]]);
+});
+
+test('remote shots cannot bypass pause, placement, or the turn deadline', () => {
+  for (const extra of [{ paused: true }, { ballInHand: true }, { _turnTimerEnabled: true, _turnTimerRemaining: 0 }]) {
+    const game = Object.assign(remoteGame(), { ballInHand: false }, extra);
+    assert.equal(applyShotInput(game, { fromPlayer: 2, power: 50, aimDirection: { x: 0, z: 1 } }), false);
+    assert.deepEqual(game.calls, []);
+  }
+});
+
+test('remote shots reject invalid numbers and cap force and spin', () => {
+  for (const aim of [{ x: Infinity, z: 1 }, { x: 0, z: 0 }]) {
+    const game = Object.assign(remoteGame(), { ballInHand: false });
+    assert.equal(applyShotInput(game, { fromPlayer: 2, power: 50, aimDirection: aim }), false);
+  }
+  const game = Object.assign(remoteGame(), { ballInHand: false });
+  assert.equal(applyShotInput(game, { fromPlayer: 2, power: 10000, aimDirection: { x: 0, z: 1 }, cueTipOffset: { x: 20, y: -20 } }), true);
+  assert.equal(game.power, SHOT.maxPower);
+  assert.ok(Math.hypot(game.cueTipOffset.x, game.cueTipOffset.y) <= 1);
+});
+
+test('snapshots synchronize host timer and ball-in-hand HUD', () => {
+  const host = { state: 'AIM', currentPlayer: 2, ballInHand: true,
+    _turnTimerEnabled: true, _turnTimerMax: 30, _turnTimerRemaining: 12, paused: true };
+  const snapshot = GameStateSerializer.serializeGameState(host);
+  let hud;
+  const client = { state: 'SHOOTING', ballsManager: { balls: [], getBall: noop },
+    ui: { setPlayerTurn: noop, setHUDState: state => { hud = state; } } };
+  GameStateSerializer.applyGameState(client, snapshot);
+  assert.equal(client._turnTimerRemaining, 12);
+  assert.equal(client._hostPaused, true);
+  assert.equal(hud, 'BALL_IN_HAND');
+});
+
+test('idle snapshots preserve local charging until the host changes the turn', () => {
+  const game = { state: 'CHARGING', currentPlayer: 2, localPlayerId: 2,
+    ballsManager: { balls: [], getBall: noop } };
+  const snapshot = { balls: [], state: 'AIM', currentPlayer: 2, ballInHand: false };
+  GameStateSerializer.applyGameState(game, snapshot);
+  assert.equal(game.state, 'CHARGING');
+  GameStateSerializer.applyGameState(game, { ...snapshot, currentPlayer: 1 });
+  assert.equal(game.state, 'AIM');
+});
+
+test('LAN clients receive shot statistics and one-shot result audio', () => {
+  const stats = new StatsTracker(); stats.startTurn(1); stats.recordShot(1, 50);
+  const host = { state: 'SHOOTING', currentPlayer: 1, _lastShotPower: 55, statsTracker: stats, rules: new Rules() };
+  const heard = [];
+  let summaries = 0;
+  const client = { state: 'AIM', localPlayerId: 2, currentPlayer: 1, rules: new Rules(),
+    ballsManager: { balls: [], getBall: noop }, statsTracker: new StatsTracker(),
+    statsPanel: { update: noop, showGameOver: () => summaries++ },
+    audio: { playCueHit: () => heard.push('cue'), playFoul: () => heard.push('foul'), playWin: () => heard.push('win') } };
+  const shot = GameStateSerializer.serializeGameState(host);
+  GameStateSerializer.applyGameState(client, shot); GameStateSerializer.applyGameState(client, shot);
+  assert.equal(client.statsTracker.playerStats[1].avgPower ?? client.statsTracker.getSummary().player1.avgPower, 50);
+  assert.deepEqual(heard, ['cue']);
+  host.state = 'GAME_OVER'; host.rules.gameOver = true; host.rules.winner = 2; stats.endGame(2);
+  const end = GameStateSerializer.serializeGameState(host);
+  GameStateSerializer.applyGameState(client, end); GameStateSerializer.applyGameState(client, end);
+  assert.deepEqual(heard, ['cue', 'win']); assert.equal(summaries, 1);
+});
+
+test('LAN shots that retain the turn return to aiming after settlement', () => {
+  const stats = new StatsTracker(); stats.startTurn(2);
+  const game = { state: 'SHOOTING', currentPlayer: 2, localPlayerId: 2,
+    statsTracker: stats, ballsManager: { balls: [], getBall: noop } };
+  GameStateSerializer.applyGameState(game, { state: 'AIM', currentPlayer: 2, balls: [], ballInHand: false, stats: stats.getSummary() });
+  assert.equal(game.state, 'AIM');
+});
+
+test('mouse release cannot shoot for the remote player', () => {
+  const game = gameForTurn(); game.state = 'CHARGING'; game.power = 50;
+  game.networkMode = 'lan'; game.localPlayerId = 2;
+  let shots = 0; game.shoot = () => shots++;
+  game.onMouseUp({ type: 'mouseup' });
+  assert.equal(shots, 0);
+});
+
+test('focus loss and pointer cancellation cancel charging without shooting', () => {
+  for (const type of ['blur', 'pointercancel', 'lostpointercapture']) {
+    const game = gameForTurn(); game.state = 'CHARGING'; game.power = 80;
+    let shots = 0; game.shoot = () => shots++;
+    game.onMouseUp({ type });
+    assert.equal(shots, 0, type); assert.equal(game.state, 'AIM');
+  }
+});
+
+test('human releases and Escape do not cancel or fire an AI charge', () => {
+  const game = gameForTurn('vsai'); game.state = 'CHARGING'; game.power = 80;
+  game.aiEnabled = true; game.currentPlayer = 2;
+  let shots = 0; game.shoot = () => shots++;
+  game.onMouseUp({ type: 'mouseup' });
+  assert.equal(shots, 0);
+  game._setupSpinControls();
+  try {
+    game._onKeyDown({ key: 'Escape' });
+    assert.equal(game.state, 'CHARGING'); assert.equal(game.paused, true);
+  } finally { window.removeEventListener('keydown', game._onKeyDown); }
+});
+
+test('pause time is excluded from stats and timed challenges', t => {
+  const game = gameForTurn(); game.gameStartTime = 100;
+  game.statsTracker.gameStartTime = 100;
+  game.challengeManager = { startTime: 100 };
+  let now = 1000; t.mock.method(performance, 'now', () => now);
+  game._showPause(); now = 31000; game._hidePause();
+  assert.equal(game.statsTracker.gameStartTime, 30100);
+  assert.equal(game.challengeManager.startTime, 30100);
+});
+
+test('an illegal break cannot complete the perfect-break challenge', () => {
+  const game = gameForTurn('local2p');
+  game.challengeManager = new ChallengeManager('perfect_break'); game.challengeManager.start();
+  game.rules = new Rules(); game.rules.startShot(1); game.rules.recordFirstHit(1);
+  game._isBreakShot = true; game.ballsManager.getCueBall().pocketed = true;
+  game.ballsManager.resetCueBallIfPocketed = noop; game.startBallInHand = noop;
+  game.resolveTurn([1, 2, 3, 4]);
+  assert.equal(game.challengeManager.completed, false);
+  clearTimeout(game._cameraResetTimer);
+});
+
+test('freeplay turn completion awards eligible shot achievements', () => {
+  const game = gameForTurn();
+  let result;
+  game.achievements = { onTurnEnd: (value, ids) => { result = { value, ids }; }, onFoul: noop };
+  game.resolveTurn([1, 2, 3]);
+  assert.deepEqual(result?.ids, [1, 2, 3]);
+});
+
+test('newly available higher challenge stars can be earned beyond the minimum', () => {
+  const manager = new ChallengeManager('streak_3'); manager.start();
+  for (let i = 0; i < 5; i++) {
+    manager.onShot({ mesh: { position: new THREE.Vector3() } }, 50, {});
+    manager.onPocket(i + 1); manager.onTurnEnd({ foul: false });
+    if (i === 2) assert.equal(manager.completed, false);
+  }
+  assert.equal(manager.completed, true); assert.equal(manager.stars, 3);
+});
+
+test('ending a qualifying streak attempt preserves earned stars and duration', t => {
+  let now = 1000; t.mock.method(performance, 'now', () => now);
+  const manager = new ChallengeManager('streak_3'); manager.start();
+  for (let i = 0; i < 3; i++) {
+    manager.onShot({ mesh: { position: new THREE.Vector3() } }, 50, {});
+    manager.onPocket(i + 1); manager.onTurnEnd({ foul: false });
+  }
+  now = 21000; manager.finish();
+  assert.equal(manager.completed, true); assert.equal(manager.stars, 1);
+  assert.equal(manager.gameDuration, 20);
+});
+
+test('opponent shots do not satisfy personal challenge requirements', () => {
+  const manager = new ChallengeManager('spin_win'); manager.start();
+  manager.onShot({ mesh: { position: new THREE.Vector3() } }, 50, { x: 1, y: 0 }, 2);
+  manager.onPocket(1); manager.onTurnEnd({ foul: false }); manager.onGameEnd(1);
+  assert.equal(manager.completed, false); assert.equal(manager.spinPocketCount, 0);
+  assert.equal(manager.totalShots, 0);
+});
+
+test('a rebound pause key also resumes play', () => {
+  const old = keyBindings.getBinding('pause');
+  keyBindings.setBinding('pause', 'p');
+  const game = gameForTurn(); game.state = 'AIM'; game._setupSpinControls();
+  try {
+    game._onKeyDown({ key: 'p' }); assert.equal(game.paused, true);
+    game._onKeyDown({ key: 'p' }); assert.equal(game.paused, false);
+  } finally { window.removeEventListener('keydown', game._onKeyDown); keyBindings.setBinding('pause', old); }
+});
+
+test('AI spin is protected from player key presses during charging', () => {
+  const game = gameForTurn('vsai'); game.aiEnabled = true; game.currentPlayer = 2;
+  game.state = 'CHARGING'; game._setupSpinControls(); game._updateCueTipPicker = noop;
+  try {
+    game._onKeyDown({ key: 'w', preventDefault: noop });
+    assert.deepEqual(game.cueTipOffset, { x: 0, y: 0 });
+  } finally { window.removeEventListener('keydown', game._onKeyDown); }
+});
 
 test('ceiling light fixtures do not obscure the overhead table view', () => {
   const room = Object.assign(Object.create(Room.prototype), {

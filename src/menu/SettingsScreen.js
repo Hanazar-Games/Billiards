@@ -2115,7 +2115,7 @@ export class SettingsScreen {
         close();
         if (onCancel) onCancel();
       }
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && e.target?.tagName !== 'BUTTON') {
         e.preventDefault();
         e.stopImmediatePropagation();
         close();

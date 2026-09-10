@@ -342,11 +342,11 @@ export class KeyBindings {
     this.cancelListening();
     this._waitingAction = action;
     this._waitingCallback = onKey;
-    window.addEventListener('keydown', this._keyDownHandler);
+    window.addEventListener('keydown', this._keyDownHandler, true);
   }
 
   cancelListening() {
-    window.removeEventListener('keydown', this._keyDownHandler);
+    window.removeEventListener('keydown', this._keyDownHandler, true);
     this._waitingAction = null;
     this._waitingCallback = null;
   }
@@ -354,7 +354,8 @@ export class KeyBindings {
   _onKeyDown(e) {
     if (!this._waitingAction || !this._waitingCallback) return;
     if (e.repeat) return; // ignore key-repeat while capturing a binding
-    if (e.key !== 'Tab') e.preventDefault();   // prevent browser actions during capture, but allow Tab for accessibility
+    e.preventDefault();
+    e.stopImmediatePropagation();
     // Ignore modifier-only keys
     if (['shift', 'control', 'alt', 'meta'].includes(e.key.toLowerCase())) return;
     const key = e.key.toLowerCase();
@@ -365,7 +366,7 @@ export class KeyBindings {
     if (e.metaKey) chord.push('meta');
     chord.push(key);
     const result = chord.join('+');
-    window.removeEventListener('keydown', this._keyDownHandler);
+    window.removeEventListener('keydown', this._keyDownHandler, true);
     this._waitingCallback(this._waitingAction, result);
     this._waitingAction = null;
     this._waitingCallback = null;

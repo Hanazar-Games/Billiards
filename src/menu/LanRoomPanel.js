@@ -436,6 +436,7 @@ export class LanRoomPanel {
       if (this.client) {
         this._removeClientListeners();
         this.client.leaveRoom();
+        this.client.disconnect();
         this.client = null;
       }
       if (!skipCallback && this.onCancel) this.onCancel();
@@ -451,11 +452,19 @@ export class LanRoomPanel {
     this._clientListeners = [];
   }
 
+  releaseClient() {
+    const client = this.client;
+    this._removeClientListeners();
+    this.client = null;
+    return client;
+  }
+
   destroy() {
     if (this._fadeTimer) { clearTimeout(this._fadeTimer); this._fadeTimer = null; }
     if (this.client) {
       this._removeClientListeners();
       this.client.leaveRoom();
+      this.client.disconnect();
       this.client = null;
     }
     if (this._joinInput && this._joinInputHandler) {

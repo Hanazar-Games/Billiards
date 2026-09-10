@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 import puppeteer from 'puppeteer';
+import { spawn } from 'node:child_process';
+import { createServer as createSocketServer } from 'node:net';
 
 test('real browser gameplay, presentation and lifecycle regressions', { timeout: 180000 }, async t => {
   const server = await createServer({ server: { host: '127.0.0.1', port: 0, open: false } });
@@ -268,6 +270,120 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
       }
     }
     if (process.env.BROWSER_SCREENSHOT) await page.screenshot({ path: process.env.BROWSER_SCREENSHOT });
+  });
+
+  await t.test('confirmation dialogs activate the focused cancel button on Enter', async () => {
+    await menu(); await page.evaluate(() => __menu._startGame('freeplay'));
+    await page.evaluate(() => {
+      window.__confirmed = 0;
+      __menu.game.ui._showConfirmDialog('Keyboard regression', () => __confirmed++);
+    });
+    await page.waitForFunction(() => document.activeElement?.textContent === '取消');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => __confirmed), 0);
+    await page.evaluate(() => __menu.game._openInGameSettings());
+    await page.evaluate(() => __menu.game.inGameSettings._showConfirmDialog('Keyboard regression', 'Cancel this action', () => __confirmed++));
+    await page.focus('.settings-confirm-backdrop button');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => __confirmed), 0);
+    await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
+  });
+
+  await t.test('Escape can be captured as a binding without closing settings', async () => {
+    await menu(); await page.evaluate(() => __menu._showSettings());
+    await page.evaluate(async () => {
+      const { keyBindings } = await import('/src/input/KeyBindings.js');
+      window.__capturedBinding = null;
+      keyBindings.startListening('instantReplay', (_action, chord) => { __capturedBinding = chord; });
+    });
+    await page.keyboard.press('Escape');
+    assert.deepEqual(await page.evaluate(() => ({ key: __capturedBinding, shown: __menu.settingsScreen._shown })),
+      { key: 'escape', shown: true });
+    await page.keyboard.press('Escape');
+  });
+
+  await t.test('local nine-ball matches display series scores and start the next rack', async () => {
+    await menu();
+    await page.evaluate(() => __menu._startMatchGame({ mode: '9ball', gamesNeeded: 3, p1Name: 'Alpha', p2Name: 'Beta' }));
+    await page.evaluate(() => {
+      const game = __menu.game; __menu.loop.stop();
+      game.rules.breakShot = false; game.rules.startShot(1); game.rules.recordFirstHit(1); game.resolveTurn([9]);
+    });
+    assert.ok(await page.evaluate(() => __menu.game.ui._lastMessage.includes('比分 1 : 0')));
+    await page.evaluate(() => __menu.game.ui._hudNewGameBtn.click());
+    await page.waitForFunction(() => __menu.state === 'PLAYING' && __menu.game?.state === 'AIM');
+    assert.equal(await page.evaluate(() => __menu.game.mode), '9ball');
+    assert.equal(await page.evaluate(() => __menu.matchManager.getStatus().currentGame), 2);
+    await page.evaluate(() => {
+      const game = __menu.game; __menu.loop.stop();
+      game.rules.breakShot = false; game.rules.startShot(1); game.rules.recordFirstHit(1); game.resolveTurn([9]);
+    });
+    assert.ok(await page.evaluate(() => __menu.game.ui._lastMessage.includes('Alpha 赢得比赛')));
+  });
+
+  await t.test('two browsers keep their LAN connection through play and synchronize the clock', async t => {
+    const socket = createSocketServer();
+    await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve));
+    const port = socket.address().port;
+    await new Promise(resolve => socket.close(resolve));
+    const relay = spawn(process.execPath, ['server/lan-server.js'], {
+      env: { ...process.env, LAN_SERVER_PORT: String(port), LAN_SERVER_HOST: '127.0.0.1' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    t.after(() => new Promise(resolve => { relay.once('exit', resolve); relay.kill(); }));
+    await new Promise((resolve, reject) => {
+      relay.once('error', reject);
+      relay.once('exit', code => reject(new Error(`LAN server exited: ${code}`)));
+      relay.stdout.on('data', chunk => { if (chunk.toString().includes('listening')) resolve(); });
+    });
+    const context = await browser.createBrowserContext();
+    t.after(() => context.close());
+    const guest = await context.newPage();
+    guest.on('pageerror', error => errors.push(error.message));
+    await guest.setViewport({ width: 1280, height: 900 });
+    const ws = `ws://127.0.0.1:${port}`;
+    await guest.goto(server.resolvedUrls.local[0] + '?ws=' + encodeURIComponent(ws), { waitUntil: 'networkidle2' });
+    await guest.waitForFunction(() => window.__menu && !document.getElementById('intro-screen'));
+    await menu();
+    await page.evaluate(async ws => {
+      history.replaceState(null, '', '?ws=' + encodeURIComponent(ws));
+      const { settings } = await import('/src/core/SettingsStore.js');
+      settings.set('turnTimer', '30');
+      __menu._showLanRoom(); await __menu.lanRoomPanel._onCreateRoom();
+    }, ws);
+    await page.waitForFunction(() => __menu.lanRoomPanel?._roomId);
+    const room = await page.evaluate(() => __menu.lanRoomPanel._roomId);
+    await guest.evaluate(async room => {
+      __menu._showLanRoom(); __menu.lanRoomPanel._joinInput.value = room;
+      await __menu.lanRoomPanel._onJoinRoom();
+    }, room);
+    await guest.waitForFunction(() => __menu.lanRoomPanel?._state === 'joined');
+    await page.evaluate(() => __menu.lanRoomPanel.client.startGame('9ball', 'pool9ft'));
+    await Promise.all([
+      page.waitForFunction(() => __menu.state === 'PLAYING' && __menu.game?.networkController?.connected),
+      guest.waitForFunction(() => __menu.state === 'PLAYING' && __menu.game?.networkController?.connected),
+    ]);
+    await guest.waitForFunction(() => __menu.game._turnTimerRemaining < 30);
+    assert.equal(await guest.evaluate(() => __menu.game.mode), '9ball');
+    await page.evaluate(() => { __menu.game._onTurnTimerExpired(); __menu.game._showPause(); });
+    await guest.waitForFunction(() => __menu.game.ballInHand && __menu.game.currentPlayer === 2 && __menu.game._hostPaused);
+    const remaining = await guest.evaluate(() => __menu.game._turnTimerRemaining);
+    await new Promise(resolve => setTimeout(resolve, 350));
+    assert.equal(await guest.evaluate(() => __menu.game._turnTimerRemaining), remaining);
+    await page.evaluate(() => __menu.game._hidePause());
+    await guest.waitForFunction(() => !__menu.game._hostPaused);
+    await guest.evaluate(() => __menu.game.networkController.sendShotInput({ x: 0, y: 0, z: 1 }, 0, {}, { x: 0, y: 3, z: -90 }));
+    await guest.waitForFunction(() => !__menu.game.ballInHand);
+    await guest.evaluate(() => { __menu.game.state = 'CHARGING'; __menu.game.power = 55; __menu.game.charging = true; });
+    await new Promise(resolve => setTimeout(resolve, 350));
+    assert.equal(await guest.evaluate(() => __menu.game.state), 'CHARGING');
+    await guest.evaluate(() => { __menu.game.state = 'SHOOTING'; __menu.game.shoot(); });
+    await page.waitForFunction(() => __menu.game.statsTracker.playerStats[2].shots === 1);
+    await guest.waitForFunction(() => __menu.game.statsTracker.playerStats[2].shots === 1);
+    assert.equal(await guest.evaluate(() => __menu.game.statsTracker.playerStats[2].avgPower), 50);
+    await guest.evaluate(() => __menu.game.onReturnToMenu());
+    await page.waitForFunction(() => __menu.state === 'MENU', { timeout: 6000 });
+    await page.evaluate(() => history.replaceState(null, '', location.pathname));
   });
 
   assert.deepEqual(errors, [], 'browser console and uncaught errors');
