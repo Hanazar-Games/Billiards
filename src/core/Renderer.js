@@ -297,7 +297,8 @@ export class Renderer {
     // the camera from seeing through or clipping into wall geometry.
     cam.x = Math.max(-ROOM.halfWidth + wallMargin, Math.min(ROOM.halfWidth - wallMargin, cam.x));
     cam.z = Math.max(-ROOM.halfDepth + wallMargin, Math.min(ROOM.halfDepth - wallMargin, cam.z));
-    cam.y = Math.max(ROOM.minCameraY, Math.min(ROOM.maxCameraY, cam.y));
+    const maxY = this.overheadView ? this.controls.maxDistance : ROOM.maxCameraY;
+    cam.y = Math.max(ROOM.minCameraY, Math.min(maxY, cam.y));
 
     // Clamp orbit target (keep it within a smaller inner zone so
     // the camera never looks at a point outside the room)
@@ -414,8 +415,10 @@ export class Renderer {
   }
 
   render() {
-    this.controls.update();
-    this._clampCameraToRoom();
+    if (this.controls.enabled) {
+      this.controls.update();
+      this._clampCameraToRoom();
+    }
     this.renderer.render(this.scene, this.camera);
   }
 

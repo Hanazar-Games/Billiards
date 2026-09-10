@@ -33,9 +33,15 @@ export class InstantReplayController {
     this._onComplete = null;
   }
 
+  setBallsManager(ballsManager) {
+    this.ballsManager = ballsManager;
+    this.replayEngine.ballsManager = ballsManager;
+  }
+
   /** Start instant replay. Returns true if started. */
   start(replayData, { auto = false, onComplete = null } = {}) {
     if (this.active) return false;
+    if (!this.ballsManager) return false;
     if (!replayData || !replayData.frames || replayData.frameCount < 3) return false;
 
     this.active = true;

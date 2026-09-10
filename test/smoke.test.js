@@ -12,15 +12,8 @@
  */
 
 import puppeteer from 'puppeteer';
-import { spawn } from 'child_process';
-import net from 'net';
+import { createServer } from 'vite';
 import { setTimeout as sleep } from 'timers/promises';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const WEBGL_MOCK_CODE = readFileSync(join(__dirname, 'webgl-mock.js'), 'utf-8');
 
 let DEV_PORT = Number(process.env.SMOKE_PORT || 5173);
 let BASE_URL = `http://127.0.0.1:${DEV_PORT}`;
@@ -28,7 +21,7 @@ const NAV_TIMEOUT = 30000;
 const GAME_INIT_TIMEOUT = 10000;
 const PANEL_OPEN_TIMEOUT = 3000;
 
-let serverProcess = null;
+let devServer = null;
 let browser = null;
 let page = null;
 const consoleErrors = [];
@@ -36,77 +29,14 @@ const consoleWarnings = [];
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
-function isPortAvailable(port) {
-  return new Promise((resolve) => {
-    const server = net.createServer();
-    server.once('error', () => resolve(false));
-    server.once('listening', () => {
-      server.close(() => resolve(true));
-    });
-    server.listen(port, '127.0.0.1');
-  });
-}
-
-async function findAvailablePort(startPort) {
-  for (let port = startPort; port < startPort + 50; port++) {
-    if (await isPortAvailable(port)) return port;
-  }
-  throw new Error(`No available smoke-test port found from ${startPort}`);
-}
-
-function startDevServer() {
-  return new Promise(async (resolve, reject) => {
-    try {
-      DEV_PORT = await findAvailablePort(DEV_PORT);
-      BASE_URL = `http://127.0.0.1:${DEV_PORT}`;
-    } catch (err) {
-      reject(err);
-      return;
-    }
-
-    const proc = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1', '--port', String(DEV_PORT), '--strictPort'], {
-      cwd: process.cwd(),
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: true,
-    });
-    serverProcess = proc;
-
-    let resolved = false;
-    const onReady = (data) => {
-      const text = data.toString();
-      if (!resolved && text.includes('Local:')) {
-        resolved = true;
-        resolve(proc);
-      }
-    };
-    proc.stdout.on('data', onReady);
-    proc.stderr.on('data', onReady);
-
-    proc.on('error', (err) => {
-      if (!resolved) reject(err);
-    });
-    proc.on('exit', (code, signal) => {
-      if (!resolved) {
-        reject(new Error(`Vite dev server exited before ready (code=${code}, signal=${signal})`));
-      }
-    });
-
-    setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        resolve(proc);
-      }
-    }, 6000);
-  });
+async function startDevServer() {
+  devServer = await createServer({ server: { host: '127.0.0.1', port: DEV_PORT, open: false } });
+  await devServer.listen();
+  BASE_URL = devServer.resolvedUrls.local[0];
 }
 
 async function stopDevServer() {
-  if (!serverProcess) return;
-  serverProcess.kill('SIGTERM');
-  await sleep(1000);
-  if (!serverProcess.killed) {
-    serverProcess.kill('SIGKILL');
-  }
+  await devServer?.close();
 }
 
 async function captureConsole() {
@@ -134,7 +64,7 @@ function hasSevereErrors(errors) {
   return errors.some((e) => {
     const m = e.message || '';
     if (/Failed to load resource|the server responded|favicon/i.test(m)) return false;
-    return /Game init failed|TypeError|ReferenceError|ENGINE INIT ERROR|MENU SETUP ERROR|Cannot read propert|Cannot set propert|is not a function/i.test(m);
+    return /GameLoop error|Shader Error|Game init failed|TypeError|ReferenceError|ENGINE INIT ERROR|MENU SETUP ERROR|Cannot read propert|Cannot set propert|is not a function/i.test(m);
   });
 }
 
@@ -195,10 +125,8 @@ async function isCanvasPresent() {
 
 async function isCanvasRendering() {
   return page.evaluate(() => {
-    const canvas = document.querySelector('canvas');
-    if (!canvas) return false;
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    return gl instanceof WebGLRenderingContext;
+    const renderer = window.__menu?.renderer.renderer;
+    return renderer?.getContext() instanceof WebGL2RenderingContext && renderer.info.render.triangles > 0;
   });
 }
 
@@ -617,22 +545,10 @@ async function main() {
   console.log('  ✓ Server ready');
 
   console.log('\n▶ Launching Puppeteer...');
-  browser = await puppeteer.launch({
-    headless: false,
-    args: [
-      '--headless=old',
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--use-gl=swiftshader',
-      '--enable-webgl',
-      '--ignore-gpu-blocklist',
-      '--disable-gpu-sandbox',
-    ],
-  });
+  browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--enable-gpu'] });
   page = await browser.newPage();
   page.setDefaultTimeout(NAV_TIMEOUT);
   await captureConsole();
-  await page.evaluateOnNewDocument(WEBGL_MOCK_CODE);
   console.log('  ✓ Browser ready');
 
   await runHomepageTest();

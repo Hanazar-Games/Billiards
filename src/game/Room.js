@@ -51,6 +51,7 @@ export class Room {
   }
 
   _mat(name, props) {
+    if (this._materials[name]) return this._materials[name];
     const mat = new THREE.MeshStandardMaterial(props);
     this._materials[name] = mat;
     return mat;
@@ -612,6 +613,8 @@ export class Room {
 
     this._lampDiffusers = [];
     this._lampLights = [];
+    this._themeGroups.tableLightFixtures = new THREE.Group();
+    this.meshGroup.add(this._themeGroups.tableLightFixtures);
     const lampZs = [-this.profile.depth * 0.3, 0, this.profile.depth * 0.3];
 
     // Refined lamp shade using LatheGeometry (bell shape)
@@ -629,7 +632,7 @@ export class Room {
       // Shade — share the glowMat so applyVisualSettings updates all diffusers
       const shade = new THREE.Mesh(shadeGeo, glowMat);
       shade.position.set(0, railY - 14, z);
-      this.meshGroup.add(shade);
+      this._themeGroups.tableLightFixtures.add(shade);
       this._lampDiffusers.push(shade);
 
       // Inner bulb glow
@@ -641,7 +644,7 @@ export class Room {
       bulbMat._baseEmissiveIntensity = 2.0;
       const bulb = new THREE.Mesh(new THREE.SphereGeometry(3.5, 16, 16), bulbMat);
       bulb.position.set(0, railY - 10, z);
-      this.meshGroup.add(bulb);
+      this._themeGroups.tableLightFixtures.add(bulb);
 
       // Spot light — brighter so the table lamps read as the primary source
       const spot = new THREE.SpotLight(0xffe4b0, 1.25, 420, Math.PI / 4.8, 0.55, 1.4);
@@ -2493,6 +2496,12 @@ export class Room {
     // well above the lights (default & top-down camera positions).
     if (this._themeGroups.tableLightStructure) {
       this._themeGroups.tableLightStructure.visible = camY < ROOM.wallHeight + 8;
+    }
+    if (this._themeGroups.tableLightFixtures) {
+      this._themeGroups.tableLightFixtures.visible = camY < ROOM.wallHeight + 8;
+    }
+    if (this._themeGroups.downlightFixtures) {
+      this._themeGroups.downlightFixtures.visible = camY < ROOM.wallHeight - 2;
     }
 
     // ── Lamp diffuser fade (existing logic, preserves visual clarity when

@@ -11,6 +11,7 @@ export class Rules {
     this.currentPlayer = 1;
     this.player1Pocketed = [];
     this.player2Pocketed = [];
+    this.pocketedBalls = [];
     this.breakShot = true;
     this.gameOver = false;
     this.winner = null;
@@ -63,6 +64,7 @@ export class Rules {
 
     let currentGroup = this.currentPlayer === 1 ? this.player1Group : this.player2Group;
     const opponent = this.currentPlayer === 1 ? 2 : 1;
+    const clearedBeforeShot = (this.currentPlayer === 1 ? this.player1Pocketed : this.player2Pocketed).length >= 7;
 
     let pocketedOwn = 0;
     let pocketedOpponent = 0;
@@ -70,6 +72,11 @@ export class Rules {
 
     // Deduplicate pocketed IDs
     const uniquePocketed = [...new Set(pocketedIds)];
+    this.pocketedBalls = [...new Set([
+      ...this.pocketedBalls, ...this.player1Pocketed, ...this.player2Pocketed, ...uniquePocketed,
+    ])].filter(id => getBallType(id) === BALL_TYPE.SOLID || getBallType(id) === BALL_TYPE.STRIPE);
+    this.assignGroup(1, this.player1Group);
+    this.assignGroup(2, this.player2Group);
 
     for (const id of uniquePocketed) {
       const type = getBallType(id);
@@ -185,14 +192,7 @@ export class Rules {
     // unless you have already cleared your group.
     if (!cueBallPocketed) {
       const firstHitType = getBallType(this.firstBallHit);
-      const currentList = this.currentPlayer === 1 ? this.player1Pocketed : this.player2Pocketed;
-      const justPocketedOwn = uniquePocketed.filter(id => {
-        const t = getBallType(id);
-        return (currentGroup === 'solid' && t === BALL_TYPE.SOLID) ||
-               (currentGroup === 'stripe' && t === BALL_TYPE.STRIPE);
-      }).length;
-      const hasClearedGroup = currentList.length + justPocketedOwn >= 7;
-      if (firstHitType === BALL_TYPE.EIGHT && !hasClearedGroup) {
+      if (firstHitType === BALL_TYPE.EIGHT && !clearedBeforeShot) {
         this.foul = true;
         this.foulReason = 'WRONG_FIRST_HIT';
       }
@@ -215,42 +215,16 @@ export class Rules {
 
     // Check 8-ball pocketed — AFTER all foul checks so this.foul is fully resolved
     if (pocketedEight) {
-      const currentList = this.currentPlayer === 1 ? this.player1Pocketed : this.player2Pocketed;
-      // Count own-group balls pocketed THIS shot too, to handle
-      // the case where the 7th group ball and 8-ball drop together.
-      const justPocketedOwn = uniquePocketed.filter(id => {
-        const t = getBallType(id);
-        return (currentGroup === 'solid' && t === BALL_TYPE.SOLID) ||
-               (currentGroup === 'stripe' && t === BALL_TYPE.STRIPE);
-      }).length;
-      const hasAll = currentList.length + justPocketedOwn >= 7;
-
-      if (!hasAll || this.foul) {
+      if (!clearedBeforeShot || this.foul) {
         // Pocketed 8-ball too early or on foul = lose
         this.gameOver = true;
         this.winner = opponent;
-        return { gameOver: true, winner: opponent, foul: true, message: '非法打进8号球！你输了！', reasonCode: 'EARLY_EIGHT' };
+        return { gameOver: true, winner: opponent, foul: true, scratch: this.scratch, message: '非法打进8号球！你输了！', reasonCode: 'EARLY_EIGHT' };
       } else {
         // Legal 8-ball pocket = win
         this.gameOver = true;
         this.winner = this.currentPlayer;
         return { gameOver: true, winner: this.currentPlayer, message: '恭喜你赢了！', reasonCode: 'LEGAL_EIGHT_WIN' };
-      }
-    }
-
-    // Track pocketed balls
-    for (const id of uniquePocketed) {
-      const type = getBallType(id);
-      const isCurrentPlayersBall =
-        (currentGroup === 'solid' && type === BALL_TYPE.SOLID) ||
-        (currentGroup === 'stripe' && type === BALL_TYPE.STRIPE);
-
-      if (isCurrentPlayersBall) {
-        if (this.currentPlayer === 1) {
-          if (!this.player1Pocketed.includes(id)) this.player1Pocketed.push(id);
-        } else {
-          if (!this.player2Pocketed.includes(id)) this.player2Pocketed.push(id);
-        }
       }
     }
 
@@ -295,6 +269,8 @@ export class Rules {
   assignGroup(player, group) {
     if (player === 1) this.player1Group = group;
     else this.player2Group = group;
+    const type = group === 'solid' ? BALL_TYPE.SOLID : group === 'stripe' ? BALL_TYPE.STRIPE : null;
+    this[`player${player}Pocketed`] = this.pocketedBalls.filter(id => getBallType(id) === type);
   }
 
   getPlayerGroup(player) {

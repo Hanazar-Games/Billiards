@@ -1,0 +1,274 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createServer } from 'vite';
+import puppeteer from 'puppeteer';
+
+test('real browser gameplay, presentation and lifecycle regressions', { timeout: 180000 }, async t => {
+  const server = await createServer({ server: { host: '127.0.0.1', port: 0, open: false } });
+  await server.listen();
+  t.after(() => server.close());
+  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--enable-gpu'] });
+  t.after(() => browser.close());
+  const page = await browser.newPage();
+  await page.setViewport({ width: 1440, height: 1000, deviceScaleFactor: 2 });
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  await page.goto(server.resolvedUrls.local[0], { waitUntil: 'networkidle2' });
+  await page.waitForFunction(() => window.__menu && !document.getElementById('intro-screen'));
+  await page.evaluate(async () => {
+    const { settings } = await import('/src/core/SettingsStore.js');
+    settings.set('reducedMotion', true);
+    settings.set('autoInstantReplay', false);
+    settings.set('cameraAutoResetAfterShot', false);
+  });
+
+  const menu = async () => {
+    await page.evaluate(async () => {
+      if (__menu.state === 'PLAYING') await __menu.game.onReturnToMenu();
+      __menu._showMainMenu();
+    });
+    await page.waitForFunction(() => __menu.state === 'MENU');
+  };
+
+  await t.test('settings initially render and every category contains controls', async () => {
+    await page.evaluate(() => __menu._showSettings());
+    await page.waitForFunction(() => __menu.settingsScreen._contentArea.innerText.includes('主音量'));
+    const categories = await page.evaluate(() => [...__menu.settingsScreen._tabEls.keys()]);
+    for (const category of categories) {
+      await page.evaluate(category => __menu.settingsScreen._switchCategory(category), category);
+      assert.ok(await page.evaluate(() => __menu.settingsScreen._contentArea.innerText.trim().length > 10), category);
+    }
+    await page.keyboard.press('Escape');
+    assert.equal(await page.evaluate(() => __menu.settingsScreen._shown), false);
+  });
+
+  await t.test('menu sound toggles restore BGM and produce an audio signal', async () => {
+    await page.mouse.click(10, 10);
+    const result = await page.evaluate(async () => {
+      const { settings } = await import('/src/core/SettingsStore.js');
+      const audio = __menu.audio;
+      settings.set('soundEnabled', false);
+      const muted = !audio.soundEnabled && audio.bgmNodes.length === 0;
+      settings.set('soundEnabled', true);
+      await audio.ctx.resume();
+      audio.startBGM();
+      const analyser = audio.ctx.createAnalyser();
+      audio._masterGain.connect(analyser);
+      await new Promise(resolve => setTimeout(resolve, 160));
+      const samples = new Float32Array(analyser.fftSize);
+      analyser.getFloatTimeDomainData(samples);
+      const bgmSignal = samples.some(value => Math.abs(value) > 0.00001);
+      audio.stopBGM(false);
+      await new Promise(resolve => setTimeout(resolve, 160));
+      audio.playCueHit(80);
+      await new Promise(resolve => setTimeout(resolve, 30));
+      analyser.getFloatTimeDomainData(samples);
+      const sfxSignal = samples.some(value => Math.abs(value) > 0.00001);
+      audio._masterGain.disconnect(analyser);
+      analyser.disconnect();
+      audio.startBGM();
+      return { muted, enabled: audio.soundEnabled, playing: audio.bgmNodes.length > 0, bgmSignal, sfxSignal };
+    });
+    assert.deepEqual(result, { muted: true, enabled: true, playing: true, bgmSignal: true, sfxSignal: true });
+  });
+
+  await t.test('freeplay renders geometry and settings Escape preserves the pause menu', async () => {
+    await menu();
+    await page.evaluate(() => __menu._startGame('freeplay'));
+    await page.waitForFunction(() => __menu.game?.state === 'AIM' && __menu.renderer.renderer.info.render.triangles > 1000);
+    assert.ok(await page.evaluate(() => __menu.renderer.renderer.getContext() instanceof WebGL2RenderingContext));
+    await page.evaluate(() => __menu.game._openInGameSettings());
+    await page.keyboard.press('Escape');
+    assert.deepEqual(await page.evaluate(() => ({ settings: __menu.game._settingsOpen, paused: __menu.game.paused })),
+      { settings: false, paused: true });
+    await page.keyboard.press('Escape');
+    assert.equal(await page.evaluate(() => __menu.game.paused), false);
+    if (process.env.BROWSER_SCREENSHOT) await page.screenshot({ path: process.env.BROWSER_SCREENSHOT + '.game.png' });
+  });
+
+  await t.test('a mouse drag strikes the cue ball in the live physics world', async () => {
+    await page.evaluate(() => { __menu.game.onboardingTips.hide(); });
+    await page.keyboard.press('2');
+    await new Promise(resolve => setTimeout(resolve, 200));
+    const point = await page.evaluate(() => {
+      const game = __menu.game;
+      const position = game.ballsManager.getCueBall().mesh.position.clone().project(game.camera);
+      const rect = game.renderer.renderer.domElement.getBoundingClientRect();
+      return { x: (position.x + 1) * rect.width / 2 + rect.left, y: (1 - position.y) * rect.height / 2 + rect.top };
+    });
+    assert.ok(point.x > 0 && point.x < 1440 && point.y > 0 && point.y < 1000, 'top camera keeps the cue ball on screen');
+    await page.waitForFunction(({ x, y }) => document.elementFromPoint(x, y) === __menu.renderer.renderer.domElement, {}, point);
+    if (process.env.BROWSER_SCREENSHOT) await page.screenshot({ path: process.env.BROWSER_SCREENSHOT + '.top.png' });
+    await page.mouse.move(point.x, point.y);
+    await page.mouse.down();
+    await page.mouse.move(point.x + 100, point.y + 20, { steps: 8 });
+    await new Promise(resolve => setTimeout(resolve, 100));
+    await page.mouse.up();
+    await page.waitForFunction(() => __menu.game.state === 'SHOOTING');
+    assert.ok(await page.evaluate(() => __menu.game.ballsManager.getCueBall().body.velocity.length() > 0));
+    await page.waitForFunction(() => __menu.game.state === 'AIM', { timeout: 25000 });
+  });
+
+  await t.test('appearance changes update every bevel and preserve preset components', async () => {
+    const result = await page.evaluate(async () => {
+      const { settings } = await import('/src/core/SettingsStore.js');
+      const { FELT_THEMES } = await import('/src/theme/TableThemes.js');
+      settings.set('tableTheme', 'blackGold');
+      settings.set('feltTheme', 'blue');
+      const game = __menu.game;
+      return {
+        custom: settings.get('tableTheme'), wood: settings.get('woodTheme'),
+        felt: game.table._materials.felt.color.getHex() === FELT_THEMES.blue.felt.color,
+        bevel: game.table._materials.bevel.color.getHex() === FELT_THEMES.blue.bevel.color,
+        bevelMeshes: game.table.meshGroup.children.filter(mesh => mesh.material === game.table._materials.bevel).length,
+      };
+    });
+    assert.equal(result.custom, 'custom'); assert.equal(result.wood, 'blackLacquer');
+    assert.ok(result.felt && result.bevel && result.bevelMeshes > 1);
+  });
+
+  await t.test('instant replay freezes physics and restores the live ball positions', async () => {
+    const result = await page.evaluate(async () => {
+      const game = __menu.game;
+      const { ShotRecorder } = await import('/src/replay/ShotRecorder.js');
+      const recorder = new ShotRecorder();
+      recorder.start(game.ballsManager, 'freeplay', 50, { x: 0, y: 0 });
+      recorder.update(1, game.ballsManager); recorder.stop();
+      const cue = game.ballsManager.getCueBall();
+      const original = cue.mesh.position.toArray();
+      game._startInstantReplay(recorder.getReplayData());
+      const replaying = game.state === 'REPLAYING' && game.instantReplay.active;
+      game.instantReplay.update(0.1);
+      const cameraBefore = game.camera.quaternion.toArray();
+      __menu.renderer.render();
+      const directed = game.camera.quaternion.toArray().every((v, i) => v === cameraBefore[i]);
+      const physicsTime = __menu.physics.world.time;
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const frozen = __menu.physics.world.time === physicsTime;
+      game.instantReplay.skip();
+      return { replaying, frozen, directed, state: game.state, restored: cue.mesh.position.toArray().every((v, i) => v === original[i]) };
+    });
+    assert.deepEqual(result, { replaying: true, frozen: true, directed: true, state: 'AIM', restored: true });
+  });
+
+  await t.test('respotting restores the ball to the physics world', async () => {
+    const result = await page.evaluate(() => {
+      const game = __menu.game; const ball = game.ballsManager.getBall(8);
+      ball.pocketed = true; ball.mesh.visible = false; game.physics.removeBody(ball.body);
+      game._respotBall(8);
+      return !ball.pocketed && ball.mesh.visible && game.physics.world.bodies.includes(ball.body);
+    });
+    assert.ok(result);
+  });
+
+  await t.test('training samples real shot power and safely opens its result', async () => {
+    await menu();
+    await page.evaluate(async () => {
+      const { getDrill } = await import('/src/trainer/DrillData.js');
+      await __menu._startTrainer(getDrill('straight_shot'));
+    });
+    const result = await page.evaluate(() => {
+      const game = __menu.game;
+      __menu.loop.stop();
+      game.power = 55; game.state = 'SHOOTING'; game.shoot();
+      const power = game.drillManager.shotPower;
+      const replayPower = game.recorder.metadata.maxPower;
+      game.drillManager.onPocket(1);
+      game.resolveTurn([1]);
+      return { power, replayPower, disposed: game.state === 'DISPOSED', menu: __menu.state, result: __menu.trainerResult._shown };
+    });
+    assert.equal(result.power, 50); assert.equal(result.replayPower, 50);
+    assert.equal(result.disposed, true); assert.equal(result.menu, 'MENU');
+    await page.evaluate(async () => {
+      const { getDrill } = await import('/src/trainer/DrillData.js');
+      await __menu._startTrainer(getDrill('cut_shot_easy'));
+      await __menu.game.onReturnToMenu();
+      await __menu.trainerResult.onRetry();
+    });
+    assert.equal(await page.evaluate(() => __menu.activeDrill.id), 'cut_shot_easy');
+  });
+
+  await t.test('freeplay challenge completion reaches its result and retries the selected challenge', async () => {
+    await menu();
+    await page.evaluate(async () => {
+      const { getChallenge } = await import('/src/challenges/ChallengeData.js');
+      await __menu._startChallenge(getChallenge('soft_touch'));
+    });
+    assert.ok(await page.evaluate(() => {
+      const game = __menu.game; __menu.loop.stop();
+      game.power = 16.5; game.state = 'SHOOTING'; game.shoot();
+      game.challengeManager.onPocket(1); game.resolveTurn([1]);
+      return game.challengeManager.completed;
+    }));
+    await page.evaluate(async () => { await __menu.game.onReturnToMenu(); await __menu.challengeResult.onRetry(); });
+    assert.equal(await page.evaluate(() => __menu.activeChallenge.id), 'soft_touch');
+  });
+
+  await t.test('tournament exit, win and concession produce the right bracket results', async () => {
+    await menu();
+    await page.evaluate(async () => {
+      __menu._showTournament(); __menu.tournamentPanel.engine.create('Browser Player', 0, '9ball');
+      await __menu._startTournamentMatch();
+    });
+    assert.equal(await page.evaluate(() => __menu.game.mode), '9ball');
+    await page.evaluate(() => __menu.game.onReturnToMenu());
+    assert.equal(await page.evaluate(() => __menu.tournamentPanel.engine.getCurrentMatch().p1Score), 0);
+    await page.evaluate(async () => {
+      await __menu._startTournamentMatch();
+      const game = __menu.game; __menu.loop.stop();
+      game.rules.breakShot = false; game.rules.startShot(1); game.rules.recordFirstHit(1);
+      game.resolveTurn([9]);
+    });
+    assert.equal(await page.evaluate(() => __menu.tournamentPanel.engine.getCurrentMatch().round), 1);
+    for (let i = 0; i < 2; i++) {
+      await page.evaluate(async () => {
+        await __menu._startTournamentMatch();
+        __menu.game.currentPlayer = 2; __menu.game._concede();
+      });
+    }
+    assert.equal(await page.evaluate(() => __menu.tournamentPanel.engine.state.status), 'finished');
+    assert.equal(await page.evaluate(() => __menu.tournamentPanel.engine.getTournamentSummary().isChampion), false);
+  });
+
+  await t.test('host timeout snapshots include ball-in-hand and AI can take the next turn', async () => {
+    await menu();
+    await page.evaluate(() => __menu._startGame('9ball'));
+    const result = await page.evaluate(() => {
+      const game = __menu.game;
+      __menu.loop.stop();
+      let snapshot;
+      game.networkRole = 'host';
+      game.networkController = { sendStateSnapshot: value => { snapshot = value; } };
+      game._onTurnTimerExpired();
+      game.networkRole = null; game.networkController = null;
+      return { ballInHand: snapshot.ballInHand, currentPlayer: snapshot.currentPlayer };
+    });
+    assert.deepEqual(result, { ballInHand: true, currentPlayer: 2 });
+    await menu();
+    await page.evaluate(() => __menu._startGame('vsai'));
+    await page.evaluate(() => __menu.game._onTurnTimerExpired());
+    assert.equal(await page.evaluate(() => __menu.game.currentPlayer), 2);
+    assert.equal(await page.evaluate(() => __menu.game.state), 'AI_THINKING');
+    assert.equal(await page.evaluate(() => __menu.game.ballInHand), false);
+  });
+
+  await t.test('new panels fit desktop and narrow screens', async () => {
+    await menu();
+    for (const width of [1440, 390]) {
+      await page.setViewport({ width, height: 844, deviceScaleFactor: 2 });
+      for (const method of ['_showSettings', '_showCareerStats', '_showHighlights', '_showTournament', '_showTrainer', '_showChallenges']) {
+        await page.evaluate(method => __menu[method](), method);
+        await new Promise(resolve => setTimeout(resolve, 150));
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${method} at ${width}px`);
+        if (width === 390 && method === '_showSettings' && process.env.BROWSER_SCREENSHOT) {
+          await page.screenshot({ path: process.env.BROWSER_SCREENSHOT + '.settings.png' });
+        }
+        await menu();
+      }
+    }
+    if (process.env.BROWSER_SCREENSHOT) await page.screenshot({ path: process.env.BROWSER_SCREENSHOT });
+  });
+
+  assert.deepEqual(errors, [], 'browser console and uncaught errors');
+});

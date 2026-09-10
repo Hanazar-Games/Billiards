@@ -1,7 +1,7 @@
 {
   "name": "billiards",
   "private": true,
-  "version": "1.26.9",
+  "version": "1.26.10",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,8 +20,13 @@
     "test:smoke": "node test/smoke.test.js",
     "test:trainer-challenge-safety": "node test/trainer-challenge-safety.test.js",
     "test:achievement-toast": "node test/achievement-toast.test.js",
+    "test:tournament": "node test/tournament.test.js",
+    "test:highlight": "node test/highlight.test.js",
+    "test:panels": "node test/panel-lifecycle.test.js",
+    "test:runtime": "node test/runtime-regressions.test.js",
+    "test:browser": "node test/browser-regressions.test.js",
     "test:dist": "node test/dist-smoke.test.js",
-    "test": "npm run test:rules && npm run test:table && npm run test:lan && npm run test:ai && npm run test:audio && npm run test:instant-replay && npm run test:career && npm run test:ui-layout && npm run test:settings-audit && npm run test:trainer-challenge-safety && npm run test:achievement-toast && npm run test:smoke"
+    "test": "npm run test:rules && npm run test:table && npm run test:lan && npm run test:ai && npm run test:audio && npm run test:instant-replay && npm run test:career && npm run test:ui-layout && npm run test:settings-audit && npm run test:trainer-challenge-safety && npm run test:achievement-toast && npm run test:tournament && npm run test:highlight && npm run test:panels && npm run test:runtime && npm run test:browser && npm run test:smoke"
   },
   "dependencies": {
     "cannon-es": "^0.20.0",

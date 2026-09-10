@@ -95,7 +95,7 @@ export class MainMenuScreen {
     this._addButton(playGroup, '本地比赛', '自定义名字与赛制 · 8 球或 9 球 · 单局/三局/五局', () => {
       if (this.onMatchSetup) this.onMatchSetup();
     });
-    this._addButton(playGroup, '冠军锦标赛', '8人单淘汰 · progressively harder AI · 争夺金杯', () => {
+    this._addButton(playGroup, '冠军锦标赛', '8人单淘汰 · AI 难度逐轮提升 · 争夺金杯', () => {
       if (this.onShowTournament) this.onShowTournament();
     });
 

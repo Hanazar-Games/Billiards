@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { BALL } from '../config.js';
 import { getDefaultTableProfile } from '../game/TableProfiles.js';
-import { fxAnimMs } from '../core/AnimSpeed.js';
+import { fxAnimMs, isReducedMotion } from '../core/AnimSpeed.js';
 
 /**
  * BallReturnSystem — visual ball-return animation.
@@ -125,7 +125,7 @@ export class BallReturnSystem {
     const slide = new THREE.Vector3(target.x, -10, target.z);
 
     // In reduced-motion mode, skip the drop/slide animation and place immediately
-    const reduced = settings.get('reducedMotion');
+    const reduced = isReducedMotion();
     if (reduced) {
       clone.position.copy(target);
       this.active.push({

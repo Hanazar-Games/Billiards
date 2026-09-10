@@ -26,6 +26,7 @@
  */
 
 import { detectHighlight, getHighlightTitle } from './HighlightData.js';
+import { ShotRecorder } from '../replay/ShotRecorder.js';
 
 const STORE_KEY = 'billiards_highlights_v1';
 const MAX_HIGHLIGHTS = 50;
@@ -46,7 +47,7 @@ export class HighlightStore {
         if (parsed && Array.isArray(parsed.highlights)) {
           this._data = parsed;
           // Sanitize
-          this._data.highlights = this._data.highlights.filter(h => this._isValid(h));
+          this._data.highlights = this._data.highlights.filter(h => this._isValid(h)).slice(-MAX_HIGHLIGHTS);
         }
       }
     } catch (e) {
@@ -74,10 +75,10 @@ export class HighlightStore {
   }
 
   _isValid(h) {
-    return h && typeof h.id === 'string' && typeof h.savedAt === 'number' &&
+    return h && typeof h.id === 'string' && Number.isFinite(h.savedAt) &&
            Number.isFinite(h.starRating) && h.starRating >= 1 && h.starRating <= 3 &&
-           Array.isArray(h.tags) && h.tags.length > 0 &&
-           h.replayData && typeof h.replayData === 'object';
+           Array.isArray(h.tags) && h.tags.length > 0 && h.tags.every(t => typeof t === 'string') &&
+           ShotRecorder.validateReplayData(h.replayData);
   }
 
   /**
@@ -85,7 +86,7 @@ export class HighlightStore {
    * @returns {Object|null} the saved highlight or null if not remarkable / duplicate
    */
   save(replayData, context = {}) {
-    if (!replayData || !replayData.metadata) return null;
+    if (!ShotRecorder.validateReplayData(replayData)) return null;
 
     const highlight = detectHighlight(replayData.metadata, context);
     if (!highlight) return null;

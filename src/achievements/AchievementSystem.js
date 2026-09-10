@@ -17,6 +17,7 @@ export class AchievementSystem {
   constructor() {
     this.store = new AchievementStore();
     this.onUnlock = null; // callback(achievementId)
+    this._trackingShot = true;
 
     // Per-shot tracking (reset each shot)
     this._shotReset();
@@ -41,14 +42,16 @@ export class AchievementSystem {
   // ── Event hooks called by Game.js ──
 
   /** Call when a shot begins (cue ball struck) */
-  onShot(cueBall, power, spin, currentPlayer) {
+  onShot(cueBall, power, spin, currentPlayer, track = true) {
     this._shotReset();
+    this._trackingShot = track;
     this.shotStartPos = cueBall.mesh.position.clone();
     this.shotPower = power;
     const s = spin || { x: 0, y: 0 };
     this.shotUsedSpin = Math.abs(s.x) > 0.05 || Math.abs(s.y) > 0.05;
     this.shotStartTime = performance.now();
     this.currentPlayer = currentPlayer;
+    if (!this._trackingShot) return;
 
     this.store.incrementStat('totalShots', 1);
 
@@ -64,6 +67,7 @@ export class AchievementSystem {
 
   /** Call each frame during a shot to track distance */
   onShotUpdate(cueBall) {
+    if (!this._trackingShot) return;
     if (!this.shotStartPos) return;
     const dx = cueBall.mesh.position.x - this.shotStartPos.x;
     const dz = cueBall.mesh.position.z - this.shotStartPos.z;
@@ -78,12 +82,12 @@ export class AchievementSystem {
     // Cue ball scratch should not count as a valid pocket
     if (ballId === 0) return;
 
-    this.shotPocketedIds.push(ballId);
-    this.store.incrementStat('totalPockets', 1);
-
     // Track per-player pocket counts for comeback detection
     if (this.currentPlayer === 1) this._pocketsP1++;
     else if (this.currentPlayer === 2) this._pocketsP2++;
+    if (!this._trackingShot) return;
+    this.shotPocketedIds.push(ballId);
+    this.store.incrementStat('totalPockets', 1);
 
     // Check cumulative pocket achievements
     this._checkCareer('pockets_50', () => this.store.getStat('totalPockets') >= 50);
@@ -97,6 +101,7 @@ export class AchievementSystem {
 
   /** Call on ball-ball collision */
   onBallCollision(relVel) {
+    if (!this._trackingShot) return;
     this.shotCollisions++;
     this.store.incrementStat('totalCollisions', 1);
 
@@ -106,6 +111,7 @@ export class AchievementSystem {
 
   /** Call on ball-cushion collision */
   onCushionCollision() {
+    if (!this._trackingShot) return;
     this.shotCushionHits++;
 
     // Cushion dancer
@@ -114,6 +120,7 @@ export class AchievementSystem {
 
   /** Call when a turn ends (all balls stopped) */
   onTurnEnd(result, pocketedIds, mode) {
+    if (!this._trackingShot || result.foul) return;
     // Multi-pocket achievements
     const nonCuePocketed = pocketedIds.filter((id) => id !== 0);
     this._checkUnlock('multi_pocket_3', () => nonCuePocketed.length >= 3);
@@ -156,6 +163,8 @@ export class AchievementSystem {
 
   /** Call when a new game starts (resets per-game state) */
   onGameStart() {
+    this._trackingShot = true;
+    this._shotReset();
     this._wasBehind = false;
     this._pocketsP1 = 0;
     this._pocketsP2 = 0;
@@ -196,16 +205,14 @@ export class AchievementSystem {
       }
 
       // Perfect match (no fouls in this game)
-      const totalFouls = stats
-        ? (stats.player1?.fouls || 0) + (stats.player2?.fouls || 0)
-        : null;
+      const totalFouls = stats?.[`player${player}`]?.fouls ?? null;
       if (totalFouls === 0) {
         this._checkUnlock('no_foul_win', () => true);
       }
 
       // Shutout (opponent pocketed 0 balls)
       const opponent = winner === 1 ? 2 : 1;
-      const opponentPocketed = stats && stats.opponentPocketed ? stats.opponentPocketed[opponent] : null;
+      const opponentPocketed = stats?.[`player${opponent}`]?.ballsPocketed ?? null;
       if (opponentPocketed === 0) {
         this._checkUnlock('shutout', () => true);
       }
@@ -250,6 +257,7 @@ export class AchievementSystem {
 
   /** Call on break shot */
   onBreakShot(pocketedIds, mode) {
+    if (!this._trackingShot) return;
     if (pocketedIds.length >= 4) {
       this._checkUnlock('perfect_break', () => true);
     }
@@ -260,6 +268,7 @@ export class AchievementSystem {
 
   /** Call when a foul occurs */
   onFoul() {
+    if (!this._trackingShot) return;
     this.store.incrementStat('foulCount', 1);
   }
 

@@ -5,6 +5,13 @@
  *   window.dispatchEvent(new CustomEvent('settingsChanged', { detail: { key, value } }));
  */
 
+import { TABLE_THEMES } from '../theme/TableThemes.js';
+import { ROOM_THEMES } from '../theme/RoomThemes.js';
+
+const APPEARANCE_PRESETS = [
+  { key: 'tableTheme', presets: TABLE_THEMES, fields: { felt: 'feltTheme', wood: 'woodTheme', metal: 'metalTrimTheme' } },
+  { key: 'roomTheme', presets: ROOM_THEMES, fields: { floor: 'floorTheme', wall: 'wallTheme', lamp: 'lampStyle', ambient: 'ambientLightTheme' } },
+];
 const STORAGE_KEY = 'billiards_settings_v1';
 const REMOVED_SETTINGS_KEYS = new Set([
   'trajectoryAnimationEnabled',
@@ -266,6 +273,7 @@ export class SettingsStore {
   constructor() {
     this._data = _deepClone(DEFAULTS);
     this._lockedKeys = new Set();
+    this._lockedValues = new Map();
     this._load();
   }
 
@@ -279,10 +287,16 @@ export class SettingsStore {
     } else {
       this._lockedKeys = new Set();
     }
+    for (const key of this._lockedValues.keys()) {
+      if (!this._lockedKeys.has(key)) {
+        this._lockedValues.delete(key);
+        this._notify(key, this._data[key]);
+      }
+    }
   }
 
   clearLockedKeys() {
-    this._lockedKeys = new Set();
+    this.setLockedKeys([]);
   }
 
   isLocked(key) {
@@ -342,7 +356,7 @@ export class SettingsStore {
   }
 
   get(key) {
-    return this._data[key];
+    return this._lockedValues.has(key) ? this._lockedValues.get(key) : this._data[key];
   }
 
   set(key, value) {
@@ -354,17 +368,35 @@ export class SettingsStore {
       }
       return;
     }
-    if (this._data[key] === value) return;
+    const changed = new Set();
+    for (const group of APPEARANCE_PRESETS) {
+      const isPreset = key === group.key;
+      if (!isPreset && !Object.values(group.fields).includes(key)) continue;
+      const preset = group.presets[isPreset ? value : this._data[group.key]];
+      for (const [part, settingKey] of Object.entries(group.fields)) {
+        if (preset?.[part] !== undefined && this._data[settingKey] !== preset[part]) {
+          this._data[settingKey] = preset[part];
+          changed.add(settingKey);
+        }
+      }
+      if (!isPreset && this._data[group.key] !== 'custom') {
+        this._data[group.key] = 'custom';
+        changed.add(group.key);
+      }
+    }
+    if (this._data[key] === value && changed.size === 0) return;
     if (key === 'instantReplayThreshold') {
-      value = Math.max(0, Math.min(100, Number(value) || 35));
+      const threshold = Number(value);
+      value = Number.isFinite(threshold) ? Math.max(0, Math.min(100, threshold)) : 35;
     }
     this._data[key] = value;
+    changed.add(key);
     this._save();
-    this._notify(key, value);
+    for (const changedKey of changed) this._notify(changedKey, this.get(changedKey));
   }
 
   getAll() {
-    return { ...this._data };
+    return { ...this._data, ...Object.fromEntries(this._lockedValues) };
   }
 
   reset() {
@@ -388,7 +420,7 @@ export class SettingsStore {
    */
   updateLockedValue(key, value) {
     if (!this._lockedKeys.has(key)) return;
-    this._data[key] = value;
+    this._lockedValues.set(key, value);
   }
 
   resetKey(key) {

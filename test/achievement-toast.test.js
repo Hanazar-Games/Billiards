@@ -87,7 +87,11 @@ describe('AchievementPanel toast layout & queue', () => {
     panel.destroy();
   });
 
-  test('destroy clears active toasts and queue', async () => {
+  test('destroy clears active toasts and queue', async t => {
+    const frames = new Map();
+    let nextId = 0;
+    t.mock.method(globalThis, 'requestAnimationFrame', fn => { frames.set(++nextId, fn); return nextId; });
+    t.mock.method(globalThis, 'cancelAnimationFrame', id => frames.delete(id));
     const { AchievementPanel } = await import('../src/achievements/AchievementPanel.js');
     const panel = new AchievementPanel({ getAllAchievements: () => [] });
     panel.showToast('first_win');
@@ -97,7 +101,7 @@ describe('AchievementPanel toast layout & queue', () => {
     panel.destroy();
     assert.strictEqual(panel._activeToasts.length, 0);
     assert.strictEqual(panel._toastQueue.length, 0);
-    assert.strictEqual(panel._toastRaf, null);
+    assert.strictEqual(frames.size, 0);
   });
 
   test('ignores unknown achievement id', async () => {

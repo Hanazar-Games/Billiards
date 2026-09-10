@@ -6,7 +6,7 @@
  */
 import { uiLayout } from '../ui/UILayout.js';
 import { settings } from '../core/SettingsStore.js';
-import { isReducedMotion } from '../core/AnimSpeed.js';
+import { animMs, isReducedMotion } from '../core/AnimSpeed.js';
 
 export class StatsPanel {
   constructor() {
@@ -218,6 +218,8 @@ export class StatsPanel {
       return;
     }
     this.lastStats = summary;
+    this._ensureGameOverOverlay();
+    if (this._gameOverKeyHandler) document.addEventListener('keydown', this._gameOverKeyHandler);
 
     const enabled = settings.get('statsPanelEnabled') !== false;
     if (!enabled) {
@@ -268,6 +270,7 @@ export class StatsPanel {
     const fmtPct = (n) => (Number.isFinite(n) && n > 0 ? Math.round(n) + '%' : '0%');
 
     const overlay = this._ensureGameOverOverlay();
+    if (!overlay) return;
     if (this._gameOverHideTimer) { clearTimeout(this._gameOverHideTimer); this._gameOverHideTimer = null; }
     overlay.innerHTML = `
       <div style="
@@ -324,7 +327,11 @@ export class StatsPanel {
       </div>
     `;
     overlay.style.display = 'flex';
-    requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+    if (this._gameOverRafId) cancelAnimationFrame(this._gameOverRafId);
+    this._gameOverRafId = requestAnimationFrame(() => {
+      this._gameOverRafId = null;
+      overlay.style.opacity = '1';
+    });
   }
 
   _ensureGameOverOverlay() {
@@ -354,7 +361,7 @@ export class StatsPanel {
 
     // ESC to close
     this._gameOverKeyHandler = (e) => {
-      if (e.key === 'Escape') { e.stopPropagation(); this._hideGameOver(); }
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this._hideGameOver(); }
     };
     document.addEventListener('keydown', this._gameOverKeyHandler);
 
@@ -363,6 +370,7 @@ export class StatsPanel {
 
   _hideGameOver() {
     if (!this._gameOverOverlay) return;
+    if (this._gameOverRafId) { cancelAnimationFrame(this._gameOverRafId); this._gameOverRafId = null; }
     this._gameOverOverlay.style.opacity = '0';
     if (this._gameOverHideTimer) clearTimeout(this._gameOverHideTimer);
     this._gameOverHideTimer = setTimeout(() => {

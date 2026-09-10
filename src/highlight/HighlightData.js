@@ -61,7 +61,7 @@ export function detectHighlight(meta, context = {}) {
     starRating = Math.max(starRating, distance > 200 ? 2 : 1);
   }
 
-  if (isBank) {
+  if (isBank && pocketed.length > 0) {
     tags.push(HIGHLIGHT_CATEGORIES.BANK_SHOT);
     reasons.push('翻袋进球');
     starRating = Math.max(starRating, 2);
@@ -73,7 +73,7 @@ export function detectHighlight(meta, context = {}) {
     starRating = Math.max(starRating, power > 90 ? 2 : 1);
   }
 
-  if (spinUsed) {
+  if (spinUsed && pocketed.length > 0) {
     tags.push(HIGHLIGHT_CATEGORIES.SPIN_SHOT);
     reasons.push('旋转进球');
     starRating = Math.max(starRating, 1);

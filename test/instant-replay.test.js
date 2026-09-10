@@ -1,4 +1,5 @@
-import assert from 'assert';
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
 import * as THREE from 'three';
 import { InstantReplayController } from '../src/replay/InstantReplayController.js';
 import { settings } from '../src/core/SettingsStore.js';
@@ -37,21 +38,6 @@ if (typeof globalThis.window === 'undefined') {
 }
 if (!globalThis.window.dispatchEvent) {
   globalThis.window.dispatchEvent = () => {};
-}
-
-let passed = 0;
-let failed = 0;
-
-function test(name, fn) {
-  try {
-    fn();
-    passed++;
-    console.log(`  ✓ ${name}`);
-  } catch (err) {
-    failed++;
-    console.error(`  ✗ ${name}`);
-    console.error(`    ${err.message}`);
-  }
 }
 
 function makeMockBallsManager() {
@@ -346,6 +332,15 @@ test('validateReplayData rejects NaN in frames', () => {
   assert.strictEqual(ShotRecorder.validateReplayData({ frames, frameCount: 3, metadata: {} }), false);
 });
 
+test('validateReplayData rejects nonnumeric coordinates and fractional frames', () => {
+  const data = makeReplayData(3);
+  data.frames[0] = 'invalid';
+  assert.equal(ShotRecorder.validateReplayData(data), false);
+  data.frames[0] = 1;
+  data.frameCount = 2.5;
+  assert.equal(ShotRecorder.validateReplayData(data), false);
+});
+
 test('validateReplayData accepts valid data', () => {
   const frames = new Array(16 * 2 * 3).fill(1);
   assert.strictEqual(ShotRecorder.validateReplayData({ frames, frameCount: 3, metadata: {} }), true);
@@ -411,9 +406,3 @@ test('ReplayLibrary._sanitizeReplay returns null for irreparable data', () => {
   assert.strictEqual(lib._sanitizeReplay(null), null);
   assert.strictEqual(lib._sanitizeReplay({ frames: 'not-an-array', frameCount: 5, metadata: {} }), null);
 });
-
-/* ── Summary ── */
-
-console.log(`\n▶ Instant Replay`);
-console.log(`  ${passed} passed, ${failed} failed`);
-if (failed > 0) process.exit(1);

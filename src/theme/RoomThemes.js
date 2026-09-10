@@ -100,6 +100,7 @@ export const AMBIENT_LIGHT_THEMES = {
 
 // ── Full room presets ──
 export const ROOM_THEMES = {
+  custom: {},
   club:       { floor: 'tile',    wall: 'warm',     lamp: 'classic',    ambient: 'warm' },
   modern:     { floor: 'dark',    wall: 'neutral',  lamp: 'modern',     ambient: 'neutral' },
   tournament: { floor: 'tile',    wall: 'neutral',  lamp: 'tournament', ambient: 'cool' },

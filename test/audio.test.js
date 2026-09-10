@@ -13,11 +13,12 @@ if (typeof globalThis.localStorage === 'undefined') {
 
 function makeAudioParam() {
   return {
+    events: [],
     value: 1,
     setValueAtTime(value) { this.value = value; },
     exponentialRampToValueAtTime(value) { this.value = value; },
-    setTargetAtTime(value) { this.value = value; },
-    cancelScheduledValues() {},
+    setTargetAtTime(value) { this.value = value; this.events.push('target'); },
+    cancelScheduledValues() { this.events.push('cancel'); },
   };
 }
 
@@ -66,6 +67,8 @@ function makeFakeContext() {
       });
     },
     resume() { return Promise.resolve(); },
+    addEventListener() {}, removeEventListener() {},
+    close() { this.state = 'closed'; return Promise.resolve(); },
   };
 }
 
@@ -94,5 +97,71 @@ describe('AudioManager zero-volume safety', () => {
     assert.doesNotThrow(() => audio.playPocket());
     assert.doesNotThrow(() => audio.playWin());
     assert.doesNotThrow(() => audio.playFoul());
+  });
+});
+
+describe('AudioManager lifecycle', () => {
+  async function createAudio(t) {
+    const oldWindow = globalThis.window;
+    const oldDocument = globalThis.document;
+    globalThis.window = new EventTarget();
+    globalThis.document = new EventTarget();
+    document.hidden = false;
+    window.AudioContext = class { constructor() { return makeFakeContext(); } };
+    const { AudioManager } = await import('../src/audio/AudioManager.js');
+    const { settings } = await import('../src/core/SettingsStore.js');
+    settings.set('soundEnabled', true);
+    settings.set('masterVolume', 40);
+    settings.set('musicVolume', 30);
+    settings.set('sfxVolume', 20);
+    settings.set('muteWhenUnfocused', true);
+    const audio = new AudioManager();
+    audio.init();
+    t.after(() => {
+      audio.dispose();
+      globalThis.window = oldWindow;
+      globalThis.document = oldDocument;
+    });
+    return { audio, settings };
+  }
+
+  test('initializes with persisted sound and volume settings', async t => {
+    const { audio } = await createAudio(t);
+    assert.equal(audio.soundEnabled, true);
+    assert.equal(audio._masterGain.gain.value, 0.4);
+    assert.equal(audio._sfxGain.gain.value, 0.2);
+  });
+
+  test('background mute silences SFX and restores the master gain', async t => {
+    const { audio } = await createAudio(t);
+    audio.toggleSound(true);
+    audio.syncVolumesFromSettings();
+    document.hidden = true;
+    document.dispatchEvent(new Event('visibilitychange'));
+    assert.equal(audio._canPlay(), false);
+    assert.equal(audio._masterGain.gain.value, 0);
+    document.hidden = false;
+    document.dispatchEvent(new Event('visibilitychange'));
+    assert.equal(audio._masterGain.gain.value, 0.4);
+  });
+
+  test('restarting BGM cancels an earlier fade-out', async t => {
+    const { audio } = await createAudio(t);
+    audio.toggleSound(true);
+    audio.startBGM();
+    audio.stopBGM(false);
+    audio._bgmGain.gain.events.length = 0;
+    audio.startBGM();
+    assert.deepEqual(audio._bgmGain.gain.events.slice(-2), ['cancel', 'target']);
+    assert.ok(audio.bgmNodes.length > 0);
+  });
+
+  test('sound settings update audio while only the menu is open', async t => {
+    const { audio, settings } = await createAudio(t);
+    audio.toggleSound(true);
+    settings.set('soundEnabled', false);
+    assert.equal(audio.soundEnabled, false);
+    settings.set('soundEnabled', true);
+    assert.equal(audio.soundEnabled, true);
   });
 });

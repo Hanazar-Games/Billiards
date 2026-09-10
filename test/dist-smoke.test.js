@@ -14,13 +14,12 @@ import puppeteer from 'puppeteer';
 import { spawn } from 'child_process';
 import net from 'net';
 import { setTimeout as sleep } from 'timers/promises';
-import { readFileSync, existsSync } from 'fs';
+import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { VERSION_TAG } from '../src/core/Version.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const WEBGL_MOCK_CODE = readFileSync(join(__dirname, 'webgl-mock.js'), 'utf-8');
 
 const PREVIEW_PORT = 14173;
 const BASE_URL = `http://127.0.0.1:${PREVIEW_PORT}`;
@@ -101,7 +100,7 @@ function hasSevereErrors(errors) {
   return errors.some((e) => {
     const m = e.message || '';
     if (/Failed to load resource|the server responded|favicon/i.test(m)) return false;
-    return /Game init failed|TypeError|ReferenceError|ENGINE INIT ERROR|MENU SETUP ERROR|Cannot read propert|Cannot set propert|is not a function/i.test(m);
+    return /GameLoop error|Shader Error|Game init failed|TypeError|ReferenceError|ENGINE INIT ERROR|MENU SETUP ERROR|Cannot read propert|Cannot set propert|is not a function/i.test(m);
   });
 }
 
@@ -131,18 +130,7 @@ async function main() {
   }
 
   console.log('\n▶ Launching Puppeteer...');
-  browser = await puppeteer.launch({
-    headless: false,
-    args: [
-      '--headless=old',
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--use-gl=swiftshader',
-      '--enable-webgl',
-      '--ignore-gpu-blocklist',
-      '--disable-gpu-sandbox',
-    ],
-  });
+  browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--enable-gpu'] });
   page = await browser.newPage();
   page.setDefaultTimeout(NAV_TIMEOUT);
 
@@ -162,7 +150,6 @@ async function main() {
     }
   });
 
-  await page.evaluateOnNewDocument(WEBGL_MOCK_CODE);
   console.log('  ✓ Browser ready');
 
   // ── Homepage ──
@@ -214,6 +201,7 @@ async function main() {
     return el && getComputedStyle(el).display !== 'none';
   });
   record('Game UI visible', gameUiVisible);
+  record('Real WebGL scene rendered', await page.evaluate(() => window.__menu?.renderer.renderer.info.render.triangles > 0));
 
   const noErrorOverlay = await page.evaluate(() => {
     const el = document.getElementById('js-error-overlay');

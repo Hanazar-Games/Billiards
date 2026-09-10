@@ -200,13 +200,13 @@ export class ShotRecorder {
     if (!data || typeof data !== 'object') return false;
     if (!Array.isArray(data.frames)) return false;
     const fc = Number(data.frameCount);
-    if (!Number.isFinite(fc) || fc < 2 || fc > MAX_FRAMES) return false;
+    if (!Number.isInteger(fc) || fc < 2 || fc > MAX_FRAMES) return false;
     const expectedLen = fc * FLOATS_PER_FRAME;
     if (data.frames.length < expectedLen) return false;
     // Check for NaN/Inf in frame data (allow sentinel)
     for (let i = 0; i < expectedLen; i++) {
       const v = data.frames[i];
-      if (Number.isNaN(v) || v === Infinity || v === -Infinity) return false;
+      if (!Number.isFinite(v)) return false;
     }
     if (!data.metadata || typeof data.metadata !== 'object') return false;
     return true;

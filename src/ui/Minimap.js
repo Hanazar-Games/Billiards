@@ -124,8 +124,8 @@ export class Minimap {
     if (!this._enabled) return;
     if (!this._dirty) return;
     const ctx = this.ctx;
-    const w = this.canvas.width;
-    const h = this.canvas.height;
+    const w = parseFloat(this.canvas.style.width);
+    const h = parseFloat(this.canvas.style.height);
     const p = this._padding;
 
     // Clear

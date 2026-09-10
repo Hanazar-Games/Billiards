@@ -205,9 +205,7 @@ describe('TournamentEngine', () => {
     engine = new TournamentEngine();
     engine.create('P', 0, '8ball');
     // Simulate winning all matches
-    engine.recordGameResult(true);
-    engine.recordGameResult(true);
-    engine.recordGameResult(true);
+    while (engine.state.status === 'active') engine.recordGameResult(true);
     const summary = engine.getTournamentSummary();
     assert.ok(summary);
     assert.strictEqual(summary.isChampion, true);

@@ -109,15 +109,10 @@ export class MenuSystem {
     // Growth Path (shared recommendation engine)
     this.growthPath = new GrowthPath(new ShotProfiler(careerStore));
 
-    this._initAudio().then(() => {
+    this.ready = this._initAudio().then(() => {
       this._setupMenu();
       if (typeof window !== 'undefined' && window.updateLoadingProgress) {
         window.updateLoadingProgress(60, '加载资源...');
-      }
-    }).catch((err) => {
-      console.warn('Menu setup failed:', err);
-      if (typeof window !== 'undefined' && window.showError) {
-        window.showError('MENU SETUP ERROR: ' + (err?.message || String(err)));
       }
     });
   }
@@ -210,7 +205,7 @@ export class MenuSystem {
       menuLayer.style.opacity = '0';
       requestAnimationFrame(() => { menuLayer.style.opacity = '1'; });
     }
-    if (this.audio && this.audio.soundEnabled) {
+    if (this.audio) {
       this.audio.startBGM();
     }
   }
@@ -266,7 +261,7 @@ export class MenuSystem {
     this.settingsScreen.setAudioManager(this.audio);
 
     // Start menu BGM if sound is enabled
-    if (this.audio && this.audio.soundEnabled) {
+    if (this.audio) {
       this.audio.startBGM();
     }
 
@@ -305,7 +300,7 @@ export class MenuSystem {
     if (this.replayPanel) { this.replayPanel.destroy(); this.replayPanel = null; }
     if (this.highlightPanel) { this.highlightPanel.destroy(); this.highlightPanel = null; }
     this.mainMenu.show();
-    if (this.audio && this.audio.soundEnabled) {
+    if (this.audio) {
       this.audio.startBGM();
     }
   }
@@ -426,11 +421,6 @@ export class MenuSystem {
     }
 
     const match = engine.getCurrentMatch();
-    if (match) {
-      const opponent = match.player1?.isPlayer ? match.player2 : match.player1;
-      this._tournamentPlayerName = match.player1?.isPlayer ? match.player1.name : match.player2?.name;
-      this._tournamentOpponentName = opponent?.name;
-    }
 
     this.game = new Game(this.renderer, this.physics, this.audio);
     this.game.achievements = this.achievements;
@@ -447,12 +437,15 @@ export class MenuSystem {
       return;
     }
 
-    this.game.onReturnToMenu = () => this._onTournamentGameEnd(1);
-    this.game.onConcede = () => this._onTournamentGameEnd(2);
+    this.game.onReturnToMenu = () => this._onTournamentGameEnd(null);
+    this.game.onGameEnd = winner => this._onTournamentGameEnd(winner);
+    this.game.networkPlayer1Name = match.player1.isPlayer ? match.player1.name : match.player2.name;
+    this.game.networkPlayer2Name = match.player1.isPlayer ? match.player2.name : match.player1.name;
+    this.game._updatePlayerStats();
 
     this.loop = new GameLoop({
       update: (dt) => {
-        if ((!this.game || this.game.networkRole !== 'client') && !this.game?.paused) {
+        if (this.game && this.game.networkRole !== 'client' && !this.game.paused && this.game.state !== 'REPLAYING') {
           this.physics.step(dt);
         }
         this.game.update(dt);
@@ -472,7 +465,7 @@ export class MenuSystem {
     this.state = 'TRANSITION';
 
     const playerWon = winner === 1;
-    const result = this.tournamentPanel?.onGameEnd(playerWon);
+    const result = winner === null ? null : this.tournamentPanel?.onGameEnd(playerWon);
 
     this._clearPendingTimeouts();
     if (this.loop) { this.loop.stop(); this.loop = null; }
@@ -486,7 +479,7 @@ export class MenuSystem {
     this._fadeToMenu();
     this.state = 'MENU';
 
-    if (this.audio && this.audio.soundEnabled) {
+    if (this.audio) {
       this.audio.startBGM();
     }
 
@@ -551,7 +544,7 @@ export class MenuSystem {
     // Create and start game loop
     this.loop = new GameLoop({
       update: (dt) => {
-        if (!this.game?.paused) this.physics.step(dt);
+        if (this.game && this.game.networkRole !== 'client' && !this.game.paused && this.game.state !== 'REPLAYING') this.physics.step(dt);
         this.game.update(dt);
       },
       render: () => {
@@ -620,6 +613,7 @@ export class MenuSystem {
         stats.prevBestStars = best.stars;
       }
 
+      this.trainerResult.onRetry = () => this._startTrainer(drill);
       this.trainerResult.show(
         hud.name,
         this.drillManager.completed,
@@ -634,7 +628,7 @@ export class MenuSystem {
     this.state = 'MENU';
 
     // Restart menu BGM
-    if (this.audio && this.audio.soundEnabled) {
+    if (this.audio) {
       this.audio.startBGM();
     }
   }
@@ -665,7 +659,7 @@ export class MenuSystem {
 
     // Create game with challenge mode
     const modeConfig = { mode: challenge.gameMode, aiEnabled: false };
-    if (challengeValidated.tableProfileId) {
+    if (challengeProfileId) {
       modeConfig.tableProfileId = challengeValidated.tableProfileId;
     }
     this.game = new Game(this.renderer, this.physics, this.audio);
@@ -690,7 +684,7 @@ export class MenuSystem {
     // Create and start game loop
     this.loop = new GameLoop({
       update: (dt) => {
-        if (!this.game?.paused) this.physics.step(dt);
+        if (this.game && this.game.networkRole !== 'client' && !this.game.paused && this.game.state !== 'REPLAYING') this.physics.step(dt);
         this.game.update(dt);
       },
       render: () => {
@@ -740,6 +734,8 @@ export class MenuSystem {
           () => this._showChallenges()
         );
       }
+      const challenge = this.activeChallenge;
+      this.challengeResult.onRetry = () => this._startChallenge(challenge);
       this.challengeResult.show(
         hud.name,
         this.challengeManager.completed,
@@ -766,7 +762,7 @@ export class MenuSystem {
     this.state = 'MENU';
 
     // Restart menu BGM
-    if (this.audio && this.audio.soundEnabled) {
+    if (this.audio) {
       this.audio.startBGM();
     }
   }
@@ -805,7 +801,7 @@ export class MenuSystem {
 
     // Validate mode/profile combo before proceeding
     const validated = validateModeTableProfile(mode, tableProfileId);
-    if (!validated.valid) {
+    if (tableProfileId && !validated.valid) {
       if (tableProfileId) {
         console.warn('[MenuSystem] Invalid mode/profile combo (%s / %s): %s. Using fallback.',
           mode, tableProfileId, validated.reason);
@@ -828,14 +824,6 @@ export class MenuSystem {
       return;
     }
 
-    // Apply tournament HUD names if present
-    if (this._tournamentPlayerName && this.game) {
-      this.game.networkPlayer1Name = this._tournamentPlayerName;
-      this.game.networkPlayer2Name = this._tournamentOpponentName || 'AI';
-      this._tournamentPlayerName = null;
-      this._tournamentOpponentName = null;
-    }
-
     // Set up match mode if provided
     if (matchStatus) {
       this.matchManager.setOnGameEnd((winner) => this._onMatchGameEnd(winner));
@@ -854,7 +842,7 @@ export class MenuSystem {
     // Create and start game loop
     this.loop = new GameLoop({
       update: (dt) => {
-        if ((!this.game || this.game.networkRole !== 'client') && !this.game?.paused) {
+        if (this.game && this.game.networkRole !== 'client' && !this.game.paused && this.game.state !== 'REPLAYING') {
           this.physics.step(dt);
         }
         this.game.update(dt);
@@ -1010,7 +998,7 @@ export class MenuSystem {
     this.state = 'MENU';
 
     // Restart menu BGM if sound is enabled
-    if (this.audio && this.audio.soundEnabled) {
+    if (this.audio) {
       this.audio.startBGM();
     }
 

@@ -19,7 +19,6 @@ export class AchievementPanel {
     this._wallShown = false;
     this._activeToasts = [];   // { element, dismissTimer, removeTimer }
     this._toastQueue = [];     // queued achievement ids
-    this._toastRaf = null;
     this._ownsToastContainer = false;
     this._maxVisibleToasts = 3;
     this._buildToast();
@@ -90,7 +89,7 @@ export class AchievementPanel {
       opacity: 0;
       transition: ${reduced ? 'none' : 'transform calc(0.5s / var(--ui-anim-speed)) cubic-bezier(0.34, 1.56, 0.64, 1), opacity calc(0.4s / var(--ui-anim-speed)) ease'};
       pointer-events: none;
-      min-width: 280px;
+      min-width: min(280px, calc(100vw - var(--hud-right-safe) - var(--hud-left-safe) - 32px));
       max-width: min(400px, calc(100vw - var(--hud-right-safe) - var(--hud-left-safe) - 32px));
     `;
 
@@ -119,7 +118,7 @@ export class AchievementPanel {
     toast.appendChild(textBlock);
     this.toastContainer.appendChild(toast);
 
-    const entry = { element: toast, dismissTimer: null, removeTimer: null, achId: ach.id };
+    const entry = { element: toast, dismissTimer: null, removeTimer: null, raf: null, achId: ach.id };
     this._activeToasts.push(entry);
 
     // Animate in
@@ -131,9 +130,8 @@ export class AchievementPanel {
     if (reduced) {
       animateIn();
     } else {
-      if (this._toastRaf) cancelAnimationFrame(this._toastRaf);
-      this._toastRaf = requestAnimationFrame(() => {
-        this._toastRaf = null;
+      entry.raf = requestAnimationFrame(() => {
+        entry.raf = null;
         animateIn();
       });
     }
@@ -150,6 +148,7 @@ export class AchievementPanel {
   }
 
   _removeToastEntry(entry) {
+    if (entry.raf) cancelAnimationFrame(entry.raf);
     const idx = this._activeToasts.indexOf(entry);
     if (idx !== -1) this._activeToasts.splice(idx, 1);
     if (entry.element && entry.element.parentNode) {
@@ -371,6 +370,7 @@ export class AchievementPanel {
     // Clear all active toasts and their timers
     this._toastQueue = [];
     for (const entry of this._activeToasts) {
+      if (entry.raf) cancelAnimationFrame(entry.raf);
       if (entry.dismissTimer) clearTimeout(entry.dismissTimer);
       if (entry.removeTimer) clearTimeout(entry.removeTimer);
       if (entry.element && entry.element.parentNode) {
@@ -378,7 +378,6 @@ export class AchievementPanel {
       }
     }
     this._activeToasts = [];
-    if (this._toastRaf) { cancelAnimationFrame(this._toastRaf); this._toastRaf = null; }
 
     if (this.toastContainer && this.toastContainer.parentNode && this._ownsToastContainer) {
       this.toastContainer.parentNode.removeChild(this.toastContainer);

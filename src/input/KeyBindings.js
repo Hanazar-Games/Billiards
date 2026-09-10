@@ -59,6 +59,7 @@ export const ACTION_CATEGORIES = [
       toggleSound:  { label: '静音切换',         mac: 'M',            win: 'M',            mobile: '两指右滑' },
       screenshot:   { label: '截图',             mac: '⌘ + Shift + S',win: 'Ctrl + Shift + S', mobile: '不适用' },
       toggleFPS:    { label: 'FPS 显示',         mac: 'F',            win: 'F',            mobile: '不适用' },
+      instantReplay:{ label: '即时回放 / 跳过',  mac: 'Shift + R',    win: 'Shift + R',    mobile: '点击回放按钮' },
     },
   },
   {
@@ -217,7 +218,7 @@ export class KeyBindings {
 
   setBinding(action, key) {
     if (!ACTIONS[action]) return false;
-    key = key.toLowerCase().trim();
+    key = key === ' ' ? key : key.toLowerCase().trim();
     if (!key) return false;
     // Check for conflicts
     const conflicts = this.getConflicts(action, key);
@@ -232,7 +233,7 @@ export class KeyBindings {
   }
 
   getConflicts(action, key) {
-    key = key.toLowerCase().trim();
+    key = key === ' ' ? key : key.toLowerCase().trim();
     const conflicts = [];
     for (const [otherAction, boundKey] of Object.entries(this._bindings)) {
       if (otherAction !== action && boundKey === key) {

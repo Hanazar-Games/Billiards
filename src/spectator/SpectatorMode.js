@@ -226,7 +226,8 @@ export class SpectatorMode {
     if (!this._eightBallAnnounced && game.rules) {
       try {
         const status = game.rules.getStatus?.();
-        if (status && status.eightBallActive) {
+        if (status && ((status.player1Group && status.player1Remaining === 0) ||
+            (status.player2Group && status.player2Remaining === 0))) {
           this._eightBallAnnounced = true;
           this.commentary.onEightBallApproach();
           this.ui.showEventBadge('黑八时刻', 3000);

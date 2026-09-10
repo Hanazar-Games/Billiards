@@ -155,7 +155,7 @@ export class ChallengeManager {
       this.shotFinalCuePos = result.cueBallPos;
     }
 
-    this._checkPerShotConditions();
+    if (!foul) this._checkPerShotConditions();
     this._checkConsecutivePockets();
     this._checkFlawlessClear();
     this._shotReset();

@@ -45,6 +45,7 @@ export class Table {
   }
 
   _mat(name, props) {
+    if (this._materials[name]) return this._materials[name];
     const mat = new THREE.MeshStandardMaterial(props);
     this._materials[name] = mat;
     return mat;

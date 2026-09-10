@@ -93,6 +93,7 @@ export class TournamentPanel {
 
   show() {
     if (!this.container || this._shown) return;
+    if (this._fadeTimer) { clearTimeout(this._fadeTimer); this._fadeTimer = null; }
     this._shown = true;
     this.container.style.display = 'flex';
     const reduced = typeof document !== 'undefined' && document.documentElement.classList.contains('reduce-motion');

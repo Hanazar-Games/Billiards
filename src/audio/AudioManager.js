@@ -106,6 +106,8 @@ export class AudioManager {
       this._sfxGain.connect(this._masterGain);
       this.enabled = true;
       this.initialized = true;
+      this.soundEnabled = settings.get('soundEnabled') === true;
+      this.syncVolumesFromSettings();
       this._installResilienceListeners();
     } catch (e) {
       console.warn('Web Audio API not supported');
@@ -146,11 +148,9 @@ export class AudioManager {
 
     // Pause BGM when tab is hidden to save battery (respect muteWhenUnfocused)
     this._visibilityHandler = () => {
-      if (document.hidden) {
-        this._bgmWasPlaying = this.bgmNodes.length > 0;
-        if (settings.get('muteWhenUnfocused') !== false) {
-          this.stopBGM();
-        }
+      this._updateMasterGain();
+      if (this._isBackgroundMuted()) {
+        this.stopBGM();
       } else if (this._bgmWasPlaying && this.soundEnabled) {
         this.startBGM();
       }
@@ -172,12 +172,9 @@ export class AudioManager {
     // React to settings changes that affect audio routing
     this._settingsChangedHandler = (e) => {
       const key = e.detail?.key;
+      if (key === 'soundEnabled') this.toggleSound(settings.get(key));
       if (key === 'muteWhenUnfocused') {
-        // If just turned on and tab is hidden, stop BGM immediately
-        if (settings.get('muteWhenUnfocused') !== false && document.hidden && this.bgmNodes.length > 0) {
-          this._bgmWasPlaying = true;
-          this.stopBGM();
-        }
+        this._visibilityHandler();
       }
       if (key === 'masterVolume' || key === 'musicVolume' || key === 'sfxVolume' || key === 'ambientVolumeScale' ||
           key === 'hitFeedbackVolumeScale' || key === 'cueHitVolumeScale' || key === 'collisionVolumeScale' ||
@@ -212,10 +209,7 @@ export class AudioManager {
 
   toggleSound(enabled) {
     this.soundEnabled = Boolean(enabled);
-    if (this._masterGain && this.ctx && this.ctx.state !== 'closed') {
-      const v = enabled ? this._masterVolume : 0.0;
-      this._masterGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
-    }
+    this._updateMasterGain();
     // Stop BGM when sound is turned off to save CPU cycles;
     // visibilitychange will restart it when sound is re-enabled.
     if (!enabled) {
@@ -229,9 +223,17 @@ export class AudioManager {
     if (!Number.isFinite(vol) || !this._masterGain || !this.ctx || this.ctx.state === 'closed') return;
     const v = Math.max(0, Math.min(1, vol / 100));
     this._masterVolume = v;
-    // Respect the master mute switch: if sound is globally off, keep gain at 0
-    const effectiveV = this.soundEnabled ? v : 0.0;
-    this._masterGain.gain.setTargetAtTime(effectiveV, this.ctx.currentTime, 0.05);
+    this._updateMasterGain();
+  }
+
+  _isBackgroundMuted() {
+    return typeof document !== 'undefined' && document.hidden && settings.get('muteWhenUnfocused') !== false;
+  }
+
+  _updateMasterGain() {
+    if (!this._masterGain || !this.ctx || this.ctx.state === 'closed') return;
+    const volume = this.soundEnabled && !this._isBackgroundMuted() ? this._masterVolume : 0;
+    this._masterGain.gain.setTargetAtTime(volume, this.ctx.currentTime, 0.05);
   }
 
   setMusicVolume(vol) {
@@ -260,6 +262,7 @@ export class AudioManager {
     if (!this._bgmGain || !this.ctx || this.ctx.state === 'closed') return;
     const base = this._musicVolume;
     const ambient = this._ambientVolume;
+    this._bgmGain.gain.cancelScheduledValues(this.ctx.currentTime);
     this._bgmGain.gain.setTargetAtTime(base * ambient, this.ctx.currentTime, 0.05);
   }
 
@@ -268,7 +271,8 @@ export class AudioManager {
   }
 
   startBGM() {
-    if (!this.enabled || !this.ctx || this.ctx.state === 'closed' || this.bgmNodes.length > 0 || !this.soundEnabled) return;
+    this._bgmWasPlaying = true;
+    if (!this.enabled || !this.ctx || this.ctx.state === 'closed' || this.bgmNodes.length > 0 || !this.soundEnabled || this._isBackgroundMuted()) return;
     if (this.ctx.state !== 'running' && !this._hasRecentGesture()) {
       this._pendingBGMStart = true;
       this._bgmWasPlaying = true;
@@ -388,13 +392,13 @@ export class AudioManager {
   }
 
   _canPlay() {
-    return this.enabled && this.ctx && this.ctx.state !== 'closed' && this.soundEnabled;
+    return this.enabled && this.ctx && this.ctx.state !== 'closed' && this.soundEnabled && !this._isBackgroundMuted();
   }
 
   /** Rate-limit rapid-fire identical SFX (collisions, cushion bounces). */
   _cooldown(name) {
     const now = performance.now();
-    const last = this._lastSfxTime.get(name) ?? 0;
+    const last = this._lastSfxTime.get(name) ?? -Infinity;
     if (now - last < SFX_COOLDOWN_MS) return false;
     this._lastSfxTime.set(name, now);
     return true;

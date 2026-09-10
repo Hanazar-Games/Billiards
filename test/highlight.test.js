@@ -2,7 +2,8 @@
  * Highlight system tests — data detection, storage lifecycle, deduplication.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, beforeEach } from 'node:test';
+import assert from 'node:assert/strict';
 import {
   detectHighlight,
   getHighlightTitle,
@@ -24,7 +25,7 @@ describe('HighlightData.detectHighlight', () => {
       maxPower: 30, pocketedIds: [], collisionCount: 0, cushionCount: 0,
       spinUsed: false, firstHitDistance: 40, isBank: false, score: 0,
     };
-    expect(detectHighlight(meta)).toBeNull();
+    assert.equal(detectHighlight(meta), null);
   });
 
   it('detects a power shot', () => {
@@ -33,9 +34,9 @@ describe('HighlightData.detectHighlight', () => {
       spinUsed: false, firstHitDistance: 50, isBank: false, score: 0,
     };
     const h = detectHighlight(meta);
-    expect(h).not.toBeNull();
-    expect(h.tags).toContain(HIGHLIGHT_CATEGORIES.POWER_SHOT);
-    expect(h.starRating).toBeGreaterThanOrEqual(1);
+    assert.notEqual(h, null);
+    assert.ok(h.tags.includes(HIGHLIGHT_CATEGORIES.POWER_SHOT));
+    assert.ok(h.starRating >= 1);
   });
 
   it('detects a bank shot with higher stars', () => {
@@ -44,9 +45,9 @@ describe('HighlightData.detectHighlight', () => {
       spinUsed: false, firstHitDistance: 60, isBank: true, score: 10,
     };
     const h = detectHighlight(meta);
-    expect(h).not.toBeNull();
-    expect(h.tags).toContain(HIGHLIGHT_CATEGORIES.BANK_SHOT);
-    expect(h.starRating).toBeGreaterThanOrEqual(2);
+    assert.notEqual(h, null);
+    assert.ok(h.tags.includes(HIGHLIGHT_CATEGORIES.BANK_SHOT));
+    assert.ok(h.starRating >= 2);
   });
 
   it('detects multi-pocket shots', () => {
@@ -55,9 +56,9 @@ describe('HighlightData.detectHighlight', () => {
       spinUsed: false, firstHitDistance: 80, isBank: false, score: 20,
     };
     const h = detectHighlight(meta);
-    expect(h).not.toBeNull();
-    expect(h.tags).toContain(HIGHLIGHT_CATEGORIES.MULTI_POCKET);
-    expect(h.starRating).toBe(3);
+    assert.notEqual(h, null);
+    assert.ok(h.tags.includes(HIGHLIGHT_CATEGORIES.MULTI_POCKET));
+    assert.equal(h.starRating, 3);
   });
 
   it('detects clutch win context', () => {
@@ -66,9 +67,9 @@ describe('HighlightData.detectHighlight', () => {
       spinUsed: false, firstHitDistance: 70, isBank: false, score: 5,
     };
     const h = detectHighlight(meta, { isGameWinner: true });
-    expect(h).not.toBeNull();
-    expect(h.tags).toContain(HIGHLIGHT_CATEGORIES.CLUTCH_WIN);
-    expect(h.starRating).toBeGreaterThanOrEqual(2);
+    assert.notEqual(h, null);
+    assert.ok(h.tags.includes(HIGHLIGHT_CATEGORIES.CLUTCH_WIN));
+    assert.ok(h.starRating >= 2);
   });
 
   it('detects break run via consecutive pockets context', () => {
@@ -77,9 +78,9 @@ describe('HighlightData.detectHighlight', () => {
       spinUsed: false, firstHitDistance: 55, isBank: false, score: 0,
     };
     const h = detectHighlight(meta, { consecutivePockets: 4 });
-    expect(h).not.toBeNull();
-    expect(h.tags).toContain(HIGHLIGHT_CATEGORIES.BREAK_RUN);
-    expect(h.starRating).toBe(2);
+    assert.notEqual(h, null);
+    assert.ok(h.tags.includes(HIGHLIGHT_CATEGORIES.BREAK_RUN));
+    assert.equal(h.starRating, 2);
   });
 
   it('caps star rating at 3', () => {
@@ -89,7 +90,7 @@ describe('HighlightData.detectHighlight', () => {
       score: 90,
     };
     const h = detectHighlight(meta, { isGameWinner: true, consecutivePockets: 6 });
-    expect(h.starRating).toBe(3);
+    assert.equal(h.starRating, 3);
   });
 
   it('detects thin cut from score + low collision heuristic', () => {
@@ -98,24 +99,24 @@ describe('HighlightData.detectHighlight', () => {
       spinUsed: false, firstHitDistance: 80, isBank: false, score: 72,
     };
     const h = detectHighlight(meta);
-    expect(h).not.toBeNull();
-    expect(h.tags).toContain(HIGHLIGHT_CATEGORIES.THIN_CUT);
+    assert.notEqual(h, null);
+    assert.ok(h.tags.includes(HIGHLIGHT_CATEGORIES.THIN_CUT));
   });
 
   it('returns null for shots with NaN metadata', () => {
-    expect(detectHighlight(null)).toBeNull();
+    assert.equal(detectHighlight(null), null);
   });
 });
 
 describe('HighlightData.getHighlightTitle', () => {
   it('returns default title for null highlight', () => {
-    expect(getHighlightTitle(null, {})).toBe('精彩击球');
+    assert.equal(getHighlightTitle(null, {}), '精彩击球');
   });
 
   it('uses primary tag for title', () => {
     const h = { tags: [HIGHLIGHT_CATEGORIES.BANK_SHOT] };
     const title = getHighlightTitle(h, {});
-    expect(title).toContain('翻袋');
+    assert.ok(title.includes('翻袋'));
   });
 });
 
@@ -127,18 +128,27 @@ describe('HighlightStore', () => {
     store = new HighlightStore();
   });
 
+  it('rejects broken replay frames before saving', () => {
+    assert.equal(store.save({ metadata: { maxPower: 85 }, frames: [], frameCount: 10 }), null);
+  });
+
+  it('does not call a missed bank or spin shot a pocket', () => {
+    const result = detectHighlight({ maxPower: 0, isBank: true, spinUsed: true, pocketedIds: [] });
+    assert.equal(result, null);
+  });
+
   it('saves a remarkable shot', () => {
     const replay = {
       metadata: {
         maxPower: 85, pocketedIds: [1], collisionCount: 0, cushionCount: 0,
         spinUsed: false, firstHitDistance: 50, isBank: false, score: 10,
       },
-      frames: [], frameCount: 10, score: 10,
+      frames: new Array(320).fill(1), frameCount: 10, score: 10,
     };
     const entry = store.save(replay, { mode: 'vsai' });
-    expect(entry).not.toBeNull();
-    expect(entry.starRating).toBeGreaterThanOrEqual(1);
-    expect(store.getCount()).toBe(1);
+    assert.notEqual(entry, null);
+    assert.ok(entry.starRating >= 1);
+    assert.equal(store.getCount(), 1);
   });
 
   it('does not save unremarkable shots', () => {
@@ -147,10 +157,10 @@ describe('HighlightStore', () => {
         maxPower: 20, pocketedIds: [], collisionCount: 0, cushionCount: 0,
         spinUsed: false, firstHitDistance: 30, isBank: false, score: 0,
       },
-      frames: [], frameCount: 10, score: 0,
+      frames: new Array(320).fill(1), frameCount: 10, score: 0,
     };
-    expect(store.save(replay)).toBeNull();
-    expect(store.getCount()).toBe(0);
+    assert.equal(store.save(replay), null);
+    assert.equal(store.getCount(), 0);
   });
 
   it('deduplicates rapid identical saves', () => {
@@ -159,11 +169,11 @@ describe('HighlightStore', () => {
         maxPower: 85, pocketedIds: [1], collisionCount: 0, cushionCount: 0,
         spinUsed: false, firstHitDistance: 50, isBank: false, score: 10,
       },
-      frames: [], frameCount: 10, score: 10,
+      frames: new Array(320).fill(1), frameCount: 10, score: 10,
     };
     store.save(replay, { mode: 'vsai' });
     store.save(replay, { mode: 'vsai' });
-    expect(store.getCount()).toBe(1);
+    assert.equal(store.getCount(), 1);
   });
 
   it('allows different tags through dedup window', () => {
@@ -172,18 +182,18 @@ describe('HighlightStore', () => {
         maxPower: 85, pocketedIds: [1], collisionCount: 0, cushionCount: 0,
         spinUsed: false, firstHitDistance: 50, isBank: false, score: 10,
       },
-      frames: [], frameCount: 10, score: 10,
+      frames: new Array(320).fill(1), frameCount: 10, score: 10,
     };
     const r2 = {
       metadata: {
         maxPower: 40, pocketedIds: [1], collisionCount: 0, cushionCount: 0,
         spinUsed: false, firstHitDistance: 50, isBank: true, score: 10,
       },
-      frames: [], frameCount: 10, score: 10,
+      frames: new Array(320).fill(1), frameCount: 10, score: 10,
     };
     store.save(r1);
     store.save(r2);
-    expect(store.getCount()).toBe(2);
+    assert.equal(store.getCount(), 2);
   });
 
   it('deletes by id', () => {
@@ -192,12 +202,12 @@ describe('HighlightStore', () => {
         maxPower: 85, pocketedIds: [1], collisionCount: 0, cushionCount: 0,
         spinUsed: false, firstHitDistance: 50, isBank: false, score: 10,
       },
-      frames: [], frameCount: 10, score: 10,
+      frames: new Array(320).fill(1), frameCount: 10, score: 10,
     };
     const entry = store.save(replay);
-    expect(store.delete(entry.id)).toBe(true);
-    expect(store.getCount()).toBe(0);
-    expect(store.delete('nonexistent')).toBe(false);
+    assert.equal(store.delete(entry.id), true);
+    assert.equal(store.getCount(), 0);
+    assert.equal(store.delete('nonexistent'), false);
   });
 
   it('clears all highlights', () => {
@@ -206,12 +216,12 @@ describe('HighlightStore', () => {
         maxPower: 85, pocketedIds: [1], collisionCount: 0, cushionCount: 0,
         spinUsed: false, firstHitDistance: 50, isBank: false, score: 10,
       },
-      frames: [], frameCount: 10, score: 10,
+      frames: new Array(320).fill(1), frameCount: 10, score: 10,
     };
     store.save(replay);
     store.save(replay); // second deduped
     store.clear();
-    expect(store.getCount()).toBe(0);
+    assert.equal(store.getCount(), 0);
   });
 
   it('returns stats correctly', () => {
@@ -220,12 +230,12 @@ describe('HighlightStore', () => {
         maxPower: 85, pocketedIds: [1], collisionCount: 0, cushionCount: 0,
         spinUsed: false, firstHitDistance: 50, isBank: false, score: 10,
       },
-      frames: [], frameCount: 10, score: 10,
+      frames: new Array(320).fill(1), frameCount: 10, score: 10,
     };
     store.save(replay);
     const stats = store.getStats();
-    expect(stats.total).toBe(1);
-    expect(Number(stats.avgStars)).toBeGreaterThanOrEqual(1);
+    assert.equal(stats.total, 1);
+    assert.ok(Number(stats.avgStars) >= 1);
   });
 
   it('respects max limit with FIFO eviction', () => {
@@ -235,29 +245,29 @@ describe('HighlightStore', () => {
           maxPower: 85 + i, pocketedIds: [1], collisionCount: i, cushionCount: 0,
           spinUsed: false, firstHitDistance: 50 + i, isBank: i % 2 === 0, score: 10 + i,
         },
-        frames: [], frameCount: 10, score: 10 + i,
+        frames: new Array(320).fill(1), frameCount: 10, score: 10 + i,
       };
       // Sleep 1ms to avoid dedup
       store.save(replay);
     }
-    expect(store.getCount()).toBe(50);
+    assert.equal(store.getCount(), 50);
   });
 
   it('returns newest first from getAll', () => {
     const r1 = {
       metadata: { maxPower: 85, pocketedIds: [1], collisionCount: 0, cushionCount: 0,
         spinUsed: false, firstHitDistance: 50, isBank: false, score: 10 },
-      frames: [], frameCount: 10, score: 10,
+      frames: new Array(320).fill(1), frameCount: 10, score: 10,
     };
     const r2 = {
       metadata: { maxPower: 90, pocketedIds: [1], collisionCount: 1, cushionCount: 0,
         spinUsed: false, firstHitDistance: 60, isBank: true, score: 15 },
-      frames: [], frameCount: 10, score: 15,
+      frames: new Array(320).fill(1), frameCount: 10, score: 15,
     };
     const e1 = store.save(r1);
     const e2 = store.save(r2);
     const all = store.getAll();
-    expect(all[0].id).toBe(e2.id);
-    expect(all[1].id).toBe(e1.id);
+    assert.equal(all[0].id, e2.id);
+    assert.equal(all[1].id, e1.id);
   });
 });

@@ -95,7 +95,7 @@ export class ShotProfiler {
     }
 
     // Steady vs aggressive (based on foul rate and power variance)
-    const foulRate = ((Number(totals.fouls) || 0) + (Number(totals.scratches) || 0)) / shots;
+    const foulRate = (Number(totals.fouls) || 0) / shots;
     if (foulRate < 0.08 && shots > 20) {
       scores.push({ ...STYLE_LABELS.steady, score: 1 - foulRate * 5 });
     }
@@ -128,8 +128,7 @@ export class ShotProfiler {
     const totals = this.store.getTotals();
     const shots = this.store.getShotsTaken();
     const fouls = Number.isFinite(totals.fouls) ? totals.fouls : 0;
-    const scratches = Number.isFinite(totals.scratches) ? totals.scratches : 0;
-    return shots > 0 ? (((fouls + scratches) / shots) * 100).toFixed(1) : '0.0';
+    return shots > 0 ? ((fouls / shots) * 100).toFixed(1) : '0.0';
   }
 
   getSpinPreference() {

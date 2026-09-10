@@ -45,7 +45,6 @@ export class GameLoop {
 
     const now = performance.now();
     const dt = Math.min((now - this.lastTime) / 1000, 0.1); // cap at 100ms
-    this.lastTime = now;
 
     // FPS limiter
     this._fpsLimitMs = this._getFrameIntervalMs();
@@ -62,6 +61,7 @@ export class GameLoop {
       this._lastFrameTime = now;
     }
 
+    this.lastTime = now;
     try {
       this.update(dt);
       this.render();

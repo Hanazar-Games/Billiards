@@ -151,6 +151,7 @@ export const POCKET_LEATHER_THEMES = {
 
 // ── Full table presets (override felt + wood + metal combos) ──
 export const TABLE_THEMES = {
+  custom: {},
   classic:    { felt: 'classicGreen', wood: 'classic',    metal: 'nickel' },
   blackGold:  { felt: 'black',        wood: 'blackLacquer', metal: 'gold' },
   blueTournament: { felt: 'blue',     wood: 'darkWalnut', metal: 'blackChrome' },

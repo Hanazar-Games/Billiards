@@ -76,27 +76,21 @@ export class TournamentEngine {
 
   /** Record the result of a finished game (called by MenuSystem after a game ends). */
   recordGameResult(playerWon) {
-    if (!this.state) return { finished: false, tournamentOver: false };
+    if (!this.state || this.state.status !== 'active') return { finished: false, tournamentOver: false };
     const match = this.getCurrentMatch();
-    if (!match) return { finished: false, tournamentOver: false };
-
-    match.played = true;
-    match.endTime = Date.now();
+    if (!match?.player1 || !match.player2) return { finished: false, tournamentOver: false };
 
     const isP1Player = !!match.player1?.isPlayer;
     const winner = playerWon ? (isP1Player ? match.player1 : match.player2)
                               : (isP1Player ? match.player2 : match.player1);
-    const loser = playerWon ? (isP1Player ? match.player2 : match.player1)
-                            : (isP1Player ? match.player1 : match.player2);
-
-    match.winner = winner;
-    if (isP1Player) {
-      match.p1Score = playerWon ? match.gamesNeeded : 0;
-      match.p2Score = playerWon ? 0 : match.gamesNeeded;
-    } else {
-      match.p1Score = playerWon ? 0 : match.gamesNeeded;
-      match.p2Score = playerWon ? match.gamesNeeded : 0;
+    const scoreKey = winner === match.player1 ? 'p1Score' : 'p2Score';
+    match[scoreKey]++;
+    if (match[scoreKey] < Math.ceil(match.gamesNeeded / 2)) {
+      return { finished: false, tournamentOver: false, won: playerWon, nextMatch: match };
     }
+    match.winner = winner;
+    match.played = true;
+    match.endTime = Date.now();
 
     // If player lost, tournament ends for them
     if (!playerWon) {
@@ -154,7 +148,7 @@ export class TournamentEngine {
     const match = this.getCurrentMatch();
     if (!match) return null;
     const difficulty = this.getOpponentDifficulty() || 'normal';
-    const mode = match.mode === '9ball' ? 'nineball' : 'vsai';
+    const mode = match.mode === '9ball' ? '9ball' : 'vsai';
     const config = {
       mode,
       aiEnabled: true,
@@ -205,6 +199,20 @@ export class TournamentEngine {
 
   _findPlayerNextMatch() {
     if (!this.state) return;
+    for (const round of this.state.rounds) {
+      for (const match of round) {
+        if (match.played || !match.player1 || !match.player2 || match.player1.isPlayer || match.player2.isPlayer) continue;
+        const p1Wins = Math.random() < 0.5;
+        const winsNeeded = Math.ceil(match.gamesNeeded / 2);
+        match.p1Score = p1Wins ? winsNeeded : Math.floor(Math.random() * winsNeeded);
+        match.p2Score = p1Wins ? Math.floor(Math.random() * winsNeeded) : winsNeeded;
+        match.winner = p1Wins ? match.player1 : match.player2;
+        match.played = true;
+        match.endTime = Date.now();
+        const next = getNextMatch(match.round, match.index);
+        if (next) this.state.rounds[next.round][next.index][getWinnerSlot(match.round, match.index)] = match.winner;
+      }
+    }
     for (let r = 0; r < this.state.rounds.length; r++) {
       for (let m = 0; m < this.state.rounds[r].length; m++) {
         const match = this.state.rounds[r][m];
@@ -238,7 +246,8 @@ export class TournamentEngine {
     if (!this.state) return null;
     for (let r = this.state.rounds.length - 1; r >= 0; r--) {
       for (let m = this.state.rounds[r].length - 1; m >= 0; m--) {
-        if (this.state.rounds[r][m].played) return this.state.rounds[r][m];
+        const match = this.state.rounds[r][m];
+        if (match.played && (match.player1?.isPlayer || match.player2?.isPlayer)) return match;
       }
     }
     return null;

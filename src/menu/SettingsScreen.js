@@ -98,6 +98,7 @@ const UNIT_OPTIONS = [
   { value: 'imperial', label: '英制 (in/ft)' },
 ];
 const TABLE_THEME_OPTIONS_V2 = [
+  { value: 'custom', label: '自定义' },
   { value: 'classic', label: '经典俱乐部' },
   { value: 'blackGold', label: '黑金奢华' },
   { value: 'blueTournament', label: '蓝色赛事' },
@@ -151,6 +152,7 @@ const POCKET_NET_DETAIL_OPTIONS = [
   { value: 'high', label: '高' },
 ];
 const ROOM_THEME_OPTIONS_V2 = [
+  { value: 'custom', label: '自定义' },
   { value: 'club', label: '经典俱乐部' },
   { value: 'modern', label: '现代简约' },
   { value: 'tournament', label: '赛事大厅' },
@@ -203,7 +205,7 @@ export class SettingsScreen {
     this.audio = null;
     this.container = null;
     this._listeners = [];
-    this._currentCategory = 'audio';
+    this._currentCategory = '';
     this._tabEls = new Map();
     this._contentArea = null;
     this._toastTimers = [];
@@ -221,6 +223,9 @@ export class SettingsScreen {
       this._saveToastTimer = setTimeout(() => {
         if (this.container && this.container.style.display !== 'none') {
           this._toast('设置已保存');
+          if (this._currentCategory === 'appearance' && /Theme$|^lampStyle$/.test(e.detail.key)) {
+            this._switchCategory('appearance', true);
+          }
         }
       }, animMs(400));
     };
@@ -230,8 +235,9 @@ export class SettingsScreen {
 
   _setupKeyboard() {
     this._onKeyDown = (e) => {
-      if (e.key === 'Escape' && this._shown) {
-        e.stopPropagation();
+      if (e.key === 'Escape' && this._shown && !this._confirmHandlers.size && !e.defaultPrevented) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
         this.hide();
         if (this.onBack) this.onBack();
       }
@@ -393,9 +399,9 @@ export class SettingsScreen {
     this._switchCategory('audio');
   }
 
-  _switchCategory(id) {
+  _switchCategory(id, refresh = false) {
     if (!this._contentArea) return;
-    if (id === this._currentCategory) return;
+    if (id === this._currentCategory && !refresh) return;
     if (this._switchTimer) { clearTimeout(this._switchTimer); this._switchTimer = null; }
     // Cancel any pending keybinding listen to prevent global listener leak
     keyBindings.cancelListening();
@@ -426,6 +432,7 @@ export class SettingsScreen {
     if (this._contentArea) this._contentArea.classList.remove('switching');
 
     // Lightweight fade transition: dim content, swap, restore opacity
+    const scrollTop = refresh ? this._contentArea.scrollTop : 0;
     const reduced = document.documentElement.classList.contains('reduce-motion');
     if (reduced) {
       this._contentArea.innerHTML = '';
@@ -433,6 +440,7 @@ export class SettingsScreen {
       if (typeof this[builder] === 'function') {
         this[builder]();
       }
+      this._contentArea.scrollTop = scrollTop;
       return;
     }
 
@@ -441,11 +449,11 @@ export class SettingsScreen {
       this._switchTimer = null;
       if (!this.container) return; // defensive: destroyed while switching
       this._contentArea.innerHTML = '';
-      this._contentArea.scrollTop = 0;
       const builder = `_build${id[0].toUpperCase() + id.slice(1)}Content`;
       if (typeof this[builder] === 'function') {
         this[builder]();
       }
+      this._contentArea.scrollTop = scrollTop;
       requestAnimationFrame(() => {
         if (this._contentArea) this._contentArea.classList.remove('switching');
       });
@@ -665,7 +673,7 @@ export class SettingsScreen {
       btn.innerHTML = `<span style="font-size:14px;">${p.icon}</span><span>${p.label}</span>`;
       btn.onmouseenter = () => { if (!active) btn.style.background = 'rgba(255,255,255,0.1)'; };
       btn.onmouseleave = () => { if (!active) btn.style.background = 'rgba(255,255,255,0.05)'; };
-      const clickFn = () => { keyBindings.applyPreset(p.id); this._switchCategory('controls'); };
+      const clickFn = () => { keyBindings.applyPreset(p.id); this._switchCategory('controls', true); };
       btn.addEventListener('click', clickFn);
       this._listeners.push({ el: btn, type: 'click', fn: clickFn });
       presetWrap.appendChild(btn);
@@ -732,7 +740,7 @@ export class SettingsScreen {
       keyBindings.saveCustomPreset(name);
       input.value = '';
       this._toast(`预设「${name}」已保存`);
-      this._switchCategory('controls');
+      this._switchCategory('controls', true);
     };
     saveBtn.addEventListener('click', onSave);
     this._listeners.push({ el: saveBtn, type: 'click', fn: onSave });
@@ -755,7 +763,7 @@ export class SettingsScreen {
         loadBtn.style.cssText = 'padding: 4px 10px; border-radius: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); font-size: 11px; font-weight: 600; cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed)) ease;';
         loadBtn.onmouseenter = () => { loadBtn.style.background = 'rgba(255,255,255,0.1)'; loadBtn.style.color = '#fff'; };
         loadBtn.onmouseleave = () => { loadBtn.style.background = 'rgba(255,255,255,0.05)'; loadBtn.style.color = 'rgba(255,255,255,0.5)'; };
-        const onLoad = () => { keyBindings.loadCustomPreset(name); this._toast(`已加载预设「${name}」`); this._switchCategory('controls'); };
+        const onLoad = () => { keyBindings.loadCustomPreset(name); this._toast(`已加载预设「${name}」`); this._switchCategory('controls', true); };
         loadBtn.addEventListener('click', onLoad);
         this._listeners.push({ el: loadBtn, type: 'click', fn: onLoad });
         right.appendChild(loadBtn);
@@ -764,7 +772,7 @@ export class SettingsScreen {
         delBtn.style.cssText = 'padding: 4px 10px; border-radius: 6px; background: rgba(185,18,63,0.06); border: 1px solid rgba(185,18,63,0.25); color: rgba(255,100,100,0.7); font-size: 11px; font-weight: 600; cursor: pointer; transition: all calc(0.2s / var(--ui-anim-speed)) ease;';
         delBtn.onmouseenter = () => { delBtn.style.background = 'rgba(185,18,63,0.12)'; delBtn.style.borderColor = 'rgba(185,18,63,0.4)'; };
         delBtn.onmouseleave = () => { delBtn.style.background = 'rgba(185,18,63,0.06)'; delBtn.style.borderColor = 'rgba(185,18,63,0.25)'; };
-        const onDel = () => { keyBindings.deleteCustomPreset(name); this._toast(`预设「${name}」已删除`); this._switchCategory('controls'); };
+        const onDel = () => { keyBindings.deleteCustomPreset(name); this._toast(`预设「${name}」已删除`); this._switchCategory('controls', true); };
         delBtn.addEventListener('click', onDel);
         this._listeners.push({ el: delBtn, type: 'click', fn: onDel });
         right.appendChild(delBtn);
@@ -788,7 +796,7 @@ export class SettingsScreen {
       this._showConfirmDialog('恢复默认快捷键', '确定要恢复为默认快捷键吗？所有自定义修改将丢失。', () => {
         keyBindings.resetToDefaults();
         this._toast('已恢复为默认快捷键');
-        this._switchCategory('controls');
+        this._switchCategory('controls', true);
       });
     };
     resetBtn.addEventListener('click', onReset);

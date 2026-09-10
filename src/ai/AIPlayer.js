@@ -72,8 +72,8 @@ export class AIPlayer {
       const cueBall = ballsManager.getCueBall();
       const pocketPositions = table.getPocketPositions();
       const status = rules?.getStatus?.() || { breakShot: false, targetBall: null };
-      const playerGroup = typeof rules.getPlayerGroup === 'function'
-        ? rules.getPlayerGroup(2)
+      const playerGroup = typeof rules?.getPlayerGroup === 'function'
+        ? rules.getPlayerGroup(game.currentPlayer)
         : null;
       const targetBallId = Number.isInteger(status.targetBall) ? status.targetBall : null;
       const isBreak = status.breakShot;

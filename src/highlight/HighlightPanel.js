@@ -133,6 +133,7 @@ export class HighlightPanel {
       btn.textContent = `${chip.icon} ${chip.label}`;
       btn.onclick = () => {
         this._filter = chip.key;
+        this._buildFilters();
         this._render();
       };
       this.filterWrap.appendChild(btn);

@@ -75,6 +75,7 @@ export class DrillManager {
   }
 
   onBallsStopped(cueBall) {
+    if (!cueBall || cueBall.pocketed) return;
     this.cueBallRestPos = cueBall.mesh.position.clone();
     this._evaluate();
   }

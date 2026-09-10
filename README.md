@@ -2,7 +2,7 @@
 
 A browser-based 3D pool game built with **Three.js** and **cannon-es** physics engine.
 
-**Current Version: v1.26.9**
+**Current Version: v1.26.10**
 
 ## 🎮 Game Modes
 
@@ -102,6 +102,8 @@ A browser-based 3D pool game built with **Three.js** and **cannon-es** physics e
 
 ## 🚀 Quick Start
 
+Requires Node.js 22.12 or newer.
+
 ```bash
 npm install
 npm run dev
@@ -116,7 +118,10 @@ npm run build          # Production build
 npm run preview        # Preview production build
 npm run test:rules     # Run 28 rule engine tests
 npm run test:lan       # Run 14 LAN server integration tests
-npm run test:smoke     # Run 50 browser smoke tests
+npm test               # Run all automated regression suites
+npm run test:browser   # Real WebGL, audio and interaction regressions
+npm run test:smoke     # Real WebGL menu and game smoke tests
+npm run test:dist      # Verify the production build
 npm run host           # Start LAN room server (port 3001)
 ```
 
@@ -128,7 +133,7 @@ npm run host           # Start LAN room server (port 3001)
 | Physics | cannon-es |
 | Build Tool | Vite |
 | Language | JavaScript (ES2022) |
-| Testing | Node.js assert (custom test runner) |
+| Testing | Node.js test/assert + Puppeteer with real WebGL |
 
 ## 📝 License
 

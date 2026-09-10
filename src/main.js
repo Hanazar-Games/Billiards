@@ -62,7 +62,7 @@ function showError(msg) {
 
 const initStart = performance.now();
 
-try {
+async function init() {
   const container = document.getElementById('app');
   if (!container) {
     throw new Error('#app element not found in DOM');
@@ -75,13 +75,8 @@ try {
   // Phase 2 — MenuSystem initializes Renderer + Physics + Audio
   setInitPhase('engine-init');
   updateLoadingProgress(35, '初始化引擎...');
-  let menu;
-  try {
-    menu = new MenuSystem(container);
-  } catch (err) {
-    showError('ENGINE INIT ERROR: ' + err.message + '\n' + (err.stack || ''));
-    throw err;
-  }
+  const menu = new MenuSystem(container);
+  await menu.ready;
   // Expose for browser-level integration tests (smoke tests, e2e)
   if (typeof window !== 'undefined') window.__menu = menu;
 
@@ -114,6 +109,8 @@ try {
   document.body.appendChild(ok);
   setTimeout(() => { ok.style.opacity = '0'; setTimeout(() => ok.remove(), animMs(500)); }, animMs(3000));
 
-} catch (err) {
-  showError('INIT ERROR: ' + err.message + '\n' + (err.stack || ''));
 }
+
+init().catch(err => {
+  showError('INIT ERROR: ' + err.message + '\n' + (err.stack || ''));
+});
