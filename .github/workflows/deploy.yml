@@ -3,13 +3,23 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,17 +32,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
+      - name: Install Chrome system dependencies
+        run: sudo npx puppeteer browsers install chrome --install-deps
 
       - name: Test
-        run: npm test && npm run test:dist
+        run: npm test
 
-      - name: Create 404.html for SPA fallback
-        run: cp dist/index.html dist/404.html
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
 
-      - name: Deploy to gh-pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Build Pages artifact
+        run: npm run build:pages
+        env:
+          PAGES_BASE_PATH: /Billiards/
+
+      - name: Verify Pages artifact
+        run: npm run test:pages
+
+      - name: Upload verified artifact
+        uses: actions/upload-pages-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          path: ./dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify deployed site
+        run: npm run test:pages
+        env:
+          PAGES_URL: ${{ steps.deployment.outputs.page_url }}

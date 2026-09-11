@@ -19,6 +19,9 @@ export class NetworkClient extends EventTarget {
     this.playerList = [];
     this.reconnectTimer = null;
     this._pingInterval = null;
+    this._connectTimer = null;
+    this._connectPromise = null;
+    this._rejectConnect = null;
   }
 
   static inferServerUrl() {
@@ -32,16 +35,24 @@ export class NetworkClient extends EventTarget {
     const params = new URLSearchParams(window.location.search);
     const override = params.get('ws');
     if (override) return override;
+    if (hostname.endsWith('.github.io')) return null;
     return `${wsProto}//${hostname}:3001`;
   }
 
   connect() {
-    return new Promise((resolve, reject) => {
-      let opened = false;
-      if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
-        resolve();
-        return;
+    if (this.connected && this.ws?.readyState === WebSocket.OPEN) return Promise.resolve();
+    if (this._connectPromise) return this._connectPromise;
+    const promise = new Promise((resolve, reject) => {
+      if (!this.serverUrl) { reject(new Error('请填写联机服务器地址（wss://…）')); return; }
+      let url;
+      try { url = new URL(this.serverUrl); } catch { reject(new Error('服务器地址无效，请使用 ws:// 或 wss:// 地址')); return; }
+      if (!['ws:', 'wss:'].includes(url.protocol)) { reject(new Error('服务器地址必须使用 ws:// 或 wss://')); return; }
+      if (typeof window !== 'undefined' && window.location?.protocol === 'https:' && url.protocol !== 'wss:') {
+        reject(new Error('HTTPS 页面需要 wss:// 安全联机服务器')); return;
       }
+      let opened = false;
+      clearTimeout(this._connectTimer);
+      this._connectTimer = null;
       if (this.ws) {
         this.ws.onopen = this.ws.onmessage = this.ws.onerror = this.ws.onclose = null;
       }
@@ -53,8 +64,16 @@ export class NetworkClient extends EventTarget {
       }
 
       const socket = this.ws;
+      this._rejectConnect = reject;
+      this._connectTimer = setTimeout(() => {
+        reject(new Error('连接超时，请检查服务器地址和网络'));
+        this.disconnect();
+      }, 10000);
       this.ws.onopen = () => {
         if (this.ws !== socket) return;
+        clearTimeout(this._connectTimer);
+        this._connectTimer = null;
+        this._rejectConnect = null;
         opened = true;
         this.connected = true;
         this._startPing();
@@ -74,37 +93,53 @@ export class NetworkClient extends EventTarget {
       };
 
       this.ws.onerror = (err) => {
-        if (this.ws === socket) this.dispatchEvent(new CustomEvent('error', { detail: { message: 'WebSocket error', original: err } }));
         reject(new Error('WebSocket connection failed'));
+        if (this.ws === socket) {
+          this.disconnect();
+          this.dispatchEvent(new CustomEvent('disconnected'));
+          this.dispatchEvent(new CustomEvent('error', { detail: { message: 'WebSocket error', original: err } }));
+        }
       };
 
       this.ws.onclose = () => {
+        if (!opened) reject(new Error('WebSocket closed'));
         if (this.ws === socket) {
-          this.connected = false;
-          this._stopPing();
+          this.disconnect();
           this.dispatchEvent(new CustomEvent('disconnected'));
-        }
-        if (!opened) {
-          reject(new Error('WebSocket closed'));
         }
       };
     });
+    this._connectPromise = promise;
+    const clearPending = () => {
+      if (this._connectPromise !== promise) return;
+      this._connectPromise = null;
+      this._rejectConnect = null;
+    };
+    promise.then(clearPending, clearPending);
+    return promise;
   }
 
   disconnect() {
+    this._rejectConnect?.(new Error('连接已取消'));
+    this._rejectConnect = null;
+    this._connectPromise = null;
+    clearTimeout(this._connectTimer);
+    this._connectTimer = null;
     this._stopPing();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
     if (this.ws) {
-      this.ws.close();
+      const socket = this.ws;
       this.ws = null;
+      socket.close();
     }
     this.connected = false;
     this.roomId = null;
     this.playerId = null;
     this.isHost = false;
+    this.playerList = [];
   }
 
   _send(data) {
@@ -153,8 +188,8 @@ export class NetworkClient extends EventTarget {
         this.dispatchEvent(new CustomEvent('shotInput', { detail: data }));
         break;
       case 'roomClosed':
-        this.dispatchEvent(new CustomEvent('roomClosed', { detail: data }));
         this.disconnect();
+        this.dispatchEvent(new CustomEvent('roomClosed', { detail: data }));
         break;
       case 'error':
         this.dispatchEvent(new CustomEvent('netError', { detail: data }));

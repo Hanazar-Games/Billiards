@@ -212,6 +212,107 @@ test('late close events from an old socket cannot disconnect a new connection', 
   assert.ok(client._pingInterval);
 });
 
+test('GitHub Pages never invents a relay on the static hosting domain', t => {
+  const previous = window.location;
+  t.after(() => { window.location = previous; });
+  window.location = { protocol: 'https:', hostname: 'hanazar-games.github.io', search: '' };
+  assert.equal(NetworkClient.inferServerUrl(), null);
+  window.location.search = '?ws=wss%3A%2F%2Frelay.example%2Fpool';
+  assert.equal(NetworkClient.inferServerUrl(), 'wss://relay.example/pool');
+});
+
+test('HTTPS relay validation rejects mixed content before opening a socket', async t => {
+  const previous = window.location;
+  const socket = globalThis.WebSocket;
+  t.after(() => { window.location = previous; });
+  t.after(() => { globalThis.WebSocket = socket; });
+  globalThis.WebSocket = class { constructor() { throw new Error('Socket attempted before validation'); } };
+  window.location = { protocol: 'https:', hostname: 'hanazar-games.github.io', search: '' };
+  await assert.rejects(new NetworkClient('ws://192.168.1.10:3001').connect(), /wss:\/\//);
+  await assert.rejects(new NetworkClient().connect(), /服务器地址/);
+});
+
+test('a connecting lobby keeps its return button available', () => {
+  const button = () => ({ disabled: false, style: {} });
+  const panel = Object.assign(Object.create(LanRoomPanel.prototype), {
+    _createBtn: button(), _joinBtn: button(), _startBtn: button(), _cancelBtn: button(),
+  });
+  panel._setButtonsDisabled(true);
+  assert.equal(panel._cancelBtn.disabled, false);
+  assert.equal(panel._createBtn.disabled, true);
+});
+
+test('room-closed listeners see the cleared connection and roster', () => {
+  const client = new NetworkClient('ws://localhost');
+  client.roomId = 'ABCDEF'; client.playerList = [{ id: 1 }, { id: 2 }]; client.connected = true;
+  let state;
+  client.addEventListener('roomClosed', () => { state = [client.connected, client.roomId, client.playerList.length]; });
+  client._handleMessage({ type: 'roomClosed', reason: 'hostLeft' });
+  assert.deepEqual(state, [false, null, 0]);
+});
+
+test('an unresponsive WebSocket handshake times out and releases the socket', async t => {
+  let timeout;
+  t.mock.method(globalThis, 'setTimeout', callback => { timeout = callback; return 1; });
+  const previous = globalThis.WebSocket;
+  t.after(() => { globalThis.WebSocket = previous; });
+  globalThis.WebSocket = class { constructor() { this.readyState = 0; } close() { this.readyState = 3; } };
+  const client = new NetworkClient('ws://localhost');
+  const connection = client.connect();
+  if (!timeout) { client.ws.onclose(); await assert.rejects(connection); assert.fail('No handshake deadline was scheduled'); }
+  const rejected = assert.rejects(connection, /超时/);
+  timeout();
+  await rejected;
+  assert.equal(client.ws, null);
+});
+
+test('cancelling a handshake settles all callers and permits an immediate retry', async t => {
+  const previous = globalThis.WebSocket;
+  t.after(() => { globalThis.WebSocket = previous; });
+  globalThis.WebSocket = class {
+    static OPEN = 1; static CONNECTING = 0;
+    constructor() { this.readyState = 0; }
+    close() { this.readyState = 3; }
+  };
+  const client = new NetworkClient('ws://localhost');
+  t.after(() => client.disconnect());
+  const pending = client.connect();
+  const repeated = client.connect();
+  const outcomes = [];
+  for (const promise of [pending, repeated]) {
+    promise.then(() => outcomes.push('connected'), error => outcomes.push(error.message));
+  }
+  client.disconnect();
+  const retry = client.connect();
+  const socket = client.ws;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(outcomes.length, 2);
+  assert.ok(outcomes.every(message => message.includes('取消')));
+  assert.equal(client.ws, socket);
+  socket.readyState = 1; socket.onopen();
+  await retry;
+  assert.equal(client.connected, true);
+});
+
+test('unexpected transport closure clears the room before notifying the lobby', async t => {
+  const previous = globalThis.WebSocket;
+  t.after(() => { globalThis.WebSocket = previous; });
+  globalThis.WebSocket = class {
+    constructor() { this.readyState = 0; }
+    close() { this.readyState = 3; }
+  };
+  for (const event of ['onclose', 'onerror']) {
+    const client = new NetworkClient('ws://localhost');
+    t.after(() => client.disconnect());
+    const connecting = client.connect(); client.ws.onopen(); await connecting;
+    client.roomId = 'ABCDEF'; client.playerList = [{ id: 1 }]; client.isHost = true;
+    let state;
+    client.addEventListener('disconnected', () => { state = [client.connected, client.roomId, client.playerList.length, client.isHost]; });
+    client.ws[event]();
+    assert.deepEqual(state, [false, null, 0, false], event);
+  }
+});
+
 test('the live statistics clock stops when the game ends', t => {
   let now = 1000;
   t.mock.method(performance, 'now', () => now);

@@ -2,7 +2,7 @@
 
 A browser-based 3D pool game built with **Three.js** and **cannon-es** physics engine.
 
-**Current Version: v1.26.12**
+**Current Version: v1.26.13**
 
 ## 🎮 Game Modes
 
@@ -67,13 +67,15 @@ A browser-based 3D pool game built with **Three.js** and **cannon-es** physics e
   ```
   http://localhost:5173/?ws=ws://192.168.1.10:3001
   ```
-- 支持 8 球和 9 球两种联机模式
+- 也可在联机大厅的服务器地址输入框填写地址。
+- GitHub Pages 仅托管前端；从 HTTPS 站点联机需要独立的 `wss://` 服务，也可直接访问房主的局域网页面。
+- 当前大厅提供 8 球联机入口
 
 ### 当前限制
 
 - Host-authority 架构：Host 运行物理并广播状态，Client 只接收状态快照
 - 仅支持 2 人对战（1 Host + 1 Guest）
-- 网络断开时会自动返回主菜单
+- 对局中断线会返回菜单；大厅中断线后可重新创建或加入房间
 
 ## 🎯 Features
 
@@ -116,6 +118,8 @@ Then open `http://localhost:5173`
 ```bash
 npm run build          # Production build
 npm run preview        # Preview production build
+npm run build:pages    # Build for /Billiards/ on GitHub Pages
+npm run test:pages     # Verify Pages assets, fallback URLs, gameplay and audio
 npm run test:rules     # Run 28 rule engine tests
 npm run test:lan       # Run LAN room lifecycle tests
 npm test               # Run all automated regression suites
@@ -124,6 +128,14 @@ npm run test:smoke     # Real WebGL menu and game smoke tests
 npm run test:dist      # Verify the production build
 npm run host           # Start LAN room server (port 3001)
 ```
+
+### GitHub Pages
+
+Live site: https://hanazar-games.github.io/Billiards/
+
+Set **Settings → Pages → Source** to **GitHub Actions**. Pushes to `main` run the regression suites, build with `/Billiards/` as the asset base, verify the artifact, deploy it, then verify the live site. The workflow no longer publishes a separate `gh-pages` branch.
+
+`PAGES_BASE_PATH` overrides the project path for `npm run build:pages`; `PAGES_OUT_DIR` overrides its output directory. Use `DIST_DIR` for artifact tests or `PAGES_URL` to test a deployed URL. Headless CI runs real WebGL through SwiftShader with a temporary low quality configuration.
 
 ## 🛠️ Tech Stack
 

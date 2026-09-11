@@ -84,6 +84,20 @@ export class LanRoomPanel {
     this._statusEl.textContent = '创建或加入房间时连接服务器';
     card.appendChild(this._statusEl);
 
+    const serverLabel = document.createElement('label');
+    serverLabel.textContent = '联机服务器';
+    serverLabel.style.cssText = 'display:flex;flex-direction:column;gap:8px;color:rgba(255,255,255,0.7);font-size:13px;';
+    this._serverInput = document.createElement('input');
+    this._serverInput.type = 'url';
+    this._serverInput.placeholder = 'wss://服务器地址';
+    this._serverInput.value = NetworkClient.inferServerUrl() || '';
+    this._serverInput.style.cssText = 'width:100%;min-width:0;box-sizing:border-box;padding:10px 12px;border:1px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.06);color:#fff;';
+    serverLabel.appendChild(this._serverInput);
+    card.appendChild(serverLabel);
+    if (!this._serverInput.value) {
+      this._statusEl.textContent = 'GitHub Pages 不提供联机服务器。请填写独立的 wss:// 地址，或从房主的局域网页面进入。';
+    }
+
     // Room ID display
     this._roomIdEl = document.createElement('div');
     this._roomIdEl.style.cssText = `
@@ -188,14 +202,16 @@ export class LanRoomPanel {
   }
 
   _setButtonsDisabled(disabled) {
+    if (this._serverInput) this._serverInput.disabled = disabled || Boolean(this.client?.roomId);
     [this._createBtn, this._joinBtn, this._startBtn, this._cancelBtn].forEach((btn) => {
-      const blocked = disabled || (btn === this._startBtn && (this.client?.playerList.length ?? 0) < 2);
+      const blocked = btn !== this._cancelBtn && (disabled || (btn === this._startBtn && (this.client?.playerList.length ?? 0) < 2));
       if (btn) { btn.disabled = blocked; btn.style.opacity = blocked ? '0.5' : '1'; btn.style.pointerEvents = blocked ? 'none' : 'auto'; }
     });
   }
 
   async _ensureConnected() {
-    if (this.client?.connected) return true;
+    const serverUrl = this._serverInput?.value.trim() || NetworkClient.inferServerUrl();
+    if (this.client?.connected && this.client.serverUrl === serverUrl) return true;
     if (this._connectingPromise) return this._connectingPromise;
     this._connectingPromise = this._connect().finally(() => {
       this._connectingPromise = null;
@@ -210,7 +226,7 @@ export class LanRoomPanel {
       this.client.disconnect();
       this.client = null;
     }
-    this.client = new NetworkClient();
+    this.client = new NetworkClient(this._serverInput?.value.trim() || null);
     const addClientListener = (event, handler) => {
       this.client.addEventListener(event, handler);
       this._clientListeners.push({ event, handler });
@@ -220,8 +236,8 @@ export class LanRoomPanel {
       this._state = 'idle';
     });
     addClientListener('disconnected', () => {
-      this._setStatus('连接已断开', 'disconnected');
-      this._state = 'disconnected';
+      this._resetToIdle();
+      this._setStatus('连接已断开，请重新创建或加入房间', 'disconnected');
     });
     addClientListener('netError', (e) => {
       const errMap = {
@@ -274,7 +290,7 @@ export class LanRoomPanel {
     } catch (err) {
       const isRefused = err.message?.includes('closed') || err.message?.includes('refused') || err.message?.includes('failed');
       const msg = isRefused
-        ? '无法连接到局域网服务器，请确认房主已运行「npm run host」'
+        ? '无法连接联机服务器，请检查地址并确认服务器已启动'
         : '连接失败：' + (err.message || '请检查网络');
       this._setStatus(msg, 'error');
       this._setButtonsDisabled(false);
@@ -421,7 +437,9 @@ export class LanRoomPanel {
   }
 
   _resetToIdle() {
+    this._roomId = null;
     this._roomIdEl.style.display = 'none';
+    if (this._tableSelectWrap) this._tableSelectWrap.style.display = 'none';
     this._createBtn.style.display = 'inline-block';
     this._joinBtn.style.display = 'inline-block';
     this._joinRow.style.display = 'flex';

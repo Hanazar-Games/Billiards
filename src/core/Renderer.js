@@ -25,8 +25,8 @@ export class Renderer {
     this.camera.lookAt(...CAMERA.lookAt);
 
     // Renderer
+    this._renderScale = Math.max(0.5, Math.min(2, Number(settings.get('renderScale')) || 1));
     this.renderer = new THREE.WebGLRenderer({ antialias: settings.get('antialiasEnabled') !== false });
-    this.renderer.setSize(this.width, this.height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -89,6 +89,7 @@ export class Renderer {
 
     // Apply quality & shadow settings
     this.applyQualitySettings();
+    this.onResize();
     this._onSettingsChanged = (e) => {
       const key = e.detail?.key;
       const value = e.detail?.value;
@@ -121,7 +122,7 @@ export class Renderer {
       if (key === 'renderScale') {
         const scale = Math.max(0.5, Math.min(2.0, Number(value) || 1.0));
         this._renderScale = scale;
-        this.renderer.setSize(this.width * scale, this.height * scale, false);
+        this.onResize();
       }
     };
     window.addEventListener('settingsChanged', this._onSettingsChanged);
@@ -180,6 +181,8 @@ export class Renderer {
     this.camera.updateProjectionMatrix();
     const s = this._renderScale || 1.0;
     this.renderer.setSize(this.width * s, this.height * s, false);
+    this.renderer.domElement.style.width = `${this.width}px`;
+    this.renderer.domElement.style.height = `${this.height}px`;
   }
 
   setCameraControlActive(active) {

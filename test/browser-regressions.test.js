@@ -2,16 +2,18 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 import puppeteer from 'puppeteer';
+import { browserOptions, prepareBrowserPage } from './browser-options.js';
 import { spawn } from 'node:child_process';
 import { createServer as createSocketServer } from 'node:net';
 
-test('real browser gameplay, presentation and lifecycle regressions', { timeout: 180000 }, async t => {
+test('real browser gameplay, presentation and lifecycle regressions', { timeout: process.env.CI ? 360000 : 180000 }, async t => {
   const server = await createServer({ server: { host: '127.0.0.1', port: 0, open: false } });
   await server.listen();
   t.after(() => server.close());
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--enable-gpu'] });
+  const browser = await puppeteer.launch(browserOptions);
   t.after(() => browser.close());
   const page = await browser.newPage();
+  await prepareBrowserPage(page);
   await page.setViewport({ width: 1440, height: 1000, deviceScaleFactor: 2 });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -32,6 +34,41 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     });
     await page.waitForFunction(() => __menu.state === 'MENU');
   };
+
+  await t.test('canvas follows viewport changes and retains saved render scale', async () => {
+    const originalScale = await page.evaluate(async () => {
+      const { settings } = await import('/src/core/SettingsStore.js');
+      const original = settings.get('renderScale');
+      settings.set('renderScale', 0.75);
+      return original;
+    });
+    await page.reload({ waitUntil: 'networkidle2' });
+    await page.waitForFunction(() => window.__menu && !document.getElementById('intro-screen'));
+    for (const [width, height] of [[1440, 1000], [390, 844], [844, 390]]) {
+      await page.setViewport({ width, height, deviceScaleFactor: 2 });
+      await page.waitForFunction(() => __menu.renderer.width === innerWidth && __menu.renderer.height === innerHeight);
+      const result = await page.evaluate(() => {
+        const r = __menu.renderer;
+        const canvas = r.renderer.domElement;
+        const rect = canvas.getBoundingClientRect();
+        const ratio = r.renderer.getPixelRatio();
+        return {
+          displayed: [rect.width, rect.height],
+          buffer: [canvas.width, canvas.height],
+          expected: [Math.floor(innerWidth * ratio * 0.75), Math.floor(innerHeight * ratio * 0.75)],
+          aspect: r.camera.aspect,
+        };
+      });
+      assert.deepEqual(result.displayed, [width, height]);
+      assert.deepEqual(result.buffer, result.expected);
+      assert.equal(result.aspect, width / height);
+    }
+    await page.evaluate(async scale => {
+      const { settings } = await import('/src/core/SettingsStore.js');
+      settings.set('renderScale', scale);
+    }, originalScale);
+    await page.setViewport({ width: 1440, height: 1000, deviceScaleFactor: 2 });
+  });
 
   await t.test('settings initially render and every category contains controls', async () => {
     await page.evaluate(() => __menu._showSettings());
@@ -329,6 +366,13 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
       .filter(el => { const r = el.getBoundingClientRect(); return r.left < 0 || r.right > innerWidth; })
       .map(el => el.textContent || el.placeholder));
     assert.deepEqual(overflow, []);
+    const card = await page.evaluate(() => {
+      const rect = document.querySelector('#lan-room-panel').firstElementChild.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, width: innerWidth };
+    });
+    assert.ok(card.left >= 0 && card.right <= card.width, 'the entire lobby card fits');
+    await page.setViewport({ width: 844, height: 390 });
+    assert.ok(await page.evaluate(() => document.querySelector('#lan-room-panel').firstElementChild.getBoundingClientRect().top >= 0), 'short screens can reach the top of the card');
     await page.setViewport({ width: 1440, height: 1000, deviceScaleFactor: 2 });
   });
 
@@ -408,6 +452,7 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     const context = await browser.createBrowserContext();
     t.after(() => context.close());
     const guest = await context.newPage();
+    await prepareBrowserPage(guest);
     guest.on('pageerror', error => errors.push(error.message));
     await guest.setViewport({ width: 1280, height: 900 });
     const ws = `ws://127.0.0.1:${port}`;

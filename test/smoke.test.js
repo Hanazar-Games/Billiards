@@ -12,6 +12,7 @@
  */
 
 import puppeteer from 'puppeteer';
+import { browserOptions, prepareBrowserPage } from './browser-options.js';
 import { createServer } from 'vite';
 import { setTimeout as sleep } from 'timers/promises';
 
@@ -545,8 +546,9 @@ async function main() {
   console.log('  ✓ Server ready');
 
   console.log('\n▶ Launching Puppeteer...');
-  browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--enable-gpu'] });
+  browser = await puppeteer.launch(browserOptions);
   page = await browser.newPage();
+  await prepareBrowserPage(page);
   page.setDefaultTimeout(NAV_TIMEOUT);
   await captureConsole();
   console.log('  ✓ Browser ready');

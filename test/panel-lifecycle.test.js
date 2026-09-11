@@ -124,6 +124,7 @@ const mockDoc = {
 if (typeof globalThis.document === 'undefined') {
   globalThis.document = mockDoc;
   globalThis.window = {
+    location: new URL('http://localhost:5173/'),
     addEventListener: mockDoc.addEventListener.bind(mockDoc),
     removeEventListener: mockDoc.removeEventListener.bind(mockDoc),
     dispatchEvent: () => {},

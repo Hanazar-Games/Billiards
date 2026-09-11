@@ -1,6 +1,37 @@
 # 3D Billiards — Announcement History
 
-Archived release announcements from v1.26.11 and earlier. The current announcement lives in [`ANNOUNCEMENT.md`](./ANNOUNCEMENT.md).
+Archived release announcements from v1.26.12 and earlier. The current announcement lives in [`ANNOUNCEMENT.md`](./ANNOUNCEMENT.md).
+
+## 3D Billiards v1.26.12 — 重开同步与击球交互修复
+
+本版本复核 v1.26.11 新增的联机同步、输入保护和结算流程，并检查各模式、UI / UX、回放及 SFX / BGM。v1.26.11 公告已完整归档至 [`ANNOUNCEMENT_HISTORY.md`](./ANNOUNCEMENT_HISTORY.md)。
+
+### 联机与重开
+
+- 修复客机在结算后请求“再来一局”被出杆状态、当前回合校验拦截的问题；重开仍拒绝无效席位和击球进行中的请求。
+- 同步球局编号，房主重开后客机清除旧结算、暂停、设置窗口、蓄力及特效，恢复新一局计时；客机结算页补齐重开入口。
+- 自由球摆放期间保留本机预览，避免定期同步把白球拉回旧位置；房主暂停时显示明确的等待提示。
+- 旧连接延迟送达的关闭、消息和错误事件不再影响新连接与心跳。
+- 房间必须等对手加入才允许开始，禁止重复发送开局；大厅按钮跟随人数更新。
+- 九球推杆声明及接杆选择增加暂停、回合状态、自由球和超时校验。
+
+### 击球与 UI / UX
+
+- 鼠标移动、拖杆和旋转面板统一检查操作权限，不能修改 AI、远端玩家或暂停中的击球参数。
+- 键盘斜向加旋限制在旋转面板的有效圆形范围内。
+- Esc 取消蓄力和 Enter 确认出杆时同步更新 HUD，避免操作已结束而界面仍显示蓄力。
+- AI 出杆时切换到击球 HUD 并清除“AI 思考中”提示，后续回合信息正常显示。
+- 结算后的对局时钟与实时统计停止计时，客机计时跟随房主同步。
+
+### 验证
+
+- `npm test` 覆盖规则、球桌、AI、LAN、音频、回放、生涯、布局、设置、训练／挑战、成就、锦标赛、精彩瞬间和面板生命周期。
+- 本轮运行回归增至 60 项，LAN 服务测试增至 20 项；浏览器新增旋转面板保护、HUD 状态、AI 提示和双端重开检查。
+- 真实 Chromium / WebGL 验证桌面和窄屏界面；检查实际球桌及设置截图。
+- Web Audio 验证 BGM 与击球音效的实际信号，检查静音、音量、淡出恢复及低延迟重建状态；未进行主观听感评价。
+- 生产构建与 `npm run test:dist` 验证版本标识、资源加载和实际 WebGL 绘制，构建产物同步为 v1.26.12。
+
+---
 
 ## 3D Billiards v1.26.11 — 联机与交互边界修复
 

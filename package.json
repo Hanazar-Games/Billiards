@@ -1,11 +1,12 @@
 {
   "name": "billiards",
   "private": true,
-  "version": "1.26.12",
+  "version": "1.26.13",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:pages": "node scripts/build-pages.mjs",
     "preview": "vite preview",
     "host": "node server/lan-server.js",
     "test:rules": "node test/rules.test.js",
@@ -26,6 +27,7 @@
     "test:runtime": "node test/runtime-regressions.test.js",
     "test:browser": "node test/browser-regressions.test.js",
     "test:dist": "node test/dist-smoke.test.js",
+    "test:pages": "node test/dist-smoke.test.js --pages",
     "test": "npm run test:rules && npm run test:table && npm run test:lan && npm run test:ai && npm run test:audio && npm run test:instant-replay && npm run test:career && npm run test:ui-layout && npm run test:settings-audit && npm run test:trainer-challenge-safety && npm run test:achievement-toast && npm run test:tournament && npm run test:highlight && npm run test:panels && npm run test:runtime && npm run test:browser && npm run test:smoke"
   },
   "dependencies": {
