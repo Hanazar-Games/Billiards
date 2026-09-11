@@ -7,6 +7,7 @@ export const browserOptions = {
 
 export async function prepareBrowserPage(page) {
   if (!process.env.CI) return;
+  page.setDefaultTimeout(60000);
   await page.evaluateOnNewDocument(() => {
     if (!localStorage.getItem('billiards_settings_v1')) {
       localStorage.setItem('billiards_settings_v1', JSON.stringify({

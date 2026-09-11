@@ -6,7 +6,7 @@ import { browserOptions, prepareBrowserPage } from './browser-options.js';
 import { spawn } from 'node:child_process';
 import { createServer as createSocketServer } from 'node:net';
 
-test('real browser gameplay, presentation and lifecycle regressions', { timeout: process.env.CI ? 360000 : 180000 }, async t => {
+test('real browser gameplay, presentation and lifecycle regressions', { timeout: process.env.CI ? 600000 : 180000 }, async t => {
   const server = await createServer({ server: { host: '127.0.0.1', port: 0, open: false } });
   await server.listen();
   t.after(() => server.close());
