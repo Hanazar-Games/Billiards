@@ -2,16 +2,27 @@
 
 ## Estado atual
 
-- **Fase:** F0 concluída (F0-01 a F0-06 verificados). F1 dividida em F1-A (núcleo da simulação, plano escrito, aguardando revisão) e F1-B (cliente).
+- **Fase:** F1-A em execução por subagentes (plano `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`, aprovado; D035–D037 aceitas).
+  - Tarefa 1 concluída e revisada (`52b543d`): monorepo com npm workspaces, jogo movido para `apps/client`.
+  - Tarefa 2 concluída e revisada (`19dfb36`, `baa6871`): `packages/sim` com constantes, geometria da mesa e mundo, idênticos ao legado nos 4 perfis (6 testes).
+  - Tarefa 3 (bolas, guardas, `simulateShot` com paridade bit a bit) estava em andamento na sessão da nuvem quando o usuário passou para o ambiente local, ainda sem commit.
+  - Tarefas 4 a 10 pendentes.
 - **Resultado da F0:** a física autoritativa fica no `services/sim` em Node (D017). No goja do Nakama, a simulação foi cerca de 175 vezes mais lenta. Relatório: `docs/spikes/2026-10-24-runtime-simulacao.md`.
 - **Branch de trabalho:** `claude/planejamento-online`, mantida sem merge na `main` por escolha do usuário (2026-10-24).
-- **Base:** Hanazar-Games/Billiards v1.26.13 (`0448b03`), sem alterações em `src/`, `server/` ou `test/`.
+- **Base:** Hanazar-Games/Billiards v1.26.13 (`0448b03`). O código do jogo agora está em `apps/client/`, sem alteração de conteúdo.
+- **Registro da execução da F1-A:** `harness/sdd/2026-10-24-f1a-nucleo-simulacao/ledger.md` (decisões de execução, pendências por tarefa, commits), com as restrições passadas aos subagentes (`constraints.md`) e os relatórios das Tarefas 1 e 2.
 
 ## Próximo passo
 
-1. O usuário revisa o plano da F1-A (`docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`), em especial as decisões propostas D035 (envelope de tolerância), D036 (física customizada a 60 Hz fixo, muda a D010) e D037 (trajetória até 48 KB), que estão `open` em `harness/decisions.json`, e escolhe o método de execução.
-2. Executar a F1-A; a Tarefa 1 marca D035–D037 como `accepted`.
-3. Pendências menores da revisão final da F0, listadas abaixo (várias são resolvidas pela F1-A: contador inteiro de passos, teste do limite de 20 s, detecção de mundo sem tabelas, relógio congelado no legado).
+1. Ver se a Tarefa 3 terminou na nuvem: `git fetch origin claude/planejamento-online && git log --oneline origin/claude/planejamento-online`. Se aparecer `feat(sim): port ball physics and guards with bit-exact legacy parity`, falta só a revisão da tarefa (pacote de revisão a partir de `baa6871`). Se não, refazer a Tarefa 3 a partir de `baa6871`, com as notas "Pre-T3" e as decisões da T3 que estão no ledger.
+2. Para retomar com a skill `superpowers:subagent-driven-development` no ambiente local, copie o ledger para a pasta de trabalho da skill, que é ignorada pelo git: `mkdir -p .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao && cp harness/sdd/2026-10-24-f1a-nucleo-simulacao/{ledger.md,constraints.md} .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao/ && mv .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao/ledger.md .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao/progress.md`. A skill continua da primeira tarefa sem a linha `Task N: complete`.
+3. Seguir as Tarefas 4 a 10 do plano. Antes de cada commit e push, copie o ledger de volta para `harness/sdd/…/ledger.md`.
+4. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium: o Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido.
+
+## Pendências da execução da F1-A (para a Tarefa 10 ou depois)
+
+- Da revisão da T1: o `CLAUDE.md` ainda diz "Durante a F0, não altere `src/`, `server/` nem `test/`", e esses caminhos agora ficam em `apps/client/`. No README, `PAGES_OUT_DIR` e `DIST_DIR` passaram a ser relativos a `apps/client`. O comentário do `init.sh` ainda fala do monorepo como algo futuro.
+- Da revisão da T2: `BALL`, `SHOT` e os perfis são objetos mutáveis e compartilhados (congelar depois; `PHYSICS.gravity` é um `Float32Array`). O `index.js` reexporta `normalize` e `cross`, que viram API pública.
 
 ## Pendências menores (revisão final da F0)
 
@@ -45,3 +56,11 @@
 - Sondagens com o harness do spike: trajetória da abertura cabe em 24,7–35,4 KB; aplicar a física customizada a cada passo muda a sensação (tacada longa +11,5%; efeito na tabela encaçapa a branca), enquanto o ritmo fixo de 60 Hz reproduz o legado a 60 FPS; o atrito bola-mesa do cannon-es destrói o invariante de rolamento (recuo quebrado) e removê-lo conserta o recuo mas alonga as outras tacadas 14–21%.
 - Node 22.22 executa TypeScript direto, inclusive importado pelo nome de um pacote do workspace.
 - Plano da F1-A escrito (10 tarefas); roteiro com a F1 dividida em F1-A e F1-B; decisões D035–D037 propostas (`open`).
+
+### 2026-10-24 — sessão 1 (execução da F1-A por subagentes)
+
+- O usuário aprovou o plano da F1-A e escolheu execução por subagentes. Um implementador por tarefa, depois um revisor independente (conformidade com o enunciado e qualidade).
+- Tarefa 1 (`52b543d`), monorepo: revisão aprovada; 6 pendências menores de documentação ficaram para a T10. A suíte completa deu o mesmo resultado antes e depois da mudança.
+- Tarefa 2 (`19dfb36` e `baa6871`), mesa e mundo: revisão aprovada. Rodada extra de reforço dos testes: orientações comparadas de forma exata, ordem dos corpos e pares de materiais fixados, verificação de importações proibidas mais ampla.
+- Tarefa 3 despachada (implementador mais capaz, por causa da paridade bit a bit). O usuário passou para o ambiente local antes do fim dela; o registro da execução foi copiado para `harness/sdd/`.
+
