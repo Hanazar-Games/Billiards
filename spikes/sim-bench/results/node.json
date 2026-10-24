@@ -1,0 +1,160 @@
+{
+  "runtime": "node 22.22.0",
+  "shimsUsed": [
+    "document",
+    "localStorage"
+  ],
+  "results": [
+    {
+      "name": "break",
+      "model": "fixed",
+      "medianMs": 127.68118099999992,
+      "p95Ms": 157.64775699999996,
+      "steps": 4546,
+      "simSeconds": 12.627777777779112,
+      "capped": false,
+      "hash": "a12823b3"
+    },
+    {
+      "name": "break",
+      "model": "legacy60",
+      "medianMs": 138.36517099999946,
+      "p95Ms": 166.0431439999993,
+      "steps": 772,
+      "simSeconds": 12.866666666666886,
+      "capped": false,
+      "hash": "76ac8bf7"
+    },
+    {
+      "name": "break",
+      "model": "legacy144",
+      "medianMs": 110.19640900000013,
+      "p95Ms": 125.92818700000134,
+      "steps": 1305,
+      "simSeconds": 9.062500000000194,
+      "capped": false,
+      "hash": "d7411e58"
+    },
+    {
+      "name": "medium",
+      "model": "fixed",
+      "medianMs": 67.27487500000097,
+      "p95Ms": 85.23225699999966,
+      "steps": 3112,
+      "simSeconds": 8.644444444445156,
+      "capped": false,
+      "hash": "48ebad09"
+    },
+    {
+      "name": "medium",
+      "model": "legacy60",
+      "medianMs": 122.51813500000208,
+      "p95Ms": 133.1672099999996,
+      "steps": 784,
+      "simSeconds": 13.066666666666896,
+      "capped": false,
+      "hash": "d2af3170"
+    },
+    {
+      "name": "medium",
+      "model": "legacy144",
+      "medianMs": 79.84856699999727,
+      "p95Ms": 83.74780400000236,
+      "steps": 1169,
+      "simSeconds": 8.118055555555722,
+      "capped": false,
+      "hash": "a2afad27"
+    },
+    {
+      "name": "draw",
+      "model": "fixed",
+      "medianMs": 11.429404999998951,
+      "p95Ms": 18.21459799999866,
+      "steps": 1190,
+      "simSeconds": 3.3055555555555447,
+      "capped": false,
+      "hash": "69e7d9c6"
+    },
+    {
+      "name": "draw",
+      "model": "legacy60",
+      "medianMs": 5.790855999999621,
+      "p95Ms": 7.833559000002424,
+      "steps": 149,
+      "simSeconds": 2.4833333333333294,
+      "capped": false,
+      "hash": "d265b034"
+    },
+    {
+      "name": "draw",
+      "model": "legacy144",
+      "medianMs": 7.875338000001648,
+      "p95Ms": 10.504401999998663,
+      "steps": 420,
+      "simSeconds": 2.9166666666666865,
+      "capped": false,
+      "hash": "ecbeaedc"
+    },
+    {
+      "name": "english",
+      "model": "fixed",
+      "medianMs": 145.48751899999843,
+      "p95Ms": 157.9444540000004,
+      "steps": 4640,
+      "simSeconds": 12.888888888890264,
+      "capped": false,
+      "hash": "47dff645"
+    },
+    {
+      "name": "english",
+      "model": "legacy60",
+      "medianMs": 127.50064900000143,
+      "p95Ms": 135.27063700000144,
+      "steps": 736,
+      "simSeconds": 12.266666666666856,
+      "capped": false,
+      "hash": "db5a0791"
+    },
+    {
+      "name": "english",
+      "model": "legacy144",
+      "medianMs": 127.6545299999998,
+      "p95Ms": 161.29643399999986,
+      "steps": 1880,
+      "simSeconds": 13.055555555555863,
+      "capped": false,
+      "hash": "80a5e91a"
+    },
+    {
+      "name": "soft",
+      "model": "fixed",
+      "medianMs": 38.88751500000217,
+      "p95Ms": 42.78200900000229,
+      "steps": 2610,
+      "simSeconds": 7.250000000000495,
+      "capped": false,
+      "hash": "05b95fba"
+    },
+    {
+      "name": "soft",
+      "model": "legacy60",
+      "medianMs": 30.69264199999452,
+      "p95Ms": 32.30799200000183,
+      "steps": 441,
+      "simSeconds": 7.349999999999979,
+      "capped": false,
+      "hash": "55922ca8"
+    },
+    {
+      "name": "soft",
+      "model": "legacy144",
+      "medianMs": 32.88941799999884,
+      "p95Ms": 34.18632099999377,
+      "steps": 1064,
+      "simSeconds": 7.388888888889036,
+      "capped": false,
+      "hash": "13707dd6"
+    }
+  ],
+  "cpu": "Intel(R) Xeon(R) Processor x4"
+}
