@@ -7,12 +7,15 @@
 //   cuts substeps by wall clock.
 // `steps` counts cannon 1/360 s steps in both modes; `simSeconds` is
 // steps / 360 at fixed60 and frames / fps otherwise.
+// `onFrame(frame, fps, balls)` runs after every frame with each ball's
+// { id, x, z, pocketed }; a ball pocketed in that frame also carries
+// `pocketedAt: { x, z }`, where it was before the pocket parked its body.
 import { SHOT } from '../../../../apps/client/src/config.js';
 
 const STEP = 1 / 360;
 const SIM_LIMIT_S = 20;
 
-export function runLegacy(legacyWorld, shot, mode) {
+export function runLegacy(legacyWorld, shot, mode, { onFrame } = {}) {
   const { physics, balls, pockets } = legacyWorld;
   const fixed = mode.cadence === 'fixed60';
   if (!fixed && !(mode.fps > 0)) throw new Error(`unknown mode: ${JSON.stringify(mode)}`);
@@ -37,8 +40,10 @@ export function runLegacy(legacyWorld, shot, mode) {
         physics.step(dt);
       }
       balls.updatePhysicsGuards(dt, pockets);
+      const before = onFrame ? positionsInPlay(balls) : null;
       balls.checkPockets(pockets);
       frames++;
+      if (onFrame) onFrame(frames, fps, frameState(balls, before));
       if (balls.allStopped()) break;
     }
   } finally {
@@ -50,6 +55,18 @@ export function runLegacy(legacyWorld, shot, mode) {
     .sort((a, b) => a.id - b.id)
     .map((b) => ({ id: b.id, x: b.body.position.x, z: b.body.position.z, pocketed: b.pocketed }));
   return { final, steps, simSeconds: fixed ? steps / 360 : frames / fps };
+}
+
+function positionsInPlay(balls) {
+  return new Map(balls.balls.filter((b) => !b.pocketed).map((b) => [b.id, { x: b.body.position.x, z: b.body.position.z }]));
+}
+
+function frameState(balls, before) {
+  return [...balls.balls].sort((a, b) => a.id - b.id).map((b) => {
+    const state = { id: b.id, x: b.body.position.x, z: b.body.position.z, pocketed: b.pocketed };
+    if (b.pocketed && before.has(b.id)) state.pocketedAt = before.get(b.id);
+    return state;
+  });
 }
 
 function freezeClock() {

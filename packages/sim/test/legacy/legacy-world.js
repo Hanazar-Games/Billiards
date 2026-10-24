@@ -6,6 +6,7 @@ import { PhysicsWorld } from '../../../../apps/client/src/core/PhysicsWorld.js';
 import { Table } from '../../../../apps/client/src/game/Table.js';
 import { BallsManager } from '../../../../apps/client/src/game/BallsManager.js';
 import { getTableProfile } from '../../../../apps/client/src/game/TableProfiles.js';
+import { BALL } from '../../../../apps/client/src/config.js';
 
 export function createLegacyWorld({ tableProfileId = 'pool9ft', mode = '8ball' } = {}) {
   const profile = getTableProfile(tableProfileId);
@@ -28,5 +29,20 @@ function installCushionSpin(physics, balls) {
     ball.body.addEventListener('collide', (e) => {
       if (e.body.material === physics.cushionMaterial) balls.applyCushionSpin(ball);
     });
+  }
+}
+
+// Puts a sim TableState on a legacy world: balls absent from the table (or
+// pocketed in it) leave the world, the others go to their positions.
+export function placeLegacyTable({ physics, balls }, table) {
+  const byId = new Map(table.balls.map((b) => [b.id, b]));
+  for (const ball of balls.balls) {
+    const s = byId.get(ball.id);
+    if (!s || s.pocketed) {
+      ball.remove();
+      physics.removeBody(ball.body);
+    } else {
+      ball.setPosition(s.x, BALL.radius, s.z);
+    }
   }
 }

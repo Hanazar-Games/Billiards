@@ -2,13 +2,18 @@
 
 ## Estado atual
 
-- **Fase:** F1-A em execução por subagentes (plano `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`, aprovado; D035–D037 aceitas).
+- **Fase:** F1-A em execução: T1–T3 por subagentes; da T4 em diante, inline (plano `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`, aprovado; D035–D037 aceitas).
   - Tarefa 1 concluída e revisada (`52b543d`): monorepo com npm workspaces, jogo movido para `apps/client`.
   - Tarefa 2 concluída e revisada (`19dfb36`, `baa6871`): `packages/sim` com constantes, geometria da mesa e mundo, idênticos ao legado nos 4 perfis (6 testes).
   - Tarefa 3 concluída e revisada (`846c667`). Bolas, guardas e `simulateShot` têm paridade bit a bit com o legado a 60 Hz fixo (5 tacadas, e as 13 do corpus conferidas pelo implementador); 21 testes.
     - Os três encaçapes do corpus viraram cortes: na versão original, a branca seguia a bola 1 para a caçapa, inclusive no legado.
     - O resultado não muda com ±3 de força nem a 30, 60, 120 e 144 FPS no legado.
-  - Tarefas 4 a 10 pendentes.
+  - Tarefas 4 a 6 concluídas (execução inline, sem revisor por tarefa; a revisão final do branch inteiro fica para o fim da F1-A):
+    - T4 (`4dbafba`): eventos `ball_ball`, `ball_cushion`, `pocket` e `first_contact`.
+    - T5 (`b9cbdff`): trajetória a 30 Hz; uma bola encaçapada aparece pela última vez na boca da caçapa.
+    - T6 (`694777e`): `packages/protocol` com o codec binário v1. A maior tacada do corpus (abertura) ocupa 36,0 KB.
+  - **Tarefa 7 bloqueada numa decisão do usuário (D038, `open`).** A referência do legado e o teste de sensação estão prontos. O sim reproduz o legado a 60 Hz fixo, mas `english` e `pot-side` saem do envelope de 4 FPS da D035, porque são caóticas entre FPS. Com 14 taxas de quadro (24–240 FPS), as 11 tacadas passam. As duas rodam como `todo` até a decisão.
+  - Tarefas 8 a 10 pendentes. A T8 depende da T7, porque o teste de sensação é o critério da calibragem.
 - **Resultado da F0:** a física autoritativa fica no `services/sim` em Node (D017). No goja do Nakama, a simulação foi cerca de 175 vezes mais lenta. Relatório: `docs/spikes/2026-10-24-runtime-simulacao.md`.
 - **Branch de trabalho:** `claude/planejamento-online`, mantida sem merge na `main` por escolha do usuário (2026-10-24).
 - **Base:** Hanazar-Games/Billiards v1.26.13 (`0448b03`). O código do jogo agora está em `apps/client/`, sem alteração de conteúdo.
@@ -16,10 +21,12 @@
 
 ## Próximo passo
 
-1. Seguir para a Tarefa 4 (eventos) a partir de `HEAD` (as Tarefas 1 a 3 têm `Task N: complete` no ledger).
-2. Para retomar com a skill `superpowers:subagent-driven-development` no ambiente local, copie o ledger para a pasta de trabalho da skill, que é ignorada pelo git: `mkdir -p .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao && cp harness/sdd/2026-10-24-f1a-nucleo-simulacao/{ledger.md,constraints.md} .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao/ && mv .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao/ledger.md .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao/progress.md`. A skill continua da primeira tarefa sem a linha `Task N: complete`.
-3. Seguir as Tarefas 4 a 10 do plano. Antes de cada commit e push, copie o ledger de volta para `harness/sdd/…/ledger.md`.
-4. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium: o Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido.
+1. **O usuário decide a D038:**
+   - **aceitar:** mudar `FPS` em `packages/sim/tools/legacy-reference.mjs` para as 14 taxas, rodar `npm run feel:reference -w packages/sim`, tirar `PENDING_D038` de `test/feel.test.js`, marcar a D035 como `superseded` e fechar a Tarefa 7;
+   - **ou** escolher uma das alternativas registradas na D038.
+2. Depois, Tarefas 8 a 10 do plano. A F1-A segue em `superpowers:executing-plans` (inline), com o ledger em `.superpowers/sdd/2026-10-24-f1a-nucleo-simulacao/progress.md`. Antes de cada commit e push, copie o ledger para `harness/sdd/…/ledger.md`.
+   - Para retomar em outro ambiente, copie o ledger de volta: `mkdir -p .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao && cp harness/sdd/2026-10-24-f1a-nucleo-simulacao/ledger.md .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao/progress.md && cp harness/sdd/2026-10-24-f1a-nucleo-simulacao/constraints.md .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao/`. Retome na primeira tarefa sem a linha `Task N: complete`.
+3. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium: o Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido.
 
 ## Pendências da execução da F1-A (para a Tarefa 10 ou depois)
 
@@ -74,4 +81,14 @@
   - Decisão: transformar os encaçapes em cortes, mantendo a força e o critério `[1]`.
   - Revisão independente aprovada, sem problemas críticos ou importantes; os achados menores estão nas pendências acima. O revisor também mostrou que a paridade detecta uma falha: sem o efeito de tabela, o hash da abertura muda.
   - O registro da execução foi copiado para `harness/sdd/` para o usuário continuar no ambiente local. A Tarefa 4 não foi iniciada na nuvem.
+
+### 2026-10-24 — sessão 2 (ambiente local, execução inline da F1-A)
+
+- O usuário pediu para continuar de forma autônoma. A execução seguiu inline com `superpowers:executing-plans`: o usuário não pediu subagentes desta vez, e o plano admite os dois modos.
+- A branch `claude/planejamento-online` avançou até a `main` (`f64ebfd`, merge do PR #2, sem mudança de conteúdo).
+- T4 (`4dbafba`): eventos da tacada. O guarda varrido deixa o par a 0,995 × 2r, e o cannon reportava o mesmo impacto no passo seguinte; esse contato repetido agora é descartado. Os recontatos reais, a 4 passos ou mais, continuam.
+- T5 (`b9cbdff`): trajetória a 30 Hz. O `checkPockets` agora devolve onde a bola estava ao ser encaçapada, para a reprodução não teleportar a bola para o centro da mesa.
+- T6 (`694777e`): codec binário v1. Tamanhos: abertura 36,0 KB, english 35,4 KB, medium 29,7 KB, demais ≤ 6,3 KB.
+- T7: infraestrutura pronta (métricas com testes unitários, gancho por quadro no `runLegacy`, `placeLegacyTable`, gerador da referência reprodutível). A verificação de mutação passou: com `rollingResistance: 30`, as 11 tacadas falham. Duas tacadas saem do envelope da D035; a D038 foi registrada como `open`, e a execução parou para o usuário decidir.
+- Os testes do pacote `sim` passam: 48, mais 2 `todo`. O protocol tem 7 testes, e o `tsc` está limpo. A suíte completa com navegador não foi rodada nesta sessão; ela fica para a T10.
 
