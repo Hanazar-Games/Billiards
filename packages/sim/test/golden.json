@@ -1,0 +1,54 @@
+{
+  "break": {
+    "hash": "e8130719",
+    "steps": 4002
+  },
+  "medium": {
+    "hash": "2a0b3eff",
+    "steps": 3978
+  },
+  "english": {
+    "hash": "5c4e4061",
+    "steps": 4536
+  },
+  "soft": {
+    "hash": "42eb54d1",
+    "steps": 2592
+  },
+  "draw-rack": {
+    "hash": "53e0d786",
+    "steps": 894
+  },
+  "rail-straight": {
+    "hash": "97c855bf",
+    "steps": 4032
+  },
+  "rail-english": {
+    "hash": "0176617c",
+    "steps": 4332
+  },
+  "long-stun": {
+    "hash": "73aa90da",
+    "steps": 4542
+  },
+  "follow": {
+    "hash": "23206d18",
+    "steps": 3666
+  },
+  "pot-corner": {
+    "hash": "04e0307f",
+    "steps": 1632
+  },
+  "pot-side": {
+    "hash": "6494fd34",
+    "steps": 3528
+  },
+  "pot-far-corner": {
+    "hash": "55c99814",
+    "steps": 2400
+  },
+  "draw-ref": {
+    "hash": "ba6d0239",
+    "steps": 894
+  }
+}
