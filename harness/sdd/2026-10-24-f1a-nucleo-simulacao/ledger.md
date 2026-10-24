@@ -62,3 +62,7 @@ Task 3: resumed implementer ab930d7bf6a65dd68 with ruling A
 Task 3: implementer DONE, commit 846c667 (21/21; parity 5/5; corpus pot rows → cut shots per ruling A, robust p±3 and legacy 30/60/120/144 FPS; no power changes); pushed before review
 Task 3: review package BASE baa6871 (commits 6dca37b harness-only + 846c667); dispatching task reviewer (opus)
 Task 3: reviewer (opus) agent a4c2c49e2b496e8a6 dispatched on review-baa6871..846c667.diff
+Task 3: review Approved (opus; spec ✅; 0 critical/important; 6 minor). Reviewer probe: removing applyCushionSpin changes break hash/steps (e8130719/4002 → 7de7d937/3666), so parity can fail
+Parked (T3 minors): (1) legacy-run.js freezeClock restores via `delete performance.now` (save/restore own descriptor instead); (2) pocketed cue ball throws even when shot.cueBall is given — ball-in-hand after a scratch must flip pocketed=false before calling, or let cueBall bring the cue back into play (decide in F2/F4 with the modes layer; add a test then); (3) untested extra validation (maxSimSeconds RangeError, bad ids/q/x/z/cueBall; maxSimSeconds < 1/720 → 0 steps capped); (4) missing shot.spin / opts null → TypeError not RangeError (protocol layer validates shapes); (5) final drops q for all balls (visual only; Task 5 adds q to final per plan); (6) draw-rack parity exercises only the cue ball until Task 8 calibration
+Task 3: complete (846c667)
+Stop: user switching to the local environment after Task 3; Task 4 not dispatched from the cloud session

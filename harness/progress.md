@@ -5,7 +5,7 @@
 - **Fase:** F1-A em execução por subagentes (plano `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`, aprovado; D035–D037 aceitas).
   - Tarefa 1 concluída e revisada (`52b543d`): monorepo com npm workspaces, jogo movido para `apps/client`.
   - Tarefa 2 concluída e revisada (`19dfb36`, `baa6871`): `packages/sim` com constantes, geometria da mesa e mundo, idênticos ao legado nos 4 perfis (6 testes).
-  - Tarefa 3 implementada (`846c667`), revisão independente em andamento na nuvem. Bolas, guardas e `simulateShot` têm paridade bit a bit com o legado a 60 Hz fixo (5 tacadas, e as 13 do corpus conferidas pelo implementador); 21 testes.
+  - Tarefa 3 concluída e revisada (`846c667`). Bolas, guardas e `simulateShot` têm paridade bit a bit com o legado a 60 Hz fixo (5 tacadas, e as 13 do corpus conferidas pelo implementador); 21 testes.
     - Os três encaçapes do corpus viraram cortes: na versão original, a branca seguia a bola 1 para a caçapa, inclusive no legado.
     - O resultado não muda com ±3 de força nem a 30, 60, 120 e 144 FPS no legado.
   - Tarefas 4 a 10 pendentes.
@@ -16,7 +16,7 @@
 
 ## Próximo passo
 
-1. Ver no ledger (`harness/sdd/…/ledger.md`) se a Tarefa 3 tem a linha `Task 3: complete`. Se não tiver, a revisão não terminou na nuvem: refazer a revisão da Tarefa 3 sobre o intervalo `baa6871..846c667` (só o commit `846c667`; o `6dca37b` mexe só no harness) e depois seguir para a Tarefa 4.
+1. Seguir para a Tarefa 4 (eventos) a partir de `HEAD` (as Tarefas 1 a 3 têm `Task N: complete` no ledger).
 2. Para retomar com a skill `superpowers:subagent-driven-development` no ambiente local, copie o ledger para a pasta de trabalho da skill, que é ignorada pelo git: `mkdir -p .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao && cp harness/sdd/2026-10-24-f1a-nucleo-simulacao/{ledger.md,constraints.md} .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao/ && mv .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao/ledger.md .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao/progress.md`. A skill continua da primeira tarefa sem a linha `Task N: complete`.
 3. Seguir as Tarefas 4 a 10 do plano. Antes de cada commit e push, copie o ledger de volta para `harness/sdd/…/ledger.md`.
 4. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium: o Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido.
@@ -25,6 +25,11 @@
 
 - Da revisão da T1: o `CLAUDE.md` ainda diz "Durante a F0, não altere `src/`, `server/` nem `test/`", e esses caminhos agora ficam em `apps/client/`. No README, `PAGES_OUT_DIR` e `DIST_DIR` passaram a ser relativos a `apps/client`. O comentário do `init.sh` ainda fala do monorepo como algo futuro.
 - Da revisão da T2: `BALL`, `SHOT` e os perfis são objetos mutáveis e compartilhados (congelar depois; `PHYSICS.gravity` é um `Float32Array`). O `index.js` reexporta `normalize` e `cross`, que viram API pública.
+- Da revisão da T3:
+  - **Branca com bola na mão:** se a branca vem encaçapada na entrada, o `simulateShot` lança erro mesmo quando recebe `shot.cueBall`. Na bola na mão depois de uma falta, quem chama precisa marcar `pocketed: false` antes, ou o sim passa a aceitar que o `cueBall` traga a branca de volta. Decidir na F2/F4, com a camada de modos, e incluir um teste.
+  - **Validação extra sem teste:** `maxSimSeconds`, ids, `q`, x/z e `cueBall` inválidos não têm teste. Um `spin` ausente gera `TypeError`; a camada do protocolo deve validar o formato.
+  - **Relógio no `legacy-run.js`:** é restaurado com `delete performance.now`; o certo é salvar e restaurar o descritor.
+  - **Paridade do `draw-rack`:** até a calibragem da T8, ela só exercita a branca.
 
 ## Pendências menores (revisão final da F0)
 
@@ -67,5 +72,6 @@
 - Tarefa 3 (`846c667`), executada por um implementador mais capaz por causa da paridade bit a bit, chegou a 21 testes passando.
   - O implementador parou uma vez: os encaçapes do corpus faziam a branca entrar junto, como no legado, e ajustar só a força dava um resultado instável.
   - Decisão: transformar os encaçapes em cortes, mantendo a força e o critério `[1]`.
-  - O registro da execução foi copiado para `harness/sdd/` para o usuário continuar no ambiente local.
+  - Revisão independente aprovada, sem problemas críticos ou importantes; os achados menores estão nas pendências acima. O revisor também mostrou que a paridade detecta uma falha: sem o efeito de tabela, o hash da abertura muda.
+  - O registro da execução foi copiado para `harness/sdd/` para o usuário continuar no ambiente local. A Tarefa 4 não foi iniciada na nuvem.
 
