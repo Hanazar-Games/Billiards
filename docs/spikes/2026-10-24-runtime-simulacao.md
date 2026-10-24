@@ -3,7 +3,7 @@
 - **Data:** 2026-10-24
 - **Plano:** [`docs/superpowers/plans/2026-10-24-f0-spike-runtime-simulacao.md`](../superpowers/plans/2026-10-24-f0-spike-runtime-simulacao.md)
 - **Código (descartável):** [`spikes/sim-bench/`](../../spikes/sim-bench/)
-- **Decisões resultantes:** D017 (aceita), D031, D032 em [`harness/decisions.json`](../../harness/decisions.json)
+- **Decisões resultantes:** D017 (aceita), D033 e D034 em [`harness/decisions.json`](../../harness/decisions.json). A D033 e a D034 substituem a D032 e a D031, que a revisão final mostrou estarem mal fundamentadas.
 
 ## Resumo
 
@@ -87,14 +87,18 @@ Distância entre as posições finais das bolas não encaçapadas:
 
 Nenhuma tacada do corpus encaçapou bolas, então a comparação do conjunto de encaçapadas não discrimina nada (ver Limitações). Fonte: `spikes/sim-bench/results/compare.json` (`node compare-models.mjs`).
 
-**Leitura.** Em tacadas com várias bolas (`break`, `medium`, `english`), qualquer mudança mínima no passo leva a um estado final completamente diferente: o sistema é caótico. Por isso, `fixed × legacy60` diverge tanto quanto `legacy60 × legacy144`. Em tacadas sem colisões em cadeia (`draw`, `soft`), a diferença fica em poucos centímetros.
+**Leitura.** A sensibilidade depende da **energia** da tacada, não do número de bolas.
+- A `soft` move 14 das 16 bolas e mesmo assim diverge só 0,56 cm entre `fixed` e `legacy60`.
+- As tacadas fortes (`break`, `medium`, `english`) divergem 70–150 cm.
+
+O sistema é sensível, mas não diverge com perturbações mínimas. Na revisão final, deslocar a branca 1e-6 cm mudou as posições finais da abertura em no máximo 0,018 cm; deslocá-la 1e-3 cm mudou em 11 cm. As diferenças de 100+ cm entre modelos vêm de uma diferença sistemática, o passo das guardas (1/60 contra 1/360 s), amplificada nas tacadas fortes.
 
 ## Aplicação dos critérios
 
 | Pergunta | Critério | Medido | Resultado |
 |----------|----------|--------|-----------|
 | A física pode rodar dentro do Nakama? | Bundle sem alterar `src/`, abertura p95 ≤ 250 ms e mediana das demais ≤ 100 ms | Bundle OK; abertura p95 = 22,6 s; demais de 2,0 s a 25,4 s | **Não.** Mantém-se `services/sim`. |
-| O Node precisa de otimização na F1? | Abertura p95 > 100 ms | 158 ms | **Sim.** Entra uma tarefa de otimização na F1 (D031). |
+| O Node precisa de otimização na F1? | Abertura p95 > 100 ms | 158 ms | **Sim.** Entra uma tarefa de otimização na F1, com meta relativa (D034, que substitui a D031). |
 | A dependência de FPS é real? | Conjunto de encaçapadas diferente ou posição final com diferença > 0,5 cm entre 60 e 144 FPS | Até 137,75 cm (abertura); 2,74 cm na tacada fraca | **Sim.** Confirma D010. |
 
 ## Outros achados
@@ -102,19 +106,23 @@ Nenhuma tacada do corpus encaçapou bolas, então a comparação do conjunto de 
 1. **O laço atual também depende da velocidade da máquina.** `World.step(dt, timeSinceLastCalled, maxSubSteps)` do cannon-es interrompe os subpassos quando `performance.now() - t0 > dt * 1000` (`cannon-es.js:12520-12529`). Numa execução lenta, a abertura legacy60 deu 759 passos em vez de 772. O passo fixo da spec, que chama `world.step(1/360)` sem acumulador, não sofre disso.
 2. **`vm.createContext` deixa a física de 5 a 6 vezes mais lenta no Node** (abertura: 740 ms contra 130 ms), porque o acesso a globais como `Math` passa por interceptadores. O `services/sim` não deve isolar a simulação em contextos `vm`.
 3. **Parte da física está no `Game.js`.** O efeito transferido pela tabela (`applyCushionSpin`) é aplicado dentro do tratador de colisões `Game.setupCollisionEvents`. O `packages/sim` precisa levar essa lógica (o spike a replicou em `src/world.js`).
-4. **O `draw` com força 60 não chega à bola 1** em nenhum modelo: o efeito para trás freia a branca antes. É o comportamento atual do jogo, não um defeito do spike, e vale revisar na calibragem da F1.
+4. **O `draw` com força 60 não chega à bola 1** em nenhum modelo. Na revisão final, um único passo de 1/360 s levou a branca de 353 para 206 cm/s e de −180 para −103 rad/s. O invariante de rolamento (2,5v + ωR) caiu de 368 para 220: o efeito para trás destrói o momento em vez de acoplá-lo, e a branca anda só 8–14 cm. É o mesmo caminho de código do jogo (não conferido no navegador). Vira item de calibragem da F1 (F1-09).
 
 ## Consequências para a F1
 
-- **D031:** otimizar `packages/sim` até a abertura ter p95 ≤ 100 ms neste ambiente. Pontos a investigar: 38 iterações do solver, `SAPBroadphase`, limites de repouso, custo das guardas por passo.
-- **D032:** o teste de "sensação" não compara posições finais de tacadas com várias bolas, porque o caos as torna incomparáveis. Ele compara métricas de tacadas com uma bola (distância percorrida, tempo até parar, ângulo de saída da tabela, recuo e seguimento, desvio por efeito) com o legado a 60 FPS, com tolerância de ±5%. Na abertura, compara a distribuição de tempo simulado e de bolas movidas. O corpus golden passa a incluir tacadas que encaçapam.
+- **D034 (substitui a D031):** otimizar `packages/sim` até a mediana da abertura com passo fixo ficar pelo menos 1,3× mais rápida que o modelo `fixed` deste spike, medidos no mesmo processo e na mesma máquina, com coleta de lixo forçada antes de cada tacada. Uma meta absoluta (p95 ≤ 100 ms) não serve: a mesma medição variou de 133 a 167 ms neste contêiner. Pontos a investigar: 38 iterações do solver, `SAPBroadphase`, limites de repouso, custo das guardas por passo.
+- **D033 (substitui a D032):**
+  - **Corpus:** tacadas de uma bola na tabela, encaçapes simples, uma abertura e tacadas de baixa energia.
+  - **Métricas:** distância percorrida, posição final e conjunto de bolas encaçapadas. O tempo até parar fica de fora, porque é dominado pela frenagem em baixa velocidade.
+  - **Tolerância:** o espalhamento do próprio legado entre 60 e 144 FPS, que os jogadores já experimentam, medido na F1.
+  - **Recuo (draw):** é item de calibragem (F1-09), não referência a copiar.
 - O hash dos testes golden só é estável dentro do mesmo motor (V8). O cliente offline e o servidor usam V8 (Chrome/Node), mas Firefox e Safari podem divergir. Isso só afeta o modo offline (spec §9.3).
 
 ## Limitações
 
 - **goja com 3 amostras em vez de 20.** Os tempos ficaram cerca de 90 vezes acima do limite, então o tamanho da amostra não muda a decisão. A rodada completa levaria cerca de 26 minutos.
 - **Uma RPC por vez no Nakama.** Com partidas simultâneas, o custo por tacada no goja só aumentaria.
-- **Nenhuma tacada do corpus encaçapa bolas.** Corrigir no corpus golden da F1 (D032).
+- **Nenhuma tacada do corpus encaçapa bolas.** Corrigir no corpus golden da F1 (D033). O encaçape em si funciona sem gráficos: na revisão final, a branca mirada na caçapa de canto mais próxima caiu.
 - **Contêiner compartilhado de 4 vCPUs.** Os números absolutos variam com a máquina; a razão goja/Node (cerca de 175×) é o dado robusto.
 - **O caminho B (runner Go) não foi necessário:** o caminho A (Nakama real) funcionou.
 

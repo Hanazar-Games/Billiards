@@ -475,12 +475,13 @@
       "Aceitar 158 ms",
       "Reduzir a frequência do passo fixo"
     ],
-    "status": "accepted",
+    "status": "superseded",
     "source": "spike F0",
     "refs": [
       "docs/spikes/2026-10-24-runtime-simulacao.md",
       "spec §9.3"
-    ]
+    ],
+    "supersededBy": "D034"
   },
   {
     "id": "D032",
@@ -491,11 +492,46 @@
     "alternatives": [
       "Comparar posições finais com tolerância larga"
     ],
-    "status": "accepted",
+    "status": "superseded",
     "source": "spike F0",
     "refs": [
       "docs/spikes/2026-10-24-runtime-simulacao.md",
       "harness/feature_list.json F1-05, F1-06"
+    ],
+    "supersededBy": "D033"
+  },
+  {
+    "id": "D033",
+    "date": "2026-10-24",
+    "title": "Teste de sensação com tolerância medida no próprio legado",
+    "decision": "O teste de sensação da F1 usa um corpus com tacadas de uma bola na tabela, encaçapes simples de duas bolas, uma abertura e tacadas de baixa energia. Métricas: distância percorrida e posição final (não o tempo até parar, dominado pela frenagem em baixa velocidade) e o conjunto de bolas encaçapadas, que precisa ser igual. A tolerância de cada métrica é o espalhamento entre o legado a 60 e a 144 FPS, que os jogadores já experimentam, medido na F1 sobre esse corpus. O recuo (draw) não é referência: é item de calibragem (F1-09), porque no legado o efeito para trás destrói o momento da bola.",
+    "rationale": "A revisão final da F0 mostrou que a D032 não se sustentava: a sensibilidade depende da energia, não do número de bolas (soft move 14 bolas e diverge 0,56 cm); o sistema é sensível (perturbação de 1e-3 cm na branca muda a abertura em 11 cm), mas não diverge com perturbações mínimas (1e-6 cm → 0,018 cm); a diferença de 100+ cm entre modelos vem da diferença sistemática do passo das guardas (1/60 contra 1/360 s), amplificada; e o próprio passo fixo já viola ±5% em tacadas de uma bola (english na tabela: −6,8% na distância).",
+    "alternatives": [
+      "Tolerância fixa de ±5% (D032)",
+      "Comparar posições finais de todas as tacadas"
+    ],
+    "status": "accepted",
+    "source": "revisão final da F0",
+    "refs": [
+      "docs/spikes/2026-10-24-runtime-simulacao.md",
+      "spec §9.3",
+      "harness/feature_list.json F1-05, F1-06, F1-09"
+    ]
+  },
+  {
+    "id": "D034",
+    "date": "2026-10-24",
+    "title": "Meta de otimização relativa ao spike",
+    "decision": "Otimizar packages/sim até a abertura com passo fixo ter mediana pelo menos 1,3× mais rápida que o modelo fixed do spike (spikes/sim-bench), medidos no mesmo processo e na mesma máquina, com coleta de lixo forçada antes de cada tacada; p95 é métrica secundária, informada mas não usada como critério. Investigar iterações do solver (38), SAPBroadphase, limites de repouso e custo das guardas por passo.",
+    "rationale": "D031 usava p95 ≤ 100 ms absoluto, mas a mesma medição variou de 133 a 167 ms no contêiner compartilhado, e parte do p95 vinha da coleta de lixo da montagem do mundo. A mediana da abertura (128 ms) já justifica otimizar; 1,3× leva a mediana a cerca de 100 ms nesta máquina.",
+    "alternatives": [
+      "p95 ≤ 100 ms absoluto (D031)"
+    ],
+    "status": "accepted",
+    "source": "revisão final da F0",
+    "refs": [
+      "docs/spikes/2026-10-24-runtime-simulacao.md",
+      "harness/feature_list.json F1-08"
     ]
   }
 ]

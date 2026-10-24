@@ -382,7 +382,7 @@ Arquivo versionado no repositório (`services/nakama/src/catalog/catalog.json`),
 
 | Alvo | Testes |
 |------|--------|
-| `packages/sim` | Unitários; **golden**: um conjunto fixo de tacadas (abertura, reta, efeitos, tabela, caçapa) com estado final gravado, que precisa ser idêntico bit a bit entre execuções no Node; **comparação de sensação** com a física atual (mesmas bolas encaçapadas, posições finais dentro de tolerância documentada); roteiro de teste manual. |
+| `packages/sim` | Unitários; **golden**: um conjunto fixo de tacadas (abertura, reta, efeitos, tabela, caçapa) com estado final gravado, que precisa ser idêntico bit a bit entre execuções no Node; **comparação de sensação** com a física atual (D033): distância percorrida, posição final e mesmas bolas encaçapadas, com tolerância igual ao espalhamento do próprio legado entre 60 e 144 FPS; roteiro de teste manual. |
 | Divergência entre navegadores | O conjunto golden roda em Chromium, Firefox e WebKit (Playwright) para medir divergência. É informativo: só afeta o modo offline. |
 | `packages/modes` | Os 28 testes de regras portados; novos testes para N lugares, 2×2, cada um por si e abandono; invariantes (sempre há um lugar da vez até o fim). |
 | `packages/protocol` | Codificação e decodificação ida e volta; fuzz dos validadores. |

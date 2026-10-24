@@ -101,17 +101,17 @@
     "description": "Testes golden da simulação",
     "verification": [
       "conjunto golden idêntico bit a bit em duas execuções seguidas",
-      "o conjunto golden inclui ao menos 3 tacadas que encaçapam bolas (D032)"
+      "o conjunto golden inclui tacadas de uma bola na tabela, ao menos 3 encaçapes simples e uma abertura (D033)"
     ],
     "passes": false
   },
   {
     "id": "F1-06",
     "phase": "F1",
-    "description": "Teste de sensação contra a física legada (métricas de tacadas com uma bola, D032)",
+    "description": "Teste de sensação contra a física legada, com tolerância medida no próprio legado (D033)",
     "verification": [
-      "métricas de tacadas com uma bola (distância, tempo até parar, ângulo de saída da tabela, recuo/seguimento, desvio por efeito) dentro de ±5% do legado a 60 FPS (D032)",
-      "abertura: tempo simulado e bolas movidas sem regressão em relação ao legado a 60 FPS (D032)"
+      "tolerância de cada métrica = espalhamento legacy60 × legacy144 medido sobre o corpus da F1 e registrado no plano da F1 (D033)",
+      "distância percorrida e posição final do passo fixo dentro dessa tolerância em relação ao legacy60; conjunto de bolas encaçapadas igual (D033)"
     ],
     "passes": false
   },
@@ -464,9 +464,19 @@
   {
     "id": "F1-08",
     "phase": "F1",
-    "description": "Otimização da simulação (D031)",
+    "description": "Otimização da simulação (D034)",
     "verification": [
-      "abertura com passo fixo: p95 ≤ 100 ms no contêiner de referência (20 execuções + 3 de aquecimento)"
+      "no mesmo processo e máquina, com GC forçado antes de cada tacada: mediana da abertura do packages/sim ≥ 1,3× mais rápida que o modelo fixed de spikes/sim-bench (20 execuções + 3 de aquecimento); p95 informado (D034)"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F1-09",
+    "phase": "F1",
+    "description": "Calibragem do recuo (draw): o efeito para trás não deve destruir o momento da bola (D033)",
+    "verification": [
+      "tacada de referência com bola-alvo a 50 cm, força 60 e efeito y = −0,8: a branca volta depois do contato",
+      "a mesma tacada no jogo, no navegador, tem o comportamento confirmado pelo usuário"
     ],
     "passes": false
   }
