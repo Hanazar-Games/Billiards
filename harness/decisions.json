@@ -533,5 +533,56 @@
       "docs/spikes/2026-10-24-runtime-simulacao.md",
       "harness/feature_list.json F1-08"
     ]
+  },
+  {
+    "id": "D035",
+    "date": "2026-10-24",
+    "title": "Envelope de tolerância do teste de sensação",
+    "decision": "A tolerância de cada métrica de sensação (D033) é o envelope [mín, máx] do legado rodado a 30, 60, 120 e 144 FPS com relógio congelado, alargado por max(1 cm, 2% do valor do legado a 60 FPS) em comprimentos e posições, e por 1 em contagens. O conjunto de bolas encaçapadas precisa ser igual ao do legado a 60 FPS (exceto na abertura, que usa contagem).",
+    "rationale": "Só o par 60×144 subestima a variação que os jogadores já experimentam (a sondagem do plano da F1-A mostrou uma tacada reta 0,1 cm fora desse par mesmo com o legado reproduzido fielmente). O relógio congelado tira o corte de subpassos por relógio do cannon-es.",
+    "alternatives": [
+      "Só o par 60×144 (D033 literal)",
+      "Tolerância percentual fixa"
+    ],
+    "status": "open",
+    "source": "plano da F1-A (aguarda revisão do usuário)",
+    "refs": [
+      "docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md",
+      "D033"
+    ]
+  },
+  {
+    "id": "D036",
+    "date": "2026-10-24",
+    "title": "Física customizada em ritmo fixo de 60 Hz",
+    "decision": "packages/sim avança o cannon-es em passos de 1/360 s e aplica a física customizada (guardas, caçapas, parada) a cada 6 passos, com dt = 1/60 s de tempo simulado. Substitui o trecho de D010 que dizia \"a cada passo\".",
+    "rationale": "Medido no planejamento da F1-A: aplicar a física customizada a cada passo muda a sensação além da variação do próprio legado (tacada longa: +11,5% de percurso; efeito na tabela: a branca cai na caçapa), enquanto o ritmo fixo de 60 Hz reproduz o legado a 60 FPS (recuo idêntico; tacada longa 574 cm contra 575–584 cm) e continua independente do FPS da tela, porque o ritmo é de tempo simulado.",
+    "alternatives": [
+      "Física customizada a cada passo (D010 original)"
+    ],
+    "status": "open",
+    "source": "plano da F1-A (aguarda revisão do usuário)",
+    "refs": [
+      "docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md",
+      "D010",
+      "spec §6"
+    ]
+  },
+  {
+    "id": "D037",
+    "date": "2026-10-24",
+    "title": "Limite de tamanho da trajetória",
+    "decision": "Critério F1-04: cada tacada do corpus codificada ocupa no máximo 48 KB, e o tamanho de cada uma é registrado. Substitui \"tacada típica até 30 KB\".",
+    "rationale": "Com o ritmo de 60 Hz (D036), a abertura codificada mediu 35,4 KB e a tacada com efeito 34,2 KB na sondagem do plano; 30 KB não cabe a abertura.",
+    "alternatives": [
+      "Codificação delta para caber em 30 KB"
+    ],
+    "status": "open",
+    "source": "plano da F1-A (aguarda revisão do usuário)",
+    "refs": [
+      "docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md",
+      "spec §6.1",
+      "harness/feature_list.json F1-04"
+    ]
   }
 ]
