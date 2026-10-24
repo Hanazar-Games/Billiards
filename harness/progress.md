@@ -4,7 +4,7 @@
 
 - **Fase:** F0 concluída (F0-01 a F0-06 verificados). A F1 ainda não tem plano detalhado.
 - **Resultado da F0:** a física autoritativa fica no `services/sim` em Node (D017). No goja do Nakama, a simulação foi cerca de 175 vezes mais lenta. Relatório: `docs/spikes/2026-10-24-runtime-simulacao.md`.
-- **Branch de trabalho:** `claude/planejamento-online`
+- **Branch de trabalho:** `claude/planejamento-online`, mantida sem merge na `main` por escolha do usuário (2026-10-24).
 - **Base:** Hanazar-Games/Billiards v1.26.13 (`0448b03`), sem alterações em `src/`, `server/` ou `test/`.
 
 ## Próximo passo
@@ -38,3 +38,4 @@
 - Resultados: abertura com passo fixo de 128 ms no Node (mediana) e 22,4 s no goja; diferença de até 138 cm entre 60 e 144 FPS; Node e goja divergem em 2 de 5 tacadas.
 - Decisões: D017 resolvida (física fora do Nakama); D031 e D032 criadas e depois substituídas por D034 (meta relativa) e D033 (tolerância medida no legado) após a revisão final; F1-09 (calibragem do recuo) acrescentado.
 - Revisão final por revisor independente: pronto para mesclar com correções; 3 problemas importantes corrigidos, menores listados acima.
+- Suíte completa (`npm test`, com navegador) verde em 5 min. O usuário escolheu manter a branch como está, sem merge nem PR.
