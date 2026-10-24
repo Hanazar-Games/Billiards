@@ -40,7 +40,9 @@
  */
 
 /**
- * Trajectory sample at t = k / 30 s. Empty until F1-A Task 5.
+ * Trajectory sample at t = k / 30 s (every 12 steps), with only the balls
+ * that moved or turned since their previous sample. A ball pocketed since the
+ * previous frame appears once more, where it was detected in the pocket.
  * @typedef {{
  *   t: number,
  *   balls: { id: number, x: number, z: number, q: Quat }[],
@@ -71,6 +73,9 @@
  */
 
 /**
+ * `final.balls` is sorted by id and carries every ball's `q` (identity for a
+ * ball pocketed in the input without one). `frames` stop at the last multiple
+ * of 12 steps; `final` covers the rest.
  * `steps` counts 1/360 s physics steps; `simSeconds = steps / 360`; `capped`
  * is true when the time limit ended the shot before every ball stopped.
  * @typedef {{

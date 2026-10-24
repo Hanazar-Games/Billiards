@@ -27,7 +27,7 @@ import {
 /**
  * @typedef {{
  *   update: (dt: number) => void,
- *   checkPockets: () => { id: number, pocketIndex: number }[],
+ *   checkPockets: () => { id: number, pocketIndex: number, x: number, z: number }[],
  *   allStopped: () => boolean,
  *   applyCushionSpin: (ball: SimBall) => void,
  * }} Guards
@@ -421,11 +421,11 @@ export function createGuards(simWorld, balls, hooks = {}) {
 
   /**
    * Pockets every ball inside a pocket's detection radius and takes it out of
-   * the physics world.
-   * @returns {{ id: number, pocketIndex: number }[]}
+   * the physics world. `x`, `z` is where the ball was when detected.
+   * @returns {{ id: number, pocketIndex: number, x: number, z: number }[]}
    */
   function checkPockets() {
-    /** @type {{ id: number, pocketIndex: number }[]} */
+    /** @type {{ id: number, pocketIndex: number, x: number, z: number }[]} */
     const pocketed = [];
 
     for (const ball of balls) {
@@ -437,8 +437,9 @@ export function createGuards(simWorld, balls, hooks = {}) {
         const dz = ball.body.position.z - pocket.z;
         const distSq = dx * dx + dz * dz;
         if (distSq < detectDist * detectDist) {
+          const { x, z } = ball.body.position;
           removeBall(simWorld, ball);
-          pocketed.push({ id: ball.id, pocketIndex: pi });
+          pocketed.push({ id: ball.id, pocketIndex: pi, x, z });
           break;
         }
       }
