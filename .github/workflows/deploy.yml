@@ -52,7 +52,7 @@ jobs:
       - name: Upload verified artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: ./dist
+          path: ./apps/client/dist
 
       - name: Deploy to GitHub Pages
         id: deployment

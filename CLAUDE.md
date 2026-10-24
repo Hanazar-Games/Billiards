@@ -1,6 +1,6 @@
 # Billiards Online
 
-Fork definitivo de Hanazar-Games/Billiards (sinuca 3D com Three.js + cannon-es) que está sendo transformado em um jogo online free-to-play com Nakama. O código em `src/` ainda é o jogo original; a nova arquitetura está descrita na spec.
+Fork definitivo de Hanazar-Games/Billiards (sinuca 3D com Three.js + cannon-es) que está sendo transformado em um jogo online free-to-play com Nakama. O código em `apps/client/src/` ainda é o jogo original; a nova arquitetura está descrita na spec.
 
 ## Leia antes de trabalhar
 
@@ -35,9 +35,10 @@ Nas sessões na nuvem, o hook SessionStart roda `harness/init.sh` (dependências
 |---------|-----------|
 | `bash harness/init.sh` | Instala dependências, roda os testes rápidos e mostra o status |
 | `node harness/status.mjs` | Mostra só o status (fase, itens pendentes, decisões em aberto) |
-| `npm run dev` | Servidor de desenvolvimento do jogo (porta 5173) |
-| `npm run test:rules` | Testes das regras (28) |
-| `npm test` | Todas as suítes, incluindo as de navegador (exigem Chromium) |
-| `npm run build` | Build de produção |
+| `npm run dev` | Servidor de desenvolvimento do jogo (porta 5173; roda `apps/client`) |
+| `npm run test:rules -w apps/client` | Testes das regras (28); as outras suítes do cliente seguem o mesmo padrão (`test:<nome>`) |
+| `npm test` | Todas as suítes de todos os workspaces (`apps/*`, `packages/*`), incluindo as de navegador (exigem Chromium) |
+| `npm run build` | Build de produção (saída em `apps/client/dist`) |
+| `npm run typecheck` | `tsc -p tsconfig.json` sobre `packages/*/src` |
 
-Testes de navegador neste contêiner: `CI=1 PUPPETEER_EXECUTABLE_PATH=/opt/pw-browsers/chromium npm run test:smoke`.
+Testes de navegador neste contêiner: `CI=1 PUPPETEER_EXECUTABLE_PATH=/opt/pw-browsers/chromium npm run test:smoke -w apps/client`.

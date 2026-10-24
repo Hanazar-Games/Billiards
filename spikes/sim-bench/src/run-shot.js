@@ -1,6 +1,6 @@
 // Runs one shot to rest with either the fixed-step model (the new design) or
 // the legacy frame-driven model (what MenuSystem.js + Game.update do today).
-import { SHOT } from '../../../src/config.js';
+import { SHOT } from '../../../apps/client/src/config.js';
 
 const FIXED_DT = 1 / 360;
 const SIM_LIMIT_S = 20;

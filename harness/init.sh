@@ -22,8 +22,17 @@ FAST_SUITES=(rules table lan ai audio instant-replay career ui-layout settings-a
   trainer-challenge-safety achievement-toast tournament highlight panels runtime)
 failed=()
 for suite in "${FAST_SUITES[@]}"; do
-  if ! npm run -s "test:$suite" > /dev/null 2>&1; then
+  if ! npm run -s -w apps/client "test:$suite" > /dev/null 2>&1; then
     failed+=("$suite")
+  fi
+done
+
+# Workspace packages (packages/*) run their own test script.
+for pkg in packages/*/package.json; do
+  [ -f "$pkg" ] || continue
+  ws=$(dirname "$pkg")
+  if ! npm test -w "$ws" > /dev/null 2>&1; then
+    failed+=("$ws")
   fi
 done
 
@@ -31,7 +40,7 @@ echo "== Harness: baseline =="
 if [ ${#failed[@]} -eq 0 ]; then
   echo "fast suites: ${#FAST_SUITES[@]}/${#FAST_SUITES[@]} passing"
 else
-  echo "fast suites FAILING: ${failed[*]} (rerun with: npm run test:<suite>)"
+  echo "fast suites FAILING: ${failed[*]} (rerun with: npm run -w apps/client test:<suite>, or npm test -w <packages/name>)"
 fi
 
 node harness/status.mjs

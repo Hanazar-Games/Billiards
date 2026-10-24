@@ -90,8 +90,8 @@
     "phase": "F1",
     "description": "Codificação binária da trajetória v1 em packages/protocol",
     "verification": [
-      "teste de ida e volta: posições dentro de 0,01 cm e rotações normalizadas",
-      "tacada típica codificada ocupa até 30 KB"
+      "teste de ida e volta: posições dentro de 0,005 cm e rotações com erro ≤ 0,001 rad",
+      "cada tacada do corpus codificada ocupa até 48 KB; tamanhos registrados (D037)"
     ],
     "passes": false
   },

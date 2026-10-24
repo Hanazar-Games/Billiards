@@ -51,9 +51,9 @@ A browser-based 3D pool game built with **Three.js** and **cannon-es** physics e
 
 1. **Host 机器** 同时启动前端 dev server 和房间服务器：
    ```bash
-   npm run dev -- --host 0.0.0.0
+   npm run dev -w apps/client -- --host 0.0.0.0
    # 另开一个终端
-   npm run host
+   npm run host -w apps/client
    ```
 2. **其他设备** 用浏览器访问 `http://<HOST_IP>:5173`
 3. 点击主菜单 **局域网联机**
@@ -115,18 +115,22 @@ Then open `http://localhost:5173`
 
 ### Development Commands
 
+The repository is an npm workspaces monorepo: the game lives in `apps/client`, and `packages/*` holds shared packages. Run these from the repository root; per-suite and game-only scripts use `-w apps/client`.
+
 ```bash
-npm run build          # Production build
-npm run preview        # Preview production build
-npm run build:pages    # Build for /Billiards/ on GitHub Pages
-npm run test:pages     # Verify Pages assets, fallback URLs, gameplay and audio
-npm run test:rules     # Run 28 rule engine tests
-npm run test:lan       # Run LAN room lifecycle tests
-npm test               # Run all automated regression suites
-npm run test:browser   # Real WebGL, audio, interaction and two-browser LAN regressions
-npm run test:smoke     # Real WebGL menu and game smoke tests
-npm run test:dist      # Verify the production build
-npm run host           # Start LAN room server (port 3001)
+npm run dev                            # Dev server (port 5173)
+npm run build                          # Production build (apps/client/dist)
+npm run build:pages                    # Build for /Billiards/ on GitHub Pages
+npm run test:pages                     # Verify Pages assets, fallback URLs, gameplay and audio
+npm test                               # Run all automated regression suites (every workspace)
+npm run typecheck                      # Type-check packages/*/src with tsc
+npm run preview -w apps/client         # Preview production build
+npm run test:rules -w apps/client      # Run 28 rule engine tests
+npm run test:lan -w apps/client        # Run LAN room lifecycle tests
+npm run test:browser -w apps/client    # Real WebGL, audio, interaction and two-browser LAN regressions
+npm run test:smoke -w apps/client      # Real WebGL menu and game smoke tests
+npm run test:dist -w apps/client       # Verify the production build
+npm run host -w apps/client            # Start LAN room server (port 3001)
 ```
 
 ### GitHub Pages
