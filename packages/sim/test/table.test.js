@@ -20,8 +20,7 @@ test('corpos das tabelas idênticos ao Table.js em todos os perfis', () => {
       b.shapes.forEach((s, j) => {
         assert.deepEqual(s.halfExtents.toArray(), l.shapes[j].halfExtents.toArray());
         assert.deepEqual(b.shapeOffsets[j].toArray(), l.shapeOffsets[j].toArray());
-        const q = b.shapeOrientations[j], lq = l.shapeOrientations[j];
-        for (const k of ['x', 'y', 'z', 'w']) assert.ok(Math.abs(q[k] - lq[k]) < 1e-12, `${id} ${i}.${j}.${k}`);
+        assert.deepEqual(b.shapeOrientations[j].toArray(), l.shapeOrientations[j].toArray(), `${id} ${i}.${j} orientation`);
       });
     });
   }
@@ -50,9 +49,43 @@ test('materiais e solver iguais ao PhysicsWorld legado', () => {
 
 test('src não importa three nem usa APIs de navegador ou aleatoriedade', () => {
   const dir = new URL('../src/', import.meta.url);
-  for (const f of readdirSync(dir)) {
+  for (const f of readdirSync(dir).filter(f => f.endsWith('.js'))) {
     const code = readFileSync(new URL(f, dir), 'utf8');
-    assert.doesNotMatch(code, /from ['"]three['"]|\bdocument\.|\bwindow\.|localStorage|performance\.now|Date\.now|Math\.random/, f);
+    assert.doesNotMatch(code, /from ['"]three['"]|import\s*\(?\s*['"]three['"]|\bdocument\.|\bwindow\.|localStorage|\bperformance\b|Date\.now|Math\.random/, f);
     assert.match(code, /^\/\/ @ts-check/, `${f} sem // @ts-check`);
+  }
+});
+
+test('mundo igual ao PhysicsWorld legado: corpos, pares de materiais e flags', () => {
+  const bodyView = b => ({
+    type: b.type,
+    mass: b.mass,
+    material: b.material.name,
+    position: b.position.toArray(),
+    quaternion: b.quaternion.toArray(),
+    shapes: b.shapes.map(s => s.type),
+    allowSleep: b.allowSleep,
+    collisionResponse: b.collisionResponse,
+  });
+  for (const id of PROFILES) {
+    const legacy = createLegacyWorld({ tableProfileId: id }).physics.world;
+    const sim = createWorld(getTableProfile(id));
+    // Legacy world.bodies = [plane, 6 cushions, balls...]; the sim has no balls yet.
+    assert.deepEqual(sim.world.bodies.slice(0, 7).map(bodyView), legacy.bodies.slice(0, 7).map(bodyView), id);
+    assert.equal(sim.world.bodies[0], sim.planeBody, id);
+    assert.equal(sim.tableBodies.length, 6, id);
+    sim.tableBodies.forEach((b, i) => assert.equal(b, sim.world.bodies[i + 1], `${id} tableBodies[${i}] is world.bodies[${i + 1}]`));
+    assert.deepEqual(
+      sim.world.contactmaterials.map(c => c.materials.map(m => m.name)),
+      legacy.contactmaterials.map(c => c.materials.map(m => m.name)),
+      id,
+    );
+    assert.deepEqual(sim.world.gravity.toArray(), legacy.gravity.toArray(), id);
+    assert.equal(sim.world.allowSleep, legacy.allowSleep, id);
+    assert.equal(sim.world.broadphase.constructor.name, legacy.broadphase.constructor.name, id);
+    assert.equal(sim.world.solver.constructor.name, legacy.solver.constructor.name, id);
+    assert.equal(sim.world.quatNormalizeSkip, legacy.quatNormalizeSkip, id);
+    assert.equal(sim.world.quatNormalizeFast, legacy.quatNormalizeFast, id);
+    for (const p of sim.pockets) assert.equal(p.y, 0, `${id} pocket y`);
   }
 });
