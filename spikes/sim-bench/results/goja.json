@@ -1,0 +1,62 @@
+{
+  "runtime": "nakama 3.41.0",
+  "shimsUsed": [
+    "console",
+    "performance",
+    "document",
+    "localStorage"
+  ],
+  "results": [
+    {
+      "name": "break",
+      "model": "fixed",
+      "medianMs": 22370,
+      "p95Ms": 22583,
+      "steps": 4546,
+      "simSeconds": 12.627777777779112,
+      "capped": false,
+      "hash": "b6df8e22"
+    },
+    {
+      "name": "medium",
+      "model": "fixed",
+      "medianMs": 11513,
+      "p95Ms": 11792,
+      "steps": 3112,
+      "simSeconds": 8.644444444445156,
+      "capped": false,
+      "hash": "48ebad09"
+    },
+    {
+      "name": "draw",
+      "model": "fixed",
+      "medianMs": 1983,
+      "p95Ms": 2041,
+      "steps": 1190,
+      "simSeconds": 3.3055555555555447,
+      "capped": false,
+      "hash": "69e7d9c6"
+    },
+    {
+      "name": "english",
+      "model": "fixed",
+      "medianMs": 25392,
+      "p95Ms": 25863,
+      "steps": 4640,
+      "simSeconds": 12.888888888890264,
+      "capped": false,
+      "hash": "b40d578d"
+    },
+    {
+      "name": "soft",
+      "model": "fixed",
+      "medianMs": 6806,
+      "p95Ms": 6908,
+      "steps": 2610,
+      "simSeconds": 7.250000000000495,
+      "capped": false,
+      "hash": "05b95fba"
+    }
+  ],
+  "cpu": "Intel(R) Xeon(R) Processor x4"
+}
