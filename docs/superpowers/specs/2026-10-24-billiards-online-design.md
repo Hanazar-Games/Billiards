@@ -130,6 +130,8 @@ Os dois entregam ao `Game` a mesma coisa: trajetórias para reproduzir e decisõ
 
 Se o spike mostrar que `packages/sim` roda no runtime JS do Nakama (goja) com desempenho aceitável, o mesmo pacote pode ser embutido no módulo do Nakama e o `services/sim` deixa de ser necessário. A interface `simulateShot` não muda; só o local de execução.
 
+> **Resolvido pela F0 (D017):** não é viável. No goja, a abertura levou 22,4 s, cerca de 175 vezes o tempo do Node. O `services/sim` fica. Ver [`docs/spikes/2026-10-24-runtime-simulacao.md`](../../spikes/2026-10-24-runtime-simulacao.md).
+
 ## 6. Fluxo de uma tacada (Seção 2 — aprovada)
 
 ```
