@@ -48,8 +48,19 @@
  */
 
 /**
- * Timed shot event (t = step / 360). Empty until F1-A Task 4.
- * @typedef {{ t: number, type: string }} SimEvent
+ * Timed shot event, `t = step / 360`, in step order.
+ * - `ball_ball`: one per contact start, `a < b`; `speed` is the magnitude of
+ *   the relative velocity before the impact (for contacts the guards resolve,
+ *   its normal component).
+ * - `ball_cushion`: one per contact start; `speed` is the ball's speed.
+ * - `pocket`: `pocket` is the index in `getPocketPositions`.
+ * - `first_contact`: goes out with the first `ball_ball` of the cue ball.
+ * @typedef {(
+ *   { t: number, type: 'ball_ball', a: number, b: number, speed: number } |
+ *   { t: number, type: 'ball_cushion', ball: number, speed: number } |
+ *   { t: number, type: 'pocket', ball: number, pocket: number } |
+ *   { t: number, type: 'first_contact', ball: number }
+ * )} SimEvent
  */
 
 /**
