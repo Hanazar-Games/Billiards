@@ -1096,7 +1096,8 @@ export class Game {
   }
 
   _startPlayback(table, result) {
-    const player = new TrajectoryPlayer({ initial: table, ...result });
+    // With the radius, a fast ball turns the way it rolls between samples.
+    const player = new TrajectoryPlayer({ initial: table, ...result, ballRadius: BALL.radius });
     this.lastShotResult = result;
     this.playback = new ShotPlayback(this.ballsManager, player);
   }

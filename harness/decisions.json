@@ -713,5 +713,27 @@
       "apps/client/src/replay/ShotRecorder.js",
       "apps/client/src/replay/ReplayLibrary.js"
     ]
+  },
+  {
+    "id": "D044",
+    "date": "2026-10-25",
+    "title": "Rotação rápida na trajetória v1 (amostras de 30 Hz)",
+    "decision": "Em aberto, para decidir antes que a F4 congele docs/protocol.md. A trajetória v1 amostra a orientação das bolas a 30 Hz, e uma bola que gira mais de meia volta entre duas amostras (ω > 94 rad/s, rolando a mais de ~270 cm/s) é indistinguível de uma que gira menos no sentido contrário: o arco curto a mostra girando ao contrário. Opções: (a) taxa de amostragem maior para a orientação; (b) velocidade angular nos quadros; (c) manter a heurística do reprodutor. Enquanto isso, o TrajectoryPlayer usa a heurística (c): quando o deslocamento entre amostras passa de meia volta de rolamento (|d|/R > π), escolhe entre o arco curto e o longo o que tem o eixo de acordo com o rolamento.",
+    "rationale": "Medido na revisão final da F1-B, contra a pose verdadeira a 360 Hz no meio de cada intervalo: no corpus, o arco curto mostra 44 de 23.537 poses de bola giradas ao contrário (abertura 3, long-stun 5, follow 6, english 15, rail-english 11, draw-ref 2, draw-rack 2), e a heurística deixa 27 (abertura 0, long-stun 0). Em 157 tacadas (o corpus e mais 144 sintéticas, com uma e duas bolas, forças de 20 a 110 e efeitos para cima, para baixo e laterais), os intervalos errados caem de 855 para 380, mas 105 que estavam certos passam a errados: tacadas rápidas com efeito para trás moderado. A heurística não resolve a bola com efeito forte: com efeito para cima ou lateral (follow, english), ela gira mais de meia volta com menos de meia volta de rolamento; com efeito para trás (draw), gira mais de meia volta contra o rolamento. Só a trajetória pode resolver de vez, e mudar o formato depois da F4 exige versão nova.",
+    "alternatives": [
+      "Amostrar a orientação a 60 Hz ou mais (trajetória maior)",
+      "Mandar a velocidade angular em cada quadro (o reprodutor integra entre as amostras)",
+      "Manter só a heurística do reprodutor"
+    ],
+    "status": "open",
+    "source": "revisão final da F1-B",
+    "refs": [
+      "spec §6.1",
+      "D011",
+      "D012",
+      "F4",
+      "apps/client/src/sim/TrajectoryPlayer.js",
+      "apps/client/test/trajectory-player.test.js"
+    ]
   }
 ]

@@ -13,18 +13,27 @@ export class TrajectoryPlayer {
    * (`final`). A frame lists only the balls that moved, so a ball missing from
    * a frame repeats its previous pose. A ball without `q` has the identity
    * rotation.
+   *
+   * Between two key poses a ball turns along the short arc, which shows a ball
+   * that turned more than half a turn spinning the wrong way. With
+   * `ballRadius`, a ball that moved more than half a turn of rolling
+   * (distance / radius > π) turns instead along the arc that agrees with
+   * rolling along its path. Without it, always the short arc.
    * @param {{
    *   initial: import('@billiards/sim').TableState,
    *   frames: import('@billiards/protocol').TrajectoryFrame[],
    *   events: import('@billiards/sim').SimEvent[],
    *   final: import('@billiards/sim').TableState,
-   *   simSeconds: number
+   *   simSeconds: number,
+   *   ballRadius?: number
    * }} shot
    */
-  constructor({ initial, frames, events, final, simSeconds }) {
+  constructor({ initial, frames, events, final, simSeconds, ballRadius }) {
     if (!Number.isFinite(simSeconds) || simSeconds < 0) {
       throw new RangeError(`TrajectoryPlayer: invalid simSeconds ${simSeconds}`);
     }
+    // 0 leaves every ball on the short arc.
+    this._ballRadius = Number.isFinite(ballRadius) && ballRadius > 0 ? ballRadius : 0;
     this._duration = simSeconds;
     this._final = final;
     this._time = 0;
@@ -122,8 +131,8 @@ export class TrajectoryPlayer {
       .map(b => ({ id: b.id, x: b.x, z: b.z, q: b.q ? [...b.q] : identity() }));
   }
 
-  // Poses at a time before the end: position linear, rotation nlerp, and
-  // without the balls already in a pocket.
+  // Poses at a time before the end: position linear, rotation along the arc
+  // _rotation picks, and without the balls already in a pocket.
   _posesAt(time) {
     const times = this._times;
     // Largest i with times[i] <= time; time < duration keeps i + 1 in range.
@@ -143,15 +152,73 @@ export class TrajectoryPlayer {
         id: track.id,
         x: track.x[lo] + (track.x[hi] - track.x[lo]) * alpha,
         z: track.z[lo] + (track.z[hi] - track.z[lo]) * alpha,
-        q: nlerp(track.q[lo], track.q[hi], alpha)
+        q: this._rotation(track, lo, hi, alpha)
       });
     }
     return poses;
+  }
+
+  // Rotation of a ball between its key poses lo and hi. The samples come 30
+  // times a second, so a ball turning more than half a turn per sample looks
+  // like one turning less the other way. When the ball moved more than half a
+  // turn of rolling, the arc whose axis agrees with rolling along that path
+  // wins; otherwise the short arc.
+  _rotation(track, lo, hi, alpha) {
+    const a = track.q[lo];
+    const b = track.q[hi];
+    if (this._ballRadius > 0) {
+      const dx = track.x[hi] - track.x[lo];
+      const dz = track.z[hi] - track.z[lo];
+      if (Math.hypot(dx, dz) / this._ballRadius > Math.PI) {
+        const arc = rollingArc(a, b, dx, dz);
+        if (arc) return normalize(multiply(axisAngle(arc.axis, arc.angle * alpha), a));
+      }
+    }
+    return nlerp(a, b, alpha);
   }
 }
 
 function identity() {
   return [0, 0, 0, 1];
+}
+
+// The world-frame turn from a to b (b = turn · a, the way the sim integrates
+// the spin) as an axis and an angle: the short arc (up to π) unless its axis
+// points against rolling along (dx, dz), and then the long arc, 2π minus that
+// about the opposite axis. On the XZ plane with y up, rolling along d turns
+// the ball about up × d = (dz, 0, −dx). Null when a and b are the same.
+function rollingArc(a, b, dx, dz) {
+  const r = multiply(b, [-a[0], -a[1], -a[2], a[3]]);
+  const sign = r[3] < 0 ? -1 : 1;
+  const sinHalf = Math.hypot(r[0], r[1], r[2]);
+  if (sinHalf === 0) return null;
+  let axis = [sign * r[0] / sinHalf, sign * r[1] / sinHalf, sign * r[2] / sinHalf];
+  let angle = 2 * Math.atan2(sinHalf, sign * r[3]);
+  if (axis[0] * dz - axis[2] * dx < 0) {
+    axis = [-axis[0], -axis[1], -axis[2]];
+    angle = 2 * Math.PI - angle;
+  }
+  return { axis, angle };
+}
+
+function axisAngle(axis, angle) {
+  const s = Math.sin(angle / 2);
+  return [axis[0] * s, axis[1] * s, axis[2] * s, Math.cos(angle / 2)];
+}
+
+// Hamilton product a·b of [x, y, z, w] quaternions.
+function multiply(a, b) {
+  return [
+    a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
+    a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+    a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
+    a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]
+  ];
+}
+
+function normalize(q) {
+  const len = Math.hypot(q[0], q[1], q[2], q[3]);
+  return [q[0] / len, q[1] / len, q[2] / len, q[3] / len];
 }
 
 // Normalized linear interpolation along the short arc (b and -b are the same

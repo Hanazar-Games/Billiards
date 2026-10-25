@@ -2,7 +2,7 @@
 // poses and timed events out, so it all runs in Node without Three.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { simulateShot } from '@billiards/sim';
+import { BALL, simulateShot } from '@billiards/sim';
 import { encodeTrajectory, decodeTrajectory } from '@billiards/protocol';
 import { CORPUS } from '../../../packages/sim/test/corpus.js';
 import { TrajectoryPlayer } from '../src/sim/TrajectoryPlayer.js';
@@ -14,6 +14,22 @@ const play = (c) => {
   return { r, p: new TrajectoryPlayer({ initial: c.table, ...r, frames: decodeTrajectory(encodeTrajectory(r.frames)) }) };
 };
 const byName = (n) => CORPUS.find(c => c.name === n);
+
+// Quaternions as [x, y, z, w]: the product a·b and the inverse of a unit one.
+const mul = (a, b) => [
+  a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
+  a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+  a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
+  a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]
+];
+const inverse = (q) => [-q[0], -q[1], -q[2], q[3]];
+const aboutX = (angle) => [Math.sin(angle / 2), 0, 0, Math.cos(angle / 2)];
+// The world-frame turn from `from` to `to` (the sim turns a ball by
+// q' = rot · q), as the axis scaled by sin(angle / 2), angle in [0, π].
+const turn = (from, to) => {
+  const r = mul(to, inverse(from));
+  return r[3] < 0 ? [-r[0], -r[1], -r[2]] : [r[0], r[1], r[2]];
+};
 
 test('interpola posição e rotação entre amostras', () => {
   const q90 = [0, Math.SQRT1_2, 0, Math.SQRT1_2];
@@ -160,4 +176,84 @@ test('bola encaçapada depois do último quadro fica na última pose até o even
   assert.deepEqual(out.events, [pocket]);
   assert.equal(at(out.poses), undefined, 'gone from the pocket event on');
   assert.equal(at(p.advance(1).poses), undefined, 'and not in the final state either');
+});
+
+test('bola que rola mais de meia volta entre amostras gira pelo arco do rolamento, não pelo arco curto', () => {
+  // 4.2 rad of roll along +z (12 cm over the radius) in one sample: rolling
+  // along +z turns the ball about +x. The samples alone also fit 2π − 4.2 rad
+  // about −x, the short arc.
+  const rolled = 4.2;
+  const q1 = aboutX(rolled);
+  const shot = (extra) => new TrajectoryPlayer({
+    initial: { tableProfileId: 'pool9ft', balls: [{ id: 0, x: 0, z: 0, q: [0, 0, 0, 1], pocketed: false }] },
+    frames: [{ t: 1 / 30, balls: [{ id: 0, x: 0, z: rolled * BALL.radius, q: q1 }] }],
+    events: [],
+    final: { tableProfileId: 'pool9ft', balls: [{ id: 0, x: 0, z: rolled * BALL.radius, q: q1, pocketed: false }] },
+    simSeconds: 1 / 30,
+    ...extra
+  });
+  const mid = (p) => p.advance(1 / 60).poses[0].q;
+
+  const rolling = mid(shot({ ballRadius: BALL.radius }));
+  assert.ok(Math.abs(Math.hypot(...rolling) - 1) < 1e-12);
+  const half = aboutX(rolled / 2);
+  for (let i = 0; i < 4; i++) assert.ok(Math.abs(rolling[i] - half[i]) < 1e-9, `half of the roll about +x: ${rolling}`);
+
+  // Without the radius the player cannot tell: short arc, as before.
+  const short = mid(shot({}));
+  const back = aboutX(-(2 * Math.PI - rolled) / 2);
+  for (let i = 0; i < 4; i++) assert.ok(Math.abs(short[i] - back[i]) < 1e-3, `short arc about −x: ${short}`);
+});
+
+test('bola que rola menos de meia volta entre amostras segue o arco curto, mesmo com o raio', () => {
+  // The same turn as above, but the ball moves only 3 cm: under half a turn
+  // of roll, so the spin is not the roll's (draw, english) and stays as sampled.
+  const q1 = aboutX(4.2);
+  const p = new TrajectoryPlayer({
+    initial: { tableProfileId: 'pool9ft', balls: [{ id: 0, x: 0, z: 0, q: [0, 0, 0, 1], pocketed: false }] },
+    frames: [{ t: 1 / 30, balls: [{ id: 0, x: 0, z: 3, q: q1 }] }],
+    events: [],
+    final: { tableProfileId: 'pool9ft', balls: [{ id: 0, x: 0, z: 3, q: q1, pocketed: false }] },
+    simSeconds: 1 / 30,
+    ballRadius: BALL.radius
+  });
+  const q = p.advance(1 / 60).poses[0].q;
+  const back = aboutX(-(2 * Math.PI - 4.2) / 2);
+  for (let i = 0; i < 4; i++) assert.ok(Math.abs(q[i] - back[i]) < 1e-3, `short arc about −x: ${q}`);
+});
+
+test('na abertura e na long-stun, a branca rápida gira para o lado em que rola', () => {
+  // `follow` is not here: its cue ball turns more than half a turn per sample
+  // with less than half a turn of roll (topspin), which the displacement does
+  // not reveal (D044).
+  const checked = {};
+  const wrong = {};
+  for (const name of ['break', 'long-stun']) {
+    checked[name] = 0;
+    wrong[name] = [];
+    const c = byName(name);
+    const r = simulateShot(c.table, c.shot);
+    const frames = decodeTrajectory(encodeTrajectory(r.frames));
+    const p = new TrajectoryPlayer({ initial: c.table, ...r, frames, ballRadius: BALL.radius });
+    const cue = c.table.balls.find(b => b.id === 0);
+    let from = { t: 0, x: cue.x, z: cue.z, q: cue.q ?? [0, 0, 0, 1] };
+    for (const f of frames) {
+      if (f.t >= r.simSeconds) break;
+      const b = f.balls.find(ball => ball.id === 0);
+      const to = b ? { t: f.t, x: b.x, z: b.z, q: b.q ?? from.q } : { ...from, t: f.t };
+      const dx = to.x - from.x;
+      const dz = to.z - from.z;
+      if (Math.hypot(dx, dz) / BALL.radius > Math.PI) {
+        checked[name]++;
+        const mid = p.advance((from.t + to.t) / 2 - p.time).poses.find(ball => ball.id === 0);
+        const axis = turn(from.q, mid.q);
+        // Rolling along (dx, dz) turns the ball about up × d = (dz, 0, −dx).
+        if (!(axis[0] * dz - axis[2] * dx > 0)) wrong[name].push(Number(from.t.toFixed(3)));
+      }
+      from = to;
+    }
+  }
+  for (const name in checked) assert.ok(checked[name] > 0, `${name}: the cue ball never rolls more than half a turn between samples`);
+  // Start times (s) of the samples where the cue ball turns against its roll.
+  assert.deepEqual(wrong, { break: [], 'long-stun': [] });
 });

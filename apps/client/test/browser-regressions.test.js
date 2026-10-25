@@ -158,6 +158,11 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     await page.mouse.up();
     await page.waitForFunction(() => __menu.game.state === 'SHOOTING');
     await page.waitForFunction(() => __menu.game.playback !== null);
+    // The player knows the ball radius, so fast balls turn the way they roll (D044).
+    assert.ok(await page.evaluate(async () => {
+      const { BALL } = await import('/src/config.js');
+      return __menu.game.playback.player._ballRadius === BALL.radius;
+    }), 'the game gives the trajectory player the ball radius');
     const [x0, , z0] = await page.evaluate(() => __menu.game.ballsManager.getCueBall().mesh.position.toArray());
     await page.waitForFunction((x0, z0) => { const p = __menu.game.ballsManager.getCueBall().mesh.position; return Math.hypot(p.x - x0, p.z - z0) > 1; }, {}, x0, z0);
     await page.waitForFunction(() => __menu.game.state === 'AIM' && __menu.game.playback === null, { timeout: 25000 });

@@ -68,6 +68,7 @@ O resultado da última tacada fica em `__menu.game.lastShotResult` (percurso em 
    - as bolas se movem de forma contínua, sem teleportes nem travadas;
    - os sons e os efeitos de contato e de caçapa acontecem na hora do contato;
    - o efeito para trás (draw) e o efeito para frente (follow) fazem a branca se comportar como você espera;
+   - a rotação das bolas parece certa na abertura e nas tacadas fortes com efeito para frente ou para trás: uma bola rápida que parece girar ao contrário do sentido em que anda é o limite da D044 (anote em que tacada e em que momento);
    - a IA joga as tacadas dela normalmente.
 
 ## 5. Onde registrar a resposta
