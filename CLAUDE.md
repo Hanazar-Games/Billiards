@@ -1,6 +1,6 @@
 # Billiards Online
 
-Fork definitivo de Hanazar-Games/Billiards (sinuca 3D com Three.js + cannon-es) que está sendo transformado em um jogo online free-to-play com Nakama. O código em `apps/client/src/` ainda é o jogo original; a nova arquitetura está descrita na spec.
+Fork definitivo de Hanazar-Games/Billiards (sinuca 3D com Three.js + cannon-es) que está sendo transformado em um jogo online free-to-play com Nakama. O cliente offline (`apps/client/src/`) já simula cada tacada com `packages/sim` num Web Worker e reproduz a trajetória v1; as regras ainda ficam no cliente até a F2. A nova arquitetura está descrita na spec.
 
 ## Leia antes de trabalhar
 
@@ -37,8 +37,12 @@ Nas sessões na nuvem, o hook SessionStart roda `harness/init.sh` (dependências
 | `node harness/status.mjs` | Mostra só o status (fase, itens pendentes, decisões em aberto) |
 | `npm run dev` | Servidor de desenvolvimento do jogo (porta 5173; roda `apps/client`) |
 | `npm run test:rules -w apps/client` | Testes das regras (28); as outras suítes do cliente seguem o mesmo padrão (`test:<nome>`) |
+| `npm run test:sim-worker -w apps/client` | Worker de simulação (`handleSimRequest` e `SimWorkerClient`, com um Worker falso, só no Node) |
+| `npm run test:trajectory-player -w apps/client` | `TrajectoryPlayer`: reproduz a trajetória v1 em qualquer taxa de quadros, com os eventos no instante certo (só no Node) |
+| `npm run test:no-legacy-physics -w apps/client` | O cliente não tem física própria: sem `cannon-es` nem corpos físicos em `src/` (só no Node) |
+| `npm run test:full-match -w apps/client` | Partida de 8-ball contra a IA até o fim, no navegador (F1-07); leva cerca de 2 a 4 min e exige Chromium |
 | `npm test` | Todas as suítes de todos os workspaces (`apps/*`, `packages/*`), incluindo as de navegador (exigem Chromium) |
 | `npm run build` | Build de produção (saída em `apps/client/dist`) |
 | `npm run typecheck` | `tsc -p tsconfig.json` sobre `packages/*/src` |
 
-Testes de navegador neste contêiner: `CI=1 PUPPETEER_EXECUTABLE_PATH=/opt/pw-browsers/chromium npm run test:smoke -w apps/client`.
+Testes de navegador neste contêiner: `CI=1 PUPPETEER_EXECUTABLE_PATH=/opt/pw-browsers/chromium npm run test:smoke -w apps/client`. Numa máquina Windows sem o Chrome que o Puppeteer fixa, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome instalado (por exemplo, `"/c/Program Files/Google/Chrome/Application/chrome.exe"` no Git Bash). Com `CI=1` (swiftshader), o tempo da partida completa ainda não foi medido.

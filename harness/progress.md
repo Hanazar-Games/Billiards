@@ -2,7 +2,16 @@
 
 ## Estado atual
 
-- **Fase:** F1-A concluída; plano da F1-B escrito e em revisão pelo usuário (`docs/superpowers/plans/2026-10-25-f1b-cliente-usa-sim.md`, 8 tarefas, decisões D042 e D043 propostas como `open`). Plano da F1-A: `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`.
+- **Fase:** F1-A concluída. F1-B executada (8 tarefas, plano `docs/superpowers/plans/2026-10-25-f1b-cliente-usa-sim.md`, D042 e D043 `accepted`); falta só a confirmação do F1-09 pelo usuário, no navegador. Plano da F1-A: `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`.
+  - **F1-B, T1–T7** (`17a96ff` a `c59a806`, cada uma com revisão da tarefa; a T8 é este fechamento):
+    - Cópia congelada da física legada (D042), com manifesto SHA-256: paridade, sensação e benchmark não dependem mais do cliente.
+    - Worker de simulação (`SimWorkerClient`, `simClient`) e `TrajectoryPlayer`.
+    - O `Game` reproduz as tacadas do worker (`ShotPlayback`, `toTableState`/`applyTableState`, `_simulateShot`, `_onSimEvent`).
+    - A física legada e o `cannon-es` saíram do cliente.
+    - Gancho só de desenvolvimento, `__referenceShot(name)`: a `draw-ref` recua 61,1 cm no jogo, como na D041.
+    - Partida completa de 8-ball contra a IA termina no navegador (37 a 71 tacadas do humano, 100 a 230 s localmente). Verifica o F1-07.
+  - **F1-07 marcado** depois de rodar a verificação (`test:full-match`, dentro de `npm test`). **F1-09 continua `false`**: a parte do sim está feita (F1-A) e falta o usuário confirmar no jogo, seguindo `docs/f1/roteiro-teste-manual.md`.
+  - A revisão final da F1-B, sobre a branch inteira, está em andamento; o resultado entra neste arquivo quando vier.
   - **T1–T3** (`52b543d`, `19dfb36`, `baa6871`, `846c667`): monorepo e `packages/sim` com paridade bit a bit com o legado a 60 Hz fixo.
   - **T4–T6** (`4dbafba`, `b9cbdff`, `694777e`): eventos, trajetória a 30 Hz e o codec v1 em `packages/protocol`. A abertura ocupa 36,0 KB.
   - **T7** (`43f5188`, `832b860`): teste de sensação 11/11 dentro do envelope do legado em 14 taxas de quadro. O usuário aceitou a D038, que substitui a D035.
@@ -21,8 +30,19 @@
 
 ## Próximo passo
 
-1. **O usuário revisa o plano da F1-B** e escolhe a forma de execução (subagentes ou nativa). Na aprovação, a Tarefa 1 marca a D042 e a D043 como `accepted`. A confirmação do recuo no navegador (F1-09) vem no fim da F1-B, pelo roteiro `docs/f1/roteiro-teste-manual.md` que a Tarefa 6 escreve.
-2. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium. O Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido. Sem esse download, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome do sistema.
+1. **O usuário confirma o F1-09** no navegador, seguindo `docs/f1/roteiro-teste-manual.md` (`npm run dev`, Treino livre, `await __referenceShot('draw-ref')` no console). Se a branca voltar como esperado, marcar `passes: true` e registrar a data; se não, abrir uma decisão nova sobre o recuo (a D041 aceitou a sensação medida).
+2. **Escrever o plano da F2** (`packages/modes` com N lugares) com `superpowers:writing-plans` e pedir a revisão do usuário antes de implementar. Considerar nele as pendências da F1-B abaixo.
+3. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium. O Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido. Sem esse download, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome do sistema.
+
+## Pendências da F1-B (não bloqueiam; para a F2 ou depois)
+
+- **Sem vigia do worker:** se o worker nunca responder, a tacada fica em `SHOOTING`. O limite antigo de 20 s do relógio da física saiu com a física legada.
+- **Tacada cancelada conta nas estatísticas:** `_cancelShot` repete o turno, mas a tacada já entrou em `statsTracker`.
+- **Convidado da LAN sem rastro da tacada:** os snapshots perdem as velocidades, então o convidado não desenha mais o rastro.
+- **Constantes mortas:** os ajustes de física de `BALL` em `apps/client/src/config.js` não são mais lidos pelo cliente.
+- **README:** ainda apresenta o `cannon-es` como a física do cliente.
+- **Partida completa sob `CI=1`:** o tempo com swiftshader (renderização por software) não foi medido; o teste tem limite de 600 s. Se estourar, registrar uma decisão (limite maior ou partida com semente), sem afrouxar a asserção.
+- **Replays:** continuam no formato antigo, gravado dos meshes (D043); a migração para a trajetória v1 fica para a F4.
 
 ## Pendências da execução da F1-A (para a Tarefa 10 ou depois)
 
@@ -127,3 +147,19 @@
 - Achado no planejamento: a paridade, a referência de sensação e o benchmark carregam a física legada direto de `apps/client/src` (10 arquivos, 3.668 linhas). Por isso o plano propõe a D042 (cópia congelada com manifesto) antes de tirar a física do cliente.
 - D043 proposta: os replays continuam no formato atual na F1-B; a migração para a trajetória v1 fica para a F4.
 - Fora do escopo, registrado no plano: `LocalMatchController` (F2), linha-guia com a geometria do sim e divergência entre navegadores com Playwright.
+
+### 2026-10-25 — sessão 2, continuação (execução da F1-B por subagentes; Tarefa 8)
+
+- O usuário aprovou o plano da F1-B com a D042 e a D043 (`accepted`) e escolheu a execução por subagentes: um implementador por tarefa e uma revisão por tarefa. As Tarefas 1 a 7 estão feitas (`17a96ff` a `c59a806`). A Tarefa 8 é este fechamento.
+- O que mudou no cliente:
+  - Cópia congelada da física legada (D042), com manifesto SHA-256: paridade, sensação e benchmark do `packages/sim` não leem mais `apps/client`.
+  - Worker de simulação (`SimWorkerClient`, `simClient`) e `TrajectoryPlayer` (reproduz a trajetória v1 em qualquer taxa de quadros, com os eventos no instante certo).
+  - O `Game` reproduz as tacadas vindas do worker (`ShotPlayback`, `toTableState`/`applyTableState`, `_simulateShot`, `_onSimEvent`). A física legada e o `cannon-es` saíram do cliente.
+  - Gancho só de desenvolvimento, `__referenceShot(name)`: a `draw-ref` recua 61,1 cm no jogo, como na D041.
+  - Partida completa de 8-ball contra a IA termina no navegador, sem erros no console: 37 a 71 tacadas do humano, 100 a 230 s localmente.
+- Tarefa 8:
+  - Subteste de tacada no build de produção (`dist-smoke`): primeiro falhou contra o `dist` rastreado, anterior ao worker (o jogo antigo não tem `playback`), e passou com o build novo (7/7, com o worker no pacote). O `dist` rastreado foi restaurado e nada dele foi commitado.
+  - Suíte completa com o Chrome do sistema: `npm test` na raiz saiu com 0 (client: rules 28, table 34, lan 20, ai 11, audio 6, instant-replay 30, career 51, ui-layout 10, settings-audit 15, trainer-challenge-safety 25, achievement-toast 8, tournament 15, highlight 22, panels 12, runtime 67, sim-worker 6, trajectory-player 11, no-legacy-physics 2, browser 29, full-match 1 (40 tacadas, 130 s), smoke 54; protocol 7; sim 60). `tsc` limpo.
+  - F1-07 marcado, porque `test:full-match` passou na suíte completa. F1-09 continua `false`.
+  - `init.sh`: as três suítes novas que rodam só no Node entram em `FAST_SUITES`. `CLAUDE.md` e o roteiro refletem o estado novo.
+- Pendências conhecidas, sem bloqueio, na seção "Pendências da F1-B". A revisão final da F1-B sobre a branch inteira está em andamento; o controlador acrescenta o resultado.

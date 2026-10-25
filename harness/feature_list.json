@@ -122,7 +122,7 @@
     "verification": [
       "teste de navegador: partida de 8-ball contra a IA vai até o fim sem erros no console"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F2-01",

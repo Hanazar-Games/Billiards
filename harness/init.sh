@@ -20,7 +20,8 @@ fi
 npm install --no-audit --no-fund --loglevel=error
 
 FAST_SUITES=(rules table lan ai audio instant-replay career ui-layout settings-audit
-  trainer-challenge-safety achievement-toast tournament highlight panels runtime)
+  trainer-challenge-safety achievement-toast tournament highlight panels runtime
+  sim-worker trajectory-player no-legacy-physics)
 failed=()
 for suite in "${FAST_SUITES[@]}"; do
   if ! npm run -s -w apps/client "test:$suite" > /dev/null 2>&1; then
