@@ -11,7 +11,11 @@
     - Gancho só de desenvolvimento, `__referenceShot(name)`: a `draw-ref` recua 61,1 cm no jogo, como na D041.
     - Partida completa de 8-ball contra a IA termina no navegador (37 a 71 tacadas do humano, 100 a 230 s localmente). Verifica o F1-07.
   - **F1-07 marcado** depois de rodar a verificação (`test:full-match`, dentro de `npm test`). **F1-09 continua `false`**: a parte do sim está feita (F1-A) e falta o usuário confirmar no jogo, seguindo `docs/f1/roteiro-teste-manual.md`.
-  - A revisão final da F1-B, sobre a branch inteira, está em andamento; o resultado entra neste arquivo quando vier.
+  - **Revisão final da F1-B** (branch inteira, `2edc314..12cc725`): veredito "With fixes". As correções entraram em `afde97c`, `a8c445e`, `b277cc5`, `c9c223a` e `2c9e258`:
+    - O som da tacada, o giz, a onda de impacto, o tremor, a vibração e o toque do taco saem quando as bolas começam a andar, e não mais no clique (I1). Uma tacada cancelada não toca nada. O worker já simula uma tacada curta quando a partida começa: a primeira abertura espera ~330 ms em vez de ~450 ms (build de produção, Chrome headless nesta máquina); as seguintes, 100 a 220 ms.
+    - O `TrajectoryPlayer` recebe o raio da bola. Quando ela anda mais de meia volta de rolamento entre duas amostras, gira pelo arco que concorda com o rolamento: a branca da abertura e da long-stun não gira mais ao contrário (I2). O limite das amostras de 30 Hz fica na **D044, `open`**.
+    - `_advancePlayback` para quando um evento tira o jogo de `SHOOTING`, sem `resolveTurn` duplo (M3). Testes mais fortes: tacada sem força, resultado velho depois de um reset com outra tacada em andamento, aviso de tacada cancelada na partida completa e gancho de desenvolvimento ausente no build (M1, M2, M4, M5).
+    - O F1-09 continua esperando o usuário.
   - **T1–T3** (`52b543d`, `19dfb36`, `baa6871`, `846c667`): monorepo e `packages/sim` com paridade bit a bit com o legado a 60 Hz fixo.
   - **T4–T6** (`4dbafba`, `b9cbdff`, `694777e`): eventos, trajetória a 30 Hz e o codec v1 em `packages/protocol`. A abertura ocupa 36,0 KB.
   - **T7** (`43f5188`, `832b860`): teste de sensação 11/11 dentro do envelope do legado em 14 taxas de quadro. O usuário aceitou a D038, que substitui a D035.
@@ -43,6 +47,8 @@
 - **README:** ainda apresenta o `cannon-es` como a física do cliente.
 - **Partida completa sob `CI=1`:** o tempo com swiftshader (renderização por software) não foi medido; o teste tem limite de 600 s. Se estourar, registrar uma decisão (limite maior ou partida com semente), sem afrouxar a asserção.
 - **Replays:** continuam no formato antigo, gravado dos meshes (D043); a migração para a trajetória v1 fica para a F4.
+- **Rotação de bolas rápidas (D044, `open`):** a heurística do `TrajectoryPlayer` não resolve a bola com efeito forte (follow, english, draw rápido) e erra alguns intervalos que o arco curto acertava, em tacadas rápidas com efeito para trás moderado. Decidir o formato (orientação mais densa ou velocidade angular nos quadros) antes de a F4 congelar `docs/protocol.md`.
+- **Espera pelo worker:** a tacada só começa quando o worker responde (abertura: ~330 ms na primeira, 100 a 220 ms depois, no Chrome headless desta máquina; no celular deve ser mais). O som e os efeitos esperam junto.
 
 ## Pendências da execução da F1-A (para a Tarefa 10 ou depois)
 
@@ -162,4 +168,10 @@
   - Suíte completa com o Chrome do sistema: `npm test` na raiz saiu com 0 (client: rules 28, table 34, lan 20, ai 11, audio 6, instant-replay 30, career 51, ui-layout 10, settings-audit 15, trainer-challenge-safety 25, achievement-toast 8, tournament 15, highlight 22, panels 12, runtime 67, sim-worker 6, trajectory-player 11, no-legacy-physics 2, browser 29, full-match 1 (40 tacadas, 130 s), smoke 54; protocol 7; sim 60). `tsc` limpo.
   - F1-07 marcado, porque `test:full-match` passou na suíte completa. F1-09 continua `false`.
   - `init.sh`: as três suítes novas que rodam só no Node entram em `FAST_SUITES`. `CLAUDE.md` e o roteiro refletem o estado novo.
-- Pendências conhecidas, sem bloqueio, na seção "Pendências da F1-B". A revisão final da F1-B sobre a branch inteira está em andamento; o controlador acrescenta o resultado.
+- Pendências conhecidas, sem bloqueio, na seção "Pendências da F1-B".
+- Revisão final da F1-B sobre a branch inteira: "With fixes". As correções entraram numa rodada só (`afde97c`, `a8c445e`, `b277cc5`, `c9c223a`, `2c9e258`), cada uma com o teste visto falhando antes:
+  - I1: o impacto da tacada sai quando a reprodução começa; o worker se aquece com uma tacada curta no início da partida.
+  - I2: arco do rolamento no `TrajectoryPlayer` (a abertura e a long-stun deixam de girar ao contrário). A D044 ficou `open`: o `follow` continua com 6 intervalos girando ao contrário, porque a branca gira mais de meia volta com menos de meia volta de rolamento, e a heurística não alcança esse caso. O roteiro manual pede para observar a rotação.
+  - M1–M5: guarda contra `resolveTurn` duplo e testes mais fortes. O teste novo do resultado velho falha com a checagem do token desligada.
+  - Suítes depois das correções: `npm test` na raiz saiu com 0 (client: runtime 68, sim-worker 7, trajectory-player 14, browser 31, full-match 1 (27 tacadas, 77 s), smoke 54 e as demais como antes; protocol 7; sim 60). `tsc` limpo; `test:dist` 7/7 com o build novo (o `dist` rastreado foi restaurado).
+  - O F1-09 continua esperando o usuário.
