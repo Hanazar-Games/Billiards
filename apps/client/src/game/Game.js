@@ -1521,6 +1521,42 @@ export class Game {
     }
   }
 
+  /** Puts the cue ball on the first legal spot of a grid near the head end (used when no mouse picks the spot). */
+  _placeCueBallInHand(behindLine) {
+    const cue = this.ballsManager.getCueBall();
+    // Find a legal cue-ball placement
+    let placed = false;
+    const headStringZ = -this.tableProfile.depth / 2 * 0.55;
+    const candidates = [];
+    if (behindLine) {
+      // Behind head string: scan along a line slightly behind the string
+      for (let x = 0; x <= 10; x++) {
+        candidates.push({ x: x * BALL.radius * 2.5, z: headStringZ - BALL.radius * 2 });
+        if (x > 0) candidates.push({ x: -x * BALL.radius * 2.5, z: headStringZ - BALL.radius * 2 });
+      }
+    } else {
+      // Full ball-in-hand: scan a grid near the head end
+      for (let x = 0; x <= 6; x++) {
+        for (let z = -3; z <= 0; z++) {
+          candidates.push({ x: x * BALL.radius * 2.5, z: headStringZ + z * BALL.radius * 2.5 });
+          if (x > 0) candidates.push({ x: -x * BALL.radius * 2.5, z: headStringZ + z * BALL.radius * 2.5 });
+        }
+      }
+    }
+    for (const pos of candidates) {
+      if (this.isCueBallPlacementLegal(pos.x, pos.z, behindLine)) {
+        cue?.reset(pos.x, BALL.radius, pos.z);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      // Fallback: let resetCueBallIfPocketed pick a spot
+      const fallback = this.ballsManager.resetCueBallIfPocketed(0, headStringZ - BALL.radius * 2);
+      cue?.reset(fallback.x, BALL.radius, fallback.z);
+    }
+  }
+
   /** Common ball-in-hand cleanup after placement is confirmed. */
   _endBallInHand() {
     this.ballInHand = false;
@@ -2042,40 +2078,9 @@ export class Game {
     if (this._shouldTriggerAI()) {
       if (this.ballInHand) {
         this.ballInHand = false;
-        const cue = this.ballsManager.getCueBall();
         const behindLine = this.ballInHandBehindLine;
         this.ballInHandBehindLine = false;
-        // Find a legal cue-ball placement for AI
-        let placed = false;
-        const headStringZ = -this.tableProfile.depth / 2 * 0.55;
-        const candidates = [];
-        if (behindLine) {
-          // Behind head string: scan along a line slightly behind the string
-          for (let x = 0; x <= 10; x++) {
-            candidates.push({ x: x * BALL.radius * 2.5, z: headStringZ - BALL.radius * 2 });
-            if (x > 0) candidates.push({ x: -x * BALL.radius * 2.5, z: headStringZ - BALL.radius * 2 });
-          }
-        } else {
-          // Full ball-in-hand: scan a grid near the head end
-          for (let x = 0; x <= 6; x++) {
-            for (let z = -3; z <= 0; z++) {
-              candidates.push({ x: x * BALL.radius * 2.5, z: headStringZ + z * BALL.radius * 2.5 });
-              if (x > 0) candidates.push({ x: -x * BALL.radius * 2.5, z: headStringZ + z * BALL.radius * 2.5 });
-            }
-          }
-        }
-        for (const pos of candidates) {
-          if (this.isCueBallPlacementLegal(pos.x, pos.z, behindLine)) {
-            cue?.reset(pos.x, BALL.radius, pos.z);
-            placed = true;
-            break;
-          }
-        }
-        if (!placed) {
-          // Fallback: let resetCueBallIfPocketed pick a spot
-          const fallback = this.ballsManager.resetCueBallIfPocketed(0, headStringZ - BALL.radius * 2);
-          cue?.reset(fallback.x, BALL.radius, fallback.z);
-        }
+        this._placeCueBallInHand(behindLine);
       }
       // Reset AI spin so human player starts with center hit
       this.cueTipOffset = { x: 0, y: 0 };

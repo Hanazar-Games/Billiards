@@ -13,30 +13,10 @@ const MAX_PLAYER_SHOTS = 200;
 async function playHumanTurn() {
   const game = __menu.game;
   const { AIPlayer } = await import('/src/ai/AIPlayer.js');
-  const { BALL } = await import('/src/config.js');
 
   if (game.ballInHand) {
-    // The same candidate grid resolveTurn scans to place the AI's cue ball.
-    const behindLine = game.ballInHandBehindLine;
-    const cue = game.ballsManager.getCueBall();
-    const headStringZ = -game.tableProfile.depth / 2 * 0.55;
-    const candidates = [];
-    if (behindLine) {
-      for (let x = 0; x <= 10; x++) {
-        candidates.push({ x: x * BALL.radius * 2.5, z: headStringZ - BALL.radius * 2 });
-        if (x > 0) candidates.push({ x: -x * BALL.radius * 2.5, z: headStringZ - BALL.radius * 2 });
-      }
-    } else {
-      for (let x = 0; x <= 6; x++) {
-        for (let z = -3; z <= 0; z++) {
-          candidates.push({ x: x * BALL.radius * 2.5, z: headStringZ + z * BALL.radius * 2.5 });
-          if (x > 0) candidates.push({ x: -x * BALL.radius * 2.5, z: headStringZ + z * BALL.radius * 2.5 });
-        }
-      }
-    }
-    const spot = candidates.find(pos => game.isCueBallPlacementLegal(pos.x, pos.z, behindLine))
-      ?? game.ballsManager.resetCueBallIfPocketed(0, headStringZ - BALL.radius * 2);
-    cue.reset(spot.x, BALL.radius, spot.z);
+    // The same placement the game uses for the AI's cue ball.
+    game._placeCueBallInHand(game.ballInHandBehindLine);
     game._endBallInHand();
   }
 
