@@ -746,8 +746,8 @@
       "Seguir a interface da spec ao pé da letra e tratar push-out e tempo esgotado fora do modo",
       "Guardar lugares e equipes no MatchState e passá-los ao modo a cada chamada"
     ],
-    "status": "open",
-    "source": "plano da F2 (proposta, aguardando revisão do usuário)",
+    "status": "accepted",
+    "source": "plano da F2 aprovado pelo usuário em 2026-10-25",
     "refs": [
       "spec §7.1",
       "spec §7.2",
@@ -766,8 +766,8 @@
       "Só os 28 testes portados",
       "Escrever um teste por ramo das regras, sem o legado"
     ],
-    "status": "open",
-    "source": "plano da F2 (proposta, aguardando revisão do usuário)",
+    "status": "accepted",
+    "source": "plano da F2 aprovado pelo usuário em 2026-10-25",
     "refs": [
       "D042",
       "spec §7.1",
@@ -783,8 +783,8 @@
     "alternatives": [
       "Sortear a arrumação já na F2, com semente local"
     ],
-    "status": "open",
-    "source": "plano da F2 (proposta, aguardando revisão do usuário)",
+    "status": "accepted",
+    "source": "plano da F2 aprovado pelo usuário em 2026-10-25",
     "refs": [
       "spec §7.1",
       "F4",
