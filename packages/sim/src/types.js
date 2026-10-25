@@ -66,9 +66,11 @@
  */
 
 /**
+ * `probe` is for diagnostics only: it adds `ShotResult.probe`.
  * @typedef {{
  *   tuning?: Tuning,
  *   maxSimSeconds?: number,
+ *   probe?: boolean,
  * }} SimulateOptions
  */
 
@@ -78,6 +80,8 @@
  * of 12 steps; `final` covers the rest.
  * `steps` counts 1/360 s physics steps; `simSeconds = steps / 360`; `capped`
  * is true when the time limit ended the shot before every ball stopped.
+ * `probe` (only with `SimulateOptions.probe`) is the cue ball's velocity along
+ * z (`v`) and angular velocity about x (`w`) after the last step.
  * @typedef {{
  *   frames: Frame[],
  *   events: SimEvent[],
@@ -85,6 +89,7 @@
  *   steps: number,
  *   simSeconds: number,
  *   capped: boolean,
+ *   probe?: { v: number, w: number },
  * }} ShotResult
  */
 

@@ -3,7 +3,7 @@
 // every 1/360 s, guards every 6 steps with dt = 1/60). Pure function of its
 // inputs: no clock, no randomness, inputs are never mutated.
 import { BALL, SHOT, TUNING, getTableProfile } from './constants.js';
-import { createWorld } from './world.js';
+import { addBody, createWorld } from './world.js';
 import { applyCueImpulse, createBall } from './ball.js';
 import { createGuards } from './guards.js';
 import { createEventLog, createEventRecorder } from './events.js';
@@ -26,7 +26,7 @@ const SAMPLE_EVERY = 12;
  * @returns {ShotResult}
  */
 export function simulateShot(table, shot, opts = {}) {
-  const { tuning = TUNING, maxSimSeconds = 20 } = opts;
+  const { tuning = TUNING, maxSimSeconds = 20, probe = false } = opts;
   validateShot(shot);
   if (!(Number.isFinite(maxSimSeconds) && maxSimSeconds > 0)) {
     throw new RangeError(`maxSimSeconds must be a positive finite number: ${maxSimSeconds}`);
@@ -51,7 +51,7 @@ export function simulateShot(table, shot, opts = {}) {
     ball.body.position.set(start.x, BALL.radius, start.z);
     if (s.q) ball.body.quaternion.set(s.q[0], s.q[1], s.q[2], s.q[3]);
     ball.body.material = simWorld.materials.ball;
-    simWorld.world.addBody(ball.body);
+    addBody(simWorld, ball.body);
     balls.push(ball);
   }
 
@@ -115,7 +115,8 @@ export function simulateShot(table, shot, opts = {}) {
     }),
   };
 
-  return {
+  /** @type {ShotResult} */
+  const result = {
     frames: sampler.frames,
     events: log.events,
     final,
@@ -123,6 +124,8 @@ export function simulateShot(table, shot, opts = {}) {
     simSeconds: steps / STEPS_PER_SECOND,
     capped: !stopped,
   };
+  if (probe) result.probe = { v: cue.body.velocity.z, w: cue.body.angularVelocity.x };
+  return result;
 }
 
 /** @param {ShotInput} shot */

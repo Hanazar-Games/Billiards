@@ -1,6 +1,7 @@
 // packages/sim/test/simulate.test.js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import * as CANNON from 'cannon-es';
 import { simulateShot, SHOT } from '../src/index.js';
 import { CORPUS, rack8 } from './corpus.js';
 const shot = (o = {}) => ({ angle: Math.PI / 2, power: 50, spin: { x: 0, y: 0 }, ...o });
@@ -49,4 +50,13 @@ test('encaçapes do corpus caem como esperado', () => {
     const pocketed = simulateShot(c.table, c.shot).final.balls.filter(b => b.pocketed && c.table.balls.find(x => x.id === b.id && !x.pocketed)).map(b => b.id);
     assert.deepEqual(pocketed, c.expectPocketed, c.name);
   }
+});
+
+test('o resultado não depende de quantos corpos o processo já criou', () => {
+  const c = CORPUS.find(x => x.name === 'break');
+  const fresh = simulateShot(c.table, c.shot);
+  // cannon-es packs pairs of body ids into 16 bits for its contact events, and
+  // its id counter is global: a long-running server passes 65535 eventually.
+  CANNON.Body.idCounter = 70000;
+  assert.deepEqual(simulateShot(c.table, c.shot), fresh);
 });
