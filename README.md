@@ -139,7 +139,7 @@ Live site: https://hanazar-games.github.io/Billiards/
 
 Set **Settings → Pages → Source** to **GitHub Actions**. Pushes to `main` run the regression suites, build with `/Billiards/` as the asset base, verify the artifact, deploy it, then verify the live site. The workflow no longer publishes a separate `gh-pages` branch.
 
-`PAGES_BASE_PATH` overrides the project path for `npm run build:pages`; `PAGES_OUT_DIR` overrides its output directory. Use `DIST_DIR` for artifact tests or `PAGES_URL` to test a deployed URL. Headless CI runs real WebGL through SwiftShader with a temporary low quality configuration.
+`PAGES_BASE_PATH` overrides the project path for `npm run build:pages`; `PAGES_OUT_DIR` overrides its output directory (relative paths resolve from `apps/client`). Use `DIST_DIR` (also relative to `apps/client`) for artifact tests or `PAGES_URL` to test a deployed URL. Headless CI runs real WebGL through SwiftShader with a temporary low quality configuration.
 
 ## 🛠️ Tech Stack
 

@@ -2,18 +2,18 @@
 
 ## Estado atual
 
-- **Fase:** F1-A em execução: T1–T3 por subagentes; da T4 em diante, inline (plano `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`, aprovado; D035–D037 aceitas).
-  - Tarefa 1 concluída e revisada (`52b543d`): monorepo com npm workspaces, jogo movido para `apps/client`.
-  - Tarefa 2 concluída e revisada (`19dfb36`, `baa6871`): `packages/sim` com constantes, geometria da mesa e mundo, idênticos ao legado nos 4 perfis (6 testes).
-  - Tarefa 3 concluída e revisada (`846c667`). Bolas, guardas e `simulateShot` têm paridade bit a bit com o legado a 60 Hz fixo (5 tacadas, e as 13 do corpus conferidas pelo implementador); 21 testes.
-    - Os três encaçapes do corpus viraram cortes: na versão original, a branca seguia a bola 1 para a caçapa, inclusive no legado.
-    - O resultado não muda com ±3 de força nem a 30, 60, 120 e 144 FPS no legado.
-  - Tarefas 4 a 6 concluídas (execução inline, sem revisor por tarefa; a revisão final do branch inteiro fica para o fim da F1-A):
-    - T4 (`4dbafba`): eventos `ball_ball`, `ball_cushion`, `pocket` e `first_contact`.
-    - T5 (`b9cbdff`): trajetória a 30 Hz; uma bola encaçapada aparece pela última vez na boca da caçapa.
-    - T6 (`694777e`): `packages/protocol` com o codec binário v1. A maior tacada do corpus (abertura) ocupa 36,0 KB.
-  - **Tarefa 7 bloqueada numa decisão do usuário (D038, `open`).** A referência do legado e o teste de sensação estão prontos. O sim reproduz o legado a 60 Hz fixo, mas `english` e `pot-side` saem do envelope de 4 FPS da D035, porque são caóticas entre FPS. Com 14 taxas de quadro (24–240 FPS), as 11 tacadas passam. As duas rodam como `todo` até a decisão.
-  - Tarefas 8 a 10 pendentes. A T8 depende da T7, porque o teste de sensação é o critério da calibragem.
+- **Fase:** F1-A concluída, exceto o recuo (D039, em aberto). T1–T3 foram feitas por subagentes, e da T4 em diante a execução foi inline. Plano: `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`.
+  - **T1–T3** (`52b543d`, `19dfb36`, `baa6871`, `846c667`): monorepo e `packages/sim` com paridade bit a bit com o legado a 60 Hz fixo.
+  - **T4–T6** (`4dbafba`, `b9cbdff`, `694777e`): eventos, trajetória a 30 Hz e o codec v1 em `packages/protocol`. A abertura ocupa 36,0 KB.
+  - **T7** (`43f5188`, `832b860`): teste de sensação 11/11 dentro do envelope do legado em 14 taxas de quadro. O usuário aceitou a D038, que substitui a D035.
+  - **T8 parada na decisão do usuário (D039, `open`).** Nenhum ajuste medido passou ao mesmo tempo nos 2 testes de recuo e nos 11 de sensação. Foram mais de 800 combinações e 2 mudanças de modelo; a `pot-side` falhou em todas. `TUNING` continua igual a `TUNING_LEGACY`, e os testes de recuo rodam como `todo`. Tentativas e opções estão em `docs/f1/calibragem-recuo.md`.
+    - De passagem, foi corrigido um travamento (`147d5cb`): o cannon-es empacota os ids dos corpos em 16 bits e usa um contador global. Num servidor, depois de uns 3 mil tacadas no mesmo processo, `simulateShot` lançaria erro. Agora cada mundo numera os próprios corpos.
+  - **T9** (`86039bc`): abertura em 45 ms, contra 122 ms do spike (2,69×). A troca é o broadphase com caixas (AABB) em vez de esferas, com física idêntica: golden e paridade não mudaram.
+  - **T10:**
+    - F1-01 a F1-06 e F1-08 marcados depois de rodar cada verificação.
+    - A paridade agora cobre 4 tacadas de uma bola, incluindo o efeito na tabela (`bc93f7b`).
+    - Decisão D040: o critério "sem `three`" do F1-02 vale para `packages/sim/src`.
+    - Roteiro, spec e documentos atualizados.
 - **Resultado da F0:** a física autoritativa fica no `services/sim` em Node (D017). No goja do Nakama, a simulação foi cerca de 175 vezes mais lenta. Relatório: `docs/spikes/2026-10-24-runtime-simulacao.md`.
 - **Branch de trabalho:** `claude/planejamento-online`, mantida sem merge na `main` por escolha do usuário (2026-10-24).
 - **Base:** Hanazar-Games/Billiards v1.26.13 (`0448b03`). O código do jogo agora está em `apps/client/`, sem alteração de conteúdo.
@@ -21,31 +21,32 @@
 
 ## Próximo passo
 
-1. **O usuário decide a D038:**
-   - **aceitar:** mudar `FPS` em `packages/sim/tools/legacy-reference.mjs` para as 14 taxas, rodar `npm run feel:reference -w packages/sim`, tirar `PENDING_D038` de `test/feel.test.js`, marcar a D035 como `superseded` e fechar a Tarefa 7;
-   - **ou** escolher uma das alternativas registradas na D038.
-2. Depois, Tarefas 8 a 10 do plano. A F1-A segue em `superpowers:executing-plans` (inline), com o ledger em `.superpowers/sdd/2026-10-24-f1a-nucleo-simulacao/progress.md`. Antes de cada commit e push, copie o ledger para `harness/sdd/…/ledger.md`.
-   - Para retomar em outro ambiente, copie o ledger de volta: `mkdir -p .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao && cp harness/sdd/2026-10-24-f1a-nucleo-simulacao/ledger.md .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao/progress.md && cp harness/sdd/2026-10-24-f1a-nucleo-simulacao/constraints.md .superpowers/sdd/2026-10-24-f1a-nucleo-simulacao/`. Retome na primeira tarefa sem a linha `Task N: complete`.
-3. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium: o Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido.
+1. **O usuário decide a D039 (recuo):**
+   - **aceitar a sensação nova:** aplicar o melhor ajuste medido em `TUNING`, registrar uma decisão nova para a referência de long-stun, pot-corner e pot-side, rodar `npm run golden:update -w packages/sim` e tirar o `todo` de `test/calibration.test.js`;
+   - **manter o recuo do legado:** marcar a D039 como decidida e levar a F1-09 para uma fase futura;
+   - **outra correção do modelo:** retomar pelos experimentos de `docs/f1/calibragem-recuo.md`. Cada ajuste pode ser medido com `node packages/sim/tools/feel-report.mjs '<json>'`.
+2. Depois, escrever o plano da F1-B (cliente usa `packages/sim` em Web Worker; F1-07 e F1-09 no navegador) com `superpowers:writing-plans` e pedir revisão ao usuário.
+3. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium. O Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido. Sem esse download, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome do sistema.
 
 ## Pendências da execução da F1-A (para a Tarefa 10 ou depois)
 
-- Da revisão da T1: o `CLAUDE.md` ainda diz "Durante a F0, não altere `src/`, `server/` nem `test/`", e esses caminhos agora ficam em `apps/client/`. No README, `PAGES_OUT_DIR` e `DIST_DIR` passaram a ser relativos a `apps/client`. O comentário do `init.sh` ainda fala do monorepo como algo futuro.
 - Da revisão da T2: `BALL`, `SHOT` e os perfis são objetos mutáveis e compartilhados (congelar depois; `PHYSICS.gravity` é um `Float32Array`). O `index.js` reexporta `normalize` e `cross`, que viram API pública.
 - Da revisão da T3:
   - **Branca com bola na mão:** se a branca vem encaçapada na entrada, o `simulateShot` lança erro mesmo quando recebe `shot.cueBall`. Na bola na mão depois de uma falta, quem chama precisa marcar `pocketed: false` antes, ou o sim passa a aceitar que o `cueBall` traga a branca de volta. Decidir na F2/F4, com a camada de modos, e incluir um teste.
   - **Validação extra sem teste:** `maxSimSeconds`, ids, `q`, x/z e `cueBall` inválidos não têm teste. Um `spin` ausente gera `TypeError`; a camada do protocolo deve validar o formato.
   - **Relógio no `legacy-run.js`:** é restaurado com `delete performance.now`; o certo é salvar e restaurar o descritor.
   - **Paridade do `draw-rack`:** até a calibragem da T8, ela só exercita a branca.
+- Da revisão final da F1-A (autorrevisão, sem subagente):
+  - A chave de par de `events.js` (`a * 256 + b`) colide para ids ≥ 256. O sim aceita qualquer id inteiro não negativo, e o codec limita a 255.
+  - Eventos `ball_cushion` não têm deduplicação: uma bola encostada na tabela ou resgatada pelas guardas pode gerar eventos extras. As regras da F2 não devem contar tabelas só pelo número de eventos.
+  - Os quadros param no último múltiplo de 12 passos, então até 1/60 s de movimento (e um encaçape nesse intervalo) só aparece no estado final.
 
 ## Pendências menores (revisão final da F0)
 
 - `compare.json` não é estritamente reproduzível: as execuções legadas dependem do corte de subpassos por relógio do cannon-es. Congelar o relógio ou aquecer antes, e anotar no relatório.
-- O teste comportamental não detecta mundo sem tabelas (`_enforceTableBounds` salva as bolas): na F1, verificar que há eventos de colisão com a tabela na abertura.
-- Falta teste para o limite de 20 s; o acúmulo de `simSeconds` em ponto flutuante passa um passo. Na F1, usar contador inteiro de passos.
 - A semente não muda o resultado (a orientação das bolas é cosmética): `packages/sim` não precisa de gerador aleatório; o teste de determinismo não detecta aleatoriedade sem semente.
 - D017 editada no lugar perdeu o texto dos critérios pré-registrados e manteve o motivo desatualizado ("desempenho desconhecido"); falta uma linha no `CLAUDE.md` dizendo como resolver entradas `pending-spike`.
-- Relatório: "shims necessários" → "instalados por ausência"; o "p95" do goja é o máximo de 3 amostras; quantificar a divergência Node × goja (os passos são idênticos); a tabela do goja omite passos, tempo simulado e `capped` (iguais ao Node); spec §4 item 2 ainda diz "ainda não medido".
+- Relatório: "shims necessários" → "instalados por ausência"; o "p95" do goja é o máximo de 3 amostras; quantificar a divergência Node × goja (os passos são idênticos); a tabela do goja omite passos, tempo simulado e `capped` (iguais ao Node).
 
 ## Registro de sessões
 
@@ -92,3 +93,19 @@
 - T7: infraestrutura pronta (métricas com testes unitários, gancho por quadro no `runLegacy`, `placeLegacyTable`, gerador da referência reprodutível). A verificação de mutação passou: com `rollingResistance: 30`, as 11 tacadas falham. Duas tacadas saem do envelope da D035; a D038 foi registrada como `open`, e a execução parou para o usuário decidir.
 - Os testes do pacote `sim` passam: 48, mais 2 `todo`. O protocol tem 7 testes, e o `tsc` está limpo. A suíte completa com navegador não foi rodada nesta sessão; ela fica para a T10.
 
+
+### 2026-10-24 — sessão 2, continuação (D038 aceita; Tarefas 7 a 10)
+
+- O usuário aceitou a D038. A referência foi gerada nas 14 taxas, a D035 passou a `superseded`, e a sensação fica 11/11 (`832b860`). A Tarefa 7 está concluída.
+- T8: o diagnóstico está em `docs/f1/calibragem-recuo.md`.
+  - O atrito bola-mesa do cannon-es leva a bola ao rolamento no primeiro passo e conserva 1,5v + ωR. É isso que mata o recuo, mas o envelope de sensação foi medido nesse comportamento.
+  - Foram mais de 800 ajustes e 2 mudanças de modelo (revertidas). Nenhum passou nos três critérios, e a `pot-side` falhou em todos. A execução parou na D039 (`open`), como o plano manda; os testes de recuo rodam como `todo` (`2b83739`).
+  - De passagem, foi corrigido um travamento com mais de 65 536 corpos no mesmo processo (`147d5cb`) e foi acrescentada a opção de diagnóstico `probe`.
+- T9 (`86039bc`): broadphase com AABB, 2,69× mais rápido que o spike (45 ms contra 122 ms), com física idêntica.
+- T10:
+  - A paridade agora cobre tacadas de uma bola, incluindo o efeito na tabela (`bc93f7b`). O teste de mutação passou: sem `applyCushionSpin`, 8 das 9 falham.
+  - D040 registrada (F1-02 vale para `src`).
+  - Critérios do F1-03 e do F1-06 alinhados à D036 e à D038; F1-01 a F1-06 e F1-08 marcados.
+  - Roteiro, spec, `CLAUDE.md`, README e `init.sh` atualizados.
+  - A suíte completa rodou com o Chrome do sistema: o Puppeteer não tinha baixado o seu.
+- Revisão final: autorrevisão, sem subagente, porque o usuário não pediu subagentes nesta sessão. Ela não achou nada crítico nem importante, e as 3 pendências menores foram para a lista acima.

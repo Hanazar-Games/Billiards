@@ -1,7 +1,8 @@
 #!/bin/bash
 # Harness bootstrap: installs dependencies, runs the fast (Node-only) test
 # suites and prints where development stands. Safe to run repeatedly.
-# Update FAST_SUITES whenever the test layout changes (e.g. the F1 monorepo).
+# Update FAST_SUITES whenever the client's test layout changes; packages/*
+# are picked up on their own.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

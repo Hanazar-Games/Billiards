@@ -628,5 +628,23 @@
       "D033",
       "D038"
     ]
+  },
+  {
+    "id": "D040",
+    "date": "2026-10-24",
+    "title": "Verificação de \"sem Three.js\" restrita ao código de packages/sim",
+    "decision": "A verificação do F1-02 passa a ser grep -rn \"from 'three'\" packages/sim/src, mais o teste de imports de table.test.js, em vez de grep sobre todo o packages/sim.",
+    "rationale": "O harness de paridade e de referência de sensação (packages/sim/test/legacy) carrega o cliente legado para comparar bit a bit, e o cliente importa three; o grep literal sobre packages/sim encontra essa linha. O critério quer que o pacote não dependa de Three.js nem de DOM, e isso vale para src, que é o que o servidor executa. O plano da F1-A já verifica o F1-02 pelo teste de imports de table.test.js.",
+    "alternatives": [
+      "Mover o harness do legado para fora de packages/sim",
+      "Manter o grep sobre todo o pacote e deixar o F1-02 falso"
+    ],
+    "status": "accepted",
+    "source": "plano da F1-A aprovado pelo usuário (Tarefa 10, Passo 1: \"F1-02: o teste de imports de table.test.js\")",
+    "refs": [
+      "harness/feature_list.json F1-02",
+      "packages/sim/test/table.test.js",
+      "packages/sim/test/legacy/legacy-world.js"
+    ]
   }
 ]

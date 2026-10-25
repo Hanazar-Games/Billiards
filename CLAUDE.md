@@ -27,7 +27,7 @@ Nas sessões na nuvem, o hook SessionStart roda `harness/init.sh` (dependências
 - O código existente é JavaScript ES2022 com módulos ES. Siga o estilo do arquivo que estiver editando.
 - Mantenha o aviso de copyright MIT em `LICENSE`.
 - Nunca coloque segredos (chaves de pagamento, `http_key` real, senhas) no repositório.
-- Durante a F0, não altere `src/`, `server/` nem `test/`: o spike só lê o código existente.
+- O jogo original fica em `apps/client/` (`src/`, `server/` e `test/` ficavam na raiz até a F1).
 
 ## Comandos
 
