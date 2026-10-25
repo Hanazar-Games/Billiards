@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { installEnv } from './legacy/env.js';
 installEnv({ seed: 1 });
 const { createLegacyWorld } = await import('./legacy/legacy-world.js');
-const { createWorld, getTableProfile, getPocketPositions } = await import('../src/index.js');
+const { createWorld, getTableProfile, getPocketPositions, TUNING_LEGACY } = await import('../src/index.js');
 const PROFILES = ['pool9ft', 'pool8ft', 'bar7ft', 'chinese8'];
 
 test('corpos das tabelas idênticos ao Table.js em todos os perfis', () => {
@@ -40,7 +40,8 @@ test('perfil desconhecido lança erro', () => {
 
 test('materiais e solver iguais ao PhysicsWorld legado', () => {
   const legacy = createLegacyWorld({ tableProfileId: 'pool9ft' }).physics.world;
-  const sim = createWorld(getTableProfile('pool9ft')).world;
+  // TUNING (D041) has no ball-table friction; the legacy world is TUNING_LEGACY.
+  const sim = createWorld(getTableProfile('pool9ft'), TUNING_LEGACY).world;
   const view = w => w.contactmaterials.map(c => [c.friction, c.restitution, c.contactEquationStiffness, c.contactEquationRelaxation]);
   assert.deepEqual(view(sim), view(legacy));
   assert.equal(sim.solver.iterations, legacy.solver.iterations);

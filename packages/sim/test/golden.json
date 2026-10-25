@@ -1,54 +1,54 @@
 {
   "break": {
-    "hash": "e8130719",
-    "steps": 4002
+    "hash": "7b8bd7be",
+    "steps": 3768
   },
   "medium": {
-    "hash": "2a0b3eff",
-    "steps": 3978
+    "hash": "f2c4821a",
+    "steps": 3444
   },
   "english": {
-    "hash": "5c4e4061",
-    "steps": 4536
+    "hash": "a1a3b208",
+    "steps": 3846
   },
   "soft": {
-    "hash": "42eb54d1",
-    "steps": 2592
+    "hash": "bd771c1c",
+    "steps": 2280
   },
   "draw-rack": {
-    "hash": "53e0d786",
-    "steps": 894
+    "hash": "75e5c640",
+    "steps": 2352
   },
   "rail-straight": {
-    "hash": "97c855bf",
-    "steps": 4032
+    "hash": "5dd0f661",
+    "steps": 3696
   },
   "rail-english": {
-    "hash": "0176617c",
-    "steps": 4332
+    "hash": "323f84da",
+    "steps": 3696
   },
   "long-stun": {
-    "hash": "73aa90da",
-    "steps": 4542
+    "hash": "792e1b3a",
+    "steps": 5022
   },
   "follow": {
-    "hash": "23206d18",
-    "steps": 3666
+    "hash": "58cf59a0",
+    "steps": 3774
   },
   "pot-corner": {
-    "hash": "04e0307f",
-    "steps": 1632
+    "hash": "40cfea12",
+    "steps": 2070
   },
   "pot-side": {
-    "hash": "6494fd34",
-    "steps": 3528
+    "hash": "e4a4c6c0",
+    "steps": 2568
   },
   "pot-far-corner": {
-    "hash": "55c99814",
-    "steps": 2400
+    "hash": "52aa2a07",
+    "steps": 1986
   },
   "draw-ref": {
-    "hash": "ba6d0239",
-    "steps": 894
+    "hash": "66e44978",
+    "steps": 3708
   }
 }

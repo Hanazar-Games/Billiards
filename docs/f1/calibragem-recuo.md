@@ -1,6 +1,10 @@
 # Calibragem do recuo (F1-09, parte do sim)
 
-Status: **não fechou** (Tarefa 8 do plano da F1-A). A decisão está com o usuário, na D039 (aberta). `TUNING` continua igual a `TUNING_LEGACY`. Os dois testes de `packages/sim/test/calibration.test.js` rodam como `todo` até a decisão.
+Status: **fechada pela D041** (Tarefa 8 do plano da F1-A). O usuário escolheu a opção 1 da D039:
+
+- `TUNING` passa a ser a tentativa 6 (recuo de 61,1 cm, invariante conservado).
+- A referência de sensação de long-stun, pot-corner e pot-side passa a ser o sim calibrado (`packages/sim/test/feel/sim-reference.json`), com as margens da D038.
+- Os dois testes de `packages/sim/test/calibration.test.js` passam.
 
 Para reproduzir qualquer linha abaixo, rode a partir de `packages/sim`:
 
@@ -10,13 +14,13 @@ node tools/feel-report.mjs '{"ballTableFriction": 0}'
 
 O JSON sobrescreve `TUNING_LEGACY`. O relatório mostra:
 
-- as tacadas fora do envelope da D038;
+- as tacadas fora da referência de sensação (o envelope do legado da D038 ou, nas tacadas da D041, o sim calibrado);
 - o recuo da `draw-ref`;
 - o invariante de rolamento 2,5v + ωR depois de 0,1 s.
 
 ## Critérios
 
-1. Teste de sensação (D033/D038): as 11 tacadas do corpus dentro do envelope do legado medido em 14 taxas de quadro.
+1. Teste de sensação (D033/D038): as 11 tacadas do corpus dentro do envelope do legado medido em 14 taxas de quadro. Depois da D041, long-stun, pot-corner e pot-side usam o sim calibrado como referência; as contagens da coluna "Sensação" abaixo são contra o legado.
 2. `draw-ref` (branca a 50 cm da bola 1, força 60, efeito y = −0,8): a branca volta pelo menos 10 cm depois do contato.
 3. Bola sozinha com efeito para trás: 2,5v + ωR muda no máximo 5% nos primeiros 0,1 s. É o momento angular em torno do ponto de contato, que o atrito com o pano conserva numa esfera maciça.
 
@@ -60,7 +64,7 @@ As mudanças de código das tentativas 8 e 9 foram revertidas.
 
 Nas tentativas 1 a 9, **pot-side ficou fora em todas as combinações**, e pot-corner em todas menos algumas combinações da linha 3, que não têm recuo. Nenhuma combinação passou nos três critérios ao mesmo tempo.
 
-## Opções para o usuário (D039)
+## Opções levadas ao usuário (D039)
 
 1. **Aceitar a sensação nova depois de um teste de jogo.**
    - Usar a linha 6 (recuo de 61 cm, invariante conservado).
@@ -71,3 +75,12 @@ Nas tentativas 1 a 9, **pot-side ficou fora em todas as combinações**, e pot-c
 3. **Outra correção do modelo**, sem prazo garantido.
    - Por exemplo, trocar o acoplamento exponencial por atrito de deslizamento constante (Coulomb), que separa melhor o tempo de rolamento da tacada sem efeito e o da tacada com recuo.
    - Junto, revisar o rebote na tabela, que é o que tira a pot-side do envelope.
+
+## Decisão (D041)
+
+O usuário escolheu a opção 1 em 2026-10-25.
+
+- `TUNING` (`packages/sim/src/constants.js`) é a tentativa 6. `TUNING_LEGACY` não muda e segue na paridade com o legado.
+- O teste de sensação usa o envelope do legado em 8 tacadas. Em long-stun, pot-corner e pot-side, a referência é o próprio sim calibrado, gerado por `npm run feel:sim-reference -w packages/sim`, com as margens da D038 em volta do valor. A medida do legado dessas 3 tacadas continua em `legacy-reference.json`.
+- Regenerar `sim-reference.json` ou mudar a lista de tacadas exige decisão nova.
+- Falta confirmar o recuo no navegador (segundo critério do F1-09), na F1-B.

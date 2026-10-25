@@ -4,12 +4,7 @@ import assert from 'node:assert/strict';
 import { simulateShot } from '../src/index.js';
 import { CORPUS } from './corpus.js';
 
-// D039 (open): no tuning measured so far passes these and the feel test
-// together, so TUNING is still TUNING_LEGACY. They run as todo until the user
-// decides, so their failure stays visible (docs/f1/calibragem-recuo.md).
-const todo = 'D039 (aberta): calibragem do recuo não fecha com a sensação do legado';
-
-test('draw-ref: a branca volta pelo menos 10 cm depois do contato', { todo }, () => {
+test('draw-ref: a branca volta pelo menos 10 cm depois do contato', () => {
   const c = CORPUS.find(x => x.name === 'draw-ref');
   const r = simulateShot(c.table, c.shot);
   const fc = r.events.find(e => e.type === 'first_contact');
@@ -19,7 +14,7 @@ test('draw-ref: a branca volta pelo menos 10 cm depois do contato', { todo }, ()
   assert.ok(maxZ - endZ >= 10, `recuo de ${(maxZ - endZ).toFixed(1)} cm`);
 });
 
-test('bola sozinha com efeito para trás conserva 2,5v + ωR (±5%) nos primeiros 0,1 s', { todo }, () => {
+test('bola sozinha com efeito para trás conserva 2,5v + ωR (±5%) nos primeiros 0,1 s', () => {
   const t = { tableProfileId: 'pool9ft', balls: [{ id: 0, x: 0, z: -100, pocketed: false }] };
   const R = 2.8575;
   const inv = r => 2.5 * r.v + r.w * R;

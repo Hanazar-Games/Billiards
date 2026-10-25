@@ -618,7 +618,7 @@
       "Manter o recuo do legado (F1-09 adiada)",
       "Outra correção do modelo"
     ],
-    "status": "open",
+    "status": "superseded",
     "source": "execução da F1-A, Tarefa 8; o plano manda parar e levar as opções medidas ao usuário quando a calibragem não fecha",
     "refs": [
       "docs/f1/calibragem-recuo.md",
@@ -627,7 +627,8 @@
       "harness/feature_list.json F1-09",
       "D033",
       "D038"
-    ]
+    ],
+    "supersededBy": "D041"
   },
   {
     "id": "D040",
@@ -645,6 +646,32 @@
       "harness/feature_list.json F1-02",
       "packages/sim/test/table.test.js",
       "packages/sim/test/legacy/legacy-world.js"
+    ]
+  },
+  {
+    "id": "D041",
+    "date": "2026-10-25",
+    "title": "Recuo calibrado e sensação nova em long-stun, pot-corner e pot-side",
+    "decision": "TUNING passa a ser o melhor ajuste medido na Tarefa 8 (tentativa 6 de docs/f1/calibragem-recuo.md): ballTableFriction 0, rollCoupling 2,04, rollingResistance 3,11, damping 0,0408, rollingSpinFriction 0,195, angularDamping 0,00674 e sideSpinFriction 0,96. Os outros parâmetros ficam com o valor de TUNING_LEGACY, que não muda e segue usado na paridade com o legado. Na draw-ref, a branca volta 61,1 cm; numa bola sozinha com efeito para trás, 2,5v + ωR vai de 367,9 para 370,3 em 0,1 s. No teste de sensação, long-stun, pot-corner e pot-side deixam de usar o envelope do legado: a referência delas passa a ser o sim calibrado (packages/sim/test/feel/sim-reference.json, gerado por tools/sim-reference.mjs), com as margens da D038 em volta de um valor único, porque o sim não depende da taxa de quadros. As outras 8 tacadas continuam no envelope do legado. A medida do legado das 3 tacadas fica em legacy-reference.json, para comparação. Mudar essa lista ou regenerar sim-reference.json exige decisão nova. Resolve a D039 (opção 1) e altera a D033 e a D038 só nessas 3 tacadas.",
+    "rationale": "Nenhum ajuste medido passou ao mesmo tempo nos 2 testes de recuo e no envelope do legado (D039). O atrito bola-mesa do cannon-es, que quebra o recuo, é o mesmo comportamento sobre o qual o envelope foi medido. O usuário escolheu o recuo funcionando em vez da sensação do legado nessas 3 tacadas. Diferenças de cuePath em relação ao legado: long-stun 675 cm, contra 548–633 cm; pot-corner 92 cm, contra 66–89 cm; pot-side 119 cm, contra 163–194 cm. As bolas encaçapadas são as mesmas do legado nas 3. A confirmação no navegador (segundo critério do F1-09) fica para a F1-B.",
+    "alternatives": [
+      "Manter o recuo do legado e adiar o F1-09 (D039, opção 2)",
+      "Outra correção do modelo, sem prazo garantido (D039, opção 3)",
+      "Tirar as 3 tacadas do teste de sensação, sem referência nova"
+    ],
+    "status": "accepted",
+    "source": "escolhida pelo usuário em 2026-10-25 (D039, opção 1)",
+    "refs": [
+      "D039",
+      "D033",
+      "D038",
+      "docs/f1/calibragem-recuo.md",
+      "packages/sim/src/constants.js",
+      "packages/sim/test/calibration.test.js",
+      "packages/sim/test/feel/reference.js",
+      "packages/sim/test/feel/sim-reference.json",
+      "packages/sim/tools/sim-reference.mjs",
+      "harness/feature_list.json F1-06, F1-09"
     ]
   }
 ]

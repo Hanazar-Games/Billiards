@@ -10,6 +10,7 @@
     "test": "node --test test/*.test.js",
     "golden:update": "node tools/update-golden.mjs",
     "feel:reference": "node tools/legacy-reference.mjs",
+    "feel:sim-reference": "node tools/sim-reference.mjs",
     "bench": "node --expose-gc bench/break.mjs"
   },
   "dependencies": {

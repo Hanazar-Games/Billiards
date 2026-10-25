@@ -85,8 +85,22 @@ export const TUNING_LEGACY = Object.freeze({
   angularDamping: BALL.angularDamping,
 });
 
-/** @type {Tuning} */
-export const TUNING = Object.freeze({ ...TUNING_LEGACY });
+/**
+ * D041: calibrated so backspin draws the cue ball back. Without cannon's
+ * ball-table friction the ball slides until rollCoupling makes it roll, which
+ * conserves 2.5v + ωR (docs/f1/calibragem-recuo.md, attempt 6).
+ * @type {Tuning}
+ */
+export const TUNING = Object.freeze({
+  ...TUNING_LEGACY,
+  ballTableFriction: 0,
+  rollCoupling: 2.04,
+  rollingResistance: 3.11,
+  damping: 0.0408,
+  rollingSpinFriction: 0.195,
+  angularDamping: 0.00674,
+  sideSpinFriction: 0.96,
+});
 
 function cm(/** @type {number} */ v) {
   return (v / 100) * SCALE;

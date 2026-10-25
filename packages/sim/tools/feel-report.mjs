@@ -1,23 +1,24 @@
 // Feel and draw report for a candidate tuning, used to calibrate F1-09:
 //   node tools/feel-report.mjs '{"ballTableFriction": 0, "rollCoupling": 2}'
-// The JSON overrides TUNING_LEGACY. Prints each corpus shot outside the D038
-// envelope, the draw-ref draw and the rolling invariant 2.5v + ωR after 0.1 s.
-import { readFileSync } from 'node:fs';
+// The JSON overrides TUNING_LEGACY. Prints each corpus shot outside its feel
+// reference (the D038 legacy envelope, or the calibrated sim for the D041
+// shots), the draw-ref draw and the rolling invariant 2.5v + ωR after 0.1 s.
 import { simulateShot, TUNING_LEGACY, BALL } from '../src/index.js';
 import { CORPUS } from '../test/corpus.js';
 import { computeMetrics, withinEnvelope } from '../test/feel/metrics.js';
+import { feelReference } from '../test/feel/reference.js';
 
-const ref = JSON.parse(readFileSync(new URL('../test/feel/legacy-reference.json', import.meta.url), 'utf8'));
 const tuning = Object.freeze({ ...TUNING_LEGACY, ...JSON.parse(process.argv[2] || '{}') });
 
 let fails = 0;
 for (const c of CORPUS.filter((x) => x.kind !== 'calibration')) {
   const r = simulateShot(c.table, c.shot, { tuning });
   const m = computeMetrics(c.kind, [c.table, ...r.frames], r.final);
+  const ref = feelReference(c.name).byFps;
   const out = [];
   for (const [key, value] of Object.entries(m)) {
-    const byFps = Object.fromEntries(Object.entries(ref[c.name]).map(([fps, mm]) => [fps, mm[key]]));
-    if (withinEnvelope(value, byFps, key, ref[c.name]['60'])) continue;
+    const byFps = Object.fromEntries(Object.entries(ref).map(([fps, mm]) => [fps, mm[key]]));
+    if (withinEnvelope(value, byFps, key, ref['60'])) continue;
     const values = Object.values(byFps);
     out.push(typeof value === 'number'
       ? `${key} ${value.toFixed(1)} fora de [${Math.min(...values).toFixed(1)}, ${Math.max(...values).toFixed(1)}]`
