@@ -1,10 +1,10 @@
 // Builds the existing physics world (table + racked balls) without a renderer,
 // in the same order as Game.js:208-227.
 import * as THREE from 'three';
-import { PhysicsWorld } from '../../../apps/client/src/core/PhysicsWorld.js';
-import { Table } from '../../../apps/client/src/game/Table.js';
-import { BallsManager } from '../../../apps/client/src/game/BallsManager.js';
-import { getTableProfile } from '../../../apps/client/src/game/TableProfiles.js';
+import { PhysicsWorld } from '../../../packages/sim/test/legacy/client/core/PhysicsWorld.js';
+import { Table } from '../../../packages/sim/test/legacy/client/game/Table.js';
+import { BallsManager } from '../../../packages/sim/test/legacy/client/game/BallsManager.js';
+import { getTableProfile } from '../../../packages/sim/test/legacy/client/game/TableProfiles.js';
 
 export function createWorld({ tableProfileId = 'pool9ft', mode = '8ball' } = {}) {
   const profile = getTableProfile(tableProfileId);

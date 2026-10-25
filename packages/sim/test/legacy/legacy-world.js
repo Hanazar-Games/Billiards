@@ -1,12 +1,13 @@
-// Builds the legacy game world (apps/client/src) without a renderer, as the F0
-// spike does (spikes/sim-bench/src/world.js): same construction order as
-// Game.js:208-227 plus the cushion-spin listener. Call installEnv() first.
+// Builds the legacy game world without a renderer, from the frozen copy of the
+// legacy physics in ./client (D042, never edited), as the F0 spike does
+// (spikes/sim-bench/src/world.js): same construction order as Game.js:208-227
+// plus the cushion-spin listener. Call installEnv() first.
 import * as THREE from 'three';
-import { PhysicsWorld } from '../../../../apps/client/src/core/PhysicsWorld.js';
-import { Table } from '../../../../apps/client/src/game/Table.js';
-import { BallsManager } from '../../../../apps/client/src/game/BallsManager.js';
-import { getTableProfile } from '../../../../apps/client/src/game/TableProfiles.js';
-import { BALL } from '../../../../apps/client/src/config.js';
+import { PhysicsWorld } from './client/core/PhysicsWorld.js';
+import { Table } from './client/game/Table.js';
+import { BallsManager } from './client/game/BallsManager.js';
+import { getTableProfile } from './client/game/TableProfiles.js';
+import { BALL } from './client/config.js';
 
 export function createLegacyWorld({ tableProfileId = 'pool9ft', mode = '8ball' } = {}) {
   const profile = getTableProfile(tableProfileId);

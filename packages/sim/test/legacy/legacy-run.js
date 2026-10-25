@@ -10,7 +10,7 @@
 // `onFrame(frame, fps, balls)` runs after every frame with each ball's
 // { id, x, z, pocketed }; a ball pocketed in that frame also carries
 // `pocketedAt: { x, z }`, where it was before the pocket parked its body.
-import { SHOT } from '../../../../apps/client/src/config.js';
+import { SHOT } from './client/config.js';
 
 const STEP = 1 / 360;
 const SIM_LIMIT_S = 20;

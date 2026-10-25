@@ -684,8 +684,8 @@
       "Manter os arquivos de física em apps/client/src sem uso pelo jogo",
       "Ler os arquivos da base pelo git durante os testes"
     ],
-    "status": "open",
-    "source": "plano da F1-B (proposta, aguardando revisão do usuário)",
+    "status": "accepted",
+    "source": "plano da F1-B aprovado pelo usuário em 2026-10-25",
     "refs": [
       "docs/superpowers/plans/2026-10-25-f1b-cliente-usa-sim.md",
       "packages/sim/test/legacy/legacy-world.js",
@@ -705,8 +705,8 @@
       "Migrar os replays na F1-B, com conversão dos salvos",
       "Descartar os replays salvos ao trocar o formato"
     ],
-    "status": "open",
-    "source": "plano da F1-B (proposta, aguardando revisão do usuário)",
+    "status": "accepted",
+    "source": "plano da F1-B aprovado pelo usuário em 2026-10-25",
     "refs": [
       "docs/superpowers/plans/2026-10-25-f1b-cliente-usa-sim.md",
       "D012",
