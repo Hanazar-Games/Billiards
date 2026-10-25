@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.js"
+    ".": "./src/index.js",
+    "./corpus": "./test/corpus.js"
   },
   "scripts": {
     "test": "node --test test/*.test.js",

@@ -503,6 +503,19 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     assert.ok(!result.message.includes('思考中'));
   });
 
+  await t.test('draw-ref in the game: the cue ball comes back after the contact', async () => {
+    await menu();
+    await page.evaluate(() => __menu._startGame('freeplay'));
+    await page.waitForFunction(() => __menu.game?.state === 'AIM');
+    const r = await page.evaluate(async () => {
+      const res = await window.__referenceShot('draw-ref');
+      const cueZ = res.frames.flatMap(f => f.balls.filter(b => b.id === 0).map(b => b.z));
+      return { contact: res.events.some(e => e.type === 'first_contact'), draw: Math.max(...cueZ) - res.final.balls[0].z,
+        exact: __menu.game.ballsManager.getCueBall().mesh.position.z === res.final.balls[0].z };
+    });
+    assert.equal(r.contact, true); assert.ok(r.draw >= 10, `recuo de ${r.draw.toFixed(1)} cm`); assert.equal(r.exact, true);
+  });
+
   await t.test('two browsers keep their LAN connection through play and synchronize the clock', async t => {
     const socket = createSocketServer();
     await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve));

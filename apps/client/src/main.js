@@ -79,6 +79,15 @@ async function init() {
   await menu.ready;
   // Expose for browser-level integration tests (smoke tests, e2e)
   if (typeof window !== 'undefined') window.__menu = menu;
+  // Development only: play the sim corpus shots on the real table to check
+  // them by eye (docs/f1/roteiro-teste-manual.md). Vite drops this block, and
+  // with it the dev module and cannon-es, from the production build.
+  if (import.meta.env.DEV) {
+    window.__referenceShot = async name => {
+      const { playReferenceShot } = await import('./dev/referenceShots.js');
+      return playReferenceShot(menu.game, name);
+    };
+  }
 
   // Phase 3 — Menu UI built
   setInitPhase('menu-build');
