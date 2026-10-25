@@ -19,9 +19,9 @@ if [ -x /opt/pw-browsers/chromium ]; then
 fi
 npm install --no-audit --no-fund --loglevel=error
 
-FAST_SUITES=(rules table lan ai audio instant-replay career ui-layout settings-audit
+FAST_SUITES=(table lan ai audio instant-replay career ui-layout settings-audit
   trainer-challenge-safety achievement-toast tournament highlight panels runtime
-  sim-worker trajectory-player no-legacy-physics)
+  sim-worker trajectory-player local-match no-legacy-physics no-legacy-rules)
 failed=()
 for suite in "${FAST_SUITES[@]}"; do
   if ! npm run -s -w apps/client "test:$suite" > /dev/null 2>&1; then

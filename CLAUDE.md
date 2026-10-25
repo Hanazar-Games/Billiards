@@ -1,6 +1,6 @@
 # Billiards Online
 
-Fork definitivo de Hanazar-Games/Billiards (sinuca 3D com Three.js + cannon-es) que está sendo transformado em um jogo online free-to-play com Nakama. O cliente offline (`apps/client/src/`) já simula cada tacada com `packages/sim` num Web Worker e reproduz a trajetória v1; as regras ainda ficam no cliente até a F2. A nova arquitetura está descrita na spec.
+Fork definitivo de Hanazar-Games/Billiards (sinuca 3D com Three.js + cannon-es) que está sendo transformado em um jogo online free-to-play com Nakama. O cliente offline (`apps/client/src/`) já simula cada tacada com `packages/sim` num Web Worker e reproduz a trajetória v1, e as regras de 8-ball e 9-ball vêm de `packages/modes` por meio do `LocalMatchController` (F2). A nova arquitetura está descrita na spec.
 
 ## Leia antes de trabalhar
 
@@ -36,11 +36,13 @@ Nas sessões na nuvem, o hook SessionStart roda `harness/init.sh` (dependências
 | `bash harness/init.sh` | Instala dependências, roda os testes rápidos e mostra o status |
 | `node harness/status.mjs` | Mostra só o status (fase, itens pendentes, decisões em aberto) |
 | `npm run dev` | Servidor de desenvolvimento do jogo (porta 5173; roda `apps/client`) |
-| `npm run test:rules -w apps/client` | Testes das regras (28); as outras suítes do cliente seguem o mesmo padrão (`test:<nome>`) |
+| `npm test -w packages/modes` | Regras de 8-ball e 9-ball, ordem de turnos com N lugares, invariantes e os testes diferenciais contra as regras legadas congeladas (D046) |
+| `npm run test:local-match -w apps/client` | `LocalMatchController` no Node; as outras suítes do cliente seguem o mesmo padrão (`test:<nome>`) |
 | `npm run test:sim-worker -w apps/client` | Worker de simulação (`handleSimRequest` e `SimWorkerClient`, com um Worker falso, só no Node) |
 | `npm run test:trajectory-player -w apps/client` | `TrajectoryPlayer`: reproduz a trajetória v1 em qualquer taxa de quadros, com os eventos no instante certo (só no Node) |
 | `npm run test:no-legacy-physics -w apps/client` | O cliente não tem física própria: sem `cannon-es` nem corpos físicos em `src/` (só no Node) |
 | `npm run test:full-match -w apps/client` | Partida de 8-ball contra a IA até o fim, no navegador (F1-07); leva cerca de 2 a 4 min e exige Chromium |
+| `npm run test:local-2p -w apps/client` | Partidas locais de 2 jogadores de 8-ball e 9-ball até o fim, no navegador (F2-05); cerca de 2 a 4 min |
 | `npm test` | Todas as suítes de todos os workspaces (`apps/*`, `packages/*`), incluindo as de navegador (exigem Chromium) |
 | `npm run build` | Build de produção (saída em `apps/client/dist`) |
 | `npm run typecheck` | `tsc -p tsconfig.json` sobre `packages/*/src` |

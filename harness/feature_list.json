@@ -131,7 +131,7 @@
     "verification": [
       "testes de tipos e de invariantes (sempre há um lugar da vez até o fim) passam"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F2-02",
@@ -140,7 +140,7 @@
     "verification": [
       "os 28 testes de regras portados passam"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F2-03",
@@ -149,7 +149,7 @@
     "verification": [
       "testes de push-out, três faltas e bola mais baixa passam"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F2-04",
@@ -159,7 +159,7 @@
       "teste 2×2: ordem A1, B1, A2, B2",
       "teste de 5 lugares: eliminados são pulados"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F2-05",
@@ -169,7 +169,7 @@
       "suítes de navegador existentes passam",
       "partida local de 2 jogadores vai até o fim"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F3-01",

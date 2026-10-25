@@ -3,7 +3,11 @@
 ## Estado atual
 
 - **Fase:** F1-A concluída. F1-B executada (8 tarefas, plano `docs/superpowers/plans/2026-10-25-f1b-cliente-usa-sim.md`, D042 e D043 `accepted`); falta só a confirmação do F1-09 pelo usuário, no navegador. Plano da F1-A: `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`.
-  - **F2:** plano escrito e em revisão (`docs/superpowers/plans/2026-10-25-f2-modes-n-lugares.md`), com as decisões D045, D046 e D047 propostas como `open`. Nenhum código da F2 ainda.
+  - **F2 concluída** (plano `docs/superpowers/plans/2026-10-25-f2-modes-n-lugares.md`, execução nativa, D045 a D047 `accepted`). F2-01 a F2-05 marcados depois de rodar as verificações na suíte completa:
+    - `packages/modes` (TypeScript, sem dependências): ordem de turnos para 1×1, 2×2 (A1, B1, A2, B2) e cada um por si (pula eliminados); 8-ball e 9-ball portados, com os 28 testes de regras portados e um teste diferencial de 3.000 tacadas para cada modo contra a cópia congelada das regras legadas (D046); `MatchState` e o invariante "sempre há um lugar da vez até o fim".
+    - Cliente: o `LocalMatchController` valida a tacada, simula no worker (com limite de 10 s) e decide pelo modo, e o `Game` aplica a decisão pela sequência de interface de antes. `Rules.js` e `NineBallRules.js` saíram do cliente; a arrumação vem do modo (D047).
+    - Partidas locais de 2 jogadores de 8-ball e 9-ball vão até o fim no navegador (`test:local-2p`), além da partida contra a IA.
+    - Revisão final da branch da F2: ver o registro da sessão.
   - **F1-B, T1–T7** (`17a96ff` a `c59a806`, cada uma com revisão da tarefa; a T8 é este fechamento):
     - Cópia congelada da física legada (D042), com manifesto SHA-256: paridade, sensação e benchmark não dependem mais do cliente.
     - Worker de simulação (`SimWorkerClient`, `simClient`) e `TrajectoryPlayer`.
@@ -35,7 +39,7 @@
 
 ## Próximo passo
 
-1. **O usuário revisa o plano da F2** (`docs/superpowers/plans/2026-10-25-f2-modes-n-lugares.md`, 8 tarefas), aprova ou ajusta as decisões propostas D045, D046 e D047 (`open`) e escolhe o modo de execução (subagentes ou nativo). Só então a implementação começa, pela Tarefa 1.
+1. **Escrever o plano da F3** (Nakama, contas e salas) com `superpowers:writing-plans` e pedir a revisão do usuário antes de implementar. A F3 pode correr em paralelo com o fim da F2 pelo roteiro; a F4 depende das duas.
 2. **O usuário confirma o F1-09** no navegador, quando quiser, seguindo `docs/f1/roteiro-teste-manual.md` (`npm run dev`, Treino livre, `await __referenceShot('draw-ref')` no console). Em 2026-10-25 o usuário preferiu adiar. Se a branca voltar como esperado, marcar `passes: true` e registrar a data; se não, abrir uma decisão nova sobre o recuo (a D041 aceitou a sensação medida).
 3. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium. O Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido. Sem esse download, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome do sistema.
 
@@ -196,3 +200,16 @@
 - O plano absorve duas pendências: o limite de tempo do worker (pendência da F1-B) e a branca com bola na mão enviada ao sim (pendência da F1-A, T3).
 - Fica fora da F2: a estatística da tacada cancelada, que depende do LAN e vai para a F4.
 - Nenhum código mudou nesta etapa. Falta a revisão do usuário e a escolha do modo de execução.
+
+### 2026-10-25 — sessão 2, continuação (execução da F2, modo nativo)
+
+- O usuário aprovou o plano da F2 com a D045, a D046 e a D047 (`accepted`) e escolheu a execução nativa: um contexto só, TDD por tarefa e uma revisão da branch inteira no fim.
+- Tarefas 1 a 7 (`7d87f44` a `f641184`), cada uma com o teste visto falhando antes:
+  - T1: pacote `packages/modes`, tipos (D045) e ordem de turnos; os testes de tipo ficam em `test/types.check.ts`, que o `tsc` checa (o repositório não tem `@types/node`).
+  - T2 e T3: 8-ball e 9-ball portados; os testes diferenciais pegam uma mutação de propósito em cada modo.
+  - T4: `MatchState` e o invariante, reforçado com "partida não encerrada tem duas equipes ativas".
+  - T5: `LocalMatchController`, `rulingText` (os textos de antes, em chinês) e `toTurnResult`; o worker que não responde em 10 s é descartado e a próxima tacada usa um novo.
+  - T6: o `Game` obedece ao controlador; o LAN manda o estado da partida no snapshot; os testes que liam `game.rules` passaram a ler o controlador, sem afrouxar asserções.
+  - T7: partidas locais de 2 jogadores até o fim. A primeira execução mostrou que o estado tem de ser lido depois da reprodução da tacada final (o controlador decide antes de reproduzir).
+- Tarefa 8: `npm test` na raiz saiu com 0 (client: browser 32, full-match 19 tacadas/57,6 s, local-2p 8-ball 113 tacadas/124 s e 9-ball 19 tacadas/27 s, smoke 54 e as demais; modes 51; protocol 7; sim 60); `tsc` limpo; build com o worker; `test:dist` 7/7; `init.sh` verde. F2-01 a F2-05 marcados.
+- Decisões de execução e pendências: `harness/sdd/2026-10-25-f2-modes-n-lugares/ledger.md`.
