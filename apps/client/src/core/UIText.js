@@ -55,6 +55,7 @@ export const UIText = {
 
   // Shot simulation
   shotSimulationFailed: '击球模拟失败，本杆已取消，请重新击球。',
+  shotRejected: '这一杆不符合规则，请重新击球。',
 
   // Turn timer
   turnTimeout: (currentName, otherName) =>

@@ -198,7 +198,7 @@ export class SpectatorMode {
       // Determine winner from game rules state
       let winner = 1;
       try {
-        const status = game.rules?.getStatus?.();
+        const status = game.match?.status?.();
         if (status && status.winner) winner = status.winner;
       } catch (e) {
         // fallback: current player lost if game over on their turn
@@ -223,9 +223,9 @@ export class SpectatorMode {
     }
 
     // Check for 8-ball approach (once per game)
-    if (!this._eightBallAnnounced && game.rules) {
+    if (!this._eightBallAnnounced && game.match?.status?.()) {
       try {
-        const status = game.rules.getStatus?.();
+        const status = game.match.status();
         if (status && ((status.player1Group && status.player1Remaining === 0) ||
             (status.player2Group && status.player2Remaining === 0))) {
           this._eightBallAnnounced = true;
@@ -239,11 +239,10 @@ export class SpectatorMode {
   }
 
   _handleTurnEnd(game) {
-    const rules = game.rules;
-    if (!rules) return;
+    const status = game.match?.status?.();
+    if (!status) return;
 
     try {
-      const result = rules.getStatus?.();
       // We don't have direct turn result here, infer from state changes
       // Instead rely on pocket/foul detection during the turn
     } catch (e) {

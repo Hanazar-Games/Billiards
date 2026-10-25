@@ -9,7 +9,6 @@
     "build:pages": "node scripts/build-pages.mjs",
     "preview": "vite preview",
     "host": "node server/lan-server.js",
-    "test:rules": "node test/rules.test.js",
     "test:table": "node test/table-profiles.test.js",
     "test:lan": "node test/lan-server.test.js",
     "test:ai": "node test/ai.test.js",
@@ -32,8 +31,9 @@
     "test:full-match": "node test/full-match.test.js",
     "test:dist": "node test/dist-smoke.test.js",
     "test:pages": "node test/dist-smoke.test.js --pages",
-    "test": "npm run test:rules && npm run test:table && npm run test:lan && npm run test:ai && npm run test:audio && npm run test:instant-replay && npm run test:career && npm run test:ui-layout && npm run test:settings-audit && npm run test:trainer-challenge-safety && npm run test:achievement-toast && npm run test:tournament && npm run test:highlight && npm run test:panels && npm run test:runtime && npm run test:sim-worker && npm run test:trajectory-player && npm run test:local-match && npm run test:no-legacy-physics && npm run test:browser && npm run test:full-match && npm run test:smoke",
-    "test:local-match": "node test/local-match.test.js"
+    "test": "npm run test:table && npm run test:lan && npm run test:ai && npm run test:audio && npm run test:instant-replay && npm run test:career && npm run test:ui-layout && npm run test:settings-audit && npm run test:trainer-challenge-safety && npm run test:achievement-toast && npm run test:tournament && npm run test:highlight && npm run test:panels && npm run test:runtime && npm run test:sim-worker && npm run test:trajectory-player && npm run test:local-match && npm run test:no-legacy-physics && npm run test:no-legacy-rules && npm run test:browser && npm run test:full-match && npm run test:smoke",
+    "test:local-match": "node test/local-match.test.js",
+    "test:no-legacy-rules": "node test/no-legacy-rules.test.js"
   },
   "dependencies": {
     "@billiards/protocol": "*",

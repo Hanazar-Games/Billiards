@@ -145,3 +145,12 @@ test('toTurnResult converte a decisão para o formato do resolveTurn', async () 
     { nextPlayer: 2, foul: true, scratch: true, ballInHand: true, ballInHandBehindLine: true, reasonCode: 'SCRATCH', gameOver: false });
   assert.equal(r.message, '开球犯规：白球落袋！对手获得开球线后自由球');
 });
+
+test('resolveEvents decide a tacada a partir dos eventos e aplica a decisão', () => {
+  const { c } = setup('9ball', []);
+  c.match = { ...c.match, mode: { ...c.match.mode, breakShot: false } };
+  const ruling = c.resolveEvents(ev({ first: 1, pocketed: [9] }));
+  assert.equal(ruling.winnerTeam, 0);
+  assert.equal(c.status().gameOver, true);
+  assert.equal(c.toJSON().turnId, 1);
+});

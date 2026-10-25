@@ -98,12 +98,18 @@ export class LocalMatchController {
       }
     }
     if (epoch !== this._epoch) throw fail('stale shot result', { stale: true });
-    let ruling = null;
-    if (this.mode) {
-      ruling = this.mode.resolveShot(this.match.mode, seat, result.events, result.final, shot);
-      this.match = applyRuling(this.match, ruling);
-    }
+    const ruling = this.mode ? this.resolveEvents(result.events, result.final, shot) : null;
     return { initial, result, ruling };
+  }
+
+  /**
+   * Decides the seat to play's shot from its sim events and applies the
+   * ruling (submitShot does it after the sim; tests can drive it directly).
+   */
+  resolveEvents(events, final = null, shot = { angle: 0, power: 1, spin: { x: 0, y: 0 } }) {
+    const ruling = this.mode.resolveShot(this.match.mode, this.seat, events, final, shot);
+    this.match = applyRuling(this.match, ruling);
+    return ruling;
   }
 
   /** The turn timer ran out: a foul for the seat to play. */

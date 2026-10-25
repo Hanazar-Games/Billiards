@@ -66,7 +66,7 @@ export function applyShotInput(game, input) {
 
   // Normal shot — guard against push-out pending and wrong state
   if (game.ballInHand) return false;
-  if (game.rules?.pushOutPending) {
+  if (game.match?.status?.()?.pushOutPending) {
     game.ui?.setMessage(UIText.pushOutMustChoose, 2000);
     return false;
   }

@@ -27,92 +27,19 @@ export class BallsManager {
     }
   }
 
-  rackBalls(mode = '8ball') {
+  /**
+   * Racks from a layout (packages/modes rackLayout): the listed balls go on
+   * the table at y = BALL.radius, the others leave it (9-ball has no 10–15).
+   * @param {{ id: number, x: number, z: number }[]} layout
+   */
+  applyLayout(layout) {
     if (this.balls.length === 0) {
       this.createBalls();
     }
-
-    if (mode === '9ball') {
-      this._rackNineBall();
-    } else {
-      this._rackEightBall();
-    }
-  }
-
-  _rackEightBall() {
-    const r = BALL.radius;
-    const d = r * 2.02;
-    const halfD = this.profile.depth / 2;
-
-    // Cue ball: head spot
-    this._placeBall(0, 0, r, -halfD * 0.55);
-
-    // Rack at foot spot
-    const rackZ = halfD * 0.55;
-    const startX = 0;
-
-    const rackOrder = [
-      1, 9, 10, 2, 8, 3, 11, 4, 5, 12, 6, 13, 7, 14, 15,
-    ];
-    const positions = [
-      [0, 1], [-0.5, 2], [0.5, 2], [-1, 3], [0, 3], [1, 3],
-      [-1.5, 4], [-0.5, 4], [0.5, 4], [1.5, 4],
-      [-2, 5], [-1, 5], [0, 5], [1, 5], [2, 5],
-    ];
-
-    for (let i = 0; i < positions.length; i++) {
-      const [col, row] = positions[i];
-      const ballId = rackOrder[i];
-      const x = startX + col * d;
-      const z = rackZ + (row - 1) * d * Math.sin(Math.PI / 3);
-      this._placeBall(ballId, x, r, z);
-    }
-  }
-
-  _rackNineBall() {
-    const r = BALL.radius;
-    const d = r * 2.02;
-    const halfD = this.profile.depth / 2;
-
-    // Cue ball: head spot (behind head string)
-    this._placeBall(0, 0, r, -halfD * 0.55);
-
-    // 9-ball only uses the cue ball plus balls 1-9.
-    for (let id = 10; id <= 15; id++) {
-      this._removeBallFromRack(id);
-    }
-
-    // Rack at foot spot (bottom of table)
-    const rackZ = halfD * 0.55;
-
-    // Diamond rack for 9-ball
-    // Row 1: 1-ball (apex)
-    // Row 2: 2-ball, 3-ball
-    // Row 3: 4-ball, 9-ball (center), 5-ball
-    // Row 4: 6-ball, 7-ball
-    // Row 5: 8-ball (bottom)
-    const diamondOrder = [
-      1,            // row 1 (apex)
-      2, 3,         // row 2
-      4, 9, 5,      // row 3 (9 in center)
-      6, 7,         // row 4
-      8,            // row 5 (bottom)
-    ];
-
-    const positions = [
-      [0, 0],           // row 1
-      [-0.5, 1], [0.5, 1],  // row 2
-      [-1, 2], [0, 2], [1, 2],  // row 3
-      [-0.5, 3], [0.5, 3],  // row 4
-      [0, 4],           // row 5
-    ];
-
-    for (let i = 0; i < positions.length; i++) {
-      const [col, row] = positions[i];
-      const ballId = diamondOrder[i];
-      const x = col * d;
-      const z = rackZ + row * d * Math.sin(Math.PI / 3);
-      this._placeBall(ballId, x, r, z);
+    const listed = new Set(layout.map((b) => b.id));
+    for (const { id, x, z } of layout) this._placeBall(id, x, BALL.radius, z);
+    for (const ball of this.balls) {
+      if (!listed.has(ball.id)) this._removeBallFromRack(ball.id);
     }
   }
 

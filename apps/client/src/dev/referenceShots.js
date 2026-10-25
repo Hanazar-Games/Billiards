@@ -23,7 +23,7 @@ export function playReferenceShot(game, name) {
     return Promise.reject(new Error(
       `"${name}" is a ${entry.table.tableProfileId} shot, but this game is on ${game.tableProfileId}`));
   }
-  if (game.state !== 'AIM' || game.playback || game.ballInHand || game.rules?.pushOutPending) {
+  if (game.state !== 'AIM' || game.playback || game.ballInHand || game.match?.status?.()?.pushOutPending) {
     return Promise.reject(new Error(
       `wait for the AIM state before a reference shot (state: ${game.state})`));
   }

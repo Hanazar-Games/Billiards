@@ -68,17 +68,17 @@ test('8-ball contra a IA vai até o fim sem erros no console', { timeout: 600000
   });
 
   let shots = 0;
-  while (!(await page.evaluate(() => __menu.game.rules.gameOver)) && shots < MAX_PLAYER_SHOTS) {
+  while (!(await page.evaluate(() => __menu.game.match.status().gameOver)) && shots < MAX_PLAYER_SHOTS) {
     await page.waitForFunction(() => {
       const g = __menu.game;
-      return g.rules.gameOver || (g.state === 'AIM' && g.currentPlayer === 1);
+      return g.match.status().gameOver || (g.state === 'AIM' && g.currentPlayer === 1);
     }, { timeout: 60000 });
-    if (await page.evaluate(() => __menu.game.rules.gameOver)) break;
+    if (await page.evaluate(() => __menu.game.match.status().gameOver)) break;
     await page.evaluate(playHumanTurn);
     shots++;
   }
 
-  const end = await page.evaluate(() => ({ gameOver: __menu.game.rules.gameOver, winner: __menu.game.rules.winner, state: __menu.game.state }));
+  const end = await page.evaluate(() => ({ gameOver: __menu.game.match.status().gameOver, winner: __menu.game.match.status().winner, state: __menu.game.state }));
   console.log(`full match: ${shots} human shots, winner ${end.winner}, ${((Date.now() - started) / 1000).toFixed(1)} s`);
   assert.equal(end.gameOver, true, `sem fim depois de ${shots} tacadas do jogador`);
   assert.deepEqual(errors, []);

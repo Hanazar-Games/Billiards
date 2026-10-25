@@ -65,16 +65,14 @@ export class AIPlayer {
     this.thinking = true;
 
     try {
-      const { ballsManager, table, rules } = game;
+      const { ballsManager, table } = game;
       if (!ballsManager || !table) {
         return null;
       }
       const cueBall = ballsManager.getCueBall();
       const pocketPositions = table.getPocketPositions();
-      const status = rules?.getStatus?.() || { breakShot: false, targetBall: null };
-      const playerGroup = typeof rules?.getPlayerGroup === 'function'
-        ? rules.getPlayerGroup(game.currentPlayer)
-        : null;
+      const status = game.match?.status?.() || { breakShot: false, targetBall: null };
+      const playerGroup = status[`player${game.currentPlayer}Group`] ?? null;
       const targetBallId = Number.isInteger(status.targetBall) ? status.targetBall : null;
       const isBreak = status.breakShot;
 

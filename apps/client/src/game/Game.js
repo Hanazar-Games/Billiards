@@ -7,8 +7,8 @@ import { TrajectoryPlayer } from '../sim/TrajectoryPlayer.js';
 import { simClient } from '../sim/SimWorkerClient.js';
 import { InputHandler } from '../input/InputHandler.js';
 import { Cue } from './Cue.js';
-import { Rules } from './Rules.js';
-import { NineBallRules } from './NineBallRules.js';
+import { LocalMatchController } from '../match/LocalMatchController.js';
+import { toTurnResult } from '../match/turnResult.js';
 import { AchievementSystem } from '../achievements/AchievementSystem.js';
 import { AchievementPanel } from '../achievements/AchievementPanel.js';
 import { UI } from '../ui/UI.js';
@@ -51,7 +51,8 @@ export class Game {
     this.ballsManager = null;
     this.input = null;
     this.cue = null;
-    this.rules = null;
+    /** @type {LocalMatchController | null} validates, simulates and decides each shot (F2) */
+    this.match = null;
     this.ui = new UI();
     // Use injected shared AudioManager, or create our own if standalone
     this.audio = audioManager || new AudioManager();
@@ -127,7 +128,10 @@ export class Game {
     // Shots are simulated by packages/sim in a worker and played back from
     // the trajectory. A shot whose token is no longer current was abandoned
     // (reset, new rack, dispose) and its result is ignored.
-    this.simClient = simClient;
+    this._simClient = simClient; // read through the simClient accessor (the match controller's)
+    this._shotRuling = null; // the match controller's ruling for the shot being played back
+    this._pushOutDeclared = false; // 9-ball: the next shot is a push-out
+    this._placedCueBall = null; // where ball in hand put the cue ball for the next shot
     this.playback = null; // ShotPlayback of the shot on the table, if any
     this.playbackRate = 1; // playback seconds per real second
     this.lastShotResult = null; // SimResult of the last shot played back
@@ -185,15 +189,9 @@ export class Game {
       }
     }
 
-    // Create rules engine based on game mode
-    if (this.mode === 'trainer') {
-      // Trainer mode uses no rules engine — pure physics practice
-      this.rules = null;
-    } else if (this.mode === '9ball') {
-      this.rules = new NineBallRules();
-    } else {
-      this.rules = new Rules();
-    }
+    // The match controller decides with packages/modes; free play and the trainer have no rules.
+    const modeId = this.mode === 'trainer' || this.mode === 'freeplay' ? null : this.mode === '9ball' ? '9ball' : '8ball';
+    this.match = new LocalMatchController({ modeId, tableProfile: this.tableProfile, simClient: this._simClient });
 
     // Audio manager is already initialised by MenuSystem (shared singleton).
     // Game only calls init() when it owns a standalone instance.
@@ -230,8 +228,7 @@ export class Game {
       const { idealZone } = this.ballsManager.setupDrill(this.drillConfig, this.tableProfile);
       this.drillIdealZone = idealZone;
     } else {
-      const rackMode = this.mode === '9ball' ? '9ball' : '8ball';
-      this.ballsManager.rackBalls(rackMode);
+      this.ballsManager.applyLayout(this.match.newRack(this.currentPlayer - 1));
     }
     this.ballsManager.addToScene(this.scene);
     // Apply ball visual settings after creation
@@ -438,7 +435,6 @@ export class Game {
   /** The cue ball touched its first object ball (`ballId`) of the shot. */
   _onFirstContact(ballId) {
     if (this.state !== 'SHOOTING') return;
-    this.rules?.recordFirstHit(ballId);
     // Career: long-shot detection (distance > 150cm)
     if (this._shotFirstHitDistance === 0) {
       // Measure distance from cue ball's starting position, not center-to-center gap
@@ -500,7 +496,6 @@ export class Game {
       this._shotHadCushionBeforeHit = true;
     }
     if (this.state === 'SHOOTING') {
-      this.rules?.recordCushionHit?.(ball.id);
     }
     if (speed > 0.8) {
       this.audio?.playCushionBounce(speed);
@@ -598,7 +593,7 @@ export class Game {
       return;
     }
     // Block shot while push-out choice is pending
-    if (this.rules?.pushOutPending && this.isLocalPlayerTurn()) {
+    if (this.match?.status()?.pushOutPending && this.isLocalPlayerTurn()) {
       this.ui.setMessage(UIText.pushOutMustChoose, 2000, 1);
       return;
     }
@@ -950,7 +945,7 @@ export class Game {
     if (this.ballInHand) return;
 
     // Block shot while push-out choice is pending
-    if (this.rules?.pushOutPending && this.isLocalPlayerTurn()) {
+    if (this.match?.status()?.pushOutPending && this.isLocalPlayerTurn()) {
       this.ui.setMessage(UIText.pushOutMustChoose, 2000, 1);
       return;
     }
@@ -1005,8 +1000,7 @@ export class Game {
     }
 
     // Track whether this shot is the break shot for achievement purposes
-    this._isBreakShot = this.rules?.breakShot || false;
-    this.rules?.startShot(this.currentPlayer);
+    this._isBreakShot = this.match?.status()?.breakShot || false;
 
     const force = Math.max(safePower, SHOT.minPower);
     // The cue hits the ball when the balls start moving: the playback may wait
@@ -1050,26 +1044,30 @@ export class Game {
     const table = this.ballsManager.toTableState(this.tableProfileId);
     const token = ++this._shotToken;
     this.playback = null;
-    if (force <= 0) {
-      this._startPlayback(table, { frames: [], events: [], final: table, steps: 0, simSeconds: 0, capped: false }, impact);
-      return;
-    }
     const shot = {
       angle: Math.atan2(this.aimDirection.z, this.aimDirection.x),
       power: force,
       spin: { x: this.cueTipOffset.x, y: this.cueTipOffset.y },
     };
+    if (this._pushOutDeclared) shot.pushOut = true;
+    if (this._placedCueBall) shot.cueBall = this._placedCueBall;
     // The result only counts for the shot still on the table.
     const live = () => token === this._shotToken && this.state === 'SHOOTING';
     let request;
     try {
-      request = this.simClient.simulate(table, shot);
+      request = this.match.submitShot(table, shot);
     } catch (err) {
       request = Promise.reject(err);
     }
     Promise.resolve(request)
-      .then(result => { if (live()) this._startPlayback(table, result, impact); })
-      .catch(err => { if (live()) this._cancelShot(table, err); });
+      .then(({ initial, result, ruling }) => {
+        if (!live()) return;
+        this._pushOutDeclared = false;
+        this._placedCueBall = null;
+        this._shotRuling = ruling;
+        this._startPlayback(initial, result, impact);
+      })
+      .catch(err => { if (!err?.stale && live()) this._cancelShot(table, err); });
   }
 
   _startPlayback(table, result, impact) {
@@ -1112,13 +1110,13 @@ export class Game {
 
   /** The shot could not be simulated: the balls stay put and the player aims again. */
   _cancelShot(table, err) {
-    console.warn('[Game] shot simulation failed, the shot is cancelled:', err);
+    if (!err?.rejected) console.warn('[Game] shot simulation failed, the shot is cancelled:', err);
     this.ballsManager.applyTableState(table);
     if (this._strikeHideTimer) { clearTimeout(this._strikeHideTimer); this._strikeHideTimer = null; }
     this.trails.stopRecording();
     this.recorder.reset();
     this._enterAimState();
-    this.ui.setMessage(UIText.shotSimulationFailed, 3000, 2);
+    this.ui.setMessage(err?.rejected ? UIText.shotRejected : UIText.shotSimulationFailed, 3000, 2);
     // Nobody else would start the AI's turn again.
     if (this._shouldTriggerAI()) this.startAITurn();
   }
@@ -1127,6 +1125,28 @@ export class Game {
   _abandonShot() {
     this._shotToken++;
     this.playback = null;
+    this._shotRuling = null;
+  }
+
+  /** The shot simulator is the match controller's (tests may swap it). */
+  get simClient() {
+    return this.match?.simClient ?? this._simClient;
+  }
+
+  set simClient(client) {
+    this._simClient = client;
+    if (this.match) this.match.simClient = client;
+  }
+
+  /** The match controller's ruling in the shape resolveTurn consumes. */
+  _turnResult(ruling) {
+    return toTurnResult(this.match.modeId, ruling, this.match.status(), [this.networkPlayer1Name, this.networkPlayer2Name]);
+  }
+
+  /** Ball in hand ended: the next shot tells the match where the cue ball went. */
+  _rememberCueBallPlacement() {
+    const cue = this.ballsManager?.getCueBall();
+    if (this.match?.mode && cue) this._placedCueBall = { x: cue.mesh.position.x, z: cue.mesh.position.z };
   }
 
   /** Plays the shot forward by `dt` and resolves the turn when it ends. */
@@ -1405,9 +1425,10 @@ export class Game {
     }
 
     // Sync 9-ball push-out UI
-    if (this.mode === '9ball' && this.rules && this.state === 'AIM' && !this.ballInHand && !this.rules.gameOver) {
-      const status = this.rules.getStatus();
-      if (status.pushOutAvailable && this.isLocalPlayerTurn()) {
+    const nineBallStatus = this.mode === '9ball' ? this.match?.status() : null;
+    if (nineBallStatus && this.state === 'AIM' && !this.ballInHand && !nineBallStatus.gameOver) {
+      const status = nineBallStatus;
+      if (status.pushOutAvailable && !this._pushOutDeclared && this.isLocalPlayerTurn()) {
         this.ui.showPushOutButton(() => this._onPushOutClicked());
       } else {
         this.ui.hidePushOutButton();
@@ -1482,17 +1503,11 @@ export class Game {
       this._turnTimerRunning = false;
       return;
     }
-    const otherPlayer = this.currentPlayer === 1 ? 2 : 1;
-    const cName = this.currentPlayer === 1 ? this.networkPlayer1Name : this.networkPlayer2Name;
-    const oName = otherPlayer === 1 ? this.networkPlayer1Name : this.networkPlayer2Name;
-    this.rules.startShot(this.currentPlayer);
-    this.rules.foul = true;
-    this.rules.foulReason = 'TIMEOUT';
-    const result = { nextPlayer: otherPlayer, foul: true, scratch: false,
-      ballInHand: true, reasonCode: 'TIMEOUT', message: UIText.turnTimeout(cName, oName) };
+    if (!this.match?.mode) return;
+    this._pushOutDeclared = false;
+    const result = this._turnResult(this.match.timeout());
     this._isBreakShot = false;
-    this.resolveTurn([], this.rules._applyConsecutiveFouls
-      ? this.rules._applyConsecutiveFouls(result, otherPlayer) : result);
+    this.resolveTurn([], result);
   }
 
   /* ── Small helpers extracted from duplicated code ── */
@@ -1568,10 +1583,12 @@ export class Game {
       const fallback = this.ballsManager.resetCueBallIfPocketed(0, headStringZ - BALL.radius * 2);
       cue?.reset(fallback.x, BALL.radius, fallback.z);
     }
+    this._rememberCueBallPlacement();
   }
 
   /** Common ball-in-hand cleanup after placement is confirmed. */
   _endBallInHand() {
+    this._rememberCueBallPlacement();
     this.ballInHand = false;
     this.ballInHandValid = false;
     this.ballInHandBehindLine = false;
@@ -1646,9 +1663,9 @@ export class Game {
 
   /** Player clicked the Push-out button. */
   _onPushOutClicked() {
-    if (!this.rules || this.mode !== '9ball') return;
-    const declared = this.rules.declarePushOut();
-    if (!declared) return;
+    const status = this.mode === '9ball' ? this.match?.status() : null;
+    if (!status?.pushOutAvailable || status.pushOutPending || this._pushOutDeclared) return;
+    this._pushOutDeclared = true;
     this.ui.hidePushOutButton();
     this.ui.setMessage(UIText.pushOutTooltip, 3000, 1);
     if (this.networkMode && this.networkRole === 'client') {
@@ -1676,14 +1693,8 @@ export class Game {
 
   /** Apply push-out choice (accept/pass) and update game state. */
   _applyPushOutChoice(choice) {
-    if (!this.rules || !this.rules.pushOutPending) return;
-    let result;
-    if (choice === 'accept') {
-      result = this.rules.acceptPushOut();
-    } else {
-      result = this.rules.passPushOut();
-    }
-    if (!result) return;
+    if (!this.match?.status()?.pushOutPending) return;
+    const result = { nextPlayer: this.match.choosePushOut(choice === 'accept').nextSeat + 1 };
 
     this.currentPlayer = result.nextPlayer;
     this._turnTimerRemaining = this._turnTimerMax;
@@ -1897,7 +1908,9 @@ export class Game {
       return;
     }
 
-    const result = forcedResult || this.rules.resolveShot(pocketedIds, cuePocketed);
+    if (!forcedResult && !this._shotRuling) throw new Error('resolveTurn: no ruling for this shot');
+    const result = forcedResult || this._turnResult(this._shotRuling);
+    this._shotRuling = null;
 
     // Respot 8-ball or 9-ball if pocketed on break / foul
     if (result.respotEightBall) this._respotBall(8);
@@ -2013,7 +2026,7 @@ export class Game {
     this._turnTimerRemaining = this._turnTimerMax;
     this.ui.setPlayerTurn(this.currentPlayer);
 
-    const status = this.rules.getStatus();
+    const status = this.match.status();
     this.ui.setPlayerGroups(status.player1Group, status.player2Group);
     this._updatePlayerStats();
 
@@ -2032,8 +2045,8 @@ export class Game {
     }
 
     // Three-foul warning badge
-    const p1Fouls = this.rules.player1ConsecutiveFouls;
-    const p2Fouls = this.rules.player2ConsecutiveFouls;
+    const p1Fouls = status.player1ConsecutiveFouls;
+    const p2Fouls = status.player2ConsecutiveFouls;
     if (p1Fouls >= 2 || p2Fouls >= 2) {
       this.ui.showThreeFoulWarning();
     } else {
@@ -2124,15 +2137,15 @@ export class Game {
       const { idealZone } = this.ballsManager.setupDrill(this.drillConfig, this.tableProfile);
       this.drillIdealZone = idealZone;
     } else {
-      const rackMode = this.mode === '9ball' ? '9ball' : '8ball';
-      this.ballsManager.rackBalls(rackMode);
+      this.ballsManager.applyLayout(this.match.newRack(this.currentPlayer - 1));
     }
     this.ballsManager.addToScene(this.scene);
     for (const ball of this.ballsManager.balls) {
       ball.updateVisualSettings(settings);
     }
 
-    if (this.rules) this.rules.reset();
+    this._pushOutDeclared = false;
+    this._placedCueBall = null;
     this.statsTracker.reset();
     this.particles.clear();
     this.trails.clear();
@@ -2776,14 +2789,14 @@ export class Game {
     if (this.mode === 'trainer') return '击球训练';
     if (this.mode === 'freeplay') return UIText.objectiveFreeplay;
     if (this.mode === '9ball') {
-      const status = this.rules?.getStatus();
+      const status = this.match?.status();
       if (status?.targetBall) {
         return UIText.objective9Ball(status.targetBall);
       }
       return UIText.objective9BallOpen;
     }
     // 8-ball: dynamic based on open/closed table
-    const status = this.rules?.getStatus();
+    const status = this.match?.status();
     if (status) {
       if (!status.player1Group && !status.player2Group) {
         return UIText.objective8BallOpen;
@@ -2801,7 +2814,7 @@ export class Game {
   }
 
   _updatePlayerStats() {
-    const status = this.rules ? this.rules.getStatus() : null;
+    const status = this.match?.status() ?? null;
     const p2Name = this.aiEnabled && this.networkPlayer2Name === '玩家 2' ? 'AI' : (this.networkPlayer2Name || '玩家 2');
     const p1Name = this.networkPlayer1Name || '玩家 1';
     const is9Ball = this.mode === '9ball';
@@ -2897,17 +2910,17 @@ export class Game {
         }
       };
       this._onNetPushOutDeclare = (e) => {
-        if (this.networkRole === 'host' && this.rules) {
+        if (this.networkRole === 'host' && this.match?.mode) {
           if (e.detail?.fromPlayer !== this.currentPlayer) return;
           if (this.paused || this.state !== 'AIM' || this.ballInHand) return;
           if (this._turnTimerEnabled && this._turnTimerRemaining <= 0) return;
-          if (!this.rules.pushOutAvailable) return;
-          this.rules.declarePushOut();
+          if (!this.match.status().pushOutAvailable) return;
+          this._pushOutDeclared = true;
           this._broadcastSnapshot();
         }
       };
       this._onNetPushOutChoice = (e) => {
-        if (this.networkRole === 'host' && this.rules) {
+        if (this.networkRole === 'host' && this.match?.mode) {
           if (e.detail?.fromPlayer !== this.currentPlayer) return;
           if (this.paused || this.state !== 'AIM' || this.ballInHand) return;
           if (this._turnTimerEnabled && this._turnTimerRemaining <= 0) return;
@@ -2998,11 +3011,8 @@ export class Game {
     this.ui.setHUDState('GAME_OVER');
     if (this.cue) this.cue.hide();
 
-    // Notify rules engine
-    if (this.rules) {
-      this.rules.gameOver = true;
-      this.rules.winner = winner;
-    }
+    // The conceding seat leaves the match; the other one wins.
+    if (this.match?.mode) this.match.concede(concedingPlayer - 1);
 
     // End stats tracking and show summary
     const summary = this.statsTracker.endGame(winner);
@@ -3664,7 +3674,8 @@ export class Game {
     this.aiPlayer1 = null;
     this.aiPlayer2 = null;
     this.networkController = null;
-    this.rules = null;
+    this.match?.dispose();
+    this.match = null;
     this._settingsOpen = false;
     this._initialized = false;
     this._hostFairness = null;

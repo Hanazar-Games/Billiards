@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { Rules } from '../src/game/Rules.js';
+import { eightBall } from '@billiards/modes';
+import { ev, config8, FINAL, SHOT as MODE_SHOT } from '../../../packages/modes/test/helpers.ts';
 import { TournamentEngine } from '../src/tournament/TournamentEngine.js';
 
 const storage = new Map();
@@ -44,7 +45,10 @@ const { careerStore } = await import('../src/career/CareerStore.js');
 const { Minimap } = await import('../src/ui/Minimap.js');
 const { Table } = await import('../src/game/Table.js');
 const { Room } = await import('../src/game/Room.js');
-const { NineBallRules } = await import('../src/game/NineBallRules.js');
+const { LocalMatchController } = await import('../src/match/LocalMatchController.js');
+const { getTableProfile } = await import('../src/game/TableProfiles.js');
+/** A match controller with a sim client that is never called. */
+const matchFor = (modeId) => new LocalMatchController({ modeId, tableProfile: getTableProfile('pool9ft'), simClient: {} });
 const { DrillManager } = await import('../src/trainer/DrillManager.js');
 const { AchievementSystem } = await import('../src/achievements/AchievementSystem.js');
 const { ShotRecorder } = await import('../src/replay/ShotRecorder.js');
@@ -154,7 +158,7 @@ test('LAN rematches clear the client summary, pause and old clock', () => {
   const calls = [];
   const game = { state: 'GAME_OVER', currentPlayer: 1, localPlayerId: 2,
     paused: true, _pausedAt: 5, _settingsOpen: true, gameStartTime: 1, _rackId: 0,
-    rules: new NineBallRules(), statsTracker: new StatsTracker(),
+    match: matchFor('9ball'), statsTracker: new StatsTracker(),
     ballsManager: { getBall: noop },
     ui: { setPlayerTurn: noop, setHUDState: noop, setPower: noop,
       hidePauseMenu: () => calls.push('pause'), hideResetButton: () => calls.push('reset'),
@@ -162,7 +166,7 @@ test('LAN rematches clear the client summary, pause and old clock', () => {
     inGameSettings: { hide: () => calls.push('settings') },
     statsPanel: { reset: () => calls.push('summary'), update: noop },
   };
-  const host = { state: 'AIM', currentPlayer: 1, _rackId: 1, statsTracker: new StatsTracker(), rules: new NineBallRules() };
+  const host = { state: 'AIM', currentPlayer: 1, _rackId: 1, statsTracker: new StatsTracker(), match: matchFor('9ball') };
   GameStateSerializer.applyGameState(game, GameStateSerializer.serializeGameState(host));
   assert.equal(game.paused, false);
   assert.equal(game._settingsOpen, false);
@@ -181,13 +185,13 @@ test('LAN idle snapshots preserve a local ball-in-hand preview', () => {
 });
 
 test('remote push-out declarations cannot arrive after the shot starts or while paused', () => {
-  const game = Object.assign(gameForTurn('9ball'), { currentPlayer: 2, rules: new NineBallRules() });
+  const game = Object.assign(gameForTurn('9ball'), { currentPlayer: 2, match: matchFor('9ball') });
   game.setNetworkController(new EventTarget(), 'host', 1);
   game._broadcastSnapshot = noop;
   for (const extra of [{ state: 'SHOOTING' }, { state: 'AIM', paused: true }]) {
-    Object.assign(game, extra); game.rules.pushOutAvailable = true; game.rules.pushOutDeclared = false;
+    Object.assign(game, extra); game.match.match.mode.pushOut.available = true; game._pushOutDeclared = false;
     game._onNetPushOutDeclare({ detail: { fromPlayer: 2 } });
-    assert.equal(game.rules.pushOutDeclared, false);
+    assert.equal(game._pushOutDeclared, false);
   }
 });
 
@@ -403,10 +407,10 @@ test('idle snapshots preserve local charging until the host changes the turn', (
 
 test('LAN clients receive shot statistics and one-shot result audio', () => {
   const stats = new StatsTracker(); stats.startTurn(1); stats.recordShot(1, 50);
-  const host = { state: 'SHOOTING', currentPlayer: 1, _lastShotPower: 55, statsTracker: stats, rules: new Rules() };
+  const host = { state: 'SHOOTING', currentPlayer: 1, _lastShotPower: 55, statsTracker: stats, match: matchFor('8ball') };
   const heard = [];
   let summaries = 0;
-  const client = { state: 'AIM', localPlayerId: 2, currentPlayer: 1, rules: new Rules(),
+  const client = { state: 'AIM', localPlayerId: 2, currentPlayer: 1, match: matchFor('8ball'),
     ballsManager: { balls: [], getBall: noop }, statsTracker: new StatsTracker(),
     statsPanel: { update: noop, showGameOver: () => summaries++ },
     audio: { playCueHit: () => heard.push('cue'), playFoul: () => heard.push('foul'), playWin: () => heard.push('win') } };
@@ -414,7 +418,7 @@ test('LAN clients receive shot statistics and one-shot result audio', () => {
   GameStateSerializer.applyGameState(client, shot); GameStateSerializer.applyGameState(client, shot);
   assert.equal(client.statsTracker.playerStats[1].avgPower ?? client.statsTracker.getSummary().player1.avgPower, 50);
   assert.deepEqual(heard, ['cue']);
-  host.state = 'GAME_OVER'; host.rules.gameOver = true; host.rules.winner = 2; stats.endGame(2);
+  host.state = 'GAME_OVER'; host.match.concede(0); stats.endGame(2);
   const end = GameStateSerializer.serializeGameState(host);
   GameStateSerializer.applyGameState(client, end); GameStateSerializer.applyGameState(client, end);
   assert.deepEqual(heard, ['cue', 'win']); assert.equal(summaries, 1);
@@ -471,7 +475,8 @@ test('pause time is excluded from stats and timed challenges', t => {
 test('an illegal break cannot complete the perfect-break challenge', () => {
   const game = gameForTurn('local2p');
   game.challengeManager = new ChallengeManager('perfect_break'); game.challengeManager.start();
-  game.rules = new Rules(); game.rules.startShot(1); game.rules.recordFirstHit(1);
+  game.match = matchFor('8ball');
+  game._shotRuling = game.match.resolveEvents(ev({ first: 1, pocketed: [1, 2, 3, 4], cue: true }));
   game._isBreakShot = true; game.ballsManager.getCueBall().pocketed = true;
   game.ballsManager.resetCueBallIfPocketed = noop; game.startBallInHand = noop;
   game.resolveTurn([1, 2, 3, 4]);
@@ -713,24 +718,23 @@ test('late ball-manager injection reaches the replay engine', () => {
 });
 
 test('8-ball accounts for balls pocketed before groups and by opponents', () => {
-  const rules = new Rules();
-  rules.startShot(1); rules.recordFirstHit(1); rules.resolveShot([1, 9], false);
-  rules.startShot(1); rules.recordFirstHit(2); rules.resolveShot([2], false);
-  assert.deepEqual(rules.player1Pocketed, [1, 2]);
-  assert.deepEqual(rules.player2Pocketed, [9]);
-  rules.startShot(2); rules.recordFirstHit(10); rules.resolveShot([3, 10], false);
-  assert.ok(rules.player1Pocketed.includes(3));
-  assert.ok(rules.player2Pocketed.includes(10));
+  const solids = (state) => state.pocketed.filter((id) => id >= 1 && id <= 7);
+  const stripes = (state) => state.pocketed.filter((id) => id >= 9);
+  let r = eightBall.resolveShot(eightBall.createInitialState(config8, Math.random), 0, ev({ first: 1, pocketed: [1, 9] }), FINAL, MODE_SHOT);
+  r = eightBall.resolveShot(r.state, 0, ev({ first: 2, pocketed: [2] }), FINAL, MODE_SHOT);
+  assert.deepEqual(r.state.groups, ['solid', 'stripe']);
+  assert.deepEqual(solids(r.state), [1, 2]);
+  assert.deepEqual(stripes(r.state), [9]);
+  const seat1 = { ...r.state, turn: { ...r.state.turn, currentSeat: 1 } };
+  r = eightBall.resolveShot(seat1, 1, ev({ first: 10, pocketed: [3, 10] }), FINAL, MODE_SHOT);
+  assert.ok(solids(r.state).includes(3));
+  assert.ok(stripes(r.state).includes(10));
 });
 
 test('8-ball cannot be won alongside the last group ball', () => {
-  const rules = new Rules();
-  rules.breakShot = false;
-  rules.player1Group = 'solid'; rules.player2Group = 'stripe';
-  rules.player1Pocketed = [1, 2, 3, 4, 5, 6];
-  rules.startShot(1); rules.recordFirstHit(7);
-  const result = rules.resolveShot([7, 8], false);
-  assert.equal(result.winner, 2);
+  const state = { ...eightBall.createInitialState(config8, Math.random), breakShot: false, groups: ['solid', 'stripe'], pocketed: [1, 2, 3, 4, 5, 6] };
+  const ruling = eightBall.resolveShot(state, 0, ev({ first: 7, pocketed: [7, 8] }), FINAL, MODE_SHOT);
+  assert.equal(ruling.winnerTeam + 1, 2);
 });
 
 test('tournament fills both semifinal slots and plays the announced series', () => {
@@ -750,9 +754,12 @@ test('tournament fills both semifinal slots and plays the announced series', () 
   assert.equal(engine.state.champion.isPlayer, true);
 });
 
+/** A no-foul ruling that keeps player 1 at the table (the old rules mock). */
+const NEUTRAL_RULING = { state: null, fouls: [], ballInHand: null, nextSeat: 0, eliminatedSeats: [], winnerTeam: null, respot: [], messages: [] };
+
 function gameForTurn(mode = 'freeplay') {
   const cue = { pocketed: false, mesh: { position: new THREE.Vector3() } };
-  return Object.assign(Object.create(Game.prototype), {
+  const game = Object.assign(Object.create(Game.prototype), {
     state: 'SHOOTING', mode, currentPlayer: 1, aiEnabled: false,
     cueTipOffset: { x: 0, y: 0 }, _lastShotPower: 55, _isBreakShot: false,
     trails: { stopRecording: noop },
@@ -762,27 +769,31 @@ function gameForTurn(mode = 'freeplay') {
     statsTracker: new StatsTracker(), statsPanel: { update: noop, showGameOver: noop },
     onboardingTips: { show: noop },
     achievements: new Proxy({}, { get: () => noop }),
-    rules: { resolveShot: () => ({ nextPlayer: 1, foul: false }), getStatus: () => ({}) },
+    match: { modeId: '8ball', status: () => ({ currentPlayer: 1 }), toJSON: () => null },
     _enterAimState() { this.state = 'AIM'; }, _updatePlayerStats: noop, _shouldTriggerAI: () => false,
   });
+  // Every turn has a ruling, like the old rules mock that always resolved; a test may set its own.
+  let ruling = null;
+  Object.defineProperty(game, '_shotRuling', { get: () => ruling ?? NEUTRAL_RULING, set: (value) => { ruling = value; } });
+  return game;
 }
 
 test('charging counts toward the turn deadline and grants ball-in-hand', t => {
   const game = gameForTurn('9ball');
   t.after(() => clearTimeout(game._cameraResetTimer));
-  game.rules = new NineBallRules();
+  game.match = matchFor('9ball');
   game.state = 'CHARGING';
   game._turnTimerEnabled = true; game._turnTimerRemaining = 0.1; game._turnTimerMax = 30;
   game.startBallInHand = () => { game.ballInHand = true; };
   game._updateTurnTimer(0.2);
   assert.equal(game.currentPlayer, 2);
-  assert.equal(game.rules.player1ConsecutiveFouls, 1);
+  assert.equal(game.match.status().player1ConsecutiveFouls, 1);
   assert.equal(game.ballInHand, true);
 });
 
 test('third timed-out turn ends 9-ball before the game is disposed', () => {
   const game = gameForTurn('9ball');
-  game.rules = new NineBallRules(); game.rules.player1ConsecutiveFouls = 2;
+  game.match = matchFor('9ball'); game.match.match.mode.fouls = [2, 0];
   game.state = 'AIM'; game._turnTimerEnabled = true; game._turnTimerRemaining = 0.1;
   let winner;
   game.onGameEnd = value => { winner = value; game.state = 'DISPOSED'; game.ui = null; };

@@ -295,6 +295,22 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     await page.waitForFunction(() => __menu.game.state === 'AIM' && __menu.game.playback === null, { timeout: 25000 });
   });
 
+  await t.test('an 8-ball turn is decided by the match controller', async () => {
+    await menu();
+    await page.evaluate(() => __menu._startGame('local2p'));
+    await page.waitForFunction(() => __menu.game?.state === 'AIM');
+    await page.evaluate(() => { const game = __menu.game; game.power = 40; game.state = 'SHOOTING'; game.shoot(); });
+    await page.waitForFunction(() => __menu.game.playback !== null);
+    await page.waitForFunction(() => __menu.game.state !== 'SHOOTING' && __menu.game.playback === null, { timeout: 25000 });
+    const r = await page.evaluate(() => ({ hasRules: 'rules' in __menu.game, turnId: __menu.game.match.toJSON().turnId, status: __menu.game.match.status() }));
+    assert.equal(r.hasRules, false);
+    assert.equal(r.turnId, 1);
+    assert.equal(r.status.breakShot, false);
+    await menu();
+    await page.evaluate(() => __menu._startGame('freeplay'));
+    await page.waitForFunction(() => __menu.game?.state === 'AIM');
+  });
+
   await t.test('appearance changes update every bevel and preserve preset components', async () => {
     const result = await page.evaluate(async () => {
       const { settings } = await import('/src/core/SettingsStore.js');
@@ -402,7 +418,8 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     await page.evaluate(async () => {
       await __menu._startTournamentMatch();
       const game = __menu.game; __menu.loop.stop();
-      game.rules.breakShot = false; game.rules.startShot(1); game.rules.recordFirstHit(1);
+      game.match.match = { ...game.match.match, mode: { ...game.match.match.mode, breakShot: false } };
+      game._shotRuling = game.match.resolveEvents([{ t: 0.1, type: 'first_contact', ball: 1 }, { t: 0.2, type: 'pocket', ball: 9, pocket: 0 }]);
       game.resolveTurn([9]);
     });
     assert.equal(await page.evaluate(() => __menu.tournamentPanel.engine.getCurrentMatch().round), 1);
@@ -490,7 +507,8 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     await page.evaluate(() => __menu._startMatchGame({ mode: '9ball', gamesNeeded: 3, p1Name: 'Alpha', p2Name: 'Beta' }));
     await page.evaluate(() => {
       const game = __menu.game; __menu.loop.stop();
-      game.rules.breakShot = false; game.rules.startShot(1); game.rules.recordFirstHit(1); game.resolveTurn([9]);
+      game.match.match = { ...game.match.match, mode: { ...game.match.match.mode, breakShot: false } };
+      game._shotRuling = game.match.resolveEvents([{ t: 0.1, type: 'first_contact', ball: 1 }, { t: 0.2, type: 'pocket', ball: 9, pocket: 0 }]); game.resolveTurn([9]);
     });
     assert.ok(await page.evaluate(() => __menu.game.ui._lastMessage.includes('比分 1 : 0')));
     await page.evaluate(() => __menu.game.ui._hudNewGameBtn.click());
@@ -499,7 +517,8 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     assert.equal(await page.evaluate(() => __menu.matchManager.getStatus().currentGame), 2);
     await page.evaluate(() => {
       const game = __menu.game; __menu.loop.stop();
-      game.rules.breakShot = false; game.rules.startShot(1); game.rules.recordFirstHit(1); game.resolveTurn([9]);
+      game.match.match = { ...game.match.match, mode: { ...game.match.match.mode, breakShot: false } };
+      game._shotRuling = game.match.resolveEvents([{ t: 0.1, type: 'first_contact', ball: 1 }, { t: 0.2, type: 'pocket', ball: 9, pocket: 0 }]); game.resolveTurn([9]);
     });
     assert.ok(await page.evaluate(() => __menu.game.ui._lastMessage.includes('Alpha 赢得比赛')));
   });
@@ -682,7 +701,7 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
 
     await page.evaluate(() => {
       const game = __menu.game;
-      game.currentPlayer = 1; game.rules.gameOver = true; game.rules.winner = 2;
+      game.currentPlayer = 1; game.match.concede(0);
       game.resolveTurn([], { gameOver: true, winner: 2, message: '玩家 2 获胜' });
     });
     await guest.waitForFunction(() => __menu.game.state === 'GAME_OVER' && __menu.game.statsPanel._gameOverOverlay?.style.display === 'flex');

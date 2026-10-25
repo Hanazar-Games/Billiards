@@ -36,23 +36,8 @@ export class GameStateSerializer {
       }
     }
 
-    const rules = game.rules ? {
-      player1Group: game.rules.player1Group,
-      player2Group: game.rules.player2Group,
-      player1Pocketed: game.rules.player1Pocketed,
-      player2Pocketed: game.rules.player2Pocketed,
-      breakShot: game.rules.breakShot,
-      gameOver: game.rules.gameOver,
-      winner: game.rules.winner,
-      foul: game.rules.foul,
-      pocketedBalls: game.rules.pocketedBalls || [],
-      player1ConsecutiveFouls: game.rules.player1ConsecutiveFouls,
-      player2ConsecutiveFouls: game.rules.player2ConsecutiveFouls,
-      pushOutAvailable: game.rules.pushOutAvailable,
-      pushOutDeclared: game.rules.pushOutDeclared,
-      pushOutPending: game.rules.pushOutPending,
-      pushOutPlayer: game.rules.pushOutPlayer,
-    } : null;
+    // The match state (packages/modes) travels whole; the guest restores it.
+    const match = game.match?.toJSON?.() ?? null;
 
     return {
       mode: game.mode,
@@ -66,9 +51,10 @@ export class GameStateSerializer {
       turnTimer: { enabled: Boolean(game._turnTimerEnabled), max: game._turnTimerMax || 0,
         remaining: game._turnTimerRemaining || 0 },
       shotPower: game._lastShotPower || 0,
-      stats: game.statsTracker?.getSummary(game.rules?.winner) || null,
+      stats: game.statsTracker?.getSummary(game.match?.status?.()?.winner) || null,
       balls,
-      rules,
+      match,
+      pushOutDeclared: Boolean(game._pushOutDeclared),
       message: game.ui?._lastMessage || '',
       player1Name: game.networkPlayer1Name || '玩家 1',
       player2Name: game.networkPlayer2Name || '玩家 2',
@@ -163,7 +149,6 @@ export class GameStateSerializer {
     }
     if (snapshot.currentPlayer !== undefined) {
       game.currentPlayer = snapshot.currentPlayer;
-      if (game.rules) game.rules.currentPlayer = snapshot.currentPlayer;
       game.ui?.setPlayerTurn(snapshot.currentPlayer);
     }
     if (snapshot.ballInHand !== undefined) {
@@ -181,25 +166,9 @@ export class GameStateSerializer {
     }
     game.ui?.setHUDState?.(game.ballInHand ? 'BALL_IN_HAND' : game.state);
 
-    // Update rules state
-    if (snapshot.rules && game.rules) {
-      const rs = snapshot.rules;
-      if (rs.player1Group !== undefined) game.rules.player1Group = rs.player1Group;
-      if (rs.player2Group !== undefined) game.rules.player2Group = rs.player2Group;
-      if (rs.player1Pocketed !== undefined) game.rules.player1Pocketed = rs.player1Pocketed;
-      if (rs.player2Pocketed !== undefined) game.rules.player2Pocketed = rs.player2Pocketed;
-      if (rs.breakShot !== undefined) game.rules.breakShot = rs.breakShot;
-      if (rs.gameOver !== undefined) game.rules.gameOver = rs.gameOver;
-      if (rs.winner !== undefined) game.rules.winner = rs.winner;
-      if (rs.foul !== undefined) game.rules.foul = rs.foul;
-      if (rs.pocketedBalls !== undefined) game.rules.pocketedBalls = rs.pocketedBalls;
-      if (rs.player1ConsecutiveFouls !== undefined) game.rules.player1ConsecutiveFouls = rs.player1ConsecutiveFouls;
-      if (rs.player2ConsecutiveFouls !== undefined) game.rules.player2ConsecutiveFouls = rs.player2ConsecutiveFouls;
-      if (rs.pushOutAvailable !== undefined) game.rules.pushOutAvailable = rs.pushOutAvailable;
-      if (rs.pushOutDeclared !== undefined) game.rules.pushOutDeclared = rs.pushOutDeclared;
-      if (rs.pushOutPending !== undefined) game.rules.pushOutPending = rs.pushOutPending;
-      if (rs.pushOutPlayer !== undefined) game.rules.pushOutPlayer = rs.pushOutPlayer;
-    }
+    // Match state from the host's controller
+    if (snapshot.match !== undefined && game.match) game.match.restore(snapshot.match);
+    if (snapshot.pushOutDeclared !== undefined) game._pushOutDeclared = snapshot.pushOutDeclared;
 
     // Update UI labels for networked names
     if (snapshot.player1Name) game.networkPlayer1Name = snapshot.player1Name;
@@ -222,7 +191,8 @@ export class GameStateSerializer {
       game.audio?.playCueHit(snapshot.shotPower);
     }
     if (game.state === 'GAME_OVER' && previousState !== 'GAME_OVER') {
-      if (snapshot.rules?.winner === game.localPlayerId) game.audio?.playWin();
+      const winnerTeam = snapshot.match?.mode?.winnerTeam;
+      if (winnerTeam !== undefined && winnerTeam !== null && winnerTeam + 1 === game.localPlayerId) game.audio?.playWin();
       else game.audio?.playFoul();
       if (snapshot.stats) game.statsPanel?.showGameOver(snapshot.stats, false);
       game.ui?.showResetButton?.(() => game._onResetButtonClicked(), UIText.gameOverResetLabel);
