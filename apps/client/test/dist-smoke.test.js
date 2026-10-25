@@ -114,6 +114,22 @@ test('production artifact on a GitHub Pages project path', { timeout: process.en
     await page.waitForFunction(() => __menu.state === 'MENU');
   });
 
+  // After the free-play subtest on purpose: that one proves the worker chunk is fetched with the game,
+  // so the chunk must not have been loaded by an earlier shot.
+  await t.test('a free-play shot simulates in the bundled worker', async () => {
+    await page.evaluate(() => [...document.querySelectorAll('button.menu-btn')].find(b => b.textContent.includes('单人练习')).click());
+    await page.waitForFunction(() => __menu.game?.state === 'AIM' && __menu.state === 'PLAYING');
+    await page.evaluate(() => { const game = __menu.game; game.power = 40; game.state = 'SHOOTING'; game.shoot(); });
+    // Truthy, not `!== null`: a game without the worker pipeline has no `playback` at all.
+    await page.waitForFunction(() => Boolean(__menu.game.playback));
+    await page.waitForFunction(() => __menu.game.state === 'AIM' && __menu.game.playback === null, { timeout: 25000 });
+    assert.ok(assets.some(url => /\/sim\.worker-[^/]+\.js$/.test(url)));
+    assert.ok(assets.every(url => url.startsWith(origin + base + 'assets/')));
+    assert.deepEqual(errors, []);
+    await page.evaluate(() => __menu.game.onReturnToMenu());
+    await page.waitForFunction(() => __menu.state === 'MENU');
+  });
+
   await t.test('training loads its separate production chunk', async () => {
     await page.evaluate(() => {
       __menu._showTrainer();
