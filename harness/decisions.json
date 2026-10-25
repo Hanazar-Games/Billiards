@@ -606,5 +606,27 @@
       "packages/sim/tools/legacy-reference.mjs",
       "harness/sdd/2026-10-24-f1a-nucleo-simulacao/ledger.md"
     ]
+  },
+  {
+    "id": "D039",
+    "date": "2026-10-24",
+    "title": "Calibragem do recuo: parâmetros não fecham com a sensação do legado",
+    "decision": "Em aberto. Até a decisão, TUNING continua igual a TUNING_LEGACY (sensação 11/11, recuo quebrado) e os dois testes de calibration.test.js rodam como todo. Opções medidas: (1) aceitar a sensação nova após teste de jogo, com o melhor ajuste medido (ballTableFriction 0, rollCoupling 2,04, rollingResistance 3,11, damping 0,0408, rollingSpinFriction 0,195, angularDamping 0,00674, sideSpinFriction 0,96: recuo de 61 cm, invariante conservado, 8/11 na sensação) e uma decisão nova que troque a referência de long-stun, pot-corner e pot-side; (2) manter o recuo do legado e adiar a F1-09; (3) outra correção do modelo (atrito de deslizamento constante no lugar do acoplamento exponencial e revisão do rebote na tabela), sem prazo garantido.",
+    "rationale": "Tarefa 8 da F1-A. O atrito bola-mesa do cannon-es leva a bola ao rolamento no primeiro passo e conserva 1,5v + ωR em vez de 2,5v + ωR. É isso que mata o recuo, mas o envelope de sensação foi medido nesse comportamento. Sem esse atrito (único ponto de partida que conserva o invariante), a branca carrega o efeito de rolamento depois do contato e da tabela, e a pot-side percorre 105–135 cm contra 163–194 cm do legado. Em mais de 800 combinações de rollCoupling, rollingResistance, damping, rollingSpinFriction, angularDamping, sideSpinFriction e atrito pequeno, nenhuma passou nos três critérios; pot-side ficou fora em todas. Duas mudanças de modelo testadas (inércia efetiva do legado no acoplamento; rolamento casado com o rebote na tabela) não resolveram.",
+    "alternatives": [
+      "Aceitar a sensação nova após teste de jogo",
+      "Manter o recuo do legado (F1-09 adiada)",
+      "Outra correção do modelo"
+    ],
+    "status": "open",
+    "source": "execução da F1-A, Tarefa 8; o plano manda parar e levar as opções medidas ao usuário quando a calibragem não fecha",
+    "refs": [
+      "docs/f1/calibragem-recuo.md",
+      "packages/sim/test/calibration.test.js",
+      "packages/sim/tools/feel-report.mjs",
+      "harness/feature_list.json F1-09",
+      "D033",
+      "D038"
+    ]
   }
 ]
