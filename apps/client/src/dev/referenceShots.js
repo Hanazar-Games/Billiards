@@ -36,11 +36,27 @@ export function playReferenceShot(game, name) {
     else ball.remove();
   }
 
+  // The shot borrows the player's spin; the picker would not show the
+  // corpus spin, so give it back when the shot ends, played or cancelled.
+  const playerSpin = game.cueTipOffset;
+  const shotSpin = { x: shot.spin.x, y: shot.spin.y };
+  const restoreSpin = () => {
+    // A reset during the shot already put the spin back to its own value.
+    if (game.cueTipOffset !== shotSpin) return;
+    game.cueTipOffset = playerSpin;
+    game._updateCueTipPicker();
+  };
+
   game.aimDirection.set(Math.cos(shot.angle), 0, Math.sin(shot.angle));
-  game.cueTipOffset = { x: shot.spin.x, y: shot.spin.y };
+  game.cueTipOffset = shotSpin;
   game.power = shot.power;
   game.state = 'SHOOTING';
-  game.shoot();
+  try {
+    game.shoot();
+  } catch (err) {
+    restoreSpin();
+    return Promise.reject(err);
+  }
 
   // The result arrives from the worker: wait for the playback to start, then
   // for it to end. A shot that never starts one (cancelled) leaves SHOOTING.
@@ -48,9 +64,15 @@ export function playReferenceShot(game, name) {
     let started = false;
     const poll = () => {
       if (game.playback) started = true;
-      if (started && !game.playback) resolve(game.lastShotResult);
-      else if (!started && game.state !== 'SHOOTING') reject(new Error(`the shot "${name}" was cancelled`));
-      else requestAnimationFrame(poll);
+      if (started && !game.playback) {
+        restoreSpin();
+        resolve(game.lastShotResult);
+      } else if (!started && game.state !== 'SHOOTING') {
+        restoreSpin();
+        reject(new Error(`the shot "${name}" was cancelled`));
+      } else {
+        requestAnimationFrame(poll);
+      }
     };
     requestAnimationFrame(poll);
   });

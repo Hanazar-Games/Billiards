@@ -516,6 +516,29 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     assert.equal(r.contact, true); assert.ok(r.draw >= 10, `recuo de ${r.draw.toFixed(1)} cm`); assert.equal(r.exact, true);
   });
 
+  await t.test('a reference shot gives the player\'s spin back, played or cancelled', async () => {
+    await menu();
+    await page.evaluate(() => __menu._startGame('freeplay'));
+    await page.waitForFunction(() => __menu.game?.state === 'AIM');
+    const r = await page.evaluate(async () => {
+      const game = __menu.game; const real = game.simClient;
+      const picker = () => { const m = document.getElementById('cue-tip-marker'); return m && [m.style.left, m.style.top]; };
+      game._updateCueTipPicker(); const marker = picker();
+      game.cueTipOffset = { x: 0.3, y: 0.2 }; game._updateCueTipPicker(); const wanted = picker();
+      await window.__referenceShot('draw-ref');
+      const played = { spin: game.cueTipOffset, picker: picker() };
+      game.simClient = { warm() {}, simulate: () => Promise.reject(new Error('boom')) };
+      const cancelled = { error: await window.__referenceShot('draw-ref').then(() => null, e => e.message) };
+      game.simClient = real;
+      return { marker, wanted, played, cancelled, spin: game.cueTipOffset, picker: picker() };
+    });
+    assert.ok(r.marker && r.wanted[0] !== r.marker[0], 'the picker shows the player\'s spin');
+    assert.deepEqual(r.played, { spin: { x: 0.3, y: 0.2 }, picker: r.wanted });
+    assert.match(r.cancelled.error, /cancelled/);
+    assert.deepEqual(r.spin, { x: 0.3, y: 0.2 });
+    assert.deepEqual(r.picker, r.wanted);
+  });
+
   await t.test('two browsers keep their LAN connection through play and synchronize the clock', async t => {
     const socket = createSocketServer();
     await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve));
