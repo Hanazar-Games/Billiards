@@ -2,7 +2,7 @@
 
 ## Estado atual
 
-- **Fase:** F1-A concluída. T1–T3 foram feitas por subagentes, e da T4 em diante a execução foi inline. Plano: `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`.
+- **Fase:** F1-A concluída; plano da F1-B escrito e em revisão pelo usuário (`docs/superpowers/plans/2026-10-25-f1b-cliente-usa-sim.md`, 8 tarefas, decisões D042 e D043 propostas como `open`). Plano da F1-A: `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`.
   - **T1–T3** (`52b543d`, `19dfb36`, `baa6871`, `846c667`): monorepo e `packages/sim` com paridade bit a bit com o legado a 60 Hz fixo.
   - **T4–T6** (`4dbafba`, `b9cbdff`, `694777e`): eventos, trajetória a 30 Hz e o codec v1 em `packages/protocol`. A abertura ocupa 36,0 KB.
   - **T7** (`43f5188`, `832b860`): teste de sensação 11/11 dentro do envelope do legado em 14 taxas de quadro. O usuário aceitou a D038, que substitui a D035.
@@ -21,7 +21,7 @@
 
 ## Próximo passo
 
-1. Escrever o plano da F1-B com `superpowers:writing-plans` e pedir revisão ao usuário. Escopo: o cliente usa `packages/sim` em Web Worker (F1-07) e o recuo é confirmado no navegador (F1-09). Nessa confirmação, o usuário joga também long-stun, pot-corner e pot-side, cuja sensação mudou na D041.
+1. **O usuário revisa o plano da F1-B** e escolhe a forma de execução (subagentes ou nativa). Na aprovação, a Tarefa 1 marca a D042 e a D043 como `accepted`. A confirmação do recuo no navegador (F1-09) vem no fim da F1-B, pelo roteiro `docs/f1/roteiro-teste-manual.md` que a Tarefa 6 escreve.
 2. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium. O Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido. Sem esse download, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome do sistema.
 
 ## Pendências da execução da F1-A (para a Tarefa 10 ou depois)
@@ -115,3 +115,15 @@
   - O teste de materiais da T2 passou a usar `TUNING_LEGACY` explicitamente, porque compara com o mundo legado.
   - Com o `TUNING` novo, o benchmark deu 3,69× (≥ 1,3×) e as trajetórias encolheram: abertura 26,8 KB, english 33,1 KB, medium 21,6 KB (limite de 48 KB). O `tsc` está limpo.
 - F1-06: critérios alinhados à D041 (continua `passes: true`, verificado pelo teste de sensação 12/12). F1-09: parte do sim feita; falta a confirmação no navegador (F1-B).
+
+### 2026-10-25 — sessão 2, continuação (plano da F1-B)
+
+- Plano da F1-B escrito com `superpowers:writing-plans`: `docs/superpowers/plans/2026-10-25-f1b-cliente-usa-sim.md`, em 8 tarefas.
+  - Cópia congelada do legado para os testes do sim.
+  - Worker de simulação e `TrajectoryPlayer`.
+  - O `Game` reproduz as tacadas do worker, e a física legada sai do cliente.
+  - Tacadas de referência no navegador (F1-09) e partida de 8-ball contra a IA até o fim (F1-07).
+  - Fechamento.
+- Achado no planejamento: a paridade, a referência de sensação e o benchmark carregam a física legada direto de `apps/client/src` (10 arquivos, 3.668 linhas). Por isso o plano propõe a D042 (cópia congelada com manifesto) antes de tirar a física do cliente.
+- D043 proposta: os replays continuam no formato atual na F1-B; a migração para a trajetória v1 fica para a F4.
+- Fora do escopo, registrado no plano: `LocalMatchController` (F2), linha-guia com a geometria do sim e divergência entre navegadores com Playwright.

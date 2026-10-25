@@ -673,5 +673,45 @@
       "packages/sim/tools/sim-reference.mjs",
       "harness/feature_list.json F1-06, F1-09"
     ]
+  },
+  {
+    "id": "D042",
+    "date": "2026-10-25",
+    "title": "Cópia congelada da física legada para os testes do sim",
+    "decision": "Os testes de paridade e de sensação de packages/sim e o spike spikes/sim-bench passam a carregar uma cópia dos 10 arquivos de física do legado (config.js, core/PhysicsWorld.js, game/Table.js, game/TableProfiles.js, game/BallsManager.js, game/Ball.js, theme/TableThemes.js, theme/ProceduralTextures.js, theme/BallThemes.js, trainer/DrillData.js) em packages/sim/test/legacy/client/, idênticos aos da base 0448b03. Um MANIFEST.json com o SHA-256 de cada arquivo (com CRLF trocado por LF) impede edição, e um teste garante que nenhum teste, ferramenta ou benchmark importa apps/client.",
+    "rationale": "Hoje legacy-world.js, legacy-run.js e spikes/sim-bench/src/world.js importam apps/client/src. A F1-B tira a física legada do cliente, o que quebraria a paridade bit a bit com TUNING_LEGACY (D041), a regeneração da referência de sensação (D038) e o benchmark (D034).",
+    "alternatives": [
+      "Manter os arquivos de física em apps/client/src sem uso pelo jogo",
+      "Ler os arquivos da base pelo git durante os testes"
+    ],
+    "status": "open",
+    "source": "plano da F1-B (proposta, aguardando revisão do usuário)",
+    "refs": [
+      "docs/superpowers/plans/2026-10-25-f1b-cliente-usa-sim.md",
+      "packages/sim/test/legacy/legacy-world.js",
+      "spikes/sim-bench/src/world.js",
+      "D034",
+      "D038",
+      "D041"
+    ]
+  },
+  {
+    "id": "D043",
+    "date": "2026-10-25",
+    "title": "Replays continuam no formato atual durante a F1-B",
+    "decision": "Na F1-B, ShotRecorder, ReplayLibrary e o replay instantâneo mantêm o formato atual, gravado dos meshes durante a reprodução da trajetória. A migração dos replays para a trajetória v1 e para o TrajectoryPlayer fica para a F4. Adia em parte a D012 (replays usam o mesmo formato e o mesmo reprodutor).",
+    "rationale": "Os replays salvos ficam no localStorage no formato antigo, e convertê-los exige migração. Nenhum critério de saída da F1-B depende disso. A F4 publica o formato v1 em docs/protocol.md.",
+    "alternatives": [
+      "Migrar os replays na F1-B, com conversão dos salvos",
+      "Descartar os replays salvos ao trocar o formato"
+    ],
+    "status": "open",
+    "source": "plano da F1-B (proposta, aguardando revisão do usuário)",
+    "refs": [
+      "docs/superpowers/plans/2026-10-25-f1b-cliente-usa-sim.md",
+      "D012",
+      "apps/client/src/replay/ShotRecorder.js",
+      "apps/client/src/replay/ReplayLibrary.js"
+    ]
   }
 ]
