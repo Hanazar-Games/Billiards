@@ -1132,11 +1132,15 @@ export class Game {
   /** Plays the shot forward by `dt` and resolves the turn when it ends. */
   _advancePlayback(dt) {
     const playback = this.playback;
+    // Handling an event can abandon the shot, or end its turn some other way
+    // (a forced result, a game over): then nothing more of it plays here.
+    const over = () => this.playback !== playback || this.state !== 'SHOOTING';
     const { events, done } = playback.update(dt * this.playbackRate);
     for (const e of events) {
       this._onSimEvent(e);
-      if (this.playback !== playback) return; // abandoned while handling the event
+      if (over()) return;
     }
+    if (over()) return;
     if (done) {
       this.playback = null;
       this.resolveTurn(this.turnPocketedIds);

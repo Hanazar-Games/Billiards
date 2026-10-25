@@ -798,6 +798,21 @@ test('conceding while the AI is shooting credits the AI with the win', () => {
   assert.equal(winner, 2);
 });
 
+test('a shot event that ends the turn stops the playback before it resolves the turn again', () => {
+  const game = gameForTurn(); game.playbackRate = 1;
+  const events = [{ t: 1, type: 'ball_cushion', ball: 0, speed: 1 }, { t: 1.01, type: 'ball_cushion', ball: 0, speed: 1 }];
+  // The last advance of the shot: two events, and done.
+  const playback = { update: () => ({ events, done: true }) };
+  game.playback = playback;
+  let resolved = 0; const handled = [];
+  game.resolveTurn = () => { resolved++; game.state = 'AIM'; };
+  // The first event ends the turn some other way (a forced result), keeping the playback.
+  game._onSimEvent = e => { handled.push(e); if (handled.length === 1) game.resolveTurn(); };
+  game._advancePlayback(1 / 60);
+  assert.equal(resolved, 1);
+  assert.deepEqual(handled, [events[0]]);
+});
+
 test('pausing does not consume the shot safety deadline', t => {
   const game = gameForTurn(); game._shotStartTime = 100; game.gameStartTime = 100;
   let now = 1000;
