@@ -3,6 +3,15 @@
 // if it dies.
 import { decodeTrajectory } from '@billiards/protocol';
 
+// The shot warm() runs: the cue ball into one ball, softly.
+const WARM_UP = {
+  table: {
+    tableProfileId: 'pool9ft',
+    balls: [{ id: 0, x: 0, z: -50, pocketed: false }, { id: 1, x: 0, z: 0, pocketed: false }],
+  },
+  shot: { angle: Math.PI / 2, power: 20, spin: { x: 0, y: 0 } },
+};
+
 /**
  * @typedef {{
  *   frames: import('@billiards/protocol').TrajectoryFrame[],
@@ -22,9 +31,16 @@ export class SimWorkerClient {
     this._nextId = 0;
   }
 
-  /** Starts the worker now, so the first shot does not pay for loading it. */
+  /**
+   * Starts the worker now, so the first shot does not pay for loading it, and
+   * has it simulate a short shot right away: the first real shot then finds
+   * the sim compiled (a cold break waited ~120 ms longer in the production
+   * build). Nobody waits for that answer. A worker already running is left
+   * alone.
+   */
   warm() {
-    this._ensureWorker();
+    if (this._worker) return;
+    this._ensureWorker().postMessage({ id: this._nextId++, table: WARM_UP.table, shot: WARM_UP.shot });
   }
 
   /**

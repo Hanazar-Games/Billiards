@@ -103,3 +103,19 @@ test('dispose rejeita os pendentes e encerra o worker', async () => {
   assert.equal(fake.terminated, true);
   client.dispose(); // idempotent
 });
+
+test('warm cria o worker e já manda uma tacada curta, cuja resposta ninguém espera', async () => {
+  const fake = new FakeWorker();
+  let created = 0;
+  const client = new SimWorkerClient(() => { created++; return fake; });
+  client.warm();
+  assert.equal(created, 1);
+  assert.equal(fake.msgs.length, 1, 'one short shot, so the first real one finds the sim compiled');
+  assert.equal(handleSimRequest(fake.msgs[0]).reply.ok, true, 'a shot the sim accepts');
+  fake.reply(0); // nobody waits for it: the answer resolves nothing and breaks nothing
+  client.warm();
+  assert.equal(fake.msgs.length, 1, 'a worker already running is not warmed again');
+  const p = client.simulate(brk.table, brk.shot);
+  fake.reply(1);
+  assert.equal((await p).steps, simulateShot(brk.table, brk.shot).steps);
+});
