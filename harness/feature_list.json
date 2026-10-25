@@ -110,8 +110,8 @@
     "phase": "F1",
     "description": "Teste de sensação contra a física legada, com tolerância medida no próprio legado (D033)",
     "verification": [
-      "tolerância de cada métrica = envelope do legado em 14 taxas de quadro, alargado pelas margens da D038, medido sobre o corpus da F1 e registrado em packages/sim/test/feel/legacy-reference.json (D033, D038)",
-      "distância percorrida e posição final do passo fixo dentro dessa tolerância; conjunto de bolas encaçapadas igual ao do legado a 60 FPS (D033, D038)"
+      "tolerância de cada métrica = envelope do legado em 14 taxas de quadro, alargado pelas margens da D038, medido sobre o corpus da F1 e registrado em packages/sim/test/feel/legacy-reference.json (D033, D038); em long-stun, pot-corner e pot-side, a referência é o sim calibrado, com as mesmas margens, registrada em packages/sim/test/feel/sim-reference.json (D041)",
+      "distância percorrida e posição final do passo fixo dentro dessa tolerância; conjunto de bolas encaçapadas igual ao da referência a 60 FPS (D033, D038, D041)"
     ],
     "passes": true
   },
@@ -479,6 +479,6 @@
       "a mesma tacada no jogo, no navegador, tem o comportamento confirmado pelo usuário"
     ],
     "passes": false,
-    "notes": "parte do sim em aberto: a calibragem não fechou com a sensação do legado (D039, docs/f1/calibragem-recuo.md); falta também a confirmação no navegador (F1-B)"
+    "notes": "parte do sim feita na F1-A: com o TUNING da D041, a branca da draw-ref volta 61 cm (packages/sim/test/calibration.test.js); falta a confirmação no navegador (F1-B)"
   }
 ]

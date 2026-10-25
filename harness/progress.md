@@ -2,11 +2,11 @@
 
 ## Estado atual
 
-- **Fase:** F1-A concluída, exceto o recuo (D039, em aberto). T1–T3 foram feitas por subagentes, e da T4 em diante a execução foi inline. Plano: `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`.
+- **Fase:** F1-A concluída. T1–T3 foram feitas por subagentes, e da T4 em diante a execução foi inline. Plano: `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`.
   - **T1–T3** (`52b543d`, `19dfb36`, `baa6871`, `846c667`): monorepo e `packages/sim` com paridade bit a bit com o legado a 60 Hz fixo.
   - **T4–T6** (`4dbafba`, `b9cbdff`, `694777e`): eventos, trajetória a 30 Hz e o codec v1 em `packages/protocol`. A abertura ocupa 36,0 KB.
   - **T7** (`43f5188`, `832b860`): teste de sensação 11/11 dentro do envelope do legado em 14 taxas de quadro. O usuário aceitou a D038, que substitui a D035.
-  - **T8 parada na decisão do usuário (D039, `open`).** Nenhum ajuste medido passou ao mesmo tempo nos 2 testes de recuo e nos 11 de sensação. Foram mais de 800 combinações e 2 mudanças de modelo; a `pot-side` falhou em todas. `TUNING` continua igual a `TUNING_LEGACY`, e os testes de recuo rodam como `todo`. Tentativas e opções estão em `docs/f1/calibragem-recuo.md`.
+  - **T8** (`147d5cb`, `2b83739`, `f0c20fa`): recuo calibrado pela D041, escolhida pelo usuário em 2026-10-25 (opção 1 da D039). Sem o atrito bola-mesa do cannon-es, a branca da `draw-ref` volta 61 cm e o invariante 2,5v + ωR se conserva. Long-stun, pot-corner e pot-side mudaram de sensação: a referência delas passa a ser o sim calibrado, com as margens da D038, e as outras 8 tacadas seguem no envelope do legado. Tentativas e decisão em `docs/f1/calibragem-recuo.md`.
     - De passagem, foi corrigido um travamento (`147d5cb`): o cannon-es empacota os ids dos corpos em 16 bits e usa um contador global. Num servidor, depois de uns 3 mil tacadas no mesmo processo, `simulateShot` lançaria erro. Agora cada mundo numera os próprios corpos.
   - **T9** (`86039bc`): abertura em 45 ms, contra 122 ms do spike (2,69×). A troca é o broadphase com caixas (AABB) em vez de esferas, com física idêntica: golden e paridade não mudaram.
   - **T10:**
@@ -21,12 +21,8 @@
 
 ## Próximo passo
 
-1. **O usuário decide a D039 (recuo):**
-   - **aceitar a sensação nova:** aplicar o melhor ajuste medido em `TUNING`, registrar uma decisão nova para a referência de long-stun, pot-corner e pot-side, rodar `npm run golden:update -w packages/sim` e tirar o `todo` de `test/calibration.test.js`;
-   - **manter o recuo do legado:** marcar a D039 como decidida e levar a F1-09 para uma fase futura;
-   - **outra correção do modelo:** retomar pelos experimentos de `docs/f1/calibragem-recuo.md`. Cada ajuste pode ser medido com `node packages/sim/tools/feel-report.mjs '<json>'`.
-2. Depois, escrever o plano da F1-B (cliente usa `packages/sim` em Web Worker; F1-07 e F1-09 no navegador) com `superpowers:writing-plans` e pedir revisão ao usuário.
-3. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium. O Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido. Sem esse download, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome do sistema.
+1. Escrever o plano da F1-B com `superpowers:writing-plans` e pedir revisão ao usuário. Escopo: o cliente usa `packages/sim` em Web Worker (F1-07) e o recuo é confirmado no navegador (F1-09). Nessa confirmação, o usuário joga também long-stun, pot-corner e pot-side, cuja sensação mudou na D041.
+2. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium. O Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido. Sem esse download, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome do sistema.
 
 ## Pendências da execução da F1-A (para a Tarefa 10 ou depois)
 
@@ -35,7 +31,7 @@
   - **Branca com bola na mão:** se a branca vem encaçapada na entrada, o `simulateShot` lança erro mesmo quando recebe `shot.cueBall`. Na bola na mão depois de uma falta, quem chama precisa marcar `pocketed: false` antes, ou o sim passa a aceitar que o `cueBall` traga a branca de volta. Decidir na F2/F4, com a camada de modos, e incluir um teste.
   - **Validação extra sem teste:** `maxSimSeconds`, ids, `q`, x/z e `cueBall` inválidos não têm teste. Um `spin` ausente gera `TypeError`; a camada do protocolo deve validar o formato.
   - **Relógio no `legacy-run.js`:** é restaurado com `delete performance.now`; o certo é salvar e restaurar o descritor.
-  - **Paridade do `draw-rack`:** até a calibragem da T8, ela só exercita a branca.
+  - **Paridade do `draw-rack`:** roda com `TUNING_LEGACY`, em que a branca não alcança o rack, então só exercita a branca. Com o `TUNING` da D041 o rack é atingido, mas isso só o golden cobre.
 - Da revisão final da F1-A (autorrevisão, sem subagente):
   - A chave de par de `events.js` (`a * 256 + b`) colide para ids ≥ 256. O sim aceita qualquer id inteiro não negativo, e o codec limita a 255.
   - Eventos `ball_cushion` não têm deduplicação: uma bola encostada na tabela ou resgatada pelas guardas pode gerar eventos extras. As regras da F2 não devem contar tabelas só pelo número de eventos.
@@ -109,3 +105,13 @@
   - Roteiro, spec, `CLAUDE.md`, README e `init.sh` atualizados.
   - A suíte completa rodou com o Chrome do sistema: o Puppeteer não tinha baixado o seu.
 - Revisão final: autorrevisão, sem subagente, porque o usuário não pediu subagentes nesta sessão. Ela não achou nada crítico nem importante, e as 3 pendências menores foram para a lista acima.
+
+### 2026-10-25 — sessão 2, continuação (D039 decidida; Tarefa 8)
+
+- O usuário escolheu a opção 1 da D039: aceitar a sensação nova com o melhor ajuste medido. Registrada a D041 (`accepted`); a D039 passou a `superseded`.
+- T8 (`f0c20fa`): `TUNING` = tentativa 6. Os testes de recuo saíram de `todo`, falharam (sem contato; 220,7 → 20,2) e passaram com o ajuste (recuo de 61,1 cm; 367,9 → 370,3).
+  - Long-stun, pot-corner e pot-side usam como referência o sim calibrado (`test/feel/sim-reference.json`, de `tools/sim-reference.mjs`), com as margens da D038. Um teste fixa essa lista em 3 tacadas; as outras 8 seguem no envelope do legado.
+  - Antes do `golden:update`, só o golden falhava, como o plano previa; depois, 58/58 no `sim`.
+  - O teste de materiais da T2 passou a usar `TUNING_LEGACY` explicitamente, porque compara com o mundo legado.
+  - Com o `TUNING` novo, o benchmark deu 3,69× (≥ 1,3×) e as trajetórias encolheram: abertura 26,8 KB, english 33,1 KB, medium 21,6 KB (limite de 48 KB). O `tsc` está limpo.
+- F1-06: critérios alinhados à D041 (continua `passes: true`, verificado pelo teste de sensação 12/12). F1-09: parte do sim feita; falta a confirmação no navegador (F1-B).
