@@ -26,10 +26,11 @@
     "test:panels": "node test/panel-lifecycle.test.js",
     "test:runtime": "node test/runtime-regressions.test.js",
     "test:sim-worker": "node test/sim-worker.test.js",
+    "test:trajectory-player": "node test/trajectory-player.test.js",
     "test:browser": "node test/browser-regressions.test.js",
     "test:dist": "node test/dist-smoke.test.js",
     "test:pages": "node test/dist-smoke.test.js --pages",
-    "test": "npm run test:rules && npm run test:table && npm run test:lan && npm run test:ai && npm run test:audio && npm run test:instant-replay && npm run test:career && npm run test:ui-layout && npm run test:settings-audit && npm run test:trainer-challenge-safety && npm run test:achievement-toast && npm run test:tournament && npm run test:highlight && npm run test:panels && npm run test:runtime && npm run test:sim-worker && npm run test:browser && npm run test:smoke"
+    "test": "npm run test:rules && npm run test:table && npm run test:lan && npm run test:ai && npm run test:audio && npm run test:instant-replay && npm run test:career && npm run test:ui-layout && npm run test:settings-audit && npm run test:trainer-challenge-safety && npm run test:achievement-toast && npm run test:tournament && npm run test:highlight && npm run test:panels && npm run test:runtime && npm run test:sim-worker && npm run test:trajectory-player && npm run test:browser && npm run test:smoke"
   },
   "dependencies": {
     "@billiards/protocol": "*",
