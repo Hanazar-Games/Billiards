@@ -51,7 +51,11 @@ test('production artifact on a GitHub Pages project path', { timeout: process.en
     assert.equal(page.url(), origin + base);
     assert.equal(await page.$eval('#version-tag', element => element.textContent), VERSION_TAG);
     assert.ok(await page.evaluate(() => __menu.renderer.renderer.getContext() instanceof WebGL2RenderingContext));
-    assert.ok(assets.length >= 3);
+    // The build is split: the entry chunk and the Three.js vendor chunk load at boot.
+    // (The physics chunk went with cannon-es in F1-B; the sim worker loads with a game.)
+    assert.ok(assets.length >= 2);
+    assert.ok(assets.some(url => /\/index-[^/]+\.js$/.test(url)));
+    assert.ok(assets.some(url => /\/three-[^/]+\.js$/.test(url)));
     assert.ok(assets.every(url => url.startsWith(origin + base + 'assets/')));
     assert.deepEqual(errors, []);
   });

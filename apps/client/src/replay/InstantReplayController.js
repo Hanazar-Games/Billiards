@@ -167,16 +167,8 @@ export class InstantReplayController {
       }
       ball.mesh.visible = state.visible;
       ball.pocketed = state.pocketed;
-      // Sync physics body to prevent desync on next shot
-      if (ball.body) {
-        ball.body.position.set(
-          ball.mesh.position.x,
-          ball.mesh.position.y,
-          ball.mesh.position.z
-        );
-        ball.body.velocity.set(0, 0, 0);
-        ball.body.angularVelocity.set(0, 0, 0);
-      }
+      // The replay moves only the meshes, and the balls are back at rest.
+      ball.speed = 0;
     }
     this._savedBallStates = [];
   }

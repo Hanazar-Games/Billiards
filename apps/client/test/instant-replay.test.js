@@ -48,7 +48,7 @@ function makeMockBallsManager() {
       new THREE.MeshBasicMaterial()
     );
     mesh.position.set(i * 2, 1, i * 2);
-    balls.push({ id: i, mesh, pocketed: false, body: null });
+    balls.push({ id: i, mesh, pocketed: false });
   }
   return {
     balls,

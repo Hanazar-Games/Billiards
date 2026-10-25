@@ -146,7 +146,7 @@ export class Cue {
 
   /**
    * Snap the cue tip to the ball surface for a "strike" visual frame.
-   * Call immediately after applyImpulse; the cue will appear to have just hit the ball.
+   * Call as the shot starts; the cue will appear to have just hit the ball.
    */
   strikeSnap(ballPosition, direction) {
     if (!this.visible) return;

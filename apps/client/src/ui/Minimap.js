@@ -84,8 +84,8 @@ export class Minimap {
     if (!balls || !balls.map) return;
     const mapped = balls.map((b) => ({
       id: b.id,
-      x: b.mesh?.position?.x ?? b.body?.position?.x ?? 0,
-      z: b.mesh?.position?.z ?? b.body?.position?.z ?? 0,
+      x: b.mesh?.position?.x ?? 0,
+      z: b.mesh?.position?.z ?? 0,
       pocketed: b.pocketed,
     }));
     // Quick dirty check: compare against previous data

@@ -4,12 +4,11 @@
  * Manages the entire app lifecycle:
  *   MENU → (select mode) → PLAYING → (game over / quit) → MENU
  *
- * Owns the shared Renderer and PhysicsWorld instances.
+ * Owns the shared Renderer instance.
  * Creates and destroys Game instances per session.
  * Pauses/resumes the GameLoop on state transitions.
  */
 import { Renderer } from '../core/Renderer.js';
-import { PhysicsWorld } from '../core/PhysicsWorld.js';
 import { GameLoop } from '../core/GameLoop.js';
 import { Game } from '../game/Game.js';
 import { Table } from '../game/Table.js';
@@ -54,7 +53,6 @@ export class MenuSystem {
 
     // Shared core systems (persist across mode changes)
     this.renderer = new Renderer(container);
-    this.physics = new PhysicsWorld();
 
     // Game instance (recreated per session)
     this.game = null;
@@ -265,7 +263,7 @@ export class MenuSystem {
       this.audio.startBGM();
     }
 
-    // Start a render loop for the menu background (just the 3D scene, no physics)
+    // Start a render loop for the menu background (just the 3D scene)
     this._startMenuLoop();
   }
 
@@ -422,7 +420,7 @@ export class MenuSystem {
 
     const match = engine.getCurrentMatch();
 
-    this.game = new Game(this.renderer, this.physics, this.audio);
+    this.game = new Game(this.renderer, this.audio);
     this.game.achievements = this.achievements;
     this.game.replayLibrary = this.replayLibrary;
 
@@ -515,7 +513,7 @@ export class MenuSystem {
     this.drillManager.start();
 
     // Create game with trainer mode
-    this.game = new Game(this.renderer, this.physics, this.audio);
+    this.game = new Game(this.renderer, this.audio);
     this.game.achievements = this.achievements;
     this.game.replayLibrary = this.replayLibrary;
     this.game.drillManager = this.drillManager;
@@ -658,7 +656,7 @@ export class MenuSystem {
     if (challengeProfileId) {
       modeConfig.tableProfileId = challengeValidated.tableProfileId;
     }
-    this.game = new Game(this.renderer, this.physics, this.audio);
+    this.game = new Game(this.renderer, this.audio);
     this.game.achievements = this.achievements;
     this.game.replayLibrary = this.replayLibrary;
     this.game.challengeManager = this.challengeManager;
@@ -779,7 +777,7 @@ export class MenuSystem {
     if (this.audio) this.audio.stopBGM(false);
 
     // Create new Game instance
-    this.game = new Game(this.renderer, this.physics, this.audio);
+    this.game = new Game(this.renderer, this.audio);
     this.game.achievements = this.achievements;
     this.game.replayLibrary = this.replayLibrary;
 
@@ -1031,13 +1029,13 @@ export class MenuSystem {
     if (uiLayer) uiLayer.style.display = 'none';
 
     try {
-      // Create table and balls for replay (visual only, no physics step)
+      // Create table and balls for replay (visual only)
       const replayProfileId = replayData.metadata?.tableProfileId || null;
       const replayProfile = replayProfileId ? getTableProfile(replayProfileId) : null;
-      this._replayTable = new Table(this.physics, replayProfile || getDefaultTableProfile());
+      this._replayTable = new Table(replayProfile || getDefaultTableProfile());
       this._replayTable.addToScene(this.renderer.scene);
 
-      this._replayBalls = new BallsManager(this.physics, replayProfile || getDefaultTableProfile());
+      this._replayBalls = new BallsManager(replayProfile || getDefaultTableProfile());
       this._replayBalls.createBalls();
       this._replayBalls.addToScene(this.renderer.scene);
 
@@ -1232,12 +1230,11 @@ export class MenuSystem {
     // BGM restart is handled inside _showMainMenu -> mainMenu.show -> audio.startBGM
   }
 
-  /** Helper: remove replay table/balls from scene and physics. */
+  /** Helper: remove replay table/balls from the scene. */
   _cleanupReplayScene() {
     if (this._replayBalls) {
       for (const ball of this._replayBalls.balls) {
         this.renderer.scene.remove(ball.mesh);
-        this.physics.removeBody(ball.body);
         ball.geometry?.dispose();
         ball.material?.dispose();
       }
@@ -1245,7 +1242,6 @@ export class MenuSystem {
       this._replayBalls = null;
     }
     if (this._replayTable) {
-      // Table.dispose() already handles removeTableBody; don't double-call
       this._replayTable.dispose();
       this._replayTable = null;
     }
@@ -1284,10 +1280,6 @@ export class MenuSystem {
 
     // Clean up shared core
     this.renderer.dispose();
-    const bodies = this.physics?.world?.bodies ? [...this.physics.world.bodies] : [];
-    bodies.forEach((b) => {
-      try { this.physics.world.removeBody(b); } catch (e) {}
-    });
 
     // Clean up audio
     if (this.audio) {

@@ -42,9 +42,8 @@ import { onboarding } from '../core/OnboardingStore.js';
 
 
 export class Game {
-  constructor(renderer, physics, audioManager = null) {
+  constructor(renderer, audioManager = null) {
     this.renderer = renderer;
-    this.physics = physics;
     this.scene = renderer.scene;
     this.camera = renderer.camera;
 
@@ -216,7 +215,7 @@ export class Game {
     this._turnTimerRunning = false;
 
     this.achievements.onGameStart();
-    this.table = new Table(this.physics, this.tableProfile);
+    this.table = new Table(this.tableProfile);
     this.table.addToScene(this.scene);
     this.table.applyVisualSettings(settings);
 
@@ -224,7 +223,7 @@ export class Game {
     this.room.addToScene(this.scene);
     this.room.applyVisualSettings(settings);
 
-    this.ballsManager = new BallsManager(this.physics, this.tableProfile);
+    this.ballsManager = new BallsManager(this.tableProfile);
     this.ballsManager.createBalls();
     if (this.instantReplay) this.instantReplay.setBallsManager(this.ballsManager);
     if (this.mode === 'trainer' && this.drillConfig) {
@@ -981,7 +980,7 @@ export class Game {
       this.dragStart = null;
       if (settings.get('hideCueOnShot') !== false && this.cue) this.cue.hide();
       this.trajectory.setVisible(false);
-      // Local immediate feedback: audio + FX (host will authoritatively resolve physics)
+      // Local immediate feedback: audio + FX (host will authoritatively resolve the shot)
       this.audio?.playCueHit(force);
       this.particles.spawnChalkDust(cueBall.mesh.position, this.aimDirection, force);
       if (settings.get('impactShockwaveEnabled') !== false) {
@@ -2098,11 +2097,10 @@ export class Game {
     if (this.ballReturn) this.ballReturn.reset();
     for (const ball of this.ballsManager.balls) {
       this.scene.remove(ball.mesh);
-      this.physics.removeBody(ball.body);
       ball.geometry.dispose();
       ball.material.dispose();
     }
-    this.ballsManager = new BallsManager(this.physics, this.tableProfile);
+    this.ballsManager = new BallsManager(this.tableProfile);
     this.ballsManager.createBalls();
     if (this.mode === 'trainer' && this.drillConfig) {
       const { idealZone } = this.ballsManager.setupDrill(this.drillConfig, this.tableProfile);
@@ -3363,13 +3361,12 @@ export class Game {
     // Remove old balls
     for (const ball of this.ballsManager.balls) {
       this.scene.remove(ball.mesh);
-      this.physics.removeBody(ball.body);
       ball.geometry.dispose();
       ball.material.dispose();
     }
 
     // Recreate balls in drill layout
-    this.ballsManager = new BallsManager(this.physics, this.tableProfile);
+    this.ballsManager = new BallsManager(this.tableProfile);
     this.ballsManager.createBalls();
     if (this.instantReplay) this.instantReplay.setBallsManager(this.ballsManager);
     const { idealZone } = this.ballsManager.setupDrill(this.drillConfig, this.tableProfile);
@@ -3466,7 +3463,6 @@ export class Game {
     if (this.ballsManager) {
       for (const ball of this.ballsManager.balls) {
         this.scene.remove(ball.mesh);
-        this.physics.removeBody(ball.body);
         ball.geometry.dispose();
         ball.material.dispose();
       }
@@ -3479,10 +3475,7 @@ export class Game {
       this.room = null;
     }
 
-    // Remove table (physics bodies first)
-    if (this.physics) {
-      this.physics.removeTableBody();
-    }
+    // Remove table
     if (this.table) {
       this.table.dispose();
       this.table = null;
@@ -3646,7 +3639,6 @@ export class Game {
     this.statsPanel = null;
     this.trajectory = null;
     this.renderer = null;
-    this.physics = null;
     this.scene = null;
     this.camera = null;
     this.matchManager = null;

@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
 import { TABLE, BALL } from '../config.js';
 import { getDefaultTableProfile } from './TableProfiles.js';
 import {
@@ -9,11 +8,9 @@ import {
 import { createClothNapTexture, createClothPatternTexture, createClothWearTexture } from '../theme/ProceduralTextures.js';
 
 export class Table {
-  constructor(physics, tableProfile = null) {
-    this.physics = physics;
+  constructor(tableProfile = null) {
     this.profile = tableProfile || getDefaultTableProfile();
     this.meshGroup = new THREE.Group();
-    this.bodies = [];
     this._materials = {};
     this._themeMeshes = {};
     this._clothTextures = {};
@@ -37,11 +34,7 @@ export class Table {
   }
 
   addToScene(scene) {
-    this.physics.createTableBody();
     scene.add(this.meshGroup);
-    for (const body of this.bodies) {
-      this.physics.addBody(body);
-    }
   }
 
   _mat(name, props) {
@@ -219,39 +212,33 @@ export class Table {
     // Short rails
     this.addCushion(
       new THREE.BoxGeometry(m.cShortLen, m.ch, m.cw),
-      new CANNON.Box(new CANNON.Vec3(m.cShortLen / 2, m.ch / 2, m.cw / 2)),
       0, cy, -m.halfD + m.cw / 2, 0, 1
     );
     this.addCushion(
       new THREE.BoxGeometry(m.cShortLen, m.ch, m.cw),
-      new CANNON.Box(new CANNON.Vec3(m.cShortLen / 2, m.ch / 2, m.cw / 2)),
       0, cy, m.halfD - m.cw / 2, 0, -1
     );
 
     // Long rail segments
     this.addCushion(
       new THREE.BoxGeometry(m.cw, m.ch, m.cLongSegLen),
-      new CANNON.Box(new CANNON.Vec3(m.cw / 2, m.ch / 2, m.cLongSegLen / 2)),
       -m.halfW + m.cw / 2, cy, -m.cLongZ, 1, 0
     );
     this.addCushion(
       new THREE.BoxGeometry(m.cw, m.ch, m.cLongSegLen),
-      new CANNON.Box(new CANNON.Vec3(m.cw / 2, m.ch / 2, m.cLongSegLen / 2)),
       -m.halfW + m.cw / 2, cy, m.cLongZ, 1, 0
     );
     this.addCushion(
       new THREE.BoxGeometry(m.cw, m.ch, m.cLongSegLen),
-      new CANNON.Box(new CANNON.Vec3(m.cw / 2, m.ch / 2, m.cLongSegLen / 2)),
       m.halfW - m.cw / 2, cy, -m.cLongZ, -1, 0
     );
     this.addCushion(
       new THREE.BoxGeometry(m.cw, m.ch, m.cLongSegLen),
-      new CANNON.Box(new CANNON.Vec3(m.cw / 2, m.ch / 2, m.cLongSegLen / 2)),
       m.halfW - m.cw / 2, cy, m.cLongZ, -1, 0
     );
   }
 
-  addCushion(geo, shape, x, y, z, bevelNx, bevelNz) {
+  addCushion(geo, x, y, z, bevelNx, bevelNz) {
     if (!this._materials.cushion) {
       this._materials.cushion = this._mat('cushion', {
         color: TABLE.cushionColor,
@@ -269,19 +256,6 @@ export class Table {
     if (bevelNx !== 0 || bevelNz !== 0) {
       this._addCushionBevel(x, y, z, geo, bevelNx, bevelNz);
     }
-
-    const body = new CANNON.Body({
-      mass: 0,
-      material: this.physics.cushionMaterial,
-    });
-    body.addShape(shape);
-    body.position.set(x, y, z);
-
-    if (bevelNx !== 0 || bevelNz !== 0) {
-      this._addCushionBevelPhysics(body, x, y, z, geo, bevelNx, bevelNz);
-    }
-
-    this.bodies.push(body);
   }
 
   _addCushionBevel(cx, cy, cz, geo, nx, nz) {
@@ -356,39 +330,6 @@ export class Table {
     bevelMesh.castShadow = true;
     bevelMesh.receiveShadow = true;
     this.meshGroup.add(bevelMesh);
-  }
-
-  _addCushionBevelPhysics(body, cx, cy, cz, geo, nx, nz) {
-    const h = BALL.radius * 2;
-    const inset = this.profile.cushionWidth / 2;
-    const overhang = 3.2;
-    const thickness = 3.0;
-
-    let len;
-    if (Math.abs(nx) > 0.5) {
-      len = geo.parameters.depth;
-    } else {
-      len = geo.parameters.width;
-    }
-
-    const slantLen = Math.sqrt(h * h + overhang * overhang);
-    const shape = new CANNON.Box(new CANNON.Vec3(slantLen / 2, thickness / 2, len / 2));
-
-    const offsetX = nx * (inset + overhang / 2);
-    const offsetY = 0;
-    const offsetZ = nz * (inset + overhang / 2);
-
-    const xAxis = new THREE.Vector3(nx * overhang, h, nz * overhang).normalize();
-    const zAxis = new THREE.Vector3(Math.abs(nx) > 0.5 ? 0 : 1, 0, Math.abs(nx) > 0.5 ? 1 : 0);
-    const yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis).normalize();
-    zAxis.crossVectors(xAxis, yAxis).normalize();
-
-    const m = new THREE.Matrix4();
-    m.makeBasis(xAxis, yAxis, zAxis);
-    const q3 = new THREE.Quaternion().setFromRotationMatrix(m);
-    const q = new CANNON.Quaternion(q3.x, q3.y, q3.z, q3.w);
-
-    body.addShape(shape, new CANNON.Vec3(offsetX, offsetY, offsetZ), q);
   }
 
   createPockets() {
@@ -1488,16 +1429,8 @@ export class Table {
     Object.values(this._clothTextures).forEach((t) => t && t.dispose());
     this._clothTextures = {};
 
-    if (this.physics) {
-      for (const body of this.bodies) {
-        this.physics.removeBody(body);
-      }
-      this.physics.removeTableBody();
-    }
-    this.bodies = [];
     this.pocketPositions = null;
     this.profile = null;
-    this.physics = null;
     this.meshGroup = null;
     this._materials = {};
     this._themeMeshes = {};

@@ -85,7 +85,7 @@ export class GameStateSerializer {
 
   /**
    * Apply a remote snapshot to a Game instance (client-side).
-   * Does NOT step physics or resolve rules — only updates visuals and UI.
+   * Does NOT simulate a shot or resolve rules — only updates visuals and UI.
    * @param {Game} game
    * @param {object} snapshot
    */

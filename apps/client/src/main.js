@@ -72,7 +72,7 @@ async function init() {
   setInitPhase('core-modules');
   updateLoadingProgress(15, '加载核心模块...');
 
-  // Phase 2 — MenuSystem initializes Renderer + Physics + Audio
+  // Phase 2 — MenuSystem initializes Renderer + Audio
   setInitPhase('engine-init');
   updateLoadingProgress(35, '初始化引擎...');
   const menu = new MenuSystem(container);

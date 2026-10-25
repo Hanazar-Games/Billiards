@@ -49,13 +49,6 @@ export const BALL = {
   sideSpinDecay: 0.45,
 };
 
-// Physics world
-export const PHYSICS = {
-  gravity: new Float32Array([0, -9.82 * SCALE, 0]),
-  fixedTimeStep: 1 / 360,
-  maxSubSteps: 24,
-};
-
 // Ball colors (standard 8-ball set)
 // Solids: 1-7, 8-ball: 8, Stripes: 9-15
 export const BALL_COLORS = {

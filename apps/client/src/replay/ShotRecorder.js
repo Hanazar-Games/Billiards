@@ -82,7 +82,7 @@ export class ShotRecorder {
         } else {
           const x = ball.mesh.position.x;
           const z = ball.mesh.position.z;
-          // Defensive: guard against NaN/Inf from physics corruption
+          // Defensive: guard against NaN/Inf from a corrupted pose
           if (!Number.isFinite(x) || !Number.isFinite(z)) {
             this.frames[base + i * 2] = POCKETED_SENTINEL;
             this.frames[base + i * 2 + 1] = POCKETED_SENTINEL;

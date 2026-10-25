@@ -11,7 +11,7 @@ import { fxAnimMs, isReducedMotion } from '../core/AnimSpeed.js';
  * table, and settles into a collection tray at the head end.  The tray
  * is a real 3D object attached to the table underside.
  *
- * This is purely cosmetic — physics removal and game logic are untouched.
+ * This is purely cosmetic — ball removal and game logic are untouched.
  */
 export class BallReturnSystem {
   constructor(scene, tableProfile = null) {

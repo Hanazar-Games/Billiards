@@ -172,9 +172,7 @@ test('LAN rematches clear the client summary, pause and old clock', () => {
 
 test('LAN idle snapshots preserve a local ball-in-hand preview', () => {
   const position = new THREE.Vector3(20, BALL.radius, -50);
-  const ball = { pocketed: false, mesh: { visible: true }, body: {
-    position, velocity: new THREE.Vector3(), angularVelocity: new THREE.Vector3(), quaternion: new THREE.Quaternion(),
-  }, sync: noop };
+  const ball = { pocketed: false, mesh: { visible: true, position, quaternion: new THREE.Quaternion() } };
   const game = { state: 'AIM', currentPlayer: 2, localPlayerId: 2, ballInHand: true,
     ballsManager: { getBall: () => ball } };
   GameStateSerializer.applyGameState(game, { state: 'AIM', currentPlayer: 2, ballInHand: true,
