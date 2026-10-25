@@ -545,7 +545,8 @@
       "Só o par 60×144 (D033 literal)",
       "Tolerância percentual fixa"
     ],
-    "status": "accepted",
+    "status": "superseded",
+    "supersededBy": "D038",
     "source": "plano da F1-A aprovado pelo usuário",
     "refs": [
       "docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md",
@@ -590,14 +591,14 @@
     "id": "D038",
     "date": "2026-10-24",
     "title": "Envelope de sensação medido em 14 taxas de quadro",
-    "decision": "O envelope do teste de sensação passa a ser medido no legado a 24, 30, 40, 48, 50, 60, 72, 75, 90, 100, 120, 144, 165 e 240 FPS, com relógio congelado, em vez de 30, 60, 120 e 144 FPS. A margem não muda: max(1 cm, 2% do valor a 60 FPS) em comprimentos, max(1 cm, 2% do cuePath a 60 FPS) em posições, ±1 em contagens, e as bolas encaçapadas iguais às de 60 FPS. Se aceita, substitui a D035.",
+    "decision": "O envelope do teste de sensação passa a ser medido no legado a 24, 30, 40, 48, 50, 60, 72, 75, 90, 100, 120, 144, 165 e 240 FPS, com relógio congelado, em vez de 30, 60, 120 e 144 FPS. A margem não muda: max(1 cm, 2% do valor a 60 FPS) em comprimentos, max(1 cm, 2% do cuePath a 60 FPS) em posições, ±1 em contagens, e as bolas encaçapadas iguais às de 60 FPS. Substitui a D035.",
     "rationale": "Na Tarefa 7 da F1-A, com TUNING = TUNING_LEGACY, o sim reproduz o legado a 60 Hz fixo (mesmas posições finais), mas 2 das 11 tacadas saem do envelope de 4 FPS. Na english (abertura com efeito, caótica), o totalPath foi 1601,3 cm, contra 1025–1448 cm no legado. Na pot-side, o cuePath foi 193,6 cm, contra 164–185 cm: depois do encaçape, a branca vai para a esquerda ou para a direita conforme o FPS. Com 14 taxas reais de tela, o legado varia 1012–1753 cm e 162,7–194,1 cm, e as 11 tacadas passam. As tacadas estáveis continuam com envelope estreito (soft: 134,1–134,7 cm; rail-straight: 420,6–444,2 cm). As aberturas ficam pouco restritas (break: 931–1875 cm).",
     "alternatives": [
       "Manter a D035 e trocar english e pot-side por tacadas estáveis entre FPS",
       "Manter a D035 e aceitar as duas falhas como conhecidas"
     ],
-    "status": "open",
-    "source": "execução da F1-A, Tarefa 7; aguarda o usuário (o plano manda parar quando uma tacada sai do envelope)",
+    "status": "accepted",
+    "source": "execução da F1-A, Tarefa 7; aceita pelo usuário em 2026-10-24",
     "refs": [
       "D035",
       "D033",

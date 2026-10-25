@@ -1,6 +1,6 @@
 // Generates test/feel/legacy-reference.json: the feel metrics of every
-// non-calibration corpus shot in the legacy game at 30, 60, 120 and 144 FPS
-// (performance.now frozen). Samples are the first legacy frame at or after
+// non-calibration corpus shot in the legacy game at the 14 frame rates of
+// D038 (performance.now frozen). Samples are the first legacy frame at or after
 // each k/30 s; a ball pocketed since the previous sample appears in it once,
 // where it was before the pocket took it, as in the sim's frames.
 import { writeFileSync } from 'node:fs';
@@ -12,8 +12,8 @@ const { runLegacy } = await import('../test/legacy/legacy-run.js');
 const { CORPUS } = await import('../test/corpus.js');
 const { computeMetrics } = await import('../test/feel/metrics.js');
 
-// D035. D038 (open) would use 24, 30, 40, 48, 50, 60, 72, 75, 90, 100, 120, 144, 165, 240.
-const FPS = [30, 60, 120, 144];
+// D038: real display rates, from cinema to 240 Hz monitors.
+const FPS = [24, 30, 40, 48, 50, 60, 72, 75, 90, 100, 120, 144, 165, 240];
 const SAMPLE_RATE = 30;
 
 export function legacyMetrics(c, fps) {

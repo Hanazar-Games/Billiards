@@ -1,4 +1,4 @@
-// Feel metrics of a shot and the D035 tolerance envelope. The same code
+// Feel metrics of a shot and the D038 tolerance envelope. The same code
 // measures the sim (samples = the table plus its frames) and the legacy game
 // (samples = the table plus the first frame at or after each k/30 s).
 
@@ -54,7 +54,7 @@ const POSITIONS = new Set(['cueX', 'cueZ']);
 const COUNTS = new Set(['moved', 'pocketedCount']);
 
 /**
- * D035: inside the legacy envelope at 30/60/120/144 FPS, widened by
+ * D038: inside the legacy envelope at 14 frame rates, widened by
  * m = max(1 cm, 2% of the 60 FPS value) for lengths and by
  * m = max(1 cm, 2% of the 60 FPS cuePath) for positions (per axis); counts ±1;
  * pocketed balls equal to the 60 FPS ones.

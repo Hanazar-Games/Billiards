@@ -1,4 +1,5 @@
-// Feel metrics and the D035 envelope used by feel.test.js.
+// Feel metrics and the D038 envelope used by feel.test.js. The envelope does
+// not depend on how many frame rates there are; four keep the cases short.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { computeMetrics, withinEnvelope } from './feel/metrics.js';
