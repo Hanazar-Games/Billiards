@@ -44,6 +44,10 @@ test('production artifact on a GitHub Pages project path', { timeout: process.en
     }
   });
   const ready = () => page.waitForFunction(() => window.__menu && !document.getElementById('intro-screen'));
+  // Polls a Node-side condition (the script responses are collected here, not in the page).
+  const until = async (condition, ms = 5000) => {
+    for (const end = Date.now() + ms; !condition() && Date.now() < end;) await new Promise(resolve => setTimeout(resolve, 50));
+  };
 
   await t.test('project URL boots without source files or asset failures', async () => {
     await page.goto(origin + base.slice(0, -1), { waitUntil: 'networkidle2' });
@@ -52,8 +56,6 @@ test('production artifact on a GitHub Pages project path', { timeout: process.en
     assert.equal(await page.$eval('#version-tag', element => element.textContent), VERSION_TAG);
     assert.ok(await page.evaluate(() => __menu.renderer.renderer.getContext() instanceof WebGL2RenderingContext));
     // The build is split: the entry chunk and the Three.js vendor chunk load at boot.
-    // (The physics chunk went with cannon-es in F1-B; the sim worker loads with a game.)
-    assert.ok(assets.length >= 2);
     assert.ok(assets.some(url => /\/index-[^/]+\.js$/.test(url)));
     assert.ok(assets.some(url => /\/three-[^/]+\.js$/.test(url)));
     assert.ok(assets.every(url => url.startsWith(origin + base + 'assets/')));
@@ -86,6 +88,14 @@ test('production artifact on a GitHub Pages project path', { timeout: process.en
   await t.test('free play, pause and return work in the built bundle', async () => {
     await page.evaluate(() => [...document.querySelectorAll('button.menu-btn')].find(b => b.textContent.includes('单人练习')).click());
     await page.waitForFunction(() => __menu.game?.state === 'AIM' && __menu.state === 'PLAYING');
+    // The sim worker chunk (F1-B) takes the place of the old physics chunk: it loads with the game.
+    await until(() => assets.some(url => /\/sim\.worker-[^/]+\.js$/.test(url)));
+    assert.ok(assets.length >= 3);
+    assert.ok(assets.some(url => /\/index-[^/]+\.js$/.test(url)));
+    assert.ok(assets.some(url => /\/three-[^/]+\.js$/.test(url)));
+    assert.ok(assets.some(url => /\/sim\.worker-[^/]+\.js$/.test(url)));
+    assert.ok(assets.every(url => url.startsWith(origin + base + 'assets/')));
+    assert.deepEqual(errors, []);
     await page.keyboard.press('Escape');
     assert.equal(await page.evaluate(() => __menu.game.paused), true);
     await page.keyboard.press('Escape');
