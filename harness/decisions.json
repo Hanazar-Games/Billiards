@@ -735,5 +735,60 @@
       "apps/client/src/sim/TrajectoryPlayer.js",
       "apps/client/test/trajectory-player.test.js"
     ]
+  },
+  {
+    "id": "D045",
+    "date": "2026-10-25",
+    "title": "Interface de modos na F2",
+    "decision": "GameMode ganha resolveTimeout(state, seat) e applyChoice(state, seat, choice) (resposta ao push-out do 9-ball), e resolveShot recebe a tacada como 5º argumento (o push-out é declarado em ShotRequest.pushOut). Ruling ganha respot: number[], e messages vira { code, params? }[]. Os eventos são a lista SimEvent do sim, redeclarada em packages/modes sem importar o sim. A ordem de turnos (lugares, equipes e lugar da vez) mora no ModeState (turn); o MatchState guarda conexões, turnId e fase. Lugares e equipes começam em 0; no cliente, jogador = lugar + 1.",
+    "rationale": "A interface da spec não cobre tempo esgotado, push-out nem bola reposta; mensagens como \"打进 N 颗球\" precisam de parâmetros; e uma fonte única para a ordem de turnos (que a D013 diz ser definida pelo modo) evita duas cópias que divergem.",
+    "alternatives": [
+      "Seguir a interface da spec ao pé da letra e tratar push-out e tempo esgotado fora do modo",
+      "Guardar lugares e equipes no MatchState e passá-los ao modo a cada chamada"
+    ],
+    "status": "open",
+    "source": "plano da F2 (proposta, aguardando revisão do usuário)",
+    "refs": [
+      "spec §7.1",
+      "spec §7.2",
+      "D013",
+      "D014",
+      "docs/superpowers/plans/2026-10-25-f2-modes-n-lugares.md"
+    ]
+  },
+  {
+    "id": "D046",
+    "date": "2026-10-25",
+    "title": "Cópia congelada das regras legadas para o teste diferencial",
+    "decision": "packages/modes/test/legacy/ guarda game/Rules.js, game/NineBallRules.js, config.js e core/UIText.js de 0448b03:src/, idênticos, com manifesto SHA-256 como na D042. Os testes diferenciais do 8-ball e do 9-ball comparam milhares de tacadas aleatórias com essa cópia.",
+    "rationale": "Os 28 testes portados cobrem só 4 caminhos do 8-ball. Comparar com o legado é o que garante que o port mantém cada ramo, e a cópia sobrevive à remoção das regras do cliente.",
+    "alternatives": [
+      "Só os 28 testes portados",
+      "Escrever um teste por ramo das regras, sem o legado"
+    ],
+    "status": "open",
+    "source": "plano da F2 (proposta, aguardando revisão do usuário)",
+    "refs": [
+      "D042",
+      "spec §7.1",
+      "docs/superpowers/plans/2026-10-25-f2-modes-n-lugares.md"
+    ]
+  },
+  {
+    "id": "D047",
+    "date": "2026-10-25",
+    "title": "Arrumação fixa na F2",
+    "decision": "Na F2, rackLayout reproduz a arrumação fixa de hoje (BallsManager._rackEightBall e _rackNineBall), sem sorteio. O rng fica na assinatura; a ordem aleatória com semente do servidor (spec §7.1) é decidida na F4.",
+    "rationale": "O jogo offline sempre arrumou assim, e a semente vem do servidor, que só existe na F4.",
+    "alternatives": [
+      "Sortear a arrumação já na F2, com semente local"
+    ],
+    "status": "open",
+    "source": "plano da F2 (proposta, aguardando revisão do usuário)",
+    "refs": [
+      "spec §7.1",
+      "F4",
+      "docs/superpowers/plans/2026-10-25-f2-modes-n-lugares.md"
+    ]
   }
 ]

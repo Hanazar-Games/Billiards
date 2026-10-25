@@ -3,6 +3,7 @@
 ## Estado atual
 
 - **Fase:** F1-A concluída. F1-B executada (8 tarefas, plano `docs/superpowers/plans/2026-10-25-f1b-cliente-usa-sim.md`, D042 e D043 `accepted`); falta só a confirmação do F1-09 pelo usuário, no navegador. Plano da F1-A: `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`.
+  - **F2:** plano escrito e em revisão (`docs/superpowers/plans/2026-10-25-f2-modes-n-lugares.md`), com as decisões D045, D046 e D047 propostas como `open`. Nenhum código da F2 ainda.
   - **F1-B, T1–T7** (`17a96ff` a `c59a806`, cada uma com revisão da tarefa; a T8 é este fechamento):
     - Cópia congelada da física legada (D042), com manifesto SHA-256: paridade, sensação e benchmark não dependem mais do cliente.
     - Worker de simulação (`SimWorkerClient`, `simClient`) e `TrajectoryPlayer`.
@@ -34,8 +35,8 @@
 
 ## Próximo passo
 
-1. **O usuário confirma o F1-09** no navegador, seguindo `docs/f1/roteiro-teste-manual.md` (`npm run dev`, Treino livre, `await __referenceShot('draw-ref')` no console). Se a branca voltar como esperado, marcar `passes: true` e registrar a data; se não, abrir uma decisão nova sobre o recuo (a D041 aceitou a sensação medida).
-2. **Escrever o plano da F2** (`packages/modes` com N lugares) com `superpowers:writing-plans` e pedir a revisão do usuário antes de implementar. Considerar nele as pendências da F1-B abaixo.
+1. **O usuário revisa o plano da F2** (`docs/superpowers/plans/2026-10-25-f2-modes-n-lugares.md`, 8 tarefas), aprova ou ajusta as decisões propostas D045, D046 e D047 (`open`) e escolhe o modo de execução (subagentes ou nativo). Só então a implementação começa, pela Tarefa 1.
+2. **O usuário confirma o F1-09** no navegador, quando quiser, seguindo `docs/f1/roteiro-teste-manual.md` (`npm run dev`, Treino livre, `await __referenceShot('draw-ref')` no console). Em 2026-10-25 o usuário preferiu adiar. Se a branca voltar como esperado, marcar `passes: true` e registrar a data; se não, abrir uma decisão nova sobre o recuo (a D041 aceitou a sensação medida).
 3. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium. O Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido. Sem esse download, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome do sistema.
 
 ## Pendências da F1-B (não bloqueiam; para a F2 ou depois)
@@ -175,3 +176,23 @@
   - M1–M5: guarda contra `resolveTurn` duplo e testes mais fortes. O teste novo do resultado velho falha com a checagem do token desligada.
   - Suítes depois das correções: `npm test` na raiz saiu com 0 (client: runtime 68, sim-worker 7, trajectory-player 14, browser 31, full-match 1 (27 tacadas, 77 s), smoke 54 e as demais como antes; protocol 7; sim 60). `tsc` limpo; `test:dist` 7/7 com o build novo (o `dist` rastreado foi restaurado).
   - O F1-09 continua esperando o usuário.
+
+### 2026-10-25 — sessão 2, continuação (plano da F2)
+
+- O usuário preferiu adiar a confirmação do F1-09 e pediu o plano da F2, com as respostas em PT-BR.
+- Plano escrito com `superpowers:writing-plans`: `docs/superpowers/plans/2026-10-25-f2-modes-n-lugares.md`. São 8 tarefas:
+  1. pacote `packages/modes`, com tipos e ordem de turnos para 1×1, 2×2 e cada um por si;
+  2. 8-ball, com teste diferencial contra o `Rules.js` congelado;
+  3. 9-ball, com push-out e três faltas;
+  4. `MatchState` e o invariante "sempre há um lugar da vez";
+  5. `LocalMatchController` no cliente, com limite de tempo do worker;
+  6. o `Game` obedece ao controlador, e `Rules.js`/`NineBallRules.js` saem do cliente;
+  7. partidas locais de 2 jogadores de 8-ball e 9-ball até o fim;
+  8. fechamento.
+- Decisões propostas (`open`):
+  - D045: extensões da interface de modos (tempo esgotado, push-out, bola reposta, mensagens com parâmetros, ordem de turnos no estado do modo);
+  - D046: cópia congelada das regras legadas para o teste diferencial;
+  - D047: arrumação fixa na F2, com sorteio só na F4.
+- O plano absorve duas pendências: o limite de tempo do worker (pendência da F1-B) e a branca com bola na mão enviada ao sim (pendência da F1-A, T3).
+- Fica fora da F2: a estatística da tacada cancelada, que depende do LAN e vai para a F4.
+- Nenhum código mudou nesta etapa. Falta a revisão do usuário e a escolha do modo de execução.
