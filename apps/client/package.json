@@ -32,13 +32,15 @@
     "test:full-match": "node test/full-match.test.js",
     "test:dist": "node test/dist-smoke.test.js",
     "test:pages": "node test/dist-smoke.test.js --pages",
-    "test": "npm run test:rules && npm run test:table && npm run test:lan && npm run test:ai && npm run test:audio && npm run test:instant-replay && npm run test:career && npm run test:ui-layout && npm run test:settings-audit && npm run test:trainer-challenge-safety && npm run test:achievement-toast && npm run test:tournament && npm run test:highlight && npm run test:panels && npm run test:runtime && npm run test:sim-worker && npm run test:trajectory-player && npm run test:no-legacy-physics && npm run test:browser && npm run test:full-match && npm run test:smoke"
+    "test": "npm run test:rules && npm run test:table && npm run test:lan && npm run test:ai && npm run test:audio && npm run test:instant-replay && npm run test:career && npm run test:ui-layout && npm run test:settings-audit && npm run test:trainer-challenge-safety && npm run test:achievement-toast && npm run test:tournament && npm run test:highlight && npm run test:panels && npm run test:runtime && npm run test:sim-worker && npm run test:trajectory-player && npm run test:local-match && npm run test:no-legacy-physics && npm run test:browser && npm run test:full-match && npm run test:smoke",
+    "test:local-match": "node test/local-match.test.js"
   },
   "dependencies": {
     "@billiards/protocol": "*",
     "@billiards/sim": "*",
     "three": "^0.170.0",
-    "ws": "^8.20.1"
+    "ws": "^8.20.1",
+    "@billiards/modes": "*"
   },
   "devDependencies": {
     "puppeteer": "^25.0.2",
