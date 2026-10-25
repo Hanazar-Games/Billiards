@@ -34,7 +34,7 @@ test('nenhum teste, ferramenta ou benchmark importa apps/client', () => {
   // A module specifier (a quoted string) that goes through the client folder;
   // comments and test names that merely mention the folder do not count.
   const clientSpecifier = /['"][^'"\n]*\/apps\/client\//;
-  for (const root of ['packages/sim/test', 'packages/sim/tools', 'packages/sim/bench', 'spikes/sim-bench/src']) {
+  for (const root of ['packages/sim/test', 'packages/sim/tools', 'packages/sim/bench', 'spikes/sim-bench/src', 'spikes/sim-bench/test']) {
     const files = jsFilesUnder(root);
     assert.ok(files.length > 0, `${root} has no .js/.mjs files: the scan is looking in the wrong place`);
     for (const file of files) {

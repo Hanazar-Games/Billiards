@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { installEnv } from '../src/env.js';
 installEnv({ seed: 1 });
 const { createWorld } = await import('../src/world.js');
-const { BALL } = await import('../../../apps/client/src/config.js');
+const { BALL } = await import('../../../packages/sim/test/legacy/client/config.js');
 
 test('mundo 8-ball pool9ft tem 16 bolas, 6 caçapas e corpos de tabela', () => {
   const w = createWorld({});
