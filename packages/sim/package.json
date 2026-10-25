@@ -9,7 +9,8 @@
   "scripts": {
     "test": "node --test test/*.test.js",
     "golden:update": "node tools/update-golden.mjs",
-    "feel:reference": "node tools/legacy-reference.mjs"
+    "feel:reference": "node tools/legacy-reference.mjs",
+    "bench": "node --expose-gc bench/break.mjs"
   },
   "dependencies": {
     "cannon-es": "0.20.0"

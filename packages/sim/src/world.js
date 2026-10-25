@@ -31,6 +31,11 @@ export function createWorld(profile, tuning = TUNING) {
     gravity: new CANNON.Vec3(PHYSICS.gravity[0], PHYSICS.gravity[1], PHYSICS.gravity[2]),
   });
   world.broadphase = new CANNON.SAPBroadphase(world);
+  // The cushions' bounding spheres span the table, so with the default sphere
+  // test every ball ran sphereBox against them on every step. Boxes only drop
+  // pairs that cannot touch; the narrowphase still checks bounding spheres, so
+  // the contacts (and the physics) are the same.
+  world.broadphase.useBoundingBoxes = true;
   world.allowSleep = true;
 
   const ball = new CANNON.Material('ball');
