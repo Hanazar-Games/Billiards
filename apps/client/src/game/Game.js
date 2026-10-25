@@ -1009,9 +1009,9 @@ export class Game {
     this.rules?.startShot(this.currentPlayer);
 
     const force = Math.max(safePower, SHOT.minPower);
-    this._simulateShot(force);
-
-    this.audio?.playCueHit(force);
+    // The cue hits the ball when the balls start moving: the playback may wait
+    // for the worker (_startPlayback).
+    this._simulateShot(force, { force, at: cueBall.mesh.position.clone(), direction: this.aimDirection.clone() });
 
     // Stats & effects
     this.turnPocketedIds = [];
@@ -1023,20 +1023,6 @@ export class Game {
     this.achievements.onShot(cueBall, powerPercent, this.cueTipOffset, this.currentPlayer, trackAchievements);
     this.challengeManager?.onShot(cueBall, powerPercent, this.cueTipOffset, this.currentPlayer);
     this.drillManager?.onShot(cueBall, powerPercent, this.cueTipOffset);
-    this.particles.spawnChalkDust(
-      cueBall.mesh.position,
-      this.aimDirection,
-      force
-    );
-    if (settings.get('impactShockwaveEnabled') !== false) {
-      this.shockwaves?.spawn(cueBall.mesh.position, force);
-    }
-    if (settings.get('cameraShake') !== false) {
-      this.screenShake?.trigger(force, this.aimDirection);
-    }
-    if (settings.get('vibrationEnabled')) {
-      try { navigator.vibrate?.(30 + force); } catch (e) {}
-    }
     this.powerLabel?.show(force);
     this.trails.startRecording(cueBall);
     this.recorder.start(this.ballsManager, this.mode, force / SHOT.maxPower * 100, this.cueTipOffset, this.tableProfileId);
@@ -1048,16 +1034,6 @@ export class Game {
     this._shotHadCushionBeforeHit = false;
     this._shotStartPosition = cueBall.mesh.position.clone();
 
-    // Strike snap: cue visually touches the ball for one frame before hiding
-    if (this.cue) this.cue.strikeSnap(cueBall.mesh.position, this.aimDirection);
-    if (this._strikeHideTimer) clearTimeout(this._strikeHideTimer);
-    const hideCue = settings.get('hideCueOnShot') !== false;
-    this._strikeHideTimer = setTimeout(() => {
-      if (this.cue && hideCue) this.cue.hide();
-      if (this.trajectory) this.trajectory.setVisible(false);
-      this._strikeHideTimer = null;
-    }, animMs(70));
-
     // Auto-switch to follow mode if enabled
     if (settings.get('autoFollowCueBall') && this.cameraMode !== 'follow') {
       this.cameraMode = 'follow';
@@ -1068,13 +1044,14 @@ export class Game {
    * Simulates the shot in the worker and starts playing it back when the
    * result arrives. A shot without force moves nothing: it plays an empty
    * result at once, without the worker (the sim refuses power <= 0).
+   * `impact` is the cue hit that plays with the playback (_playShotImpact).
    */
-  _simulateShot(force) {
+  _simulateShot(force, impact) {
     const table = this.ballsManager.toTableState(this.tableProfileId);
     const token = ++this._shotToken;
     this.playback = null;
     if (force <= 0) {
-      this._startPlayback(table, { frames: [], events: [], final: table, steps: 0, simSeconds: 0, capped: false });
+      this._startPlayback(table, { frames: [], events: [], final: table, steps: 0, simSeconds: 0, capped: false }, impact);
       return;
     }
     const shot = {
@@ -1091,15 +1068,46 @@ export class Game {
       request = Promise.reject(err);
     }
     Promise.resolve(request)
-      .then(result => { if (live()) this._startPlayback(table, result); })
+      .then(result => { if (live()) this._startPlayback(table, result, impact); })
       .catch(err => { if (live()) this._cancelShot(table, err); });
   }
 
-  _startPlayback(table, result) {
+  _startPlayback(table, result, impact) {
     // With the radius, a fast ball turns the way it rolls between samples.
     const player = new TrajectoryPlayer({ initial: table, ...result, ballRadius: BALL.radius });
     this.lastShotResult = result;
     this.playback = new ShotPlayback(this.ballsManager, player);
+    if (impact) this._playShotImpact(impact);
+  }
+
+  /**
+   * The cue hits the ball: sound, chalk, shockwave, shake and vibration, and
+   * the cue touches the ball for a moment before it hides.
+   * @param {{ force: number, at: THREE.Vector3, direction: THREE.Vector3 }} impact
+   *   the shot's force, and the cue ball position and aim when it was taken
+   */
+  _playShotImpact({ force, at, direction }) {
+    this.audio?.playCueHit(force);
+    this.particles.spawnChalkDust(at, direction, force);
+    if (settings.get('impactShockwaveEnabled') !== false) {
+      this.shockwaves?.spawn(at, force);
+    }
+    if (settings.get('cameraShake') !== false) {
+      this.screenShake?.trigger(force, direction);
+    }
+    if (settings.get('vibrationEnabled')) {
+      try { navigator.vibrate?.(30 + force); } catch (e) {}
+    }
+
+    // Strike snap: cue visually touches the ball for one frame before hiding
+    if (this.cue) this.cue.strikeSnap(at, direction);
+    if (this._strikeHideTimer) clearTimeout(this._strikeHideTimer);
+    const hideCue = settings.get('hideCueOnShot') !== false;
+    this._strikeHideTimer = setTimeout(() => {
+      if (this.cue && hideCue) this.cue.hide();
+      if (this.trajectory) this.trajectory.setVisible(false);
+      this._strikeHideTimer = null;
+    }, animMs(70));
   }
 
   /** The shot could not be simulated: the balls stay put and the player aims again. */

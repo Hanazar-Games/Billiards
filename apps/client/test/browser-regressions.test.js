@@ -168,6 +168,46 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     await page.waitForFunction(() => __menu.game.state === 'AIM' && __menu.game.playback === null, { timeout: 25000 });
   });
 
+  await t.test('the cue hit plays when the balls start moving, and not for a cancelled shot', async () => {
+    const r = await page.evaluate(async () => {
+      const game = __menu.game; const real = game.simClient;
+      const calls = { hit: 0, chalk: 0, wave: 0, shake: 0, snap: 0 };
+      const spies = [[game.audio, 'playCueHit', 'hit'], [game.particles, 'spawnChalkDust', 'chalk'],
+        [game.shockwaves, 'spawn', 'wave'], [game.screenShake, 'trigger', 'shake'], [game.cue, 'strikeSnap', 'snap']]
+        .map(([target, name, key]) => {
+          const original = target[name];
+          target[name] = function (...args) { calls[key]++; return original.apply(this, args); };
+          return () => { target[name] = original; };
+        });
+      const count = () => ({ ...calls });
+      const frame = () => new Promise(res => requestAnimationFrame(res));
+      try {
+        // The worker answers only when the gate opens.
+        let release; const gate = new Promise(res => { release = res; });
+        game.simClient = { warm() {}, simulate: (...a) => gate.then(() => real.simulate(...a)) };
+        game.power = 30; game.state = 'SHOOTING'; game.shoot();
+        await new Promise(res => setTimeout(res, 200));
+        const waiting = { ...count(), playback: game.playback !== null, cueShown: game.cue.visible };
+        release();
+        while (!game.playback) await frame();
+        const started = count();
+        while (!(game.state === 'AIM' && game.playback === null)) await frame();
+        for (const key in calls) calls[key] = 0;
+        game.simClient = { warm() {}, simulate: () => Promise.reject(new Error('boom')) };
+        game.power = 30; game.state = 'SHOOTING'; game.shoot();
+        await new Promise(res => setTimeout(res, 100));
+        return { waiting, started, cancelled: { ...count(), state: game.state } };
+      } finally {
+        game.simClient = real;
+        spies.forEach(restore => restore());
+      }
+    });
+    const none = { hit: 0, chalk: 0, wave: 0, shake: 0, snap: 0 };
+    assert.deepEqual(r.waiting, { ...none, playback: false, cueShown: true }, 'nothing hits while the worker has not answered');
+    assert.deepEqual(r.started, { hit: 1, chalk: 1, wave: 1, shake: 1, snap: 1 }, 'everything hits once, when the playback starts');
+    assert.deepEqual(r.cancelled, { ...none, state: 'AIM' }, 'a cancelled shot never hits');
+  });
+
   await t.test('a stale shot result is ignored after a reset', async () => {
     const r = await page.evaluate(async () => {
       const game = __menu.game; let release; const gate = new Promise(res => { release = res; });
