@@ -59,6 +59,8 @@ test('production artifact on a GitHub Pages project path', { timeout: process.en
     assert.ok(assets.some(url => /\/index-[^/]+\.js$/.test(url)));
     assert.ok(assets.some(url => /\/three-[^/]+\.js$/.test(url)));
     assert.ok(assets.every(url => url.startsWith(origin + base + 'assets/')));
+    // The reference-shot hook is development only (main.js, import.meta.env.DEV).
+    assert.equal(await page.evaluate(() => typeof window.__referenceShot), 'undefined');
     assert.deepEqual(errors, []);
   });
 

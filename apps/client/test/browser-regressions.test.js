@@ -221,6 +221,34 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     assert.deepEqual(r, { state: 'AIM', playback: null, same: true });
   });
 
+  await t.test('a stale shot result does not take over the next shot after a reset', async () => {
+    // Only the shot token tells these apart: when the old result arrives, the
+    // game is SHOOTING again, now for the second shot.
+    const r = await page.evaluate(async () => {
+      const game = __menu.game; const real = game.simClient;
+      const frame = () => new Promise(res => requestAnimationFrame(res));
+      let release; const gate = new Promise(res => { release = res; });
+      let stale = null;
+      game.simClient = { warm() {}, simulate: (...a) => gate.then(() => real.simulate(...a)).then(res => (stale = res)) };
+      game.power = 30; game.state = 'SHOOTING'; game.shoot();
+      game.resetGame();
+      game.simClient = real;
+      game.power = 40; game.state = 'SHOOTING'; game.shoot();
+      while (!game.playback) await frame();
+      const second = game.lastShotResult; const playback = game.playback;
+      release();
+      while (!stale) await frame();
+      await new Promise(res => setTimeout(res, 50));
+      const after = { state: game.state, result: game.lastShotResult === second, playback: game.playback === playback };
+      while (!(game.state === 'AIM' && game.playback === null)) await frame();
+      // The table ends where the second shot ends.
+      const table = game.ballsManager.toTableState(game.tableProfileId);
+      const where = s => s.balls.filter(b => !b.pocketed).map(b => [b.id, b.x, b.z]);
+      return { ...after, differ: JSON.stringify(stale.final) !== JSON.stringify(second.final), final: JSON.stringify(where(table)) === JSON.stringify(where(second.final)) };
+    });
+    assert.deepEqual(r, { state: 'SHOOTING', result: true, playback: true, differ: true, final: true });
+  });
+
   await t.test('a failed simulation cancels the shot and the next one plays', async () => {
     const r = await page.evaluate(async () => {
       const game = __menu.game; const real = game.simClient; const before = JSON.stringify(game.ballsManager.toTableState(game.tableProfileId));
@@ -244,9 +272,13 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
       game.power = 0; game.state = 'SHOOTING'; game.shoot();
       await new Promise(res => setTimeout(res, 300));
       game.simClient = real;
-      return { calls, same: JSON.stringify(game.ballsManager.toTableState(game.tableProfileId)) === before, turns: game.statsTracker.totalTurns - turns, playback: game.playback };
+      return {
+        calls, same: JSON.stringify(game.ballsManager.toTableState(game.tableProfileId)) === before, turns: game.statsTracker.totalTurns - turns, playback: game.playback,
+        // The shot resolved: out of SHOOTING, through the empty result.
+        shooting: game.state === 'SHOOTING', steps: game.lastShotResult?.steps,
+      };
     });
-    assert.deepEqual(r, { calls: 0, same: true, turns: 1, playback: null });
+    assert.deepEqual(r, { calls: 0, same: true, turns: 1, playback: null, shooting: false, steps: 0 });
   });
 
   await t.test('pausing during playback freezes the shot and resuming continues it', async () => {

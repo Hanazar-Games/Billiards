@@ -44,7 +44,11 @@ test('8-ball contra a IA vai até o fim sem erros no console', { timeout: 600000
   await page.setViewport({ width: 1280, height: 800 });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('console', message => {
+    if (message.type() === 'error') errors.push(message.text());
+    // A shot the worker could not simulate is cancelled with only a warning.
+    else if (message.type() === 'warn' && /shot simulation failed/.test(message.text())) errors.push(message.text());
+  });
   await page.goto(server.resolvedUrls.local[0], { waitUntil: 'networkidle2' });
   await page.waitForFunction(() => window.__menu && !document.getElementById('intro-screen'));
   await page.evaluate(async () => {
