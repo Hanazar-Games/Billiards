@@ -5,7 +5,9 @@ import { UIText } from '../core/UIText.js';
  * GameStateSerializer — Serialize and deserialize game state for network sync.
  *
  * Host sends stateSnapshot every frame during shooting;
- * clients apply it to update visual positions without running physics.
+ * clients apply it to update visual positions without simulating.
+ * Balls travel as mesh poses (position + quaternion): the host plays each
+ * shot back from its trajectory, so the meshes are where the balls are.
  */
 export class GameStateSerializer {
   /**
@@ -17,22 +19,17 @@ export class GameStateSerializer {
     const balls = [];
     if (game.ballsManager) {
       for (const ball of game.ballsManager.balls) {
-        const b = ball.body;
+        const p = ball.mesh.position;
+        const q = ball.mesh.quaternion;
         balls.push({
           id: ball.id,
-          x: b.position.x,
-          y: b.position.y,
-          z: b.position.z,
-          vx: b.velocity.x,
-          vy: b.velocity.y,
-          vz: b.velocity.z,
-          avx: b.angularVelocity.x,
-          avy: b.angularVelocity.y,
-          avz: b.angularVelocity.z,
-          qx: b.quaternion.x,
-          qy: b.quaternion.y,
-          qz: b.quaternion.z,
-          qw: b.quaternion.w,
+          x: p.x,
+          y: p.y,
+          z: p.z,
+          qx: q.x,
+          qy: q.y,
+          qz: q.z,
+          qw: q.w,
           pocketed: ball.pocketed,
           visible: ball.mesh.visible,
         });
@@ -133,7 +130,7 @@ export class GameStateSerializer {
       );
     }
 
-    // Update ball positions / velocities / rotations
+    // Update ball poses (a pocketed ball is hidden where it is)
     for (const bs of snapshot.balls) {
       const ball = game.ballsManager.getBall(bs.id);
       if (!ball) continue;
@@ -143,17 +140,8 @@ export class GameStateSerializer {
       ball.mesh.visible = bs.visible;
 
       if (!bs.pocketed) {
-        ball.body.position.set(bs.x, bs.y, bs.z);
-        ball.body.velocity.set(bs.vx, bs.vy, bs.vz);
-        ball.body.angularVelocity.set(bs.avx ?? 0, bs.avy ?? 0, bs.avz ?? 0);
-        ball.body.quaternion.set(bs.qx, bs.qy, bs.qz, bs.qw);
-        ball.sync();
-      } else {
-        // Keep pocketed balls out of the way
-        ball.body.position.set(0, -1000, 0);
-        ball.body.velocity.set(0, 0, 0);
-        ball.body.angularVelocity.set(0, 0, 0);
-        ball.sync();
+        ball.mesh.position.set(bs.x, bs.y, bs.z);
+        ball.mesh.quaternion.set(bs.qx, bs.qy, bs.qz, bs.qw);
       }
     }
 

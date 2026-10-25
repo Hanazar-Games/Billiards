@@ -138,7 +138,7 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     assert.ok(r.z1 > 0);
   });
 
-  await t.test('a mouse drag strikes the cue ball in the live physics world', async () => {
+  await t.test('a mouse drag plays the shot from the worker trajectory', async () => {
     await page.evaluate(() => { __menu.game.onboardingTips.hide(); });
     await page.keyboard.press('2');
     await new Promise(resolve => setTimeout(resolve, 200));
@@ -157,8 +157,65 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     await new Promise(resolve => setTimeout(resolve, 100));
     await page.mouse.up();
     await page.waitForFunction(() => __menu.game.state === 'SHOOTING');
-    assert.ok(await page.evaluate(() => __menu.game.ballsManager.getCueBall().body.velocity.length() > 0));
-    await page.waitForFunction(() => __menu.game.state === 'AIM', { timeout: 25000 });
+    await page.waitForFunction(() => __menu.game.playback !== null);
+    const [x0, , z0] = await page.evaluate(() => __menu.game.ballsManager.getCueBall().mesh.position.toArray());
+    await page.waitForFunction((x0, z0) => { const p = __menu.game.ballsManager.getCueBall().mesh.position; return Math.hypot(p.x - x0, p.z - z0) > 1; }, {}, x0, z0);
+    await page.waitForFunction(() => __menu.game.state === 'AIM' && __menu.game.playback === null, { timeout: 25000 });
+  });
+
+  await t.test('a stale shot result is ignored after a reset', async () => {
+    const r = await page.evaluate(async () => {
+      const game = __menu.game; let release; const gate = new Promise(res => { release = res; });
+      const real = game.simClient; game.simClient = { warm() {}, simulate: (...a) => gate.then(() => real.simulate(...a)) };
+      game.power = 30; game.state = 'SHOOTING'; game.shoot();
+      game.resetGame(); const rack = game.ballsManager.toTableState(game.tableProfileId);
+      release(); await new Promise(res => setTimeout(res, 500));
+      game.simClient = real;
+      return { state: game.state, playback: game.playback, same: JSON.stringify(game.ballsManager.toTableState(game.tableProfileId)) === JSON.stringify(rack) };
+    });
+    assert.deepEqual(r, { state: 'AIM', playback: null, same: true });
+  });
+
+  await t.test('a failed simulation cancels the shot and the next one plays', async () => {
+    const r = await page.evaluate(async () => {
+      const game = __menu.game; const real = game.simClient; const before = JSON.stringify(game.ballsManager.toTableState(game.tableProfileId));
+      game.simClient = { warm() {}, simulate: () => Promise.reject(new Error('boom')) };
+      game.power = 30; game.state = 'SHOOTING'; game.shoot();
+      await new Promise(res => setTimeout(res, 100));
+      const cancelled = { state: game.state, same: JSON.stringify(game.ballsManager.toTableState(game.tableProfileId)) === before };
+      game.simClient = real; game.power = 30; game.state = 'SHOOTING'; game.shoot();
+      await new Promise(res => { const tick = () => (game.playback ? res() : requestAnimationFrame(tick)); tick(); });
+      return cancelled;
+    });
+    assert.deepEqual(r, { state: 'AIM', same: true });
+    await page.waitForFunction(() => __menu.game.state === 'AIM' && __menu.game.playback === null, { timeout: 25000 });
+  });
+
+  await t.test('a zero-power shot resolves without moving any ball', async () => {
+    const r = await page.evaluate(async () => {
+      const game = __menu.game; const real = game.simClient; let calls = 0;
+      game.simClient = { warm() {}, simulate: (...a) => { calls++; return real.simulate(...a); } };
+      const before = JSON.stringify(game.ballsManager.toTableState(game.tableProfileId)); const turns = game.statsTracker.totalTurns;
+      game.power = 0; game.state = 'SHOOTING'; game.shoot();
+      await new Promise(res => setTimeout(res, 300));
+      game.simClient = real;
+      return { calls, same: JSON.stringify(game.ballsManager.toTableState(game.tableProfileId)) === before, turns: game.statsTracker.totalTurns - turns, playback: game.playback };
+    });
+    assert.deepEqual(r, { calls: 0, same: true, turns: 1, playback: null });
+  });
+
+  await t.test('pausing during playback freezes the shot and resuming continues it', async () => {
+    const r = await page.evaluate(async () => {
+      const game = __menu.game; const wait = ms => new Promise(res => setTimeout(res, ms));
+      game.power = 80; game.state = 'SHOOTING'; game.shoot();
+      await new Promise(res => { const tick = () => (game.playback ? res() : requestAnimationFrame(tick)); tick(); });
+      game._togglePause(); const t0 = game.playback.player.time; await wait(300);
+      const frozen = game.playback.player.time === t0;
+      game._togglePause(); await wait(300);
+      return { frozen, resumed: game.playback === null || game.playback.player.time > t0 };
+    });
+    assert.deepEqual(r, { frozen: true, resumed: true });
+    await page.waitForFunction(() => __menu.game.state === 'AIM' && __menu.game.playback === null, { timeout: 25000 });
   });
 
   await t.test('appearance changes update every bevel and preserve preset components', async () => {
@@ -194,21 +251,21 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
       const cameraBefore = game.camera.quaternion.toArray();
       __menu.renderer.render();
       const directed = game.camera.quaternion.toArray().every((v, i) => v === cameraBefore[i]);
-      const physicsTime = __menu.physics.world.time;
+      const cueBefore = cue.mesh.position.toArray();
       await new Promise(resolve => setTimeout(resolve, 100));
-      const frozen = __menu.physics.world.time === physicsTime;
+      const frozen = game.playback === null && cue.mesh.position.toArray().every((v, i) => v === cueBefore[i]);
       game.instantReplay.skip();
       return { replaying, frozen, directed, state: game.state, restored: cue.mesh.position.toArray().every((v, i) => v === original[i]) };
     });
     assert.deepEqual(result, { replaying: true, frozen: true, directed: true, state: 'AIM', restored: true });
   });
 
-  await t.test('respotting restores the ball to the physics world', async () => {
+  await t.test('respotting puts the ball back on the table', async () => {
     const result = await page.evaluate(() => {
       const game = __menu.game; const ball = game.ballsManager.getBall(8);
-      ball.pocketed = true; ball.mesh.visible = false; game.physics.removeBody(ball.body);
+      ball.remove();
       game._respotBall(8);
-      return !ball.pocketed && ball.mesh.visible && game.physics.world.bodies.includes(ball.body);
+      return !ball.pocketed && ball.mesh.visible;
     });
     assert.ok(result);
   });
@@ -512,7 +569,6 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
 
     await page.evaluate(() => {
       const game = __menu.game;
-      for (const ball of game.ballsManager.balls) { ball.body.velocity.setZero(); ball.body.angularVelocity.setZero(); }
       game.currentPlayer = 1; game.rules.gameOver = true; game.rules.winner = 2;
       game.resolveTurn([], { gameOver: true, winner: 2, message: '玩家 2 获胜' });
     });

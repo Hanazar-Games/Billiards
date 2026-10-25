@@ -53,6 +53,9 @@ export const UIText = {
   aiThinking: 'AI 思考中…',
   aiPlanningFailed: 'AI 规划失败，已恢复玩家控制。',
 
+  // Shot simulation
+  shotSimulationFailed: '击球模拟失败，本杆已取消，请重新击球。',
+
   // Turn timer
   turnTimeout: (currentName, otherName) =>
     `⏰ 回合超时！${currentName} 犯规，${otherName} 获得自由球`,

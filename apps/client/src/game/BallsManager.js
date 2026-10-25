@@ -179,6 +179,44 @@ export class BallsManager {
     return this.balls.filter(b => !b.pocketed);
   }
 
+  /**
+   * The table as the simulation sees it, read from the meshes (the meshes are
+   * where each ball is; the shot playback moves them).
+   * @param {string} tableProfileId
+   * @returns {import('@billiards/sim').TableState}
+   */
+  toTableState(tableProfileId) {
+    return {
+      tableProfileId,
+      balls: this.balls.map(ball => {
+        const p = ball.mesh.position;
+        const q = ball.mesh.quaternion;
+        return { id: ball.id, x: p.x, z: p.z, q: [q.x, q.y, q.z, q.w], pocketed: ball.pocketed };
+      }),
+    };
+  }
+
+  /**
+   * Puts the balls where `state` says. A pocketed ball leaves the table; the
+   * others are placed on the cloth at rest.
+   * @param {import('@billiards/sim').TableState} state
+   */
+  applyTableState(state) {
+    for (const s of state.balls) {
+      const ball = this.getBall(s.id);
+      if (!ball) continue;
+      if (s.pocketed) {
+        if (!ball.pocketed) ball.remove();
+        continue;
+      }
+      ball.pocketed = false;
+      ball.mesh.visible = true;
+      ball.mesh.position.set(s.x, BALL.radius, s.z);
+      if (s.q) ball.mesh.quaternion.set(s.q[0], s.q[1], s.q[2], s.q[3]);
+      ball.speed = 0;
+    }
+  }
+
   sync() {
     for (const ball of this.balls) {
       if (!ball.pocketed) {
@@ -595,8 +633,8 @@ export class BallsManager {
       if (x < -halfW || x > halfW || z < -halfD || z > halfD) return false;
       for (const ball of this.balls) {
         if (ball.id === 0 || ball.pocketed) continue;
-        const dx = ball.body.position.x - x;
-        const dz = ball.body.position.z - z;
+        const dx = ball.mesh.position.x - x;
+        const dz = ball.mesh.position.z - z;
         if (dx * dx + dz * dz < (BALL.radius * 2.2) ** 2) {
           return false;
         }

@@ -8,6 +8,8 @@ export class Ball {
     this.id = id;
     this.type = type;
     this.pocketed = false;
+    // Speed in cm/s, set by the shot playback from the change of the pose.
+    this.speed = 0;
 
     // Visual — high precision sphere for crisp number rendering
     this.geometry = new THREE.SphereGeometry(BALL.radius, BALL.segments, BALL.segments);
@@ -218,6 +220,7 @@ export class Ball {
 
   setPosition(x, y, z) {
     this.mesh.position.set(x, y, z);
+    this.speed = 0;
     this.body.position.set(x, y, z);
     this.body.velocity.set(0, 0, 0);
     this.body.angularVelocity.set(0, 0, 0);
@@ -401,7 +404,7 @@ export class Ball {
   }
 
   getSpeed() {
-    return this.body.velocity.length();
+    return this.speed;
   }
 
   isSleeping() {
@@ -411,6 +414,7 @@ export class Ball {
   remove() {
     this.pocketed = true;
     this.mesh.visible = false;
+    this.speed = 0;
     this.body.velocity.set(0, 0, 0);
     this.body.angularVelocity.set(0, 0, 0);
     this.body.position.set(0, -1000, 0);

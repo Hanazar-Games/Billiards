@@ -445,9 +445,6 @@ export class MenuSystem {
 
     this.loop = new GameLoop({
       update: (dt) => {
-        if (this.game && this.game.networkRole !== 'client' && !this.game.paused && this.game.state !== 'REPLAYING') {
-          this.physics.step(dt);
-        }
         this.game.update(dt);
       },
       render: () => {
@@ -544,7 +541,6 @@ export class MenuSystem {
     // Create and start game loop
     this.loop = new GameLoop({
       update: (dt) => {
-        if (this.game && this.game.networkRole !== 'client' && !this.game.paused && this.game.state !== 'REPLAYING') this.physics.step(dt);
         this.game.update(dt);
       },
       render: () => {
@@ -684,7 +680,6 @@ export class MenuSystem {
     // Create and start game loop
     this.loop = new GameLoop({
       update: (dt) => {
-        if (this.game && this.game.networkRole !== 'client' && !this.game.paused && this.game.state !== 'REPLAYING') this.physics.step(dt);
         this.game.update(dt);
       },
       render: () => {
@@ -843,9 +838,6 @@ export class MenuSystem {
     // Create and start game loop
     this.loop = new GameLoop({
       update: (dt) => {
-        if (this.game && this.game.networkRole !== 'client' && !this.game.paused && this.game.state !== 'REPLAYING') {
-          this.physics.step(dt);
-        }
         this.game.update(dt);
         if (this.spectator) this.spectator.update(dt);
       },
