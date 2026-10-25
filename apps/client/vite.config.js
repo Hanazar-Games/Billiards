@@ -6,6 +6,9 @@ export default defineConfig({
     port: 5173,
     open: true
   },
+  worker: {
+    format: 'es'
+  },
   build: {
     outDir: 'dist',
     sourcemap: false,

@@ -126,6 +126,18 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     if (process.env.BROWSER_SCREENSHOT) await page.screenshot({ path: process.env.BROWSER_SCREENSHOT + '.game.png' });
   });
 
+  await t.test('the sim worker simulates a shot off the main thread', async () => {
+    const r = await page.evaluate(async () => {
+      const { simClient } = await import('/src/sim/SimWorkerClient.js');
+      const table = { tableProfileId: 'pool9ft', balls: [{ id: 0, x: 0, z: -50, pocketed: false }, { id: 1, x: 0, z: 0, pocketed: false }] };
+      const res = await simClient.simulate(table, { angle: Math.PI / 2, power: 40, spin: { x: 0, y: 0 } });
+      return { first: res.events.find(e => e.type === 'first_contact')?.ball, frames: res.frames.length, steps: res.steps, z1: res.final.balls[1].z };
+    });
+    assert.equal(r.first, 1);
+    assert.equal(r.frames, Math.floor(r.steps / 12));
+    assert.ok(r.z1 > 0);
+  });
+
   await t.test('a mouse drag strikes the cue ball in the live physics world', async () => {
     await page.evaluate(() => { __menu.game.onboardingTips.hide(); });
     await page.keyboard.press('2');
