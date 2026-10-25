@@ -109,3 +109,55 @@ test('dt inválido não avança', () => {
   for (const dt of [NaN, -1, 0]) assert.deepEqual(p.advance(dt).events, []);
   assert.equal(p.time, 0);
 });
+
+test('cada evento sai só no avanço que alcança o seu t, inclusive quando o tempo cai exatamente nele', () => {
+  const q = [0, 0, 0, 1];
+  const ball = (id, x) => ({ id, x, z: 0, q, pocketed: false });
+  const ev0 = { t: 0, type: 'ball_cushion', ball: 0, speed: 1 };
+  const ev1 = { t: 1 / 30, type: 'ball_ball', a: 0, b: 1, speed: 2 };
+  const ev2 = { t: 0.04, type: 'ball_cushion', ball: 1, speed: 3 };
+  const p = new TrajectoryPlayer({
+    initial: { tableProfileId: 'pool9ft', balls: [ball(0, 0), ball(1, 5)] },
+    frames: [
+      { t: 1 / 30, balls: [{ id: 0, x: 1, z: 0, q }] },
+      { t: 2 / 30, balls: [{ id: 0, x: 2, z: 0, q }] }
+    ],
+    events: [ev0, ev1, ev2],
+    final: { tableProfileId: 'pool9ft', balls: [ball(0, 3), ball(1, 5)] },
+    simSeconds: 3 / 30
+  });
+  assert.deepEqual(p.advance(1 / 60).events, [ev0], 'the first advance gets t = 0 and nothing later');
+  // 1/60 + 1/60 is 1/30 with no rounding, so this advance lands exactly on ev1.t.
+  const onEvent = p.advance(1 / 60);
+  assert.equal(p.time, 1 / 30);
+  assert.deepEqual(onEvent.events, [ev1], 'an event at exactly the new time is included');
+  assert.deepEqual(p.advance(1 / 300).events, [], 'a window with no event stays empty');
+  assert.equal(p.time < 0.04, true);
+  assert.deepEqual(p.advance(0.02).events, [ev2], 'the window that crosses 0.04 gets it');
+  assert.deepEqual(p.advance(0.01).events, [], 'nothing repeats');
+  assert.deepEqual(p.advance(100).events, [], 'nothing is left at the end');
+});
+
+test('bola encaçapada depois do último quadro fica na última pose até o evento, sem ir para o (0, 0) do estado final', () => {
+  const q = [0, 0, 0, 1];
+  const live = (id, x, z) => ({ id, x, z, q, pocketed: false });
+  const pocket = { t: 0.08, type: 'pocket', ball: 1, pocket: 0 }; // after the last frame (2/30), before the end (3/30)
+  const p = new TrajectoryPlayer({
+    initial: { tableProfileId: 'pool9ft', balls: [live(0, 0, 0), live(1, 20, 10)] },
+    frames: [
+      { t: 1 / 30, balls: [{ id: 1, x: 22, z: 10, q }] },
+      { t: 2 / 30, balls: [{ id: 1, x: 24, z: 10, q }] }
+    ],
+    events: [pocket],
+    // Where the sim parks a ball it pockets.
+    final: { tableProfileId: 'pool9ft', balls: [live(0, 0, 0), { id: 1, x: 0, z: 0, q, pocketed: true }] },
+    simSeconds: 3 / 30
+  });
+  const at = (poses) => poses.find(b => b.id === 1);
+  const before = at(p.advance(0.079).poses);
+  assert.deepEqual([before.x, before.z], [24, 10], 'still at the last frame pose, not on its way to (0, 0)');
+  const out = p.advance(0.002); // now at 0.081
+  assert.deepEqual(out.events, [pocket]);
+  assert.equal(at(out.poses), undefined, 'gone from the pocket event on');
+  assert.equal(at(p.advance(1).poses), undefined, 'and not in the final state either');
+});
