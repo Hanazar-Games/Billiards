@@ -30,7 +30,7 @@ Sem o metadado, ou com outro valor, a entrada é recusada. O erro chega no campo
 | `MATCH_ENDED` | a partida já terminou | voltar ao menu |
 | `ROOM_FULL` | os lugares estão ocupados (e quem entra não é um dos jogadores) | escolher outra sala |
 
-**Entrar de novo.** Depois que a partida começou, só os jogadores dela entram (o servidor reconhece o `userId`). Quem volta recebe um `match_snapshot` (seção 10). Uma segunda aba do mesmo usuário substitui a primeira: a conexão antiga é removida e o lugar continua do usuário.
+**Entrar de novo.** Depois que a partida começou, só os jogadores dela entram (o servidor reconhece o `userId`). Quem volta recebe um `match_snapshot` (seção 10). Uma segunda aba do mesmo usuário substitui a primeira, antes ou depois do começo da partida: a conexão antiga é removida (`matchKick`), deixa de receber mensagens, e o lugar continua do usuário.
 
 **Começo da partida.** Na sala privada, a partida começa quando entra o segundo jogador; na fila, quando os dois chegam à partida criada pelo matchmaker. Os lugares seguem a ordem de entrada (o primeiro a entrar é o lugar 0). O servidor sorteia quem abre (`firstSeat`) e manda um `match_snapshot` a cada jogador, com o `you.seat` dele. Antes disso o servidor não manda nada ao primeiro jogador.
 

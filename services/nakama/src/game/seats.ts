@@ -16,8 +16,9 @@ const RESERVE_TICKS = SECONDS.reconnect * TICK_RATE;
 
 /**
  * New connections. Once the match started, each is a player coming back
- * (handleRejoin). In the lobby a connection replaces the player's older one, a
- * new player takes the next seat in join order, and the match starts once the seats fill.
+ * (handleRejoin). In the lobby a connection replaces the player's older one (a
+ * second tab), which is removed like in a rejoin; a new player takes the next
+ * seat in join order, and the match starts once the seats fill.
  */
 export function handleJoin(env: GameEnv, state: GameState, presences: Presence[], tick: number): void {
   if (state.match) {
@@ -25,6 +26,9 @@ export function handleJoin(env: GameEnv, state: GameState, presences: Presence[]
     return;
   }
   for (const presence of presences) {
+    // The old connection's leave then comes from another session and is ignored (handleLeave).
+    const old = state.presences[presence.userId];
+    if (old && old.sessionId !== presence.sessionId) env.dispatcher.matchKick([old]);
     state.presences[presence.userId] = presence;
     if (state.joinOrder.indexOf(presence.userId) < 0) {
       // A copy first: the stored array comes back from the runtime as a Go slice.

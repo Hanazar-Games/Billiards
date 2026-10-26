@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { currentSeat } from '@billiards/modes';
 import { OP, decodeTrajectory } from '@billiards/protocol';
 import { SECONDS, TICK_RATE } from '../src/game/state.ts';
-import { message, presence, simReply, startedGame } from './fakes.ts';
+import { message, newGame, presence, simReply, startedGame } from './fakes.ts';
 
 /** A plain copy (the state the harness hands out is a proxy over its own copy). */
 const plain = <T>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -138,6 +138,33 @@ test('segunda aba substitui a primeira, e a saída da primeira é ignorada', () 
   game.loop(6 + RESERVE);
   assert.equal(game.out().some((m) => m.op === OP.MATCH_END), false);
   assert.equal(game.state.phase, 'AWAITING_SHOT');
+});
+
+test('no saguão, a segunda aba também substitui a primeira: a antiga é removida e a saída dela é ignorada', () => {
+  const game = newGame();
+  const old = presence('a');
+  game.join([old], 1);
+  const tab = presence('a', 's-a-2');
+  assert.equal(game.attempt(tab, undefined, 2)!.accept, true);
+  game.join([tab], 2);
+  assert.deepEqual(game.dispatcher.kicked, [old], 'the old connection would keep getting the broadcasts');
+  assert.equal(game.state.presences.a.sessionId, 's-a-2');
+  assert.deepEqual(plain(game.state.joinOrder), ['a']);
+
+  // The same connection again is not a second tab.
+  game.join([tab], 3);
+  assert.deepEqual(game.dispatcher.kicked, [old]);
+
+  // Nakama then reports the kicked connection's leave: the seat stays with the new tab.
+  game.leave([old], 4);
+  assert.equal(game.state.presences.a.sessionId, 's-a-2');
+  assert.deepEqual(plain(game.state.joinOrder), ['a']);
+
+  // The second player fills the room: the start snapshot goes to the new tab, not the old one.
+  game.join([presence('b')], 5);
+  const snapshots = game.out().filter((m) => m.op === OP.MATCH_SNAPSHOT);
+  assert.deepEqual(snapshots.map((s) => s.to!.map((p) => p.sessionId)).sort(), [['s-a-2'], ['s-b']]);
+  assert.deepEqual(game.state.players.map((p) => p.userId), ['a', 'b']);
 });
 
 test('ausente por 600 ticks perde por W.O.; 599 ainda não', () => {
