@@ -731,6 +731,23 @@ test('8-ball accounts for balls pocketed before groups and by opponents', () => 
   assert.ok(stripes(r.state).includes(10));
 });
 
+test('the shot sent to the match has its spin normalized, like the LAN input path', () => {
+  const sent = [];
+  const game = Object.assign(Object.create(Game.prototype), {
+    state: 'SHOOTING', _shotToken: 0, playback: null, tableProfileId: 'pool9ft',
+    aimDirection: new THREE.Vector3(0, 0, 1), cueTipOffset: { x: 1, y: 1 },   // |spin| > 1, as the EASY AI can produce
+    ballsManager: { toTableState: () => ({ tableProfileId: 'pool9ft', balls: [{ id: 0, x: 0, z: -69.85, pocketed: false }] }) },
+  });
+  game.match = matchFor('8ball');
+  game.match.simClient = { simulate: (table, shot) => { sent.push(shot); return Promise.reject(new Error('not simulated here')); } };
+  game._simulateShot(50, null);
+  game._abandonShot();                      // the rejection above must not reach _cancelShot
+  return new Promise((resolve) => setTimeout(resolve, 0)).then(() => {
+    assert.equal(sent.length, 1, 'the match rejected the shot instead of simulating it');
+    assert.ok(Math.abs(Math.hypot(sent[0].spin.x, sent[0].spin.y) - 1) < 1e-9);
+  });
+});
+
 test('8-ball cannot be won alongside the last group ball', () => {
   const state = { ...eightBall.createInitialState(config8, Math.random), breakShot: false, groups: ['solid', 'stripe'], pocketed: [1, 2, 3, 4, 5, 6] };
   const ruling = eightBall.resolveShot(state, 0, ev({ first: 7, pocketed: [7, 8] }), FINAL, MODE_SHOT);

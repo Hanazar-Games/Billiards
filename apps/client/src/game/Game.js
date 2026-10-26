@@ -1044,10 +1044,13 @@ export class Game {
     const table = this.ballsManager.toTableState(this.tableProfileId);
     const token = ++this._shotToken;
     this.playback = null;
+    // The tip offset never leaves the unit circle (the AI can propose more, and
+    // the match refuses it), as ShotInput does for a LAN shot.
+    const spinLength = Math.max(1, Math.hypot(this.cueTipOffset.x, this.cueTipOffset.y));
     const shot = {
       angle: Math.atan2(this.aimDirection.z, this.aimDirection.x),
       power: force,
-      spin: { x: this.cueTipOffset.x, y: this.cueTipOffset.y },
+      spin: { x: this.cueTipOffset.x / spinLength, y: this.cueTipOffset.y / spinLength },
     };
     if (this._pushOutDeclared) shot.pushOut = true;
     if (this._placedCueBall) shot.cueBall = this._placedCueBall;
@@ -2137,7 +2140,8 @@ export class Game {
       const { idealZone } = this.ballsManager.setupDrill(this.drillConfig, this.tableProfile);
       this.drillIdealZone = idealZone;
     } else {
-      this.ballsManager.applyLayout(this.match.newRack(this.currentPlayer - 1));
+      // A new rack always starts player 1 (currentPlayer is reset below), whoever shot last.
+      this.ballsManager.applyLayout(this.match.newRack(0));
     }
     this.ballsManager.addToScene(this.scene);
     for (const ball of this.ballsManager.balls) {

@@ -790,5 +790,24 @@
       "F4",
       "docs/superpowers/plans/2026-10-25-f2-modes-n-lugares.md"
     ]
+  },
+  {
+    "id": "D048",
+    "date": "2026-10-25",
+    "title": "turnId quando um lugar sai da partida",
+    "decision": "Em aberto, para decidir na F4. Na F2, removeMatchSeat (desistência ou abandono) não avança o turnId: ele conta só as decisões de tacada, tempo esgotado e push-out. Se a saída do lugar da vez passar a vez, um shot_request atrasado do lugar seguinte com o turnId antigo seria aceito; avançar o turnId na saída fecha essa porta.",
+    "rationale": "Achado da revisão final da F2. O turnId é o que torna o shot_request idempotente (spec §7.4), e a F4 é quem define o protocolo.",
+    "alternatives": [
+      "Avançar o turnId em toda saída de lugar",
+      "Avançar só quando a saída muda o lugar da vez",
+      "Manter como está (só decisões avançam)"
+    ],
+    "status": "open",
+    "source": "revisão final da F2",
+    "refs": [
+      "spec §7.4",
+      "F4",
+      "packages/modes/src/match.ts"
+    ]
   }
 ]

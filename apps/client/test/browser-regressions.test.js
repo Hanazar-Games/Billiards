@@ -311,6 +311,22 @@ test('real browser gameplay, presentation and lifecycle regressions', { timeout:
     await page.waitForFunction(() => __menu.game?.state === 'AIM');
   });
 
+  await t.test('a rematch after player 2 ends a game starts player 1 in the game and in the match', async () => {
+    await menu();
+    await page.evaluate(() => __menu._startGame('local2p'));
+    await page.waitForFunction(() => __menu.game?.state === 'AIM');
+    const r = await page.evaluate(() => {
+      const game = __menu.game;
+      game.currentPlayer = 2;               // the last shot of the game was player 2's
+      game.resetGame();
+      return { game: game.currentPlayer, match: game.match.status().currentPlayer };
+    });
+    assert.deepEqual(r, { game: 1, match: 1 });
+    await menu();
+    await page.evaluate(() => __menu._startGame('freeplay'));
+    await page.waitForFunction(() => __menu.game?.state === 'AIM');
+  });
+
   await t.test('appearance changes update every bevel and preserve preset components', async () => {
     const result = await page.evaluate(async () => {
       const { settings } = await import('/src/core/SettingsStore.js');
