@@ -78,7 +78,10 @@ test('branca sobre outra bola com bola na mão → CUE_BALL_INVALID; num lugar l
   const one = game.state.table!.balls.find((b) => b.id === 1)!;
   game.loop(1, [message(game.shooter, OP.SHOT_REQUEST, shot(0, 1, { cueBall: { x: one.x + 1.001234, z: one.z } }))]);
   game.loop(2, [message(game.shooter, OP.SHOT_REQUEST, shot(0, 2, { cueBall: { x: 20, z: -80 } }))]);
-  assert.deepEqual(sentSummary(game), [[OP.SHOT_REJECTED, { seq: 1, reason: 'CUE_BALL_INVALID' }, [game.shooter.sessionId]]]);
+  assert.deepEqual(sentSummary(game).slice(0, 2), [
+    [OP.SHOT_REJECTED, { seq: 1, reason: 'CUE_BALL_INVALID' }, [game.shooter.sessionId]],
+    [OP.SHOT_ACCEPTED, { turnId: 0, seq: 2, seat: game.seat, shot: { angle: 0.5, power: 50, spin: { x: 0, y: 0 }, cueBall: { x: 20, z: -80 } } }, null],
+  ]);
   assert.deepEqual(game.state.invalid[game.shooter.userId], [1], 'CUE_BALL_INVALID counts as an invalid shot');
 });
 

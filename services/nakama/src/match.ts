@@ -1,22 +1,25 @@
 // The authoritative "billiards" match (spec §7.2–7.5, F4-A): the lobby fills,
-// the match starts, messages come in and the room ends. The game itself lives in
-// game/; this handler builds a GameEnv on every call and wires the pieces. The
-// label is JSON so rooms can be found by code (spec §7.5).
-import { OP, PROTOCOL_VERSION } from '@billiards/protocol';
+// the match starts, the turn clock runs, messages come in and the room ends. The
+// game itself lives in game/; this handler builds a GameEnv on every call and
+// wires the pieces. The label is JSON so rooms can be found by code (spec §7.5).
+import { PROTOCOL_VERSION } from '@billiards/protocol';
 import { GRPC, rpcError, type Context, type Logger, type MatchHandler, type Nakama } from './nakama.ts';
+import { endMatch } from './game/end.ts';
 import { handleMessage } from './game/intake.ts';
-import { sendJson } from './game/send.ts';
 import { handleJoin, handleLeave } from './game/seats.ts';
+import { turnTimeout } from './game/shots.ts';
 import { SECONDS, TICK_RATE, createGameState, matchLabel, presenceList, seatOf } from './game/state.ts';
 import type { GameEnv, GameState } from './game/state.ts';
+
+/** The clocks, before the messages of the tick: a shot that arrives on the deadline tick is late. */
+function runClock(env: GameEnv, state: GameState, tick: number): void {
+  if (state.phase === 'AWAITING_SHOT' && tick >= state.deadlineTick) turnTimeout(env, state, tick);
+}
 
 /** Lobby ends: a public lobby nobody fills in time is aborted; any room ends once empty for long enough. */
 function roomEnded(env: GameEnv, state: GameState, tick: number): boolean {
   if (state.phase === 'LOBBY' && !state.private && tick - state.createdTick >= SECONDS.fill * TICK_RATE) {
-    // F4-03 moves this into endMatch.
-    state.phase = 'ENDED';
-    state.end = { winnerTeam: null, reason: 'ABORTED', summary: { turns: 0, shots: 0 } };
-    sendJson(env.dispatcher, OP.MATCH_END, state.end);
+    endMatch(env, state, tick, null, 'ABORTED');
     return true;
   }
   if (presenceList(state).length > 0) {
@@ -57,7 +60,7 @@ export const billiardsMatch: MatchHandler<GameState> = {
 
   matchLoop(ctx, logger, nk, dispatcher, tick, state, messages) {
     const env: GameEnv = { ctx, logger, nk, dispatcher };
-    // F4-03 runs the clock here, before the messages: a shot that arrives on the deadline tick is late.
+    runClock(env, state, tick);
     for (const message of messages) handleMessage(env, state, message, tick);
     return roomEnded(env, state, tick) ? null : { state };
   },

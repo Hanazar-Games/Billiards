@@ -1,8 +1,10 @@
 // F4-02: the match starts with a snapshot for each player, and the server refuses
 // bad shot requests, removes a connection that keeps sending them and relays the aim.
+// F4-03: a shot goes through the sim (nk.httpRequest) and both players get the same
+// shot_result envelope; a turn that runs out is a foul.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { OP } from '@billiards/protocol';
+import { OP, decodeTrajectory } from '@billiards/protocol';
 import { waitForNakama } from './env.ts';
 import { closeBots, newBot, rpc, serverError, sleep } from './bot.ts';
 import { byTurn, startPrivateGame } from './game.ts';
@@ -11,6 +13,8 @@ before(() => waitForNakama(60000));
 after(closeBots);
 
 const SHOT = { angle: 0.5, power: 40, spin: { x: 0, y: 0 } };
+/** The strongest break, straight up the table (already quantized). */
+const BREAK = { angle: 1.5708, power: 110, spin: { x: 0, y: 0 } };
 
 test('os dois recebem o snapshot com lugares diferentes e a mesma mesa', async () => {
   const { bots: [a, b] } = await startPrivateGame();
@@ -71,4 +75,43 @@ test('entrada sem protocolVersion é recusada', async () => {
   await assert.rejects(socket.joinMatch(matchId).catch(async (e) => { throw await serverError(e); }), /PROTOCOL_MISMATCH/);
   await assert.rejects(socket.joinMatch(matchId, undefined, { protocolVersion: '0' }).catch(async (e) => { throw await serverError(e); }),
     /PROTOCOL_MISMATCH/);
+});
+
+test('os dois bots terminam a tacada com o mesmo estado final', async () => {
+  const { bots } = await startPrivateGame();
+  const { shooter, waiter } = byTurn(bots);
+  await shooter.shoot(BREAK, 1);
+  const accepted = await Promise.all([shooter.waitFor(OP.SHOT_ACCEPTED), waiter.waitFor(OP.SHOT_ACCEPTED)]);
+  for (const m of accepted) assert.deepEqual(m.body, { turnId: 0, seq: 1, seat: shooter.seat, shot: BREAK });
+
+  const [mine, theirs] = await Promise.all([shooter.waitFor(OP.SHOT_RESULT), waiter.waitFor(OP.SHOT_RESULT)]);
+  assert.equal(mine.header.kind, 'shot');
+  assert.equal(mine.header.seat, shooter.seat);
+  assert.deepEqual(mine.header.table, theirs.header.table);
+  assert.deepEqual(mine.header.final, theirs.header.final);
+  assert.deepEqual(mine.header.match, theirs.header.match);
+  assert.deepEqual(mine.header.events, theirs.header.events);
+  assert.equal(mine.header.match.turnId, 1);
+  assert.equal(mine.header.nextTurn.seat, mine.header.match.mode.turn.currentSeat);
+  // The break's trajectory crossed the socket whole, to both (tens of kilobytes).
+  assert.ok(mine.payload!.length > 10000, `trajectory of ${mine.payload!.length} bytes`);
+  assert.deepEqual(theirs.payload, mine.payload);
+  assert.ok(decodeTrajectory(theirs.payload!).length > 0);
+});
+
+test('tempo esgotado conta como falta', { timeout: 90000 }, async () => {
+  const { bots } = await startPrivateGame();
+  const { shooter, waiter } = byTurn(bots);
+  const started = Date.now();
+  const results = await Promise.all([shooter.waitFor(OP.SHOT_RESULT, undefined, 60000), waiter.waitFor(OP.SHOT_RESULT, undefined, 60000)]);
+  const seconds = (Date.now() - started) / 1000;
+  assert.ok(seconds >= 44 && seconds <= 50, `the turn ran out after ${seconds} s`);
+  for (const { header, payload } of results) {
+    assert.equal(header.kind, 'timeout');
+    assert.equal(header.seat, shooter.seat);
+    assert.ok(header.ruling.fouls.includes('TIMEOUT'));
+    assert.equal(header.ruling.ballInHand.seat, waiter.seat);
+    assert.deepEqual(header.nextTurn, { seat: waiter.seat, turnId: 1, deadlineInMs: 45000 });
+    assert.deepEqual(decodeTrajectory(payload!), []);
+  }
 });

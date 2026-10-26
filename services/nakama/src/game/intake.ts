@@ -1,12 +1,14 @@
 // Messages from the clients (D055, spec §6.2): the per-connection rate limit,
 // the sender, reading, the relays of the aim and the ball in hand, and the
-// refusals of a shot_request. More than LIMITS.invalidShots refusals within
+// refusals of a shot_request and of a push_out_choice; what passes goes to
+// game/shots.ts. More than LIMITS.invalidShots refusals within
 // LIMITS.invalidWindowSeconds remove the connection (spec §9).
 import { currentSeat, isCueBallPlacementValid } from '@billiards/modes';
-import { OP, parseAimUpdate, parseBallInHandMove, parseShotRequest, quantizeShot } from '@billiards/protocol';
+import { OP, parseAimUpdate, parseBallInHandMove, parsePushOutChoice, parseShotRequest, quantizeShot } from '@billiards/protocol';
 import type { ShotRequest } from '@billiards/protocol';
 import type { MatchMessage, Presence } from '../nakama.ts';
 import { sendJson, sendSnapshot } from './send.ts';
+import { acceptShot, pushOutChoice } from './shots.ts';
 import { LIMITS, TICK_RATE, modeOf, presenceList, seatOf } from './state.ts';
 import type { GameEnv, GameState } from './state.ts';
 
@@ -49,9 +51,8 @@ export function handleMessage(env: GameEnv, state: GameState, message: MatchMess
     case OP.SHOT_REQUEST:
       handleShotRequest(env, state, sender, raw, tick);
       return;
-    default:
-      // push_out_choice (7) arrives with F4-03.
-      sendJson(env.dispatcher, OP.ERROR, { code: 'UNSUPPORTED_OP' }, [sender]);
+    case OP.PUSH_OUT_CHOICE:
+      handlePushOutChoice(env, state, sender, seat, raw, tick);
   }
 }
 
@@ -102,17 +103,30 @@ export function handleShotRequest(env: GameEnv, state: GameState, presence: Pres
   const shot = quantizeShot(shotOf(request));
   const validation = modeOf(state).validateShot(match.mode, seat, shot);
   if (!validation.ok) return reject(env, state, presence, request.seq, validation.reason, tick);
-  if (shot.cueBall && !isCueBallPlacementValid(state.table!, shot.cueBall, match.mode.config.table)) {
+  const table = state.table!;
+  if (shot.cueBall && !isCueBallPlacementValid(table, shot.cueBall, match.mode.config.table)) {
+    return reject(env, state, presence, request.seq, 'CUE_BALL_INVALID', tick);
+  }
+  // A pocketed cue ball must be placed (the sim refuses a table without one in play).
+  if (!shot.cueBall && table.balls.some((b) => b.id === 0 && b.pocketed)) {
     return reject(env, state, presence, request.seq, 'CUE_BALL_INVALID', tick);
   }
   acceptShot(env, state, seat, shot, request.seq, tick);
 }
 
-/**
- * The shot passed every check. F4-03 (Task 5) fills this in: record the
- * request, shot_accepted, the sim, the rules and shot_result.
- */
-function acceptShot(_env: GameEnv, _state: GameState, _seat: number, _shot: ShotRequest, _seq: number, _tick: number): void {}
+/** A 9-ball push-out is answered by the seat to play, for the current turn; anything else is refused. */
+function handlePushOutChoice(env: GameEnv, state: GameState, presence: Presence, seat: number, raw: unknown, tick: number): void {
+  const choice = parsePushOutChoice(raw);
+  if (!choice) return reject(env, state, presence, null, 'BAD_MESSAGE', tick);
+  const match = state.match;
+  // Only 9-ball has a push-out.
+  const pushOut = match ? (match.mode as { pushOut?: { pending: boolean } }).pushOut : undefined;
+  const pending = Boolean(pushOut && pushOut.pending);
+  if (!match || state.phase !== 'AWAITING_SHOT' || seat !== currentSeat(match) || choice.turnId !== match.turnId || !pending) {
+    return reject(env, state, presence, null, 'NO_CHOICE_PENDING', tick);
+  }
+  pushOutChoice(env, state, seat, choice.accept, tick);
+}
 
 /** The shot alone: no turnId, seq or unknown fields. */
 function shotOf(request: ShotRequest): ShotRequest {

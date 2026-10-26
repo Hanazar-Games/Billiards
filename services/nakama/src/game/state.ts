@@ -1,7 +1,8 @@
 // The state of an online match (spec §7.2–7.4, plan F4-A): room, players, the
-// authoritative match and table, clocks, limits and the end. Plain JSON plus one
-// Uint8Array (the last trajectory), kept by the runtime between ticks. Every
-// function of game/ that talks to Nakama takes a GameEnv.
+// authoritative match and table, clocks, limits and the end. Between calls the
+// runtime hands it to Go and back, so it is plain JSON only: no typed arrays (the
+// last trajectory is kept as base64), no reliance on key order, and a stored array
+// is copied before it changes. Every function of game/ that talks to Nakama takes a GameEnv.
 import { MODES } from '@billiards/modes';
 import type { GameMode, MatchConfig, MatchState, ModeStateBase, TableState } from '@billiards/modes';
 import type { MatchEnd, ShotRequest, ShotResultHeader } from '@billiards/protocol';
@@ -75,7 +76,8 @@ export interface GameState {
   emptyTicks: number;
   /** The tick the current turn times out. */
   deadlineTick: number;
-  lastResult: { header: ShotResultHeader<MatchState, GameTable>; trajectory: Uint8Array; tick: number; durationTicks: number } | null;
+  /** The last shot_result: its header, its trajectory in base64, the tick it went out and its playback in ticks. */
+  lastResult: { header: ShotResultHeader<MatchState, GameTable>; trajectory: string; tick: number; durationTicks: number } | null;
   /** By seat: the last shot request accepted, to recognize a resend. */
   lastAccepted: Record<number, { turnId: number; seq: number }>;
   /** By seat: the tick the player's connection left. */
