@@ -199,13 +199,25 @@ test('desistência encerra a partida e grava o histórico uma vez', async () => 
   }
 
   // The record is written as the match ends; the client may read before the write commits.
-  // Both reads run before any assertion, so a failure reports the server's message of each.
-  const asRead = { object_ids: [{ collection: 'match_history', key: matchId, user_id: SYSTEM_USER_ID }] };
-  const read = await eventually(() => call(a.bot.client.readStorageObjects(a.bot.session, asRead)), (r) => r.ok && r.value.objects.length > 0);
-  const list = await eventually(() => call(a.bot.client.listStorageObjects(a.bot.session, 'match_history', SYSTEM_USER_ID)), (r) => r.ok);
-  if (!read.ok || !list.ok) {
-    assert.fail(`read: ${read.ok ? 'ok' : read.error.message}; list: ${list.ok ? 'ok' : list.error.message}`);
-  }
+  // The reads below settle before any assertion, so a failure reports what the server answered to each.
+  const { client, session } = a.bot;
+  const withKey = (r: { ok: true; value: { objects: { key?: string }[] } } | { ok: false; error: Error }) =>
+    r.ok && r.value.objects.some((o) => o.key === matchId);
+  const listed = await eventually(() => call(client.listStorageObjects(session, 'match_history', SYSTEM_USER_ID)), withKey);
+  const readNoUser = await eventually(() => call(client.readStorageObjects(session, { object_ids: [{ collection: 'match_history', key: matchId }] })),
+    (r) => r.ok && r.value.objects.length > 0, 1000);
+  const readNil = await eventually(() => call(client.readStorageObjects(session, { object_ids: [{ collection: 'match_history', key: matchId, user_id: SYSTEM_USER_ID }] })),
+    (r) => r.ok && r.value.objects.length > 0, 1000);
+  const listAll = await eventually(() => call(client.listStorageObjects(session, 'match_history')), withKey, 1000);
+  const findings = JSON.stringify({
+    listed: listed.ok ? listed.value.objects.map((o) => o.key) : listed.error.message,
+    readNoUser: readNoUser.ok ? readNoUser.value.objects.map((o) => [o.key, o.user_id]) : readNoUser.error.message,
+    readNil: readNil.ok ? readNil.value.objects.length : readNil.error.message,
+    listAll: listAll.ok ? listAll.value.objects.map((o) => [o.key, o.user_id]) : listAll.error.message,
+  });
+  if (!withKey(listed) || !readNoUser.ok || readNoUser.value.objects.length !== 1) assert.fail(findings);
+  const list = listed as { ok: true; value: { objects: { key?: string }[] } };
+  const read = readNoUser;
   assert.equal(read.value.objects.length, 1);
   const record = read.value.objects[0];
   assert.deepEqual([record.collection, record.key, record.user_id, record.permission_read, record.permission_write],
