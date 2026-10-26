@@ -1,10 +1,11 @@
 // F3-04: private rooms joined by a 6-character code.
-import { test, before } from 'node:test';
+import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { waitForNakama } from './env.ts';
-import { newBot, rpc, serverError } from './bot.ts';
+import { closeBots, newBot, rpc, serverError } from './bot.ts';
 
 before(() => waitForNakama(60000));
+after(closeBots);
 
 test('bot A cria a sala; bot B entra pelo código', async () => {
   const [a, b] = await Promise.all([newBot(), newBot()]);

@@ -11,6 +11,14 @@ export interface Bot {
   socket(): Promise<Socket>;
 }
 
+/** Every socket a bot opened, closed by closeBots() so the test process can exit. */
+const openSockets = new Set<Socket>();
+
+export function closeBots(): void {
+  for (const socket of openSockets) socket.disconnect(false);
+  openSockets.clear();
+}
+
 export function newClient(): Client {
   return new Client(NAKAMA.serverKey, NAKAMA.host, NAKAMA.port, false);
 }
@@ -29,6 +37,7 @@ export async function newBot(): Promise<Bot> {
       if (!socket) {
         socket = client.createSocket(false, false);
         await socket.connect(session, true);
+        openSockets.add(socket);
       }
       return socket;
     },

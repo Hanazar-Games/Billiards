@@ -1,11 +1,12 @@
 // F3-02 and F3-03: guest accounts, e-mail linking and validated profiles.
-import { test, before } from 'node:test';
+import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { waitForNakama } from './env.ts';
-import { newBot, newClient, rpc, serverError } from './bot.ts';
+import { closeBots, newBot, newClient, rpc, serverError } from './bot.ts';
 
 before(() => waitForNakama(60000));
+after(closeBots);
 
 const PASSWORD = 'senha-de-teste-123';
 const uniqueName = () => `bot_${randomUUID().slice(0, 8)}`;

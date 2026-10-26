@@ -1,11 +1,12 @@
 // F3-05: 1×1 matchmaking creates an authoritative billiards match.
-import { test, before } from 'node:test';
+import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Socket } from '@heroiclabs/nakama-js';
 import { waitForNakama } from './env.ts';
-import { newBot, once, sleep, withTimeout } from './bot.ts';
+import { closeBots, newBot, once, sleep, withTimeout } from './bot.ts';
 
 before(() => waitForNakama(60000));
+after(closeBots);
 
 const ticket = (socket: Socket, mode: string) =>
   socket.addMatchmaker(`+properties.mode:${mode} +properties.format:1v1`, 2, 2, { mode, format: '1v1' });

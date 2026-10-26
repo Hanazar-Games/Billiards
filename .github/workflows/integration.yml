@@ -27,10 +27,24 @@ jobs:
       - run: cp infra/.env.example infra/.env
       - run: npm run infra:up
       - run: npm test -w services/nakama
-      - run: npm run test:integration -w services/nakama
+      - name: Integration tests
+        run: npm run test:integration -w services/nakama 2>&1 | tee integration.log; exit ${PIPESTATUS[0]}
+        shell: bash
+      # Annotations are readable without signing in (the job log is not).
+      - name: Test summary
+        if: always()
+        shell: bash
+        run: |
+          [ -f integration.log ] || exit 0
+          grep -E '^(✔|✖|ℹ (tests|pass|fail))' integration.log | head -40 | while IFS= read -r line; do echo "::notice title=integration::$line"; done
+          grep -E 'Error|expected|actual' integration.log | head -20 | while IFS= read -r line; do echo "::error title=integration::$line"; done
       - name: Nakama logs
         if: failure()
-        run: docker compose -f infra/docker-compose.yml --env-file infra/.env logs nakama
+        shell: bash
+        run: |
+          docker compose -f infra/docker-compose.yml --env-file infra/.env logs nakama > nakama.log 2>&1 || true
+          cat nakama.log
+          grep -iE '"level":"(error|warn)"|panic' nakama.log | head -20 | while IFS= read -r line; do echo "::warning title=nakama::${line:0:300}"; done
       - name: Stop the stack
         if: always()
         run: npm run infra:down
