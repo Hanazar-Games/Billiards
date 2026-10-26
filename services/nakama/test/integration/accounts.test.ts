@@ -14,7 +14,7 @@ const uniqueName = () => `bot_${randomUUID().slice(0, 8)}`;
 test('convidado vincula e-mail e entra de novo com e-mail na mesma conta', async () => {
   const bot = await newBot();
   const email = `bot-${randomUUID()}@example.test`;
-  await call(bot.client.linkEmail(bot.session, email, PASSWORD));
+  await call(bot.client.linkEmail(bot.session, { email, password: PASSWORD }));
   const again = await call(newClient().authenticateEmail(email, PASSWORD, false));
   assert.equal(again.user_id, bot.session.user_id);
 });
@@ -28,8 +28,8 @@ test('o mesmo dispositivo volta para a mesma conta', async () => {
 test('e-mail de outra conta não pode ser vinculado', async () => {
   const [a, b] = await Promise.all([newBot(), newBot()]);
   const email = `bot-${randomUUID()}@example.test`;
-  await call(a.client.linkEmail(a.session, email, PASSWORD));
-  await assert.rejects(call(b.client.linkEmail(b.session, email, PASSWORD)));
+  await call(a.client.linkEmail(a.session, { email, password: PASSWORD }));
+  await assert.rejects(call(b.client.linkEmail(b.session, { email, password: PASSWORD })));
   const again = await call(newClient().authenticateEmail(email, PASSWORD, false));
   assert.equal(again.user_id, a.session.user_id);
 });

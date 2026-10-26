@@ -2,7 +2,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { waitForNakama } from './env.ts';
-import { closeBots, newBot, rpc, serverError } from './bot.ts';
+import { closeBots, eventually, joinByCode, newBot, rpc, serverError } from './bot.ts';
 
 before(() => waitForNakama(60000));
 after(closeBots);
@@ -13,7 +13,7 @@ test('bot A cria a sala; bot B entra pelo código', async () => {
   assert.match(code, /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}$/);
   const sa = await a.socket();
   await sa.joinMatch(matchId);
-  const found = await rpc(b, 'join_by_code', { code: ` ${code.toLowerCase()} ` });
+  const found = await joinByCode(b, ` ${code.toLowerCase()} `);
   assert.equal(found.matchId, matchId);
   const sb = await b.socket();
   const joined = await sb.joinMatch(found.matchId);
@@ -24,8 +24,11 @@ test('terceiro bot recebe ROOM_FULL', async () => {
   const [a, b, c] = await Promise.all([newBot(), newBot(), newBot()]);
   const { matchId, code } = await rpc(a, 'create_private_match', { mode: '9ball', format: '1v1' });
   await (await a.socket()).joinMatch(matchId);
-  await (await b.socket()).joinMatch((await rpc(b, 'join_by_code', { code })).matchId);
-  await assert.rejects(rpc(c, 'join_by_code', { code }), /ROOM_FULL/);
+  await (await b.socket()).joinMatch((await joinByCode(b, code)).matchId);
+  // The full room's label (open: false) also reaches the listing after the indexing delay.
+  const full = await eventually(() => rpc(c, 'join_by_code', { code }), (r) => !r.ok && /ROOM_FULL/.test(r.error.message));
+  assert.equal(full.ok, false);
+  assert.match((full as { error: Error }).error.message, /ROOM_FULL/);
   await assert.rejects((await c.socket()).joinMatch(matchId).catch(async (e) => { throw await serverError(e); }));
 });
 

@@ -84,3 +84,24 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, what = 'event'):
 }
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Retries `attempt` every 200 ms until it settles the way `done` accepts, for up to `ms`.
+ * A new room reaches Nakama's label listing after a short indexing delay.
+ */
+export async function eventually<T>(attempt: () => Promise<T>, done: (result: { ok: true; value: T } | { ok: false; error: Error }) => boolean, ms = 5000) {
+  const deadline = Date.now() + ms;
+  for (;;) {
+    let result: { ok: true; value: T } | { ok: false; error: Error };
+    try { result = { ok: true, value: await attempt() }; } catch (error) { result = { ok: false, error: error as Error }; }
+    if (done(result) || Date.now() >= deadline) return result;
+    await sleep(200);
+  }
+}
+
+/** join_by_code once the room is listed (ROOM_NOT_FOUND only while it is being indexed). */
+export async function joinByCode(bot: Bot, code: string) {
+  const result = await eventually(() => rpc(bot, 'join_by_code', { code }), (r) => r.ok || !/ROOM_NOT_FOUND/.test(r.error.message));
+  if (!result.ok) throw result.error;
+  return result.value;
+}
