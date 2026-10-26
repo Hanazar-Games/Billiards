@@ -295,11 +295,12 @@
     "alternatives": [
       "Kubernetes desde o início"
     ],
-    "status": "open",
+    "status": "superseded",
     "source": "recomendação aceita",
     "refs": [
       "spec §5.4"
-    ]
+    ],
+    "supersededBy": "D049"
   },
   {
     "id": "D020",
@@ -814,14 +815,14 @@
     "id": "D049",
     "date": "2026-10-25",
     "title": "Hospedagem: VPS com Docker Compose (fecha a D019)",
-    "decision": "Recomendação: VPS própria rodando o mesmo Docker Compose do desenvolvimento (Nakama, PostgreSQL e, na F4, o services/sim); a Heroic Cloud fica como saída se a operação pesar. A implantação acontece na F4. Escolha do usuário na revisão do plano da F3.",
+    "decision": "VPS própria rodando o mesmo Docker Compose do desenvolvimento (Nakama, PostgreSQL e, na F4, o services/sim); a Heroic Cloud fica como saída se a operação pesar. A implantação acontece na F4. Escolhida pelo usuário na revisão do plano da F3.",
     "rationale": "Mesmo compose em dev e produção e custo previsível no beta. A Heroic Cloud não roda o services/sim (Node) junto do Nakama, então o sim precisaria de outra hospedagem de qualquer jeito.",
     "alternatives": [
       "Heroic Cloud para o Nakama e outra hospedagem para o services/sim",
       "Plataforma de contêineres gerenciada (Fly.io, Railway) com PostgreSQL gerenciado"
     ],
-    "status": "open",
-    "source": "plano da F3 (proposta, aguardando revisão do usuário)",
+    "status": "accepted",
+    "source": "plano da F3 aprovado pelo usuário em 2026-10-25 (D049: VPS)",
     "refs": [
       "spec §5.4",
       "spec §12",
@@ -839,8 +840,8 @@
       "tsc com outFile e módulo none (padrão da documentação do Nakama)",
       "Depender de heroiclabs/nakama-common via GitHub"
     ],
-    "status": "open",
-    "source": "plano da F3 (proposta, aguardando revisão do usuário)",
+    "status": "accepted",
+    "source": "plano da F3 aprovado pelo usuário em 2026-10-25 (D049: VPS)",
     "refs": [
       "D017",
       "spikes/sim-bench/build.mjs",
@@ -857,8 +858,8 @@
       "Instalar o Docker Desktop nesta máquina",
       "Rodar a integração só manualmente"
     ],
-    "status": "open",
-    "source": "plano da F3 (proposta, aguardando revisão do usuário)",
+    "status": "accepted",
+    "source": "plano da F3 aprovado pelo usuário em 2026-10-25 (D049: VPS)",
     "refs": [
       "spec §9.3",
       "D027",
@@ -875,8 +876,8 @@
       "Deixar o UpdateAccount nativo com validação num hook",
       "Avatar por upload de imagem"
     ],
-    "status": "open",
-    "source": "plano da F3 (proposta, aguardando revisão do usuário)",
+    "status": "accepted",
+    "source": "plano da F3 aprovado pelo usuário em 2026-10-25 (D049: VPS)",
     "refs": [
       "spec §8.1",
       "spec §9.2",
