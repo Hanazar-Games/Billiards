@@ -312,8 +312,13 @@ Se a confirmação se perde ou o cliente não sabe se o pedido chegou, ele envia
 **Registro em `match_history`.** Toda partida que acaba por `WIN`, `CONCEDE` ou `ABANDON` deixa um registro, gravado uma única vez pelo servidor (`version: '*'`: só cria):
 
 - coleção `match_history`, chave igual ao `matchId`, dono igual ao usuário do sistema (`00000000-0000-0000-0000-000000000000`), leitura pública (2) e escrita só do servidor (0);
-- valor: `matchId`, `mode`, `format`, `private`, `players` (`[{ seat, team, userId, username }]`), `firstSeat`, `rack` (`fixed`), `simVersion`, `protocolVersion`, `shots`, `winnerTeam`, `reason`, `turns`, `startedAt` e `endedAt` (milissegundos desde 1970);
-- `shots` traz as tacadas já quantizadas, em ordem: `[{ turnId, seat, shot }]`. Vez perdida por tempo e resposta de push-out não entram (por isso `turns` pode ser maior que o número de tacadas);
+- valor: `matchId`, `mode`, `format`, `private`, `players` (`[{ seat, team, userId, username }]`), `firstSeat`, `rack` (`fixed`), `simVersion`, `protocolVersion`, `decisions`, `winnerTeam`, `reason`, `turns`, `startedAt` e `endedAt` (milissegundos desde 1970);
+- `decisions` traz cada decisão da partida, em ordem: `[{ turnId, seat, kind, shot?, accept? }]`, com `kind` igual a:
+  - `shot`: uma tacada, com `shot` já quantizada (como em `shot_accepted`);
+  - `timeout`: a vez do `seat` estourou, inclusive a terceira seguida, que encerra a partida com `ABANDON`;
+  - `choice`: a resposta do `seat` ao push-out do 9-ball, com `accept`.
+
+  Com a arrumação fixa e o `firstSeat`, as decisões refazem a partida. Um `choice` com `accept: false` e um `timeout` passam a vez de formas diferentes (só o `timeout` é falta), por isso os dois estão no registro. A desistência e o W.O. por ausência não são decisões gravadas (estão em `reason`): por isso `turns` pode passar do número de decisões. O `summary.shots` do `match_end` conta só as de `kind: 'shot'`;
 - o registro é gravado no instante do `match_end`: um cliente que lê logo depois pode precisar tentar de novo por um momento.
 
 **Como o cliente lê.** O Nakama 3.41 recusa o `user_id` do usuário do sistema numa leitura de cliente. Por isso a leitura por chave **não leva `user_id`**:

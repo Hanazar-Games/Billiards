@@ -59,6 +59,15 @@ export interface GameTable extends TableState {
 
 export type GamePhase = 'LOBBY' | 'AWAITING_SHOT' | 'ENDED';
 
+/**
+ * A decision of the match at `turnId`, by `seat`: a shot (quantized), a turn that
+ * ran out or the answer to a 9-ball push-out. In order, they replay the match.
+ */
+export type Decision =
+  | { turnId: number; seat: number; kind: 'shot'; shot: ShotRequest }
+  | { turnId: number; seat: number; kind: 'timeout' }
+  | { turnId: number; seat: number; kind: 'choice'; accept: boolean };
+
 export interface GameState {
   mode: string;
   format: string;
@@ -96,7 +105,8 @@ export interface GameState {
   /** By sessionId: messages counted in the current second. */
   rate: Record<string, { second: number; relay: number; other: number }>;
   simFailures: number;
-  shots: { turnId: number; seat: number; shot: ShotRequest }[];
+  /** Every decision of the match, in order, for the history record. */
+  decisions: Decision[];
   end: MatchEnd | null;
   endTick: number;
   historyWritten: boolean;
@@ -130,11 +140,23 @@ export function createGameState(params: Record<string, unknown>): GameState {
     invalid: {},
     rate: {},
     simFailures: 0,
-    shots: [],
+    decisions: [],
     end: null,
     endTick: 0,
     historyWritten: false,
   };
+}
+
+/** Appends `decision` to the record (a copy: the stored array comes back from the runtime as a Go slice). */
+export function recordDecision(state: GameState, decision: Decision): void {
+  const decisions = state.decisions.slice();
+  decisions.push(decision);
+  state.decisions = decisions;
+}
+
+/** The number of shots among the decisions. */
+export function shotCount(state: GameState): number {
+  return state.decisions.filter((d) => d.kind === 'shot').length;
 }
 
 export function modeOf(state: GameState): GameMode<ModeStateBase> {

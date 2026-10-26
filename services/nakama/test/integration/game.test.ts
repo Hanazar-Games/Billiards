@@ -233,7 +233,7 @@ test('desistência encerra a partida e grava o histórico uma vez', async () => 
       rack: 'fixed',
       simVersion: SIM_VERSION,
       protocolVersion: PROTOCOL_VERSION,
-      shots: [],
+      decisions: [],
       winnerTeam: b.seat,
       reason: 'CONCEDE',
       turns: 1,
@@ -306,7 +306,7 @@ test('dois bots jogam uma partida inteira de 8-ball', { timeout: 300000 }, async
     assert.equal(bot.received.some((m) => m.op === OP.SHOT_REJECTED || m.op === OP.ERROR), false, 'the server refused or failed a shot');
   }
 
-  // One record, with the same winner and the same shots, in the order they were played.
+  // One record, with the same winner and the same decisions (all shots here), in the order they were played.
   const { client, session } = a.bot;
   const read = await eventually(() => call(client.readStorageObjects(session, { object_ids: [{ collection: 'match_history', key: matchId }] })),
     (r) => r.ok && r.value.objects.length > 0);
@@ -314,6 +314,6 @@ test('dois bots jogam uma partida inteira de 8-ball', { timeout: 300000 }, async
   assert.equal(read.value.objects.length, 1);
   const record = read.value.objects[0].value as any;
   assert.deepEqual([record.matchId, record.reason, record.winnerTeam, record.turns], [matchId, 'WIN', end.winnerTeam, results.length]);
-  assert.equal(record.shots.length, results.filter((h) => h.kind === 'shot').length);
-  assert.deepEqual(record.shots, results.map((h) => ({ turnId: h.turnId, seat: h.seat, shot: h.shot })));
+  assert.equal(record.decisions.filter((d: { kind: string }) => d.kind === 'shot').length, results.filter((h) => h.kind === 'shot').length);
+  assert.deepEqual(record.decisions, results.map((h) => ({ turnId: h.turnId, seat: h.seat, kind: 'shot', shot: h.shot })));
 });

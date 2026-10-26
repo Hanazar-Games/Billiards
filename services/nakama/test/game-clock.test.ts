@@ -153,7 +153,7 @@ test('9-ball: push-out pendente e escolha pela operação 7', () => {
   assert.equal(header.match.mode.pushOut.pending, false);
   assert.deepEqual(header.nextTurn, { seat: 1 - game.seat, turnId: 3, deadlineInMs: 45000 });
   assert.equal(game.state.deadlineTick, 20 + 450);
-  assert.equal(game.state.shots.length, 2, 'a choice is not a shot');
+  assert.deepEqual(game.state.decisions.map((d) => d.kind), ['shot', 'shot', 'choice'], 'a choice is a decision, not a shot');
 
   game.clear();
   game.loop(21, [choose(breaker, 3, true)]);

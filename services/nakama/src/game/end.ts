@@ -6,7 +6,7 @@ import type { MatchState } from '@billiards/modes';
 import { OP, PROTOCOL_VERSION, SIM_VERSION } from '@billiards/protocol';
 import type { MatchEnd } from '@billiards/protocol';
 import { sendJson } from './send.ts';
-import { modeOf } from './state.ts';
+import { modeOf, shotCount } from './state.ts';
 import type { GameEnv, GameState } from './state.ts';
 
 /** The owner of the records the server writes for itself. */
@@ -20,7 +20,7 @@ export const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 export function endMatch(env: GameEnv, state: GameState, tick: number, winnerTeam: number | null, reason: MatchEnd['reason']): void {
   if (state.phase === 'ENDED') return;
   state.phase = 'ENDED';
-  state.end = { winnerTeam, reason, summary: { turns: state.match ? state.match.turnId : 0, shots: state.shots.length } };
+  state.end = { winnerTeam, reason, summary: { turns: state.match ? state.match.turnId : 0, shots: shotCount(state) } };
   state.endTick = tick;
   sendJson(env.dispatcher, OP.MATCH_END, state.end);
   if (reason !== 'ABORTED') writeHistory(env, state);
@@ -59,7 +59,7 @@ export function writeHistory(env: GameEnv, state: GameState): void {
     rack: 'fixed',
     simVersion: SIM_VERSION,
     protocolVersion: PROTOCOL_VERSION,
-    shots: state.shots,
+    decisions: state.decisions,
     winnerTeam: end.winnerTeam,
     reason: end.reason,
     turns: match.turnId,

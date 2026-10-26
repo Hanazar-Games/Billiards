@@ -45,5 +45,6 @@ test('o bot de teste joga uma partida inteira de 8-ball até um vencedor', () =>
   const written = game.nk.writes.filter((w) => w.collection === 'match_history');
   assert.equal(written.length, 1);
   assert.deepEqual([written[0].value.winnerTeam, written[0].value.reason], [end.winnerTeam, 'WIN']);
-  assert.deepEqual((written[0].value.shots as unknown[]), results.map((r) => ({ turnId: r.turnId, seat: r.seat, shot: r.shot })));
+  // Every decision is a shot here: the bot never lets a turn run out, and 8-ball has no choices.
+  assert.deepEqual((written[0].value.decisions as unknown[]), results.map((r) => ({ turnId: r.turnId, seat: r.seat, kind: 'shot', shot: r.shot })));
 });

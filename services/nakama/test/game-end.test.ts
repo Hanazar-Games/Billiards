@@ -7,7 +7,7 @@ import { OP, PROTOCOL_VERSION, SIM_VERSION, quantizeShot } from '@billiards/prot
 import { endMatch } from '../src/game/end.ts';
 import { SECONDS, TICK_RATE } from '../src/game/state.ts';
 import type { GameEnv } from '../src/game/state.ts';
-import { ctx, message, newGame, presence, recordingLogger, startedGame } from './fakes.ts';
+import { ctx, message, newGame, presence, recordingLogger, simReply, startedGame } from './fakes.ts';
 
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 const LINGER = SECONDS.endLinger * TICK_RATE;
@@ -40,7 +40,7 @@ test('partida concluída gera exatamente um registro em match_history', () => {
   assert.equal(game.state.phase, 'ENDED');
 });
 
-test('o registro traz jogadores, quem abriu, as tacadas quantizadas e o resultado', (t) => {
+test('o registro traz jogadores, quem abriu, as decisões com as tacadas quantizadas e o resultado', (t) => {
   let now = 1_800_000_000_000;
   t.mock.method(Date, 'now', () => now);
   const game = startedGame();
@@ -51,7 +51,7 @@ test('o registro traz jogadores, quem abriu, as tacadas quantizadas e o resultad
 
   now += 5000;
   game.loop(5, [message(game.shooter, OP.SHOT_REQUEST, { turnId: 0, seq: 1, ...raw })]);
-  assert.equal(game.state.shots.length, 1);
+  assert.equal(game.state.decisions.length, 1);
   now += 7000;
   game.loop(60, [message(game.waiter, OP.CONCEDE, '')]);
 
@@ -70,7 +70,7 @@ test('o registro traz jogadores, quem abriu, as tacadas quantizadas e o resultad
     rack: 'fixed',
     simVersion: SIM_VERSION,
     protocolVersion: PROTOCOL_VERSION,
-    shots: [{ turnId: 0, seat: game.seat, shot }],
+    decisions: [{ turnId: 0, seat: game.seat, kind: 'shot', shot }],
     winnerTeam: game.seat,
     reason: 'CONCEDE',
     turns: 2,
@@ -78,6 +78,50 @@ test('o registro traz jogadores, quem abriu, as tacadas quantizadas e o resultad
     endedAt: startedAt + 12000,
   });
   assert.equal(game.state.firstSeat, game.seat, 'the record names who broke');
+});
+
+test('9-ball: o registro traz cada decisão em ordem, com vez perdida por tempo e resposta de push-out', () => {
+  // A pass (accept: false) and a turn that runs out both hand the turn over, but only the timeout
+  // is a foul: the record tells them apart, so the match can be replayed.
+  const game = startedGame('9ball');
+  const breaker = game.shooter;
+  const pusher = game.waiter;
+  const [breakerSeat, pusherSeat] = [game.seat, 1 - game.seat];
+  const request = (turnId: number, seq: number, extra: Record<string, unknown> = {}) =>
+    ({ turnId, seq, angle: 1.5708, power: 20, spin: { x: 0, y: 0 }, ...extra });
+  const table = plain(game.state.table!);
+  // A break that pockets nothing and drives four balls to a rail, then a push-out that touches the 3.
+  const railEvents = [2, 3, 4, 5].map((ball, i) => ({ t: 0.5 + i / 10, type: 'ball_cushion', ball, speed: 100 }));
+  game.nk.sim.push({ reply: simReply({ final: table, events: [{ t: 0.05, type: 'first_contact', ball: 1 }, ...railEvents] }) });
+  game.loop(3, [message(breaker, OP.SHOT_REQUEST, request(0, 1, { power: 100 }))]);
+  game.nk.sim.push({ reply: simReply({ final: table, events: [{ t: 0.2, type: 'first_contact', ball: 3 }] }) });
+  game.loop(4, [message(pusher, OP.SHOT_REQUEST, request(1, 1, { pushOut: true }))]);
+  game.loop(30, [message(breaker, OP.PUSH_OUT_CHOICE, { turnId: 2, accept: false })]);   // a pass
+  game.loop(30 + 450);                                                                   // the pusher's turn runs out
+  game.clear();
+  game.loop(500, [message(breaker, OP.CONCEDE, '')]);
+
+  const end = game.out().find((m) => m.op === OP.MATCH_END)!.body;
+  assert.deepEqual(end, { winnerTeam: pusherSeat, reason: 'CONCEDE', summary: { turns: 5, shots: 2 } });
+  assert.equal(game.nk.writes.length, 1);
+  const value = plain(game.nk.writes[0].value);
+  assert.deepEqual(value.decisions, [
+    { turnId: 0, seat: breakerSeat, kind: 'shot', shot: { angle: 1.5708, power: 100, spin: { x: 0, y: 0 } } },
+    { turnId: 1, seat: pusherSeat, kind: 'shot', shot: { angle: 1.5708, power: 20, spin: { x: 0, y: 0 }, pushOut: true } },
+    { turnId: 2, seat: breakerSeat, kind: 'choice', accept: false },
+    { turnId: 3, seat: pusherSeat, kind: 'timeout' },
+  ]);
+  assert.equal('shots' in value, false, 'decisions replace shots');
+  assert.equal(value.turns, 5);
+});
+
+test('a terceira vez perdida por tempo, que encerra a partida, também entra no registro', () => {
+  const game = startedGame();
+  const [first, second] = [game.seat, 1 - game.seat];
+  for (const tick of [450, 900, 1350, 1800, 2250]) game.loop(tick);
+  assert.equal(game.state.end!.reason, 'ABANDON');
+  assert.deepEqual(plain(game.nk.writes[0].value).decisions, [first, second, first, second, first].map((seat, turnId) => ({ turnId, seat, kind: 'timeout' })));
+  assert.deepEqual(game.state.end!.summary, { turns: 6, shots: 0 });
 });
 
 test('partida abortada não grava histórico', () => {

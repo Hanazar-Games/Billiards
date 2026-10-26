@@ -39,7 +39,7 @@ test('tacada aceita: shot_accepted, uma chamada ao sim com a tacada quantizada e
   assert.deepEqual(JSON.parse(call.body), { simVersion: SIM_VERSION, table: placeCueBall(table, shot.cueBall!), shot });
 
   assert.deepEqual(plain(game.state.lastAccepted), { [game.seat]: { turnId: 0, seq: 1 } });
-  assert.deepEqual(plain(game.state.shots), [{ turnId: 0, seat: game.seat, shot }]);
+  assert.deepEqual(plain(game.state.decisions), [{ turnId: 0, seat: game.seat, kind: 'shot', shot }]);
   const info = game.logs.filter((l) => l.level === 'info');
   assert.equal(info.length, 1);
   assert.match(info[0].text, new RegExp(`matchId=match-1\\.nakama turnId=0 seat=${game.seat} simMs=\\d+`));
@@ -149,7 +149,7 @@ test('força 0 não chama o sim e decide a tacada', () => {
   assert.equal(header.durationMs, 0);
   assert.notEqual(header.nextTurn.seat, game.seat);
   assert.equal(game.state.deadlineTick, 3 + 10 + 450);
-  assert.deepEqual(plain(game.state.shots), [{ turnId: 0, seat: game.seat, shot }]);
+  assert.deepEqual(plain(game.state.decisions), [{ turnId: 0, seat: game.seat, kind: 'shot', shot }]);
 });
 
 test('falha do sim: uma nova tentativa e segue', () => {
@@ -183,7 +183,7 @@ test('duas falhas: a vez volta ao mesmo jogador sem falta, e a mesma tacada pode
   assert.equal(game.state.simFailures, 1);
   assert.equal(game.state.deadlineTick, 20 + 450);
   assert.equal(game.state.lastAccepted[game.seat], undefined);
-  assert.deepEqual(plain(game.state.shots), []);
+  assert.deepEqual(plain(game.state.decisions), []);
   assert.deepEqual(game.logs.filter((l) => l.level === 'warn').map((l) => l.text),
     ['sim failed: matchId=match-1.nakama turnId=0 seat=' + game.seat + ' error=SIM_HTTP failures=1']);
 

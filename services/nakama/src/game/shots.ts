@@ -11,7 +11,7 @@ import { endMatch } from './end.ts';
 import { broadcastEnvelope, sendJson, sendSnapshot } from './send.ts';
 import { callSim } from './sim.ts';
 import type { SimReply } from './sim.ts';
-import { LIMITS, SECONDS, TICK_RATE, modeOf, presenceList } from './state.ts';
+import { LIMITS, SECONDS, TICK_RATE, modeOf, presenceList, recordDecision } from './state.ts';
 import type { GameEnv, GameState, GameTable } from './state.ts';
 
 const TURN_TICKS = SECONDS.turn * TICK_RATE;
@@ -49,9 +49,7 @@ export function acceptShot(env: GameEnv, state: GameState, seat: number, shot: S
   const ruling = modeOf(state).resolveShot(match.mode, seat, reply.events, reply.final, shot);
   state.table = respotBalls(reply.final, ruling.respot, match.mode.config.table);
   state.match = applyRuling(match, ruling);
-  const shots = state.shots.slice();
-  shots.push({ turnId, seat, shot });
-  state.shots = shots;
+  recordDecision(state, { turnId, seat, kind: 'shot', shot });
 
   const durationTicks = Math.ceil(reply.simSeconds * TICK_RATE) + SECONDS.playbackGrace * TICK_RATE;
   state.deadlineTick = tick + durationTicks + TURN_TICKS;
@@ -89,6 +87,7 @@ export function turnTimeout(env: GameEnv, state: GameState, tick: number): void 
   const seat = currentSeat(match) as number;
   const mode = modeOf(state);
   const ruling = mode.resolveTimeout(match.mode, seat);
+  recordDecision(state, { turnId: match.turnId, seat, kind: 'timeout' });
   const next = applyRuling(match, ruling);
   next.seats[seat].timeouts++;
   state.match = next;
@@ -107,6 +106,7 @@ export function pushOutChoice(env: GameEnv, state: GameState, seat: number, acce
   const match = state.match as MatchState;
   const ruling = modeOf(state).applyChoice(match.mode, seat, { kind: 'push_out', accept });
   state.match = applyRuling(match, ruling);
+  recordDecision(state, { turnId: match.turnId, seat, kind: 'choice', accept });
   state.deadlineTick = tick + TURN_TICKS;
   publishWithoutShot(env, state, 'choice', match.turnId, seat, ruling, tick);
 }
