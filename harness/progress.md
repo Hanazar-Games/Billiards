@@ -213,3 +213,9 @@
   - T7: partidas locais de 2 jogadores até o fim. A primeira execução mostrou que o estado tem de ser lido depois da reprodução da tacada final (o controlador decide antes de reproduzir).
 - Tarefa 8: `npm test` na raiz saiu com 0 (client: browser 32, full-match 19 tacadas/57,6 s, local-2p 8-ball 113 tacadas/124 s e 9-ball 19 tacadas/27 s, smoke 54 e as demais; modes 51; protocol 7; sim 60); `tsc` limpo; build com o worker; `test:dist` 7/7; `init.sh` verde. F2-01 a F2-05 marcados.
 - Decisões de execução e pendências: `harness/sdd/2026-10-25-f2-modes-n-lugares/ledger.md`.
+- Revisão final da branch da F2 (`25982fb..6075757`, revisor novo): "With fixes". As correções entraram numa rodada só, cada uma com o teste visto falhando antes:
+  - Crítico: depois de uma revanche em que o jogador 2 deu a última tacada, o controlador começava com o jogador 2 e o `Game` com o jogador 1 (a abertura seria julgada para o jogador errado). O `resetGame` agora arruma com o lugar 0.
+  - A IA fácil podia propor efeito acima de 1, que o modo recusa; o `_simulateShot` normaliza o efeito como o caminho do LAN.
+  - O ledger desta execução foi commitado em `harness/sdd/2026-10-25-f2-modes-n-lugares/ledger.md`, e a dúvida sobre o `turnId` quando um lugar sai virou a D048 (`open`, para a F4).
+  - Suíte depois das correções: `npm test` na raiz saiu com 0 (browser 33, runtime 69, full-match, local-2p 2/2, smoke 54; modes 51; protocol 7; sim 60); `tsc` limpo.
+  - Achados menores ficaram registrados no ledger (por exemplo: `applyChoice` sem checar quem responde ao push-out, o que importa no servidor da F4; o HUD do convidado do LAN muda no golpe, antes das bolas caírem).
