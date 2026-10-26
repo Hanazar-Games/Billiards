@@ -35,10 +35,19 @@ export function applyRuling<S extends ModeStateBase>(match: MatchState<S>, rulin
   };
 }
 
-/** A seat leaves (concession or abandonment, §7.4); the last team standing wins. */
+/**
+ * A seat leaves (concession or abandonment, §7.4); the last team standing wins.
+ * The turn id advances (D058), so no shot request sent before is accepted.
+ */
 export function removeMatchSeat<S extends ModeStateBase>(match: MatchState<S>, mode: GameMode<S>, seat: number): MatchState<S> {
   const state = mode.onSeatRemoved(match.mode, seat);
-  return { ...match, seats: match.seats.map((s) => ({ ...s })), phase: state.winnerTeam !== null ? 'ENDED' : match.phase, mode: state };
+  return {
+    ...match,
+    seats: match.seats.map((s) => ({ ...s })),
+    turnId: match.turnId + 1,
+    phase: state.winnerTeam !== null ? 'ENDED' : match.phase,
+    mode: state,
+  };
 }
 
 /** The seat to play, or null once the match ended. */

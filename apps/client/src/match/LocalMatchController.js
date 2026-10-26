@@ -4,7 +4,7 @@
  * shape the server will send online (F4). Without a mode (free play, trainer)
  * it only simulates.
  */
-import { MODES, createMatch, applyRuling, removeMatchSeat, currentSeat, eightBallStatus, nineBallStatus } from '@billiards/modes';
+import { MODES, createMatch, applyRuling, removeMatchSeat, currentSeat, placeCueBall, eightBallStatus, nineBallStatus } from '@billiards/modes';
 import { BALL, SHOT } from '../config.js';
 import { simClient as defaultSimClient } from '../sim/SimWorkerClient.js';
 
@@ -18,11 +18,6 @@ function withTimeout(promise, ms) {
     timer = setTimeout(() => reject(fail('simulation timed out', { timedOut: true })), ms);
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
-
-/** The table with the cue ball placed at `cueBall` and back in play (ball in hand). */
-function withCueBall(table, cueBall) {
-  return { ...table, balls: table.balls.map((b) => (b.id === 0 ? { ...b, x: cueBall.x, z: cueBall.z, pocketed: false } : b)) };
 }
 
 export class LocalMatchController {
@@ -81,7 +76,7 @@ export class LocalMatchController {
       const validation = this.mode.validateShot(this.match.mode, seat, shot);
       if (!validation.ok) throw fail(`shot rejected: ${validation.reason}`, { rejected: true, reason: validation.reason });
     }
-    const initial = shot.cueBall ? withCueBall(table, shot.cueBall) : table;
+    const initial = shot.cueBall ? placeCueBall(table, shot.cueBall) : table;
     let result;
     if (!(shot.power > 0)) {
       // The sim refuses power ≤ 0; nothing moves, as in the legacy game.

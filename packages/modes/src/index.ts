@@ -8,6 +8,7 @@ export * from './facts.ts';
 export * from './eightBall.ts';
 export * from './nineBall.ts';
 export * from './match.ts';
+export * from './table.ts';
 
 /** The modes by id. */
 export const MODES = Object.freeze({ '8ball': eightBall, '9ball': nineBall });

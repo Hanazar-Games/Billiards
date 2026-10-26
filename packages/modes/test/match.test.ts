@@ -80,6 +80,13 @@ test('applyRuling avança o turnId e encerra com vencedor', () => {
   assert.deepEqual([applyRuling(m, r).turnId, applyRuling(m, r).phase], [1, 'AWAITING_SHOT']);
 });
 
+test('removeMatchSeat avança o turnId (D058), com a partida seguindo ou terminando', () => {
+  const ends = removeMatchSeat(createMatch(eightBall, config8, mulberry32(1)), eightBall, 0);
+  assert.deepEqual([ends.turnId, ends.phase], [1, 'ENDED']);
+  const goesOn = removeMatchSeat(createMatch(eightBall, { ...config8, format: { kind: '2v2' } }, mulberry32(1)), eightBall, 0);
+  assert.deepEqual([goesOn.turnId, goesOn.phase], [1, 'AWAITING_SHOT']);
+});
+
 test('createInitialState não depende de structuredClone (o goja não tem)', () => {
   const saved = globalThis.structuredClone;
   // @ts-expect-error removed on purpose, as in the Nakama runtime
