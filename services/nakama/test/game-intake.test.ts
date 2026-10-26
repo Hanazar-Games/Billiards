@@ -19,6 +19,8 @@ test('tacada fora do turno → shot_rejected NOT_YOUR_TURN', () => {
 });
 
 test('números não finitos → shot_rejected BAD_MESSAGE', () => {
+  // Node reads 1e999 as Infinity and the shot reader refuses it (seq 1); goja's JSON.parse throws on it
+  // (seq null, like 'not json'), which the integration test checks.
   const game = startedGame();
   game.loop(1, [message(game.shooter, OP.SHOT_REQUEST, '{"turnId":0,"seq":1,"angle":1e999,"power":10,"spin":{"x":0,"y":0}}')]);
   game.loop(2, [message(game.shooter, OP.SHOT_REQUEST, shot(0, 2, { power: 2e6 }))]);

@@ -35,9 +35,13 @@ test('tacada fora do turno → shot_rejected', async () => {
 test('números não finitos → shot_rejected', async () => {
   const { bots } = await startPrivateGame('9ball');
   const { shooter } = byTurn(bots);
+  // goja's JSON.parse refuses 1e999 (out of range), so the message is unreadable and the seq unknown;
+  // Node would read Infinity and the shot reader would refuse it with the seq.
   await shooter.send(OP.SHOT_REQUEST, '{"turnId":0,"seq":1,"angle":1e999,"power":10,"spin":{"x":0,"y":0}}');
-  const rejected = await shooter.waitFor(OP.SHOT_REJECTED);
-  assert.deepEqual(rejected.body, { seq: 1, reason: 'BAD_MESSAGE' });
+  assert.deepEqual((await shooter.waitFor(OP.SHOT_REJECTED)).body, { seq: null, reason: 'BAD_MESSAGE' });
+  // A finite number beyond MAX_ABS_NUMBER is read, then refused by the shot reader.
+  await shooter.send(OP.SHOT_REQUEST, '{"turnId":0,"seq":2,"angle":2e6,"power":10,"spin":{"x":0,"y":0}}');
+  assert.deepEqual((await shooter.waitFor(OP.SHOT_REJECTED)).body, { seq: 2, reason: 'BAD_MESSAGE' });
 });
 
 test('mais de 5 inválidas em 10 s → conexão removida', async () => {
