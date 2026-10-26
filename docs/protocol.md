@@ -75,7 +75,7 @@ Os códigos abaixo de 100 são do cliente para o servidor (C→S) e os acima de 
 - **`push_out_choice` (7)** responde ao push-out do 9-ball: depois da tacada com `pushOut: true`, a vez passa ao adversário, que responde. `accept: true` joga a partir de onde as bolas pararam; `accept: false` devolve a tacada a quem fez o push-out. O servidor trata a resposta como uma decisão e manda um `shot_result` de `kind: 'choice'`. A resposta fora de hora é recusada como `shot_rejected` com `NO_CHOICE_PENDING` e `seq: null`.
 - Só as operações 1, 2, 3 e 7 têm o corpo lido como JSON. Qualquer outra operação (as reservadas 4 e 6, ou um código desconhecido) recebe `error` com `UNSUPPORTED_OP`, sem ler o corpo e sem contar como recusa.
 
-**Bola na mão.** O `ruling.ballInHand` do último `shot_result` (e o `match.mode.ballInHand` dos snapshots) diz quem tem a bola na mão e onde: `{ seat, zone }`, com `zone` igual a `anywhere` ou `kitchen` (atrás da linha da cabeceira, `z ≤ −profundidade/2 · 0,55`). Quem tem a bola na mão põe a branca com `cueBall` no `shot_request`:
+**Bola na mão.** O `ruling.ballInHand` do último `shot_result` (e o `match.mode.ballInHand` dos snapshots) diz quem tem a bola na mão e onde: `{ seat, zone }`, com `zone` igual a `anywhere` ou `kitchen` (na linha da cabeceira ou atrás dela, `z ≤ −profundidade/2 · 0,55` = −69,85). Quem tem a bola na mão põe a branca com `cueBall` no `shot_request`:
 
 - a branca encaçapada (`pocketed: true`) exige `cueBall`; sem ele, a recusa é `CUE_BALL_INVALID`;
 - com a branca na mesa, `cueBall` é opcional (ela pode ser reposicionada);
@@ -83,7 +83,7 @@ Os códigos abaixo de 100 são do cliente para o servidor (C→S) e os acima de 
 - a branca tem de ficar pelo menos 0,01 cm (um passo da quantização) longe de encostar numa tabela ou noutra bola em jogo; senão, `CUE_BALL_INVALID`. Uma branca posta encostada é lançada pela tabela, ou a simulação acusa um contato com a bola vizinha mesmo quando a tacada vai para o outro lado:
   - **tabelas:** a bola encosta na tabela quando o centro dela está a `cushionInset` = 10,594 cm da borda (o chanfro das tabelas da simulação; o valor vem em `match.mode.config.table.cushionInset`). O centro da branca fica então em `|x| ≤ 63,5 − 10,594 − 0,01 ≈ 52,896` e `|z| ≤ 127 − 10,594 − 0,01 ≈ 116,396`. Depois de quantizado, o maior valor aceito é 52,89 e 116,39: um cliente que prende o ponto no limite deve arredondar em direção ao centro da mesa. Nenhum ponto dentro desse retângulo fica no raio em que uma caçapa engole a bola;
   - **outras bolas:** o centro da branca fica a pelo menos 2R + 0,01 cm (5,725 cm) do centro de cada bola em jogo;
-- na `kitchen`, `z` tem de ser no máximo a linha da cabeceira, **depois de quantizado**. A linha em ponto flutuante é −69,85000000000001, que a quantização arredonda para −69,85, um valor acima dela: um cliente que prende o ponto exatamente na linha leva `CUE_BALL_OUTSIDE_KITCHEN`. Deixe uma folga de 0,01 cm (use `z ≤ −69,86`).
+- na `kitchen`, a branca fica na linha da cabeceira ou atrás dela: a linha entra. O servidor compara o `z` já quantizado com uma tolerância de 1e-6 cm, então `z = −69,85` vale (a linha em ponto flutuante é −69,85000000000001, e o cliente que prende o ponto exatamente nela tem a tacada aceita) e `z = −69,84` leva `CUE_BALL_OUTSIDE_KITCHEN`.
 
 ### 3.2 Do servidor ao cliente
 

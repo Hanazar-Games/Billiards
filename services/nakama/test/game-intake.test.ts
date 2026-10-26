@@ -85,6 +85,18 @@ test('branca sobre outra bola com bola na mão → CUE_BALL_INVALID; num lugar l
   assert.deepEqual(game.state.invalid[game.shooter.userId], [1], 'CUE_BALL_INVALID counts as an invalid shot');
 });
 
+test('bola na mão na cozinha: a linha da cabeceira vale, já quantizada (−69,85); −69,84 fica fora', () => {
+  const game = startedGame();
+  game.state.match!.mode.ballInHand = { seat: game.seat, zone: 'kitchen' };
+  const headString = -254 / 2 * 0.55;   // −69.85000000000001, which quantizes to −69.85, just above it
+  game.loop(1, [message(game.shooter, OP.SHOT_REQUEST, shot(0, 1, { power: 0, cueBall: { x: 20, z: -69.84 } }))]);
+  game.loop(2, [message(game.shooter, OP.SHOT_REQUEST, shot(0, 2, { power: 0, cueBall: { x: 20, z: headString } }))]);
+  assert.deepEqual(sentSummary(game).slice(0, 2), [
+    [OP.SHOT_REJECTED, { seq: 1, reason: 'CUE_BALL_OUTSIDE_KITCHEN' }, [game.shooter.sessionId]],
+    [OP.SHOT_ACCEPTED, { turnId: 0, seq: 2, seat: game.seat, shot: { angle: 0.5, power: 0, spin: { x: 0, y: 0 }, cueBall: { x: 20, z: -69.85 } } }, null],
+  ]);
+});
+
 test('mais de 5 inválidas em 10 s derrubam a conexão', () => {
   const game = startedGame();
   for (const tick of [0, 3, 6, 9, 12]) game.loop(tick, [message(game.waiter, OP.SHOT_REQUEST, shot(0, tick))]);

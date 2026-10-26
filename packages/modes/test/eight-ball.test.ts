@@ -91,6 +91,10 @@ test('validateShot recusa bola na mão fora da cozinha', () => {
   const s: EightBallState = { ...fresh(), breakShot: false, ballInHand: { seat: 0, zone: 'kitchen' } };
   assert.deepEqual(eightBall.validateShot(s, 0, { ...SHOT, cueBall: { x: 0, z: 0 } }), { ok: false, reason: 'CUE_BALL_OUTSIDE_KITCHEN' });
   assert.deepEqual(eightBall.validateShot(s, 0, { ...SHOT, cueBall: { x: 0, z: -100 } }), { ok: true });
+  // The line itself is in the kitchen, also as the server quantizes it (−69.85 is 1e-14 above −254 / 2 · 0.55).
+  assert.deepEqual(eightBall.validateShot(s, 0, { ...SHOT, cueBall: { x: 0, z: -254 / 2 * 0.55 } }), { ok: true });
+  assert.deepEqual(eightBall.validateShot(s, 0, { ...SHOT, cueBall: { x: 0, z: -69.85 } }), { ok: true });
+  assert.deepEqual(eightBall.validateShot(s, 0, { ...SHOT, cueBall: { x: 0, z: -69.84 } }), { ok: false, reason: 'CUE_BALL_OUTSIDE_KITCHEN' });
   assert.deepEqual(eightBall.validateShot(s, 1, SHOT), { ok: false, reason: 'NOT_YOUR_TURN' });
   assert.deepEqual(eightBall.validateShot(fresh(), 0, { ...SHOT, cueBall: { x: 0, z: -100 } }), { ok: false, reason: 'CUE_BALL_NOT_ALLOWED' });
   assert.deepEqual(eightBall.validateShot(fresh(), 0, { ...SHOT, pushOut: true }), { ok: false, reason: 'PUSH_OUT_UNAVAILABLE' });

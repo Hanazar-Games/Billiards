@@ -27,7 +27,9 @@ export function validateCommon(state: ModeStateBase, seat: number, shot: ShotReq
   if (shot.pushOut && !pushOutAllowed) return { ok: false, reason: 'PUSH_OUT_UNAVAILABLE' };
   if (shot.cueBall) {
     if (!state.ballInHand || state.ballInHand.seat !== seat) return { ok: false, reason: 'CUE_BALL_NOT_ALLOWED' };
-    if (state.ballInHand.zone === 'kitchen' && shot.cueBall.z > headStringZ(state)) {
+    // The line is in the kitchen. 1e-6 lets in the line as the server quantizes it (to 0.01 cm):
+    // −254 / 2 · 0.55 is −69.85000000000001, and −69.85 is just above it.
+    if (state.ballInHand.zone === 'kitchen' && shot.cueBall.z > headStringZ(state) + 1e-6) {
       return { ok: false, reason: 'CUE_BALL_OUTSIDE_KITCHEN' };
     }
   }
