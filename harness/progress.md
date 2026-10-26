@@ -266,3 +266,8 @@
   - `npm run infra:reload` recarrega o módulo num servidor em execução; rodar `infra:up` de novo não recarregava.
   - Execução do CI 40259666251: 18 testes de integração passaram e nenhum falhou.
 - Achados menores ficaram no ledger e na D053 (`open`, APIs nativas do Nakama ainda abertas, para fechar antes da implantação na F4).
+- O usuário vai rodar o nosso compose num servidor de testes da rede local (`server`). Para isso:
+  - o compose ganhou `NAKAMA_BIND`, que mantém o padrão `127.0.0.1` e aceita `0.0.0.0` para expor as portas na rede;
+  - os testes de integração aceitam `NAKAMA_HOST` e `NAKAMA_PORT`.
+
+  O passo a passo está em `docs/f3/servidor-local.md`, seção "Servidor de testes na rede local". Execução do CI 40263967717: 18 testes passaram e nenhum falhou. Ainda falta rodar a integração contra o `server` quando o compose estiver no ar lá (`NAKAMA_HOST=server npm run test:integration -w services/nakama`).
