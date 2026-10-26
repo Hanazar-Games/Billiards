@@ -2,6 +2,9 @@
 // bad shot requests, removes a connection that keeps sending them and relays the aim.
 // F4-03: a shot goes through the sim (nk.httpRequest) and both players get the same
 // shot_result envelope; a turn that runs out is a foul.
+// F4-04: a player who drops during the playback comes back to the shot still playing,
+// a repeated shot_request is one shot, and a second tab replaces the first.
+// F4-05: a player away for more than 60 s loses by walkover.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { OP, decodeTrajectory } from '@billiards/protocol';
@@ -114,4 +117,71 @@ test('tempo esgotado conta como falta', { timeout: 90000 }, async () => {
     assert.deepEqual(header.nextTurn, { seat: waiter.seat, turnId: 1, deadlineInMs: 45000 });
     assert.deepEqual(decodeTrajectory(payload!), []);
   }
+});
+
+test('bot cai no meio da reprodução, volta e termina no mesmo estado', async () => {
+  const { bots } = await startPrivateGame();
+  const { shooter, waiter } = byTurn(bots);
+  const seat = waiter.seat;
+  await shooter.shoot(BREAK, 1);
+  const [mine] = await Promise.all([shooter.waitFor(OP.SHOT_RESULT), waiter.waitFor(OP.SHOT_RESULT)]);
+
+  waiter.socket.disconnect(false);
+  assert.deepEqual((await shooter.waitFor(OP.SEAT_UPDATE)).body, { seat, connected: false });
+  await sleep(1000);
+  await waiter.reconnect();
+  const { header, payload } = await waiter.waitFor(OP.MATCH_SNAPSHOT);
+  assert.equal(header.you.seat, seat);
+  assert.ok(header.playback, 'the break is still playing');
+  const { offsetMs } = header.playback;
+  assert.ok(offsetMs >= 1000 && offsetMs < mine.header.durationMs, `offset ${offsetMs} ms of ${mine.header.durationMs} ms`);
+  assert.deepEqual(header.playback.result, mine.header);
+  assert.deepEqual(header.table, mine.header.table);
+  assert.deepEqual(header.match, mine.header.match);
+  assert.deepEqual(decodeTrajectory(payload!), decodeTrajectory(mine.payload!));
+  assert.deepEqual(header.seats.map((s: { connected: boolean }) => s.connected), [true, true]);
+  assert.deepEqual((await shooter.waitFor(OP.SEAT_UPDATE)).body, { seat, connected: true });
+});
+
+test('shot_request repetido não gera segunda tacada', async () => {
+  const { bots } = await startPrivateGame();
+  const { shooter, waiter } = byTurn(bots);
+  await shooter.shoot(BREAK, 1);
+  await shooter.shoot(BREAK, 1);
+  await waiter.waitFor(OP.SHOT_RESULT);
+  const copy = await shooter.waitFor(OP.MATCH_SNAPSHOT);
+  assert.equal(copy.header.turnId, 1, 'the copy gets the state after the shot');
+  await sleep(1000);
+  for (const bot of [shooter, waiter]) {
+    const ofTurn0 = (op: number) => bot.received.filter((m) => m.op === op && (m.body ?? m.header).turnId === 0).length;
+    assert.equal(ofTurn0(OP.SHOT_ACCEPTED), 1);
+    assert.equal(ofTurn0(OP.SHOT_RESULT), 1);
+  }
+});
+
+test('segunda aba substitui a primeira', async () => {
+  const { bots } = await startPrivateGame();
+  const { shooter, waiter } = byTurn(bots);
+  const seat = shooter.seat;
+  await shooter.reconnect();   // the first socket stays open
+  const { header } = await shooter.waitFor(OP.MATCH_SNAPSHOT);
+  assert.equal(header.you.seat, seat);
+  assert.deepEqual([header.turn.seat, header.turn.turnId], [seat, 0]);
+  assert.deepEqual((await waiter.waitFor(OP.SEAT_UPDATE)).body, { seat, connected: true });
+
+  await shooter.shoot(BREAK, 1);   // from the second tab
+  assert.deepEqual((await waiter.waitFor(OP.SHOT_ACCEPTED)).body, { turnId: 0, seq: 1, seat, shot: BREAK });
+  await waiter.waitFor(OP.SHOT_RESULT);
+  assert.equal(waiter.received.some((m) => m.op === OP.SEAT_UPDATE && m.body.connected === false), false,
+    'the first tab was removed without leaving the seat');
+});
+
+test('bot ausente por mais de 60 s perde por W.O.', { timeout: 90000 }, async () => {
+  const { bots: [a, b] } = await startPrivateGame();
+  const started = Date.now();
+  b.socket.disconnect(false);
+  const end = await a.waitFor(OP.MATCH_END, undefined, 75000);
+  const seconds = (Date.now() - started) / 1000;
+  assert.ok(seconds >= 60 && seconds <= 70, `the walkover came after ${seconds} s`);
+  assert.deepEqual([end.body.winnerTeam, end.body.reason], [a.seat, 'ABANDON']);
 });

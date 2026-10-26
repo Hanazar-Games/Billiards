@@ -1,19 +1,26 @@
 // The authoritative "billiards" match (spec §7.2–7.5, F4-A): the lobby fills,
-// the match starts, the turn clock runs, messages come in and the room ends. The
+// the match starts, the turn clock and the reconnection reserves run, players
+// come back, messages come in and the room ends. The
 // game itself lives in game/; this handler builds a GameEnv on every call and
 // wires the pieces. The label is JSON so rooms can be found by code (spec §7.5).
 import { PROTOCOL_VERSION } from '@billiards/protocol';
 import { GRPC, rpcError, type Context, type Logger, type MatchHandler, type Nakama } from './nakama.ts';
 import { endMatch } from './game/end.ts';
 import { handleMessage } from './game/intake.ts';
-import { handleJoin, handleLeave } from './game/seats.ts';
+import { checkReserves, handleJoin, handleLeave } from './game/seats.ts';
 import { turnTimeout } from './game/shots.ts';
 import { SECONDS, TICK_RATE, createGameState, matchLabel, presenceList, seatOf } from './game/state.ts';
 import type { GameEnv, GameState } from './game/state.ts';
 
-/** The clocks, before the messages of the tick: a shot that arrives on the deadline tick is late. */
+/**
+ * The clocks, before the messages of the tick (a shot that arrives on the
+ * deadline tick is late), in one pass: first the turn's deadline, then the
+ * seats' reconnection reserves in seat order. An away player's turn keeps
+ * running, and a timeout due on the tick its reserve runs out counts first.
+ */
 function runClock(env: GameEnv, state: GameState, tick: number): void {
   if (state.phase === 'AWAITING_SHOT' && tick >= state.deadlineTick) turnTimeout(env, state, tick);
+  checkReserves(env, state, tick);
 }
 
 /** Lobby ends: a public lobby nobody fills in time is aborted; any room ends once empty for long enough. */
