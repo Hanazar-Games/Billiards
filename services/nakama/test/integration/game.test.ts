@@ -199,25 +199,12 @@ test('desistência encerra a partida e grava o histórico uma vez', async () => 
   }
 
   // The record is written as the match ends; the client may read before the write commits.
-  // The reads below settle before any assertion, so a failure reports what the server answered to each.
+  // Nakama 3.41 refuses the system user's id in a client read ("Invalid user ID"): a read with no
+  // user_id gets the system-owned public object, and a list can name the system user.
   const { client, session } = a.bot;
-  const withKey = (r: { ok: true; value: { objects: { key?: string }[] } } | { ok: false; error: Error }) =>
-    r.ok && r.value.objects.some((o) => o.key === matchId);
-  const listed = await eventually(() => call(client.listStorageObjects(session, 'match_history', SYSTEM_USER_ID)), withKey);
-  const readNoUser = await eventually(() => call(client.readStorageObjects(session, { object_ids: [{ collection: 'match_history', key: matchId }] })),
-    (r) => r.ok && r.value.objects.length > 0, 1000);
-  const readNil = await eventually(() => call(client.readStorageObjects(session, { object_ids: [{ collection: 'match_history', key: matchId, user_id: SYSTEM_USER_ID }] })),
-    (r) => r.ok && r.value.objects.length > 0, 1000);
-  const listAll = await eventually(() => call(client.listStorageObjects(session, 'match_history')), withKey, 1000);
-  const findings = JSON.stringify({
-    listed: listed.ok ? listed.value.objects.map((o) => o.key) : listed.error.message,
-    readNoUser: readNoUser.ok ? readNoUser.value.objects.map((o) => [o.key, o.user_id]) : readNoUser.error.message,
-    readNil: readNil.ok ? readNil.value.objects.length : readNil.error.message,
-    listAll: listAll.ok ? listAll.value.objects.map((o) => [o.key, o.user_id]) : listAll.error.message,
-  });
-  if (!withKey(listed) || !readNoUser.ok || readNoUser.value.objects.length !== 1) assert.fail(findings);
-  const list = listed as { ok: true; value: { objects: { key?: string }[] } };
-  const read = readNoUser;
+  const read = await eventually(() => call(client.readStorageObjects(session, { object_ids: [{ collection: 'match_history', key: matchId }] })),
+    (r) => r.ok && r.value.objects.length > 0);
+  if (!read.ok) throw read.error;
   assert.equal(read.value.objects.length, 1);
   const record = read.value.objects[0];
   assert.deepEqual([record.collection, record.key, record.user_id, record.permission_read, record.permission_write],
@@ -245,5 +232,7 @@ test('desistência encerra a partida e grava o histórico uma vez', async () => 
   assert.ok(value.endedAt >= value.startedAt && value.endedAt - value.startedAt < 60000);
 
   // Exactly one object with this key in the collection (other tests' matches have theirs).
-  assert.equal(list.value.objects.filter((o) => o.key === matchId).length, 1);
+  const list = await call(client.listStorageObjects(session, 'match_history', SYSTEM_USER_ID));
+  assert.equal(list.objects.filter((o) => o.key === matchId).length, 1);
+  assert.deepEqual(list.objects.find((o) => o.key === matchId)!.value, value);
 });
