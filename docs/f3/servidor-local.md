@@ -21,6 +21,31 @@ npm run infra:down                                 # derruba e apaga o volume do
 - API e socket: `http://127.0.0.1:7350`. Console: `http://127.0.0.1:7351` (usuário `admin`, senha `NAKAMA_CONSOLE_PASSWORD` do `.env`).
 - Para recarregar o módulo depois de mudar `services/nakama/src`, rode `npm run infra:reload`. Ele gera o módulo e recria o contêiner do Nakama, que só lê os módulos ao iniciar. Rodar `infra:up` de novo não basta.
 
+## Servidor de testes na rede local
+
+Para rodar o servidor em outra máquina da rede (por exemplo, `server`) e testar a partir desta:
+
+1. **No servidor** (precisa de Docker, Node e git):
+
+   ```bash
+   git clone -b claude/planejamento-online https://github.com/rguilherme10/billiard.git && cd billiard
+   cp infra/.env.example infra/.env     # depois edite: NAKAMA_BIND=0.0.0.0 e uma NAKAMA_CONSOLE_PASSWORD só sua
+   PUPPETEER_SKIP_DOWNLOAD=1 npm ci     # sem baixar o Chrome dos testes de navegador
+   npm run infra:up
+   ```
+
+   Pare antes qualquer outro Nakama que use as portas 7350 e 7351. Com `NAKAMA_BIND=0.0.0.0`, a API e o console ficam visíveis para toda a rede. Por isso, troque a senha do console. As outras chaves podem ficar com os valores de desenvolvimento enquanto o servidor for só de testes.
+
+2. **Nesta máquina:**
+
+   ```bash
+   NAKAMA_HOST=server npm run test:integration -w services/nakama
+   ```
+
+   No PowerShell, use `$env:NAKAMA_HOST='server'` antes do comando. Se as chaves do `.env` do servidor forem diferentes das de desenvolvimento, passe também `NAKAMA_SERVER_KEY` e `NAKAMA_HTTP_KEY`. `NAKAMA_PORT` muda a porta da API (o padrão é 7350).
+
+3. **Para atualizar o servidor depois de mudar o módulo:** no servidor, rode `git pull && npm run infra:reload`.
+
 ## O que o servidor oferece
 
 | Recurso | Como usar | Erros (campo `message`) |

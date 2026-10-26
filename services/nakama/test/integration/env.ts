@@ -1,9 +1,10 @@
-// Where the integration tests find the local stack (npm run infra:up).
-// The keys default to the development values of infra/.env.example.
+// Where the integration tests find the stack (npm run infra:up): this machine by
+// default, or another host with NAKAMA_HOST/NAKAMA_PORT (a test server on the
+// network). The keys default to the development values of infra/.env.example.
 
 export const NAKAMA = {
-  host: '127.0.0.1',
-  port: '7350',
+  host: process.env.NAKAMA_HOST ?? '127.0.0.1',
+  port: process.env.NAKAMA_PORT ?? '7350',
   serverKey: process.env.NAKAMA_SERVER_KEY ?? 'defaultkey',
   httpKey: process.env.NAKAMA_HTTP_KEY ?? 'dev-http-key',
 };
@@ -22,5 +23,5 @@ export async function waitForNakama(timeoutMs = 60000): Promise<void> {
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
-  throw new Error('Nakama não está no ar: rode npm run infra:up');
+  throw new Error(`Nakama não está no ar em ${BASE_URL}: rode npm run infra:up (ou confira NAKAMA_HOST)`);
 }

@@ -1,6 +1,8 @@
 # Local development stack (F3): PostgreSQL 16 + Nakama 3.41.0 running the
 # billiards server module (services/nakama/build). Same images as the F0 spike.
 # Keys come from infra/.env (copied from .env.example: development values only).
+# Ports bind to 127.0.0.1 unless NAKAMA_BIND says otherwise (a test server on the
+# local network sets NAKAMA_BIND=0.0.0.0; see docs/f3/servidor-local.md).
 name: billiards
 
 services:
@@ -38,8 +40,8 @@ services:
       - ./nakama/local.yml:/nakama/data/local.yml:ro
       - ../services/nakama/build:/nakama/data/modules:ro
     ports:
-      - "127.0.0.1:7350:7350"
-      - "127.0.0.1:7351:7351"
+      - "${NAKAMA_BIND:-127.0.0.1}:7350:7350"
+      - "${NAKAMA_BIND:-127.0.0.1}:7351:7351"
     healthcheck:
       test: ["CMD", "/nakama/nakama", "healthcheck"]
       interval: 3s
