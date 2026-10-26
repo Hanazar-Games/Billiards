@@ -1,6 +1,6 @@
 # Billiards Online
 
-Fork definitivo de Hanazar-Games/Billiards (sinuca 3D com Three.js + cannon-es) que está sendo transformado em um jogo online free-to-play com Nakama. O cliente offline (`apps/client/src/`) já simula cada tacada com `packages/sim` num Web Worker e reproduz a trajetória v1, e as regras de 8-ball e 9-ball vêm de `packages/modes` por meio do `LocalMatchController` (F2). A nova arquitetura está descrita na spec.
+Fork definitivo de Hanazar-Games/Billiards (sinuca 3D com Three.js + cannon-es) que está sendo transformado em um jogo online free-to-play com Nakama. O cliente offline (`apps/client/src/`) já simula cada tacada com `packages/sim` num Web Worker e reproduz a trajetória v1, e as regras de 8-ball e 9-ball vêm de `packages/modes` por meio do `LocalMatchController` (F2). O servidor autoritativo da partida online 1×1 (F4-A: Nakama, serviço de simulação e protocolo v1) está pronto e verificado com bots; o protocolo está em `docs/protocol.md`. A nova arquitetura está descrita na spec.
 
 ## Leia antes de trabalhar
 
@@ -45,8 +45,11 @@ Nas sessões na nuvem, o hook SessionStart roda `harness/init.sh` (dependências
 | `npm run test:local-2p -w apps/client` | Partidas locais de 2 jogadores de 8-ball e 9-ball até o fim, no navegador (F2-05); cerca de 2 a 4 min |
 | `npm test` | Todas as suítes de todos os workspaces (`apps/*`, `packages/*`), incluindo as de navegador (exigem Chromium) |
 | `npm run build` | Build de produção (saída em `apps/client/dist`) |
-| `npm run infra:up` / `npm run infra:down` | Sobe e derruba o Nakama 3.41.0 e o PostgreSQL 16 locais (Docker Compose em `infra/`); precisa do Docker |
-| `npm run test:integration -w services/nakama` | Bots com `nakama-js` contra o servidor local: contas, perfil, salas e matchmaking (F3). Também roda no GitHub Actions a cada push (D051) |
+| `npm run infra:up` / `npm run infra:down` | Sobe e derruba o Nakama 3.41.0, o PostgreSQL 16 e o serviço de simulação (`services/sim`) locais (Docker Compose em `infra/`); precisa do Docker e de `SIM_SECRET` no `infra/.env` |
+| `npm test -w services/sim` | O serviço de simulação (F4-A): segredo, versões N e N−1, limites do corpo e o formato da resposta; o servidor HTTP roda no próprio processo do teste, sem Docker |
+| `npm test -w services/nakama` | Testes unitários do módulo do Nakama (partida, mensagens, prazos, reserva, histórico) com um `nk` falso, mais a checagem do bundle; sem Docker |
+| `npm test -w packages/protocol` | Contrato do protocolo: mensagens, quantização, envelope, trajetória v1 e a conferência de que `docs/protocol.md` descreve todas as operações e recusas |
+| `npm run test:integration -w services/nakama` | Bots com `nakama-js` contra o servidor local: contas, perfil, salas e matchmaking (F3) e a partida online (F4-A: tacadas, reconexão, W.O., histórico e uma partida inteira de 8-ball). Leva alguns minutos (há testes de 45 s e 60 s). Também roda no GitHub Actions a cada push (D051) |
 | `npm run typecheck` | `tsc -p tsconfig.json` sobre `packages/*/src` |
 
 Testes de navegador neste contêiner: `CI=1 PUPPETEER_EXECUTABLE_PATH=/opt/pw-browsers/chromium npm run test:smoke -w apps/client`. Numa máquina Windows sem o Chrome que o Puppeteer fixa, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome instalado (por exemplo, `"/c/Program Files/Google/Chrome/Application/chrome.exe"` no Git Bash). Com `CI=1` (swiftshader), o tempo da partida completa ainda não foi medido.

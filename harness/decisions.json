@@ -1043,5 +1043,27 @@
       "D047",
       "docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md"
     ]
+  },
+  {
+    "id": "D061",
+    "date": "2026-10-26",
+    "title": "Regras do protocolo v1 fixadas na execução da F4-A",
+    "decision": "Fixadas na execução, sem mudar a D055. (1) Todo número de uma mensagem do cliente tem de ser finito e ter módulo de no máximo 1e6 (MAX_ABS_NUMBER); fora disso a mensagem é inválida (BAD_MESSAGE). O JSON.parse do goja já recusa literais como 1e999, e então a recusa vem com seq null. (2) CUE_BALL_INVALID é um novo motivo de recusa: a bola na mão fora da superfície de jogo (|x| > largura/2 − R ou |z| > profundidade/2 − R) ou a menos de 2R de outra bola em jogo, e a tacada sem cueBall com a branca encaçapada (isCueBallPlacementValid, em packages/modes/src/table.ts). (3) A recusa TURN_MISMATCH vem com um match_snapshot ao remetente (D058), para o cliente refazer o turnId; uma tacada que chega no tick do prazo é recusada como NOT_YOUR_TURN, porque o relógio roda antes das mensagens e a vez já passou. (4) Só as operações com conteúdo (1, 2, 3 e 7) têm o corpo lido como JSON: concede (5) não tem corpo, e 4 e 6 são reservadas (UNSUPPORTED_OP) sem que o corpo seja lido. (5) O cliente lê o match_history por coleção e chave, sem user_id, porque o Nakama 3.41 recusa o UUID zero como user_id numa leitura de cliente; a listagem é por chave (ids aleatórios) e se percorre com limite e cursor.",
+    "rationale": "O plano fixou o formato das mensagens, mas a execução achou lacunas que um servidor autoritativo não pode deixar abertas (§9.2): números enormes que viram Infinity ao quantizar, a branca posta fora da mesa ou sobre outra bola, uma tacada em trânsito sem como ressincronizar o turnId, uma desistência sem corpo que a leitura de JSON contaria como mensagem inválida e uma leitura do histórico que o Nakama 3.41 não aceita como o plano a escrevera.",
+    "alternatives": [
+      "Um limite próprio para cada campo, em vez de um só para todo número",
+      "Deixar o sim recusar a bola na mão inválida (três falhas abortariam a partida)",
+      "Ler o corpo de toda operação, inclusive da desistência"
+    ],
+    "status": "accepted",
+    "source": "execução da F4-A (rulings do controlador, aprovadas pelo plano D054–D060)",
+    "refs": [
+      "D055",
+      "D058",
+      "docs/protocol.md",
+      "services/nakama/src/game/intake.ts",
+      "packages/protocol/src/messages.ts",
+      "packages/modes/src/table.ts"
+    ]
   }
 ]

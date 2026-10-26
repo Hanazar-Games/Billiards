@@ -6,11 +6,13 @@
 // a repeated shot_request is one shot, and a second tab replaces the first.
 // F4-05: a player away for more than 60 s loses by walkover.
 // F4-06: a concession ends the match and leaves exactly one record in match_history.
+// F4-07: two bots play a whole 8-ball match to its end, and the record matches what they saw.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { OP, PROTOCOL_VERSION, SIM_VERSION, decodeTrajectory } from '@billiards/protocol';
 import { waitForNakama } from './env.ts';
 import { call, closeBots, eventually, findStorageObject, newBot, rpc, serverError, sleep } from './bot.ts';
+import { chooseShot } from './autoplay.ts';
 import { byTurn, startPrivateGame } from './game.ts';
 
 before(() => waitForNakama(60000));
@@ -21,6 +23,8 @@ const SHOT = { angle: 0.5, power: 40, spin: { x: 0, y: 0 } };
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 /** The strongest break, straight up the table (already quantized). */
 const BREAK = { angle: 1.5708, power: 110, spin: { x: 0, y: 0 } };
+/** A whole match of the test bot takes tens of shots; this many without an end means the bots are stuck. */
+const MAX_MATCH_SHOTS = 200;
 
 test('os dois recebem o snapshot com lugares diferentes e a mesma mesa', async () => {
   const { bots: [a, b] } = await startPrivateGame();
@@ -237,4 +241,62 @@ test('desistência encerra a partida e grava o histórico uma vez', async () => 
   if (!listed.ok) throw listed.error;
   assert.ok(listed.value, `match_history listing has no object with key ${matchId}`);
   assert.deepEqual(listed.value.value, value);
+});
+
+test('dois bots jogam uma partida inteira de 8-ball', { timeout: 300000 }, async () => {
+  const { bots: [a, b], matchId } = await startPrivateGame();
+  const bySeat = (seat: number) => (a.seat === seat ? a : b);
+
+  // The bot of the seat to play shoots what chooseShot picks from the state the server last sent
+  // (the start snapshot, then each shot_result); both wait for the same result, until the shot
+  // that ends the match (its nextTurn is null).
+  let state = { match: a.snapshot!.match, table: a.snapshot!.table };
+  let seat = a.snapshot!.turn!.seat;
+  const results: any[] = [];
+  for (;;) {
+    assert.ok(results.length < MAX_MATCH_SHOTS, `no end after ${MAX_MATCH_SHOTS} shot results`);
+    const shooter = bySeat(seat);
+    await shooter.shoot(chooseShot(state, seat));
+    let both;
+    try {
+      both = await Promise.all([a.waitFor(OP.SHOT_RESULT, undefined, 20000), b.waitFor(OP.SHOT_RESULT, undefined, 20000)]);
+    } catch (err) {
+      const refusals = shooter.received.filter((m) => m.op === OP.SHOT_REJECTED || m.op === OP.ERROR).map((m) => m.body);
+      throw new Error(`no shot_result for the shot ${results.length + 1} of seat ${seat} (${(err as Error).message}); refusals: ${JSON.stringify(refusals)}`);
+    }
+    const [mine, theirs] = both;
+    assert.deepEqual(mine.header.table, theirs.header.table);
+    assert.deepEqual(mine.header.match, theirs.header.match);
+    assert.deepEqual(mine.payload, theirs.payload);
+    assert.equal(mine.header.turnId, results.length);
+    assert.equal(mine.header.match.turnId, results.length + 1);
+    assert.equal(mine.header.kind, 'shot', 'a bot that shoots at once never times out and 8-ball has no choices');
+    assert.ok(decodeTrajectory(mine.payload!).length > 0);
+    results.push(mine.header);
+    if (!mine.header.nextTurn) break;
+    state = { match: mine.header.match, table: mine.header.table };
+    seat = mine.header.nextTurn.seat;
+  }
+
+  const ends = await Promise.all([a.waitFor(OP.MATCH_END), b.waitFor(OP.MATCH_END)]);
+  assert.deepEqual(ends[0].body, ends[1].body);
+  const end = ends[0].body;
+  assert.equal(end.reason, 'WIN');
+  assert.ok(end.winnerTeam === 0 || end.winnerTeam === 1, `winnerTeam ${end.winnerTeam}`);
+  assert.equal(results[results.length - 1].ruling.winnerTeam, end.winnerTeam);
+  assert.deepEqual(end.summary, { turns: results.length, shots: results.length });
+  for (const bot of [a, b]) {
+    assert.equal(bot.received.some((m) => m.op === OP.SHOT_REJECTED || m.op === OP.ERROR), false, 'the server refused or failed a shot');
+  }
+
+  // One record, with the same winner and the same shots, in the order they were played.
+  const { client, session } = a.bot;
+  const read = await eventually(() => call(client.readStorageObjects(session, { object_ids: [{ collection: 'match_history', key: matchId }] })),
+    (r) => r.ok && r.value.objects.length > 0);
+  if (!read.ok) throw read.error;
+  assert.equal(read.value.objects.length, 1);
+  const record = read.value.objects[0].value as any;
+  assert.deepEqual([record.matchId, record.reason, record.winnerTeam, record.turns], [matchId, 'WIN', end.winnerTeam, results.length]);
+  assert.equal(record.shots.length, results.filter((h) => h.kind === 'shot').length);
+  assert.deepEqual(record.shots, results.map((h) => ({ turnId: h.turnId, seat: h.seat, shot: h.shot })));
 });
