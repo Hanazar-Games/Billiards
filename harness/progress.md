@@ -3,6 +3,7 @@
 ## Estado atual
 
 - **Fase:** F1-A concluída. F1-B executada (8 tarefas, plano `docs/superpowers/plans/2026-10-25-f1b-cliente-usa-sim.md`, D042 e D043 `accepted`); falta só a confirmação do F1-09 pelo usuário, no navegador. Plano da F1-A: `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`.
+  - **F3 concluída** (plano `docs/superpowers/plans/2026-10-25-f3-nakama-contas-salas.md`, execução nativa, D049 a D052 `accepted`). O servidor local tem Docker Compose com Nakama 3.41.0 e PostgreSQL 16, e o módulo `services/nakama` cobre contas de convidado com vínculo de e-mail, perfil validado, salas privadas com código de 6 caracteres e matchmaking 1×1. A integração passou no GitHub Actions (execução 40257461881). F3-01 a F3-05 marcados. Ver `docs/f3/servidor-local.md`.
   - **F2 concluída** (plano `docs/superpowers/plans/2026-10-25-f2-modes-n-lugares.md`, execução nativa, D045 a D047 `accepted`). F2-01 a F2-05 marcados depois de rodar as verificações na suíte completa:
     - `packages/modes` (TypeScript, sem dependências): ordem de turnos para 1×1, 2×2 (A1, B1, A2, B2) e cada um por si (pula eliminados); 8-ball e 9-ball portados, com os 28 testes de regras portados e um teste diferencial de 3.000 tacadas para cada modo contra a cópia congelada das regras legadas (D046); `MatchState` e o invariante "sempre há um lugar da vez até o fim".
     - Cliente: o `LocalMatchController` valida a tacada, simula no worker (com limite de 10 s) e decide pelo modo, e o `Game` aplica a decisão pela sequência de interface de antes. `Rules.js` e `NineBallRules.js` saíram do cliente; a arrumação vem do modo (D047).
@@ -39,7 +40,7 @@
 
 ## Próximo passo
 
-1. **O usuário revisa o plano da F3** (`docs/superpowers/plans/2026-10-25-f3-nakama-contas-salas.md`, 8 tarefas), escolhe a hospedagem (D049) e aprova ou ajusta as decisões propostas D050 a D052 (`open`). Também escolhe onde a F3 roda: esta máquina não tem Docker, e a integração precisa dele (D051). Só então a implementação começa, pela Tarefa 1.
+1. **Escrever o plano da F4** (partida online 1×1 autoritativa, o marco vertical) com `superpowers:writing-plans` e pedir a revisão do usuário. A F4 depende da F2 e da F3, ambas concluídas.
 2. **O usuário confirma o F1-09** no navegador, quando quiser, seguindo `docs/f1/roteiro-teste-manual.md` (`npm run dev`, Treino livre, `await __referenceShot('draw-ref')` no console). Em 2026-10-25 o usuário preferiu adiar. Se a branca voltar como esperado, marcar `passes: true` e registrar a data; se não, abrir uma decisão nova sobre o recuo (a D041 aceitou a sensação medida).
 3. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium. O Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido. Sem esse download, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome do sistema.
 
@@ -238,3 +239,20 @@
   - D052: regras de conta e perfil.
 - Achado da auto-revisão: o `packages/modes` usa `structuredClone`, que não existe no runtime do Nakama. A Tarefa 3 o troca por uma cópia JSON, com um teste.
 - Nenhum código mudou nesta etapa.
+
+### 2026-10-25 — sessão 2, continuação (execução da F3, modo nativo)
+
+- O usuário aprovou o plano da F3 com a D049 (VPS), que substitui a D019, e com a D050 a D052. Pediu a execução nesta máquina, onde ia instalar o Docker Desktop.
+- Execução nativa:
+  - Tarefa 3 primeiro, porque não precisa de Docker: validadores de nome, avatar, código de sala e configuração em `packages/protocol`, sem dependências. O `packages/modes` deixou de usar `structuredClone`, que o goja não tem.
+  - Depois as Tarefas 1, 2, 4, 5 e 6, com testes unitários contra um `nk` falso.
+  - O Docker Desktop não chegou a ser instalado nesta sessão. Por isso a integração foi verificada no GitHub Actions (Tarefa 7, D051). O repositório é público: o resultado foi lido pela API sem login, com o resumo publicado em anotações.
+- Achados durante a integração no CI, todos corrigidos com o teste vendo a falha antes:
+  - sockets abertos prendiam o processo de teste;
+  - o `nakama-js` 2.8 recebe `linkEmail(session, { email, password })`, não argumentos soltos;
+  - uma sala recém-criada demora alguns ms para entrar na listagem de rótulos;
+  - os erros das RPCs chegavam com o rastro do goja.
+- Execução do CI 40257461881 (https://github.com/rguilherme10/billiard/actions/runs/40257461881): 16 testes de integração passaram e nenhum falhou.
+- F3-01 a F3-05 marcados com base nessa execução.
+- Pendência: rodar `npm run infra:up && npm run test:integration -w services/nakama` nesta máquina quando o Docker Desktop estiver instalado.
+- Decisões de execução: `harness/sdd/2026-10-25-f3-nakama-contas-salas/ledger.md`.

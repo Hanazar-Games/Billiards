@@ -45,6 +45,8 @@ Nas sessões na nuvem, o hook SessionStart roda `harness/init.sh` (dependências
 | `npm run test:local-2p -w apps/client` | Partidas locais de 2 jogadores de 8-ball e 9-ball até o fim, no navegador (F2-05); cerca de 2 a 4 min |
 | `npm test` | Todas as suítes de todos os workspaces (`apps/*`, `packages/*`), incluindo as de navegador (exigem Chromium) |
 | `npm run build` | Build de produção (saída em `apps/client/dist`) |
+| `npm run infra:up` / `npm run infra:down` | Sobe e derruba o Nakama 3.41.0 e o PostgreSQL 16 locais (Docker Compose em `infra/`); precisa do Docker |
+| `npm run test:integration -w services/nakama` | Bots com `nakama-js` contra o servidor local: contas, perfil, salas e matchmaking (F3). Também roda no GitHub Actions a cada push (D051) |
 | `npm run typecheck` | `tsc -p tsconfig.json` sobre `packages/*/src` |
 
 Testes de navegador neste contêiner: `CI=1 PUPPETEER_EXECUTABLE_PATH=/opt/pw-browsers/chromium npm run test:smoke -w apps/client`. Numa máquina Windows sem o Chrome que o Puppeteer fixa, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome instalado (por exemplo, `"/c/Program Files/Google/Chrome/Application/chrome.exe"` no Git Bash). Com `CI=1` (swiftshader), o tempo da partida completa ainda não foi medido.

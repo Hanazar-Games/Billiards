@@ -178,7 +178,7 @@
     "verification": [
       "docker compose up -d e o healthcheck do Nakama respondem em até 60 s"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F3-02",
@@ -187,7 +187,7 @@
     "verification": [
       "bot entra como convidado, vincula e-mail e entra de novo com e-mail na mesma conta"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F3-03",
@@ -197,7 +197,7 @@
       "RPC recusa username impróprio",
       "perfil de outro jogador é legível"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F3-04",
@@ -206,7 +206,7 @@
     "verification": [
       "bot A cria a sala; bot B entra pelo código"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F3-05",
@@ -215,7 +215,7 @@
     "verification": [
       "dois bots na fila formam uma partida"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F4-01",

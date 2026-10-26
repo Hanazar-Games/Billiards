@@ -29,8 +29,8 @@ for suite in "${FAST_SUITES[@]}"; do
   fi
 done
 
-# Workspace packages (packages/*) run their own test script.
-for pkg in packages/*/package.json; do
+# Workspace packages (packages/*, services/*) run their own test script; services/nakama runs only its unit tests here (the integration needs Docker, D051).
+for pkg in packages/*/package.json services/*/package.json; do
   [ -f "$pkg" ] || continue
   ws=$(dirname "$pkg")
   if ! npm test -w "$ws" > /dev/null 2>&1; then
