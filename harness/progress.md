@@ -2,6 +2,7 @@
 
 ## Estado atual
 
+- **F4-A em revisão:** o plano [`2026-10-26-f4a-partida-online-servidor.md`](../docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md) está escrito e espera a revisão do usuário, junto com as decisões D054 a D060 (`open`). Ele cobre o servidor autoritativo: itens F4-01 a F4-07, em 8 tarefas. A D054 propõe deixar o cliente online, a implantação e a D053 para uma F4-B com plano próprio.
 - **Fase:** F1-A concluída. F1-B executada (8 tarefas, plano `docs/superpowers/plans/2026-10-25-f1b-cliente-usa-sim.md`, D042 e D043 `accepted`); falta só a confirmação do F1-09 pelo usuário, no navegador. Plano da F1-A: `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`.
   - **F3 concluída** (plano `docs/superpowers/plans/2026-10-25-f3-nakama-contas-salas.md`, execução nativa, D049 a D052 `accepted`). O servidor local tem Docker Compose com Nakama 3.41.0 e PostgreSQL 16, e o módulo `services/nakama` cobre contas de convidado com vínculo de e-mail, perfil validado, salas privadas com código de 6 caracteres e matchmaking 1×1. A integração passou no GitHub Actions (execução 40257461881). F3-01 a F3-05 marcados. Ver `docs/f3/servidor-local.md`.
   - **F2 concluída** (plano `docs/superpowers/plans/2026-10-25-f2-modes-n-lugares.md`, execução nativa, D045 a D047 `accepted`). F2-01 a F2-05 marcados depois de rodar as verificações na suíte completa:
@@ -40,7 +41,7 @@
 
 ## Próximo passo
 
-1. **Escrever o plano da F4** (partida online 1×1 autoritativa, o marco vertical) com `superpowers:writing-plans` e pedir a revisão do usuário. A F4 depende da F2 e da F3, ambas concluídas.
+1. **O usuário revisa o plano da F4-A** (`docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md`) e as decisões D054 a D060, e escolhe a forma de execução. Com a aprovação, a Tarefa 1 marca as decisões como `accepted` (a D044 e a D048 passam a `superseded`) e a execução começa.
 2. **O usuário confirma o F1-09** no navegador, quando quiser, seguindo `docs/f1/roteiro-teste-manual.md` (`npm run dev`, Treino livre, `await __referenceShot('draw-ref')` no console). Em 2026-10-25 o usuário preferiu adiar. Se a branca voltar como esperado, marcar `passes: true` e registrar a data; se não, abrir uma decisão nova sobre o recuo (a D041 aceitou a sensação medida).
 3. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium. O Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido. Sem esse download, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome do sistema.
 
@@ -273,3 +274,24 @@
   O passo a passo está em `docs/f3/servidor-local.md`, seção "Servidor de testes na rede local". Execução do CI 40263967717: 18 testes passaram e nenhum falhou.
 - No `server`, o `infra:up` falhou no Node 22.22.1, que não executa TypeScript sem flag: o `build.mjs` importava `src/registry.ts`. Agora ele tira os nomes dos handlers do próprio bundle, avaliado em `node:vm`. Um teste roda o build com `--no-experimental-strip-types`.
 - Integração contra o `server` (2026-10-26, a partir desta máquina Windows): 18 testes passaram e nenhum falhou. Antes disso, `health.test.ts` e `module.test.ts` caíam ao sair com `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file srcwinasync.c` (Node 24.5 no Windows). A causa era o `--test-force-exit`: sem ele, os dois arquivos passam e a suíte termina sozinha em 77 s, porque o `closeBots` já fecha os sockets. A flag saiu do `test:integration` e do workflow.
+
+### 2026-10-26 — sessão 2, continuação (plano da F4-A)
+
+- Plano escrito com `superpowers:writing-plans`: `docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md`, com 8 tarefas.
+  1. Contrato em `packages/protocol`: mensagens, envelope binário, quantização e base64.
+  2. Mesa autoritativa em `packages/modes`: `rackTable`, `placeCueBall` e `respotBalls`, e o `turnId` avança na saída de um lugar.
+  3. `services/sim` com segredo e versões, em contêiner próprio (F4-01).
+  4. Início da partida, snapshot e entrada de mensagens (F4-02).
+  5. Tacada aceita, simulação, regras e cronômetro (F4-03).
+  6. Reconexão, segunda aba e W.O. (F4-04, F4-05).
+  7. Fim da partida, desistência e histórico (F4-06).
+  8. Partida inteira com bots, `docs/protocol.md` e fechamento (F4-07).
+- Decisões propostas, `open` até a revisão:
+  - D054: F4-A (servidor) e F4-B (cliente online, VPS e D053);
+  - D055: protocolo v1;
+  - D056: ritmo, sem esperar a reprodução no servidor;
+  - D057: fecha a D044 mantendo a trajetória v1;
+  - D058: fecha a D048 avançando o `turnId`;
+  - D059: `services/sim`;
+  - D060: histórico e arrumação fixa.
+- Antes do plano, nesta mesma sessão: a integração contra o `server` passou (18 de 18) depois de tirar o `--test-force-exit` (`d82c0db`); o CI 40268858280 passou sem a flag.

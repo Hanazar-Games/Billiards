@@ -904,5 +904,142 @@
       "F4",
       "services/nakama/src/registry.ts"
     ]
+  },
+  {
+    "id": "D054",
+    "date": "2026-10-26",
+    "title": "F4 em duas partes: servidor (F4-A) e cliente online (F4-B)",
+    "decision": "A F4-A (plano docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md) entrega o servidor autoritativo: itens F4-01 a F4-07, verificados com bots. A F4-B, com plano próprio, entrega o cliente online (OnlineMatchController e telas mínimas de entrada, fila e sala), a implantação na VPS com TLS e o fechamento da D053, com itens novos. O critério de saída da F4 ganha \"dois navegadores jogam uma partida online 1×1 completa\" (F4-B).",
+    "rationale": "O roteiro só pede bots, mas o marco vertical da spec (§10) e o OnlineMatchController (§5.3) pedem o cliente. A F4 inteira (8 a 14 dias) passa do tamanho que se revisa de uma vez, e o cliente consome o contrato do servidor.",
+    "alternatives": [
+      "Uma F4 só, com servidor e cliente no mesmo plano",
+      "Deixar o cliente online para a F5"
+    ],
+    "status": "open",
+    "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "spec §5.3",
+      "spec §10",
+      "D049",
+      "D053",
+      "docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md"
+    ]
+  },
+  {
+    "id": "D055",
+    "date": "2026-10-26",
+    "title": "Protocolo v1 da partida",
+    "decision": "PROTOCOL_VERSION = 1 e SIM_VERSION = 1, conferidos ao entrar (metadado protocolVersion; diferente → PROTOCOL_MISMATCH). Operações C→S 1 a 7 (a 7, push_out_choice, é nova) e S→C 101 a 109 (a 109 retransmite ball_in_hand_move); emote (4) e rematch_vote (6) ficam reservadas (UNSUPPORTED_OP) até a F4-B ou a F5. As mensagens 101 e 105 vão num envelope binário [u32 LE tamanho do cabeçalho][cabeçalho JSON em ASCII][trajetória v1]; as outras, em JSON. Quantização: ângulo 1e-5 rad, força 1e-3, efeito 1e-3 (comprimento nunca acima de 1), posição da branca 0,01 cm.",
+    "rationale": "A spec fixa as operações e o envelope, mas não cobre o push-out do 9-ball nem a prévia da bola na mão; sem a operação 7, uma sala de 9-ball (já permitida na F3) trava no push-out. O cabeçalho fica em ASCII porque o goja não tem TextEncoder.",
+    "alternatives": [
+      "Tudo em JSON, com a trajetória em base64 dentro do JSON",
+      "Só 8-ball online na F4"
+    ],
+    "status": "open",
+    "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "spec §6.2",
+      "spec §6.3",
+      "D045",
+      "docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md"
+    ]
+  },
+  {
+    "id": "D056",
+    "date": "2026-10-26",
+    "title": "Ritmo da partida e reprodução",
+    "decision": "tickRate 10. O servidor aceita a próxima tacada sem esperar a reprodução; o prazo da vez é o fim da reprodução (simSeconds + 1 s) mais 45 s. As fases usadas são LOBBY, AWAITING_SHOT e ENDED; SIMULATING dura só a chamada síncrona ao sim, e a reprodução é descrita pelo último resultado do snapshot (com o deslocamento).",
+    "rationale": "Um cliente que atira antes da hora só perde a própria animação, porque o estado é do servidor. Esperar a reprodução no servidor faria uma partida de teste levar vários minutos. O prazo cumpre o \"cronômetro começa ao fim da reprodução\" (§6).",
+    "alternatives": [
+      "Fase PLAYBACK no servidor, que recusa tacadas até o fim da reprodução"
+    ],
+    "status": "open",
+    "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "spec §6",
+      "spec §7.2",
+      "spec §7.3",
+      "D020",
+      "docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md"
+    ]
+  },
+  {
+    "id": "D057",
+    "date": "2026-10-26",
+    "title": "Trajetória v1 mantida (fecha a D044)",
+    "decision": "Fecha a D044 com a opção (c): a trajetória continua v1, e o TrajectoryPlayer mantém a heurística do arco. Uma v2 com velocidade angular pode vir depois, com TRAJECTORY_VERSION e PROTOCOL_VERSION novos.",
+    "rationale": "O cliente é web e recarrega quando a versão muda (§6.3), então mudar o formato depois custa pouco. As poses giradas ao contrário que restam (27 em 23.537) são um defeito visual, não de estado.",
+    "alternatives": [
+      "(a) Amostrar a orientação a uma taxa maior",
+      "(b) Velocidade angular nos quadros já na v1"
+    ],
+    "status": "open",
+    "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "D044",
+      "spec §6.1",
+      "spec §6.3",
+      "docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md"
+    ]
+  },
+  {
+    "id": "D058",
+    "date": "2026-10-26",
+    "title": "turnId avança quando um lugar sai (fecha a D048)",
+    "decision": "Fecha a D048: removeMatchSeat sempre avança o turnId.",
+    "rationale": "Nenhum shot_request antigo é aceito depois que um lugar sai. Uma tacada em trânsito do lugar que continua recebe TURN_MISMATCH e um snapshot, e é reenviada com o turnId novo.",
+    "alternatives": [
+      "Avançar só quando a saída muda o lugar da vez",
+      "Não avançar (como na F2)"
+    ],
+    "status": "open",
+    "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "D048",
+      "spec §7.4",
+      "packages/modes/src/match.ts",
+      "docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md"
+    ]
+  },
+  {
+    "id": "D059",
+    "date": "2026-10-26",
+    "title": "services/sim: contêiner, segredo e versões",
+    "decision": "O services/sim é um bundle do esbuild (services/sim/build/server.mjs) numa imagem node:24-alpine, só na rede do Docker Compose, sem porta publicada. Exige o segredo no cabeçalho x-sim-secret (variável SIM_SECRET) e tem um registro de versões { 1: simulateShot }. A resposta é JSON, com a trajetória v1 em base64.",
+    "rationale": "O contêiner não baixa dependências no build. A trajetória vai em base64 porque o nk.httpRequest só lida com texto. O registro de versões permite aceitar N e N−1 durante uma atualização (§6.3).",
+    "alternatives": [
+      "Imagem com npm ci do workspace",
+      "Resposta binária"
+    ],
+    "status": "open",
+    "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "spec §5.1",
+      "spec §6.3",
+      "spec §9.2",
+      "D009",
+      "D017",
+      "D049",
+      "docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md"
+    ]
+  },
+  {
+    "id": "D060",
+    "date": "2026-10-26",
+    "title": "Histórico de partidas e arrumação online",
+    "decision": "Coleção match_history, com chave = matchId e dono = usuário do sistema; leitura pública (2) e escrita só do servidor (0), gravada com version \"*\" (só cria). O registro traz os jogadores, quem abriu (sorteado pelo servidor), as tacadas quantizadas e o resultado. Partidas abortadas não geram registro. A arrumação online continua fixa (D047) até haver uma ordem aleatória com semente.",
+    "rationale": "O histórico com as tacadas permite refazer a partida no servidor, e a escrita só-cria garante um registro por partida (§9.1). A leitura pública não expõe nada que a partida já não mostre.",
+    "alternatives": [
+      "Histórico com leitura só dos jogadores",
+      "Arrumação aleatória com semente já na F4"
+    ],
+    "status": "open",
+    "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "spec §7.1",
+      "spec §9.1",
+      "D047",
+      "docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md"
+    ]
   }
 ]
