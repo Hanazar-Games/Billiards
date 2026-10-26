@@ -726,7 +726,8 @@
       "Mandar a velocidade angular em cada quadro (o reprodutor integra entre as amostras)",
       "Manter só a heurística do reprodutor"
     ],
-    "status": "open",
+    "status": "superseded",
+    "supersededBy": "D057",
     "source": "revisão final da F1-B",
     "refs": [
       "spec §6.1",
@@ -803,7 +804,8 @@
       "Avançar só quando a saída muda o lugar da vez",
       "Manter como está (só decisões avançam)"
     ],
-    "status": "open",
+    "status": "superseded",
+    "supersededBy": "D058",
     "source": "revisão final da F2",
     "refs": [
       "spec §7.4",
@@ -915,7 +917,7 @@
       "Uma F4 só, com servidor e cliente no mesmo plano",
       "Deixar o cliente online para a F5"
     ],
-    "status": "open",
+    "status": "accepted",
     "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
     "refs": [
       "spec §5.3",
@@ -935,7 +937,7 @@
       "Tudo em JSON, com a trajetória em base64 dentro do JSON",
       "Só 8-ball online na F4"
     ],
-    "status": "open",
+    "status": "accepted",
     "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
     "refs": [
       "spec §6.2",
@@ -953,7 +955,7 @@
     "alternatives": [
       "Fase PLAYBACK no servidor, que recusa tacadas até o fim da reprodução"
     ],
-    "status": "open",
+    "status": "accepted",
     "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
     "refs": [
       "spec §6",
@@ -973,7 +975,7 @@
       "(a) Amostrar a orientação a uma taxa maior",
       "(b) Velocidade angular nos quadros já na v1"
     ],
-    "status": "open",
+    "status": "accepted",
     "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
     "refs": [
       "D044",
@@ -992,7 +994,7 @@
       "Avançar só quando a saída muda o lugar da vez",
       "Não avançar (como na F2)"
     ],
-    "status": "open",
+    "status": "accepted",
     "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
     "refs": [
       "D048",
@@ -1011,7 +1013,7 @@
       "Imagem com npm ci do workspace",
       "Resposta binária"
     ],
-    "status": "open",
+    "status": "accepted",
     "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
     "refs": [
       "spec §5.1",
@@ -1033,7 +1035,7 @@
       "Histórico com leitura só dos jogadores",
       "Arrumação aleatória com semente já na F4"
     ],
-    "status": "open",
+    "status": "accepted",
     "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
     "refs": [
       "spec §7.1",
