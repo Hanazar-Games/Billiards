@@ -7,8 +7,12 @@ export type Rng = () => number;
 /** ffa takes 3 to 5 seats. */
 export type MatchFormat = { kind: '1v1' } | { kind: '2v2' } | { kind: 'ffa'; seats: number };
 
-/** Playing surface size and ball radius, in cm. */
-export interface TableGeometry { width: number; depth: number; ballRadius: number }
+/**
+ * Playing surface size and ball radius, in cm. `cushionInset` is how far from the
+ * edge (width / 2, depth / 2) the center of a ball touching a cushion is; it bounds
+ * the ball in hand, and without it the bound is the edge less the radius.
+ */
+export interface TableGeometry { width: number; depth: number; ballRadius: number; cushionInset?: number }
 
 export interface MatchConfig {
   format: MatchFormat;

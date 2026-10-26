@@ -178,6 +178,30 @@ export const TABLE_PROFILES = {
 };
 
 /**
+ * The slanted bevel on the inner side of every cushion (table.js
+ * addCushionBevelShape), in cm: how far it overhangs the cushion box toward the
+ * table and how thick it is. Its height is the ball's diameter.
+ */
+export const CUSHION_BEVEL = Object.freeze({ overhang: 3.2, thickness: 3.0 });
+
+/**
+ * How far from the table's edge (width / 2 or depth / 2) the center of a ball
+ * on the cloth is when it touches a cushion: the bevel's inner face, the part
+ * of the cushion the ball meets (the nose). The bevel is a box centered
+ * cushionWidth + overhang / 2 from the edge, at the height of the ball's
+ * center, tilted by its overhang over its height; the ball touches its inner
+ * face (thickness / 2 from that center) when its center is R from the face,
+ * along the face's normal. For pool9ft: 10.594 cm.
+ * @param {TableProfile} profile
+ * @returns {number}
+ */
+export function cushionContactInset(profile) {
+  const h = BALL.radius * 2;
+  const slantLen = Math.sqrt(h * h + CUSHION_BEVEL.overhang * CUSHION_BEVEL.overhang);
+  return profile.cushionWidth + CUSHION_BEVEL.overhang / 2 + (BALL.radius + CUSHION_BEVEL.thickness / 2) * slantLen / h;
+}
+
+/**
  * Unlike the legacy lookup there is no fallback to pool9ft: an unknown id is
  * an error, so a typo never silently changes the physics.
  * @param {string} id

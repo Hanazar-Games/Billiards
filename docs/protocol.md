@@ -80,7 +80,9 @@ Os códigos abaixo de 100 são do cliente para o servidor (C→S) e os acima de 
 - a branca encaçapada (`pocketed: true`) exige `cueBall`; sem ele, a recusa é `CUE_BALL_INVALID`;
 - com a branca na mesa, `cueBall` é opcional (ela pode ser reposicionada);
 - sem bola na mão, `cueBall` é recusado (`CUE_BALL_NOT_ALLOWED`);
-- o centro da branca tem de ficar dentro da superfície de jogo (`|x| ≤ 63,5 − R`, `|z| ≤ 127 − R`) e a pelo menos 2R do centro de qualquer outra bola em jogo; senão, `CUE_BALL_INVALID`;
+- a branca tem de ficar pelo menos 0,01 cm (um passo da quantização) longe de encostar numa tabela ou noutra bola em jogo; senão, `CUE_BALL_INVALID`. Uma branca posta encostada é lançada pela tabela, ou a simulação acusa um contato com a bola vizinha mesmo quando a tacada vai para o outro lado:
+  - **tabelas:** a bola encosta na tabela quando o centro dela está a `cushionInset` = 10,594 cm da borda (o chanfro das tabelas da simulação; o valor vem em `match.mode.config.table.cushionInset`). O centro da branca fica então em `|x| ≤ 63,5 − 10,594 − 0,01 ≈ 52,896` e `|z| ≤ 127 − 10,594 − 0,01 ≈ 116,396`. Depois de quantizado, o maior valor aceito é 52,89 e 116,39: um cliente que prende o ponto no limite deve arredondar em direção ao centro da mesa. Nenhum ponto dentro desse retângulo fica no raio em que uma caçapa engole a bola;
+  - **outras bolas:** o centro da branca fica a pelo menos 2R + 0,01 cm (5,725 cm) do centro de cada bola em jogo;
 - na `kitchen`, `z` tem de ser no máximo a linha da cabeceira, **depois de quantizado**. A linha em ponto flutuante é −69,85000000000001, que a quantização arredonda para −69,85, um valor acima dela: um cliente que prende o ponto exatamente na linha leva `CUE_BALL_OUTSIDE_KITCHEN`. Deixe uma folga de 0,01 cm (use `z ≤ −69,86`).
 
 ### 3.2 Do servidor ao cliente
@@ -120,7 +122,7 @@ Os códigos abaixo de 100 são do cliente para o servidor (C→S) e os acima de 
 | `playback` | `{ result, offsetMs }` ou `null` | a tacada ainda em reprodução na volta de um jogador (seção 10) |
 | `end` | `MatchEnd` ou `null` | só em um snapshot enviado depois do fim (o reenvio da última tacada) |
 
-`MatchState` (de `packages/modes`): `{ seats: [{ index, userId, connected, timeouts }], turnId, phase, mode }`. O `mode` é o estado do modo de jogo: `modeId`, `config` (`format`, `table: { width, depth, ballRadius }`, `maxPower`), `turn` (`seats: [{ index, team, eliminated }]`, `teams`, `currentSeat`), `breakShot` (a próxima tacada é a abertura), `ballInHand`, `winnerTeam` e os campos de cada modo: no 8-ball, `groups` (por equipe: `solid`, `stripe` ou `null` com a mesa aberta) e `pocketed`; no 9-ball, `pocketed`, `fouls` e `pushOut: { available, pending, seat }`.
+`MatchState` (de `packages/modes`): `{ seats: [{ index, userId, connected, timeouts }], turnId, phase, mode }`. O `mode` é o estado do modo de jogo: `modeId`, `config` (`format`, `table: { width, depth, ballRadius, cushionInset }`, `maxPower`), `turn` (`seats: [{ index, team, eliminated }]`, `teams`, `currentSeat`), `breakShot` (a próxima tacada é a abertura), `ballInHand`, `winnerTeam` e os campos de cada modo: no 8-ball, `groups` (por equipe: `solid`, `stripe` ou `null` com a mesa aberta) e `pocketed`; no 9-ball, `pocketed`, `fouls` e `pushOut: { available, pending, seat }`.
 
 ### 4.2 Cabeçalho do `shot_result`
 
@@ -234,7 +236,7 @@ Cada `shot_request` passa por estas verificações, nesta ordem. A primeira que 
 | `PUSH_OUT_UNAVAILABLE` | `pushOut: true` onde o modo não permite |
 | `CUE_BALL_NOT_ALLOWED` | `cueBall` sem ter a bola na mão |
 | `CUE_BALL_OUTSIDE_KITCHEN` | `cueBall` à frente da linha da cabeceira, com a bola na mão na `kitchen` |
-| `CUE_BALL_INVALID` | `cueBall` fora da superfície de jogo ou a menos de 2R de outra bola; ou tacada sem `cueBall` com a branca encaçapada |
+| `CUE_BALL_INVALID` | `cueBall` a menos de 0,01 cm de encostar numa tabela ou noutra bola (seção 3.1); ou tacada sem `cueBall` com a branca encaçapada |
 | `NO_CHOICE_PENDING` | `push_out_choice` sem push-out pendente, de quem não é o lugar da vez, ou com `turnId` velho |
 
 Os motivos `BAD_MESSAGE`, `NOT_AWAITING_SHOT`, `TURN_MISMATCH`, `NO_CHOICE_PENDING` e `CUE_BALL_INVALID` são do servidor (`SERVER_REJECT_REASONS`). `GAME_OVER`, `NOT_YOUR_TURN`, `BAD_INPUT`, `PUSH_OUT_PENDING`, `PUSH_OUT_UNAVAILABLE`, `CUE_BALL_NOT_ALLOWED` e `CUE_BALL_OUTSIDE_KITCHEN` vêm das regras do modo (`RejectReason` em `packages/modes`). Toda recusa conta para o limite da seção 8.

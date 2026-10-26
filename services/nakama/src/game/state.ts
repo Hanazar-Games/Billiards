@@ -6,7 +6,7 @@
 import { MODES } from '@billiards/modes';
 import type { GameMode, MatchConfig, MatchState, ModeStateBase, TableState } from '@billiards/modes';
 import type { MatchEnd, ShotRequest, ShotResultHeader } from '@billiards/protocol';
-import { BALL, SHOT, TABLE_PROFILES } from '@billiards/sim/constants';
+import { BALL, SHOT, TABLE_PROFILES, cushionContactInset } from '@billiards/sim/constants';
 import type { Context, Logger, MatchDispatcher, Nakama, Presence } from '../nakama.ts';
 
 /** Match loop ticks per second (D056). */
@@ -32,10 +32,17 @@ export const LIMITS = {
 /** The table every online match is played on. */
 export const ONLINE_TABLE = 'pool9ft';
 
-/** 1×1 on the online table: its size, the ball radius and the strongest shot come from the sim. */
+/**
+ * 1×1 on the online table: its size, the ball radius, where a ball touches the
+ * cushions (the ball-in-hand bound) and the strongest shot come from the sim.
+ */
 export function onlineConfig(): MatchConfig {
   const profile = TABLE_PROFILES[ONLINE_TABLE];
-  return { format: { kind: '1v1' }, table: { width: profile.width, depth: profile.depth, ballRadius: BALL.radius }, maxPower: SHOT.maxPower };
+  return {
+    format: { kind: '1v1' },
+    table: { width: profile.width, depth: profile.depth, ballRadius: BALL.radius, cushionInset: cushionContactInset(profile) },
+    maxPower: SHOT.maxPower,
+  };
 }
 
 export interface GameEnv {

@@ -50,12 +50,23 @@ export function respotBalls<T extends TableState>(table: T, ids: number[], geome
 }
 
 /**
+ * How far a placed cue ball stays from touching a cushion or another ball: one
+ * placement quantum (0.01 cm). A ball placed exactly touching one makes the sim
+ * report a contact even when struck away from it.
+ */
+export const PLACEMENT_CLEARANCE = 0.01;
+
+/**
  * Whether the cue ball may be placed at `cueBall` with ball in hand: its center
- * is inside the rails (R from each edge) and at least 2R from every other ball
- * in play. The cue ball's own current position is ignored.
+ * is PLACEMENT_CLEARANCE inside where it would touch a cushion (geometry.cushionInset
+ * from each edge, or R without it) and at least 2R + PLACEMENT_CLEARANCE from every
+ * other ball in play. The cue ball's own current position is ignored.
  */
 export function isCueBallPlacementValid(table: TableState, cueBall: { x: number; z: number }, geometry: TableGeometry): boolean {
   const r = geometry.ballRadius;
-  if (!(Math.abs(cueBall.x) <= geometry.width / 2 - r && Math.abs(cueBall.z) <= geometry.depth / 2 - r)) return false;
-  return table.balls.every((b) => b.id === 0 || b.pocketed || Math.hypot(b.x - cueBall.x, b.z - cueBall.z) >= 2 * r - 1e-9);
+  const inset = (geometry.cushionInset ?? r) + PLACEMENT_CLEARANCE;
+  if (!(Math.abs(cueBall.x) <= geometry.width / 2 - inset && Math.abs(cueBall.z) <= geometry.depth / 2 - inset)) return false;
+  // 1e-9 forgives the rounding of a distance of exactly 2R + PLACEMENT_CLEARANCE.
+  const minDistance = 2 * r + PLACEMENT_CLEARANCE - 1e-9;
+  return table.balls.every((b) => b.id === 0 || b.pocketed || Math.hypot(b.x - cueBall.x, b.z - cueBall.z) >= minDistance);
 }

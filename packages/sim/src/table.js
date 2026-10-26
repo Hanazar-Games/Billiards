@@ -4,7 +4,7 @@
 // physics fields of _getTableGeometryMetrics). Same arithmetic, same order, so
 // the bodies are bit-identical to the legacy ones.
 import * as CANNON from 'cannon-es';
-import { BALL } from './constants.js';
+import { BALL, CUSHION_BEVEL } from './constants.js';
 import { cross, normalize, quaternionFromBasis } from './math.js';
 
 /** @import { TableProfile } from './constants.js' */
@@ -102,8 +102,8 @@ function createCushion(profile, material, halfExtents, pos, bevelNx, bevelNz, le
 function addCushionBevelShape(profile, body, nx, nz, len) {
   const h = BALL.radius * 2;
   const inset = profile.cushionWidth / 2;
-  const overhang = 3.2;
-  const thickness = 3.0;
+  const overhang = CUSHION_BEVEL.overhang;
+  const thickness = CUSHION_BEVEL.thickness;
 
   const slantLen = Math.sqrt(h * h + overhang * overhang);
   const shape = new CANNON.Box(new CANNON.Vec3(slantLen / 2, thickness / 2, len / 2));

@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { installEnv } from './legacy/env.js';
 installEnv({ seed: 1 });
 const { createLegacyWorld } = await import('./legacy/legacy-world.js');
-const { createWorld, getTableProfile, getPocketPositions, TUNING_LEGACY } = await import('../src/index.js');
+const { createWorld, cushionContactInset, getTableProfile, getPocketPositions, simulateShot, TUNING_LEGACY } = await import('../src/index.js');
 const PROFILES = ['pool9ft', 'pool8ft', 'bar7ft', 'chinese8'];
 
 test('corpos das tabelas idênticos ao Table.js em todos os perfis', () => {
@@ -31,6 +31,27 @@ test('caçapas idênticas ao legado', () => {
     const legacy = createLegacyWorld({ tableProfileId: id }).pockets;
     const sim = getPocketPositions(getTableProfile(id));
     assert.deepEqual(sim.map(p => [p.x, p.z, p.radius, p.type]), legacy.map(p => [p.x, p.z, p.radius, p.type]));
+  }
+});
+
+test('cushionContactInset: a bola encosta na tabela a essa distância da borda, em todos os perfis', () => {
+  // A nudge (0.001: ~0.006 cm/s) from a ball at rest, along each axis direction.
+  const nudge = (id, x, z, angle) => simulateShot({ tableProfileId: id, balls: [{ id: 0, x, z, pocketed: false }] },
+    { angle, power: 0.001, spin: { x: 0, y: 0 } }).events.filter(e => e.type === 'ball_cushion');
+  const angles = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
+  assert.ok(Math.abs(cushionContactInset(getTableProfile('pool9ft')) - 10.594) < 0.001);
+  for (const id of PROFILES) {
+    const profile = getTableProfile(id);
+    const inset = cushionContactInset(profile);
+    const x = profile.width / 2 - inset;
+    const z = profile.depth / 2 - inset;
+    // The middle of each rail's cushion: [x, z, the direction away from the rail].
+    for (const [cx, cz, away] of [[x, profile.depth / 4, Math.PI], [-x, -profile.depth / 4, 0], [0, z, -Math.PI / 2], [0, -z, Math.PI / 2]]) {
+      const inside = [cx - Math.sign(cx) * 0.001, cz - Math.sign(cz) * 0.001];
+      for (const angle of angles) assert.deepEqual(nudge(id, inside[0], inside[1], angle), [], `${id} (${inside}) along ${angle}`);
+      const beyond = [cx + Math.sign(cx) * 0.02, cz + Math.sign(cz) * 0.02];
+      assert.equal(nudge(id, beyond[0], beyond[1], away).length, 1, `${id} (${beyond}) touches the cushion`);
+    }
   }
 });
 

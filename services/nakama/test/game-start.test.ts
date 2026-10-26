@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MODES, currentSeat, rackTable } from '@billiards/modes';
 import { OP, PROTOCOL_VERSION, SIM_VERSION } from '@billiards/protocol';
-import { BALL, SHOT, TABLE_PROFILES } from '@billiards/sim/constants';
+import { BALL, SHOT, TABLE_PROFILES, cushionContactInset } from '@billiards/sim/constants';
 import { ONLINE_TABLE, SECONDS, TICK_RATE, onlineConfig } from '../src/game/state.ts';
 import { newGame, presence, startedGame } from './fakes.ts';
 
@@ -62,13 +62,13 @@ test('os lugares seguem a ordem de entrada, mesmo com o estado voltando do Go co
   }
 });
 
-test('a mesa online é a pool9ft, com raio e força máxima do sim', () => {
+test('a mesa online é a pool9ft, com raio, contato com a tabela e força máxima do sim', () => {
   const config = onlineConfig();
   const profile = TABLE_PROFILES[ONLINE_TABLE];
   assert.equal(ONLINE_TABLE, 'pool9ft');
   assert.deepEqual(config, {
     format: { kind: '1v1' },
-    table: { width: profile.width, depth: profile.depth, ballRadius: BALL.radius },
+    table: { width: profile.width, depth: profile.depth, ballRadius: BALL.radius, cushionInset: cushionContactInset(profile) },
     maxPower: SHOT.maxPower,
   });
   const { state } = startedGame('9ball');

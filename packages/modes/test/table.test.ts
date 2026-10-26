@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  eightBall, createMatch, rackTable, placeCueBall, respotBalls, isCueBallPlacementValid,
+  eightBall, createMatch, rackTable, placeCueBall, respotBalls, isCueBallPlacementValid, PLACEMENT_CLEARANCE,
   type BallPlacement, type TableGeometry, type TableState,
 } from '../src/index.ts';
 import { config8, mulberry32 } from './helpers.ts';
@@ -127,10 +127,13 @@ test('isCueBallPlacementValid: na mesa aberta, a posição vale', () => {
   assert.equal(isCueBallPlacementValid(table, { x: 20, z: -30 }, geometry), true);
 });
 
-test('isCueBallPlacementValid: fora das tabelas não vale; no limite vale', () => {
+test('isCueBallPlacementValid: fora das tabelas não vale; no limite vale (a folga é PLACEMENT_CLEARANCE)', () => {
+  assert.equal(PLACEMENT_CLEARANCE, 0.01);
   const table = tableOf([{ id: 0, x: 0, z: 0 }, { id: 1, x: 0, z: 60 }]);
-  const maxX = geometry.width / 2 - R;
-  const maxZ = geometry.depth / 2 - R;
+  // Without cushionInset the bound is the edge less R, less the clearance.
+  const maxX = geometry.width / 2 - R - PLACEMENT_CLEARANCE;
+  const maxZ = geometry.depth / 2 - R - PLACEMENT_CLEARANCE;
+  assert.equal(geometry.cushionInset, undefined);
   assert.equal(isCueBallPlacementValid(table, { x: maxX, z: 0 }, geometry), true);
   assert.equal(isCueBallPlacementValid(table, { x: -maxX, z: -maxZ }, geometry), true);
   assert.equal(isCueBallPlacementValid(table, { x: maxX + 0.01, z: 0 }, geometry), false);
@@ -140,13 +143,32 @@ test('isCueBallPlacementValid: fora das tabelas não vale; no limite vale', () =
   assert.equal(isCueBallPlacementValid(table, { x: 1000, z: 0 }, geometry), false);
 });
 
-test('isCueBallPlacementValid: sobre a bola 1 não vale; a exatamente 2R vale', () => {
+test('isCueBallPlacementValid: com cushionInset, o limite é onde a bola encosta na tabela, menos a folga', () => {
+  const withCushions: TableGeometry = { ...geometry, cushionInset: 10.5 };
+  const table = tableOf([{ id: 0, x: 0, z: 0 }]);
+  const maxX = geometry.width / 2 - 10.5 - PLACEMENT_CLEARANCE;
+  const maxZ = geometry.depth / 2 - 10.5 - PLACEMENT_CLEARANCE;
+  for (const [x, z] of [[maxX, 0], [-maxX, maxZ], [maxX, -maxZ], [0, -maxZ]]) {
+    assert.equal(isCueBallPlacementValid(table, { x, z }, withCushions), true, `(${x}, ${z})`);
+  }
+  for (const [x, z] of [[maxX + 0.01, 0], [-maxX - 0.01, 0], [0, maxZ + 0.01], [0, -maxZ - 0.01]]) {
+    assert.equal(isCueBallPlacementValid(table, { x, z }, withCushions), false, `(${x}, ${z})`);
+  }
+});
+
+test('isCueBallPlacementValid: sobre a bola 1 não vale; a 2R não vale; a 2R + 0,01 cm vale', () => {
   const table = tableOf([{ id: 0, x: -30, z: 0 }, { id: 1, x: 10, z: 20 }]);
+  const clear = 2 * R + PLACEMENT_CLEARANCE;
   assert.equal(isCueBallPlacementValid(table, { x: 10, z: 20 }, geometry), false);
   assert.equal(isCueBallPlacementValid(table, { x: 10 + 2 * R - 0.01, z: 20 }, geometry), false);
-  assert.equal(isCueBallPlacementValid(table, { x: 10, z: 20 - (2 * R - 1e-6) }, geometry), false);
-  assert.equal(isCueBallPlacementValid(table, { x: 10 + 2 * R, z: 20 }, geometry), true);
-  assert.equal(isCueBallPlacementValid(table, { x: 10, z: 20 + 2 * R }, geometry), true);
+  assert.equal(isCueBallPlacementValid(table, { x: 10 + 2 * R, z: 20 }, geometry), false, 'touching it');
+  assert.equal(isCueBallPlacementValid(table, { x: 10, z: 20 - (clear - 1e-6) }, geometry), false);
+  assert.equal(isCueBallPlacementValid(table, { x: 10 + clear, z: 20 }, geometry), true);
+  assert.equal(isCueBallPlacementValid(table, { x: 10, z: 20 + clear }, geometry), true);
+  // Exactly 2R + 0.01 cm on a diagonal, where the computed distance may round under it.
+  for (const angle of [0.3, 2.5, -2]) {
+    assert.equal(isCueBallPlacementValid(table, { x: 10 + Math.cos(angle) * clear, z: 20 + Math.sin(angle) * clear }, geometry), true, `${angle}`);
+  }
 });
 
 test('isCueBallPlacementValid: bola encaçapada no lugar não bloqueia, e a posição atual da branca é ignorada', () => {
