@@ -29,7 +29,7 @@ for suite in "${FAST_SUITES[@]}"; do
   fi
 done
 
-# Workspace packages (packages/*, services/*) run their own test script; services/nakama runs only its unit tests here (the integration needs Docker, D051).
+# Workspace packages (packages/*, services/*) run their own test script. services/nakama runs only its unit tests here (the integration needs Docker, D051); services/sim tests its HTTP server inside the test process, so it needs no Docker.
 for pkg in packages/*/package.json services/*/package.json; do
   [ -f "$pkg" ] || continue
   ws=$(dirname "$pkg")

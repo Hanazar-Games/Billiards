@@ -21,8 +21,10 @@ export interface Registry {
 /** The functions every match handler has (registerMatch). */
 export const MATCH_FUNCTIONS = ['matchInit', 'matchJoinAttempt', 'matchJoin', 'matchLeave', 'matchLoop', 'matchTerminate', 'matchSignal'] as const;
 
-function rpcHealthcheckModule(_ctx: Context, _logger: Logger, _nk: Nakama, _payload: string): string {
-  return JSON.stringify({ module: 'billiards', version: __MODULE_VERSION__ });
+function rpcHealthcheckModule(ctx: Context, _logger: Logger, _nk: Nakama, _payload: string): string {
+  // Read defensively: the unit-test context has no env.
+  const simConfigured = Boolean(ctx.env && ctx.env.SIM_URL && ctx.env.SIM_SECRET);
+  return JSON.stringify({ module: 'billiards', version: __MODULE_VERSION__, simConfigured });
 }
 
 export const REGISTRY: Registry = {

@@ -9,5 +9,8 @@ test('o Nakama carrega o módulo billiards', async () => {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
   });
   assert.equal(res.status, 200, await res.clone().text());
-  assert.equal((await res.json()).module, 'billiards');
+  const out = await res.json();
+  assert.equal(out.module, 'billiards');
+  // The compose file hands the sim address and secret to the runtime (--runtime.env).
+  assert.equal(out.simConfigured, true);
 });

@@ -53,8 +53,20 @@ test('o bundle não usa recursos ausentes no goja', () => {
 
 test('a RPC healthcheck_module identifica o módulo e a versão', () => {
   const { context } = loadBundleAndInit();
+  const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+  // The unit-test context has no env: the sim counts as not configured.
   const out = JSON.parse(context.rpc_healthcheck_module({}, {}, {}, ''));
-  assert.deepEqual(out, { module: 'billiards', version: JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version });
+  assert.deepEqual(out, { module: 'billiards', version, simConfigured: false });
+});
+
+test('a RPC healthcheck_module diz se o sim está configurado (SIM_URL e SIM_SECRET)', () => {
+  const { context } = loadBundleAndInit();
+  const configured = (env: Record<string, string>) => JSON.parse(context.rpc_healthcheck_module({ env }, {}, {}, '')).simConfigured;
+  assert.equal(configured({ SIM_URL: 'http://sim:8080', SIM_SECRET: 's' }), true);
+  assert.equal(configured({ SIM_URL: 'http://sim:8080' }), false);
+  assert.equal(configured({ SIM_SECRET: 's' }), false);
+  assert.equal(configured({ SIM_URL: '', SIM_SECRET: '' }), false);
+  assert.equal(configured({}), false);
 });
 
 test('o build roda num Node sem suporte a TypeScript (Node 22 sem flag)', () => {

@@ -45,7 +45,7 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          docker compose -f infra/docker-compose.yml --env-file infra/.env logs nakama > nakama.log 2>&1 || true
+          docker compose -f infra/docker-compose.yml --env-file infra/.env logs nakama sim > nakama.log 2>&1 || true
           cat nakama.log
           grep -iE '"level":"(error|warn)"|panic' nakama.log | head -20 | while IFS= read -r line; do echo "::warning title=nakama::${line:0:300}"; done
       - name: Stop the stack

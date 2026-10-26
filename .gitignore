@@ -3,6 +3,7 @@ node_modules/
 *.log
 .DS_Store
 
-# F3: local stack secrets and the built Nakama module
+# F3: local stack secrets and the built Nakama module; F4: the simulation service bundle
 infra/.env
 services/nakama/build/
+services/sim/build/
