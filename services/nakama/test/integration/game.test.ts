@@ -232,7 +232,8 @@ test('desistência encerra a partida e grava o histórico uma vez', async () => 
   assert.ok(value.endedAt >= value.startedAt && value.endedAt - value.startedAt < 60000);
 
   // Exactly one object with this key in the collection (other tests' matches have theirs).
-  const listed = await eventually(() => call(client.listStorageObjects(session, 'match_history', SYSTEM_USER_ID)),
+  // Nakama lists one object per page unless a limit is given (the cursor would lead to the others).
+  const listed = await eventually(() => call(client.listStorageObjects(session, 'match_history', SYSTEM_USER_ID, 100)),
     (r) => r.ok && r.value.objects.some((o) => o.key === matchId));
   if (!listed.ok) throw listed.error;
   const matching = listed.value.objects.filter((o) => o.key === matchId);
