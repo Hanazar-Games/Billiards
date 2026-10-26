@@ -205,7 +205,7 @@ test('desistência encerra a partida e grava o histórico uma vez', async () => 
   const read = await eventually(() => call(client.readStorageObjects(session, { object_ids: [{ collection: 'match_history', key: matchId }] })),
     (r) => r.ok && r.value.objects.length > 0);
   if (!read.ok) throw read.error;
-  assert.equal(read.value.objects.length, 1);
+  assert.equal(read.value.objects.length, 1, 'objects read without a user_id');
   const record = read.value.objects[0];
   assert.deepEqual([record.collection, record.key, record.user_id, record.permission_read, record.permission_write],
     ['match_history', matchId, SYSTEM_USER_ID, 2, 0]);
@@ -232,7 +232,10 @@ test('desistência encerra a partida e grava o histórico uma vez', async () => 
   assert.ok(value.endedAt >= value.startedAt && value.endedAt - value.startedAt < 60000);
 
   // Exactly one object with this key in the collection (other tests' matches have theirs).
-  const list = await call(client.listStorageObjects(session, 'match_history', SYSTEM_USER_ID));
-  assert.equal(list.objects.filter((o) => o.key === matchId).length, 1);
-  assert.deepEqual(list.objects.find((o) => o.key === matchId)!.value, value);
+  const listed = await eventually(() => call(client.listStorageObjects(session, 'match_history', SYSTEM_USER_ID)),
+    (r) => r.ok && r.value.objects.some((o) => o.key === matchId));
+  if (!listed.ok) throw listed.error;
+  const matching = listed.value.objects.filter((o) => o.key === matchId);
+  assert.equal(matching.length, 1, `objects listed with key ${matchId} among ${listed.value.objects.map((o) => o.key)}`);
+  assert.deepEqual(matching[0].value, value);
 });
