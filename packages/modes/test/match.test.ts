@@ -79,3 +79,14 @@ test('applyRuling avança o turnId e encerra com vencedor', () => {
   const r = eightBall.resolveShot(m.mode, 0, ev({ first: 1, pocketed: [2] }), FINAL, SHOT);
   assert.deepEqual([applyRuling(m, r).turnId, applyRuling(m, r).phase], [1, 'AWAITING_SHOT']);
 });
+
+test('createInitialState não depende de structuredClone (o goja não tem)', () => {
+  const saved = globalThis.structuredClone;
+  // @ts-expect-error removed on purpose, as in the Nakama runtime
+  delete globalThis.structuredClone;
+  try {
+    for (const mode of Object.values(MODES)) assert.ok((mode as GameMode<ModeStateBase>).createInitialState(config8, mulberry32(1)));
+  } finally {
+    globalThis.structuredClone = saved;
+  }
+});

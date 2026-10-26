@@ -46,7 +46,7 @@ export const eightBall: GameMode<EightBallState> = {
     if (!this.formats.includes(cfg.format.kind)) throw new RangeError(`8-ball does not support ${cfg.format.kind}`);
     const turn = createTurnState(cfg.format, firstSeat);
     return {
-      modeId: '8ball', config: structuredClone(cfg), turn, breakShot: true, ballInHand: null, winnerTeam: null,
+      modeId: '8ball', config: JSON.parse(JSON.stringify(cfg)), turn, breakShot: true, ballInHand: null, winnerTeam: null,
       groups: turn.teams.map(() => null), pocketed: [],
     };
   },

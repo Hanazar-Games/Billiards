@@ -69,7 +69,7 @@ export const nineBall: GameMode<NineBallState> = {
     if (!this.formats.includes(cfg.format.kind)) throw new RangeError(`9-ball does not support ${cfg.format.kind}`);
     const turn = createTurnState(cfg.format, firstSeat);
     return {
-      modeId: '9ball', config: structuredClone(cfg), turn, breakShot: true, ballInHand: null, winnerTeam: null,
+      modeId: '9ball', config: JSON.parse(JSON.stringify(cfg)), turn, breakShot: true, ballInHand: null, winnerTeam: null,
       pocketed: [], fouls: turn.seats.map(() => 0), pushOut: { available: false, pending: false, seat: null },
       threeFoulLoss: cfg.options?.threeFoulLoss ?? true,
     };
