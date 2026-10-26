@@ -1,15 +1,18 @@
 // Builds build/index.js for the Nakama JS runtime (D050): src/registry.ts as an
 // IIFE (global `Billiards`), then generated glue with InitModule and one global
 // function per registered handler. Nakama only registers functions declared at
-// the top level, and reads InitModule's source to find them.
+// the top level, and reads InitModule's source to find them. The handler names
+// come from running the bundle itself, so the build needs no TypeScript support
+// in Node (a server may run Node 22 without type stripping).
 import { build } from 'esbuild';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { REGISTRY, MATCH_FUNCTIONS, globalName } from './src/registry.ts';
+import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 
 const bundle = await build({
-  entryPoints: [new URL('./src/registry.ts', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')],
+  entryPoints: [fileURLToPath(new URL('./src/registry.ts', import.meta.url))],
   bundle: true,
   format: 'iife',
   globalName: 'Billiards',
@@ -20,6 +23,11 @@ const bundle = await build({
   write: false,
   logLevel: 'warning',
 });
+
+const code = bundle.outputFiles[0].text;
+const context = vm.createContext({});
+vm.runInContext(code, context);
+const { REGISTRY, MATCH_FUNCTIONS, globalName } = context.Billiards;
 
 const functions = [];
 const registrations = [];

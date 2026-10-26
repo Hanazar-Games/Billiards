@@ -5,7 +5,7 @@ O servidor do jogo roda no Nakama 3.41.0 com PostgreSQL 16, em Docker. O módulo
 ## Requisitos
 
 - Docker com o Compose v2 (Docker Desktop no Windows e no macOS).
-- Node ≥ 22.12 (os testes usam o Node 24 no CI).
+- Node ≥ 22.12 para gerar o módulo e subir o servidor. Os testes são `.ts` e precisam de um Node que execute TypeScript sem flag: o Node 24, o mesmo do CI. O Node 22 do servidor de testes só roda o `infra:up`.
 
 Sem Docker, o `npm test` da raiz continua funcionando: o pacote `services/nakama` roda só os testes unitários. Os testes de integração precisam do Docker e rodam também no GitHub Actions, a cada push na branch de trabalho (D051).
 

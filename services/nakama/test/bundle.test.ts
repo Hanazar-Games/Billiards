@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { spawnSync } from 'node:child_process';
 import { REGISTRY, globalName, MATCH_FUNCTIONS } from '../src/registry.ts';
 
 const source = readFileSync(new URL('../build/index.js', import.meta.url), 'utf8');
@@ -54,4 +55,11 @@ test('a RPC healthcheck_module identifica o módulo e a versão', () => {
   const { context } = loadBundleAndInit();
   const out = JSON.parse(context.rpc_healthcheck_module({}, {}, {}, ''));
   assert.deepEqual(out, { module: 'billiards', version: JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version });
+});
+
+test('o build roda num Node sem suporte a TypeScript (Node 22 sem flag)', () => {
+  const result = spawnSync(process.execPath, ['--no-experimental-strip-types', 'build.mjs'], {
+    cwd: new URL('..', import.meta.url), encoding: 'utf8',
+  });
+  assert.equal(result.status, 0, result.stderr);
 });
