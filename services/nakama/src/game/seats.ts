@@ -1,6 +1,6 @@
-// Seats (spec §7.4): the match starts when the seats fill, and a player who
-// leaves is marked disconnected. The reconnection reserve, the second tab and
-// the walkover arrive with F4-04 and F4-05.
+// Seats (spec §7.4): players join, the match starts when the seats fill, and a
+// player who leaves is marked disconnected. The reconnection reserve, the second
+// tab and the walkover arrive with F4-04 and F4-05.
 import { createMatch, rackTable } from '@billiards/modes';
 import { OP } from '@billiards/protocol';
 import type { Presence } from '../nakama.ts';
@@ -8,9 +8,28 @@ import { sendJson, sendSnapshot } from './send.ts';
 import { ONLINE_TABLE, SECONDS, TICK_RATE, matchLabel, modeOf, onlineConfig, presenceList, seatOf } from './state.ts';
 import type { GameEnv, GameState } from './state.ts';
 
+/**
+ * New connections, each replacing the player's older one. In the lobby a new
+ * player takes the next seat in join order, and the match starts once the seats fill.
+ */
+export function handleJoin(env: GameEnv, state: GameState, presences: Presence[], tick: number): void {
+  for (const presence of presences) {
+    state.presences[presence.userId] = presence;
+    if (!state.match && state.joinOrder.indexOf(presence.userId) < 0) {
+      // A copy first: the stored array comes back from the runtime as a Go slice.
+      const order = state.joinOrder.slice();
+      order.push(presence.userId);
+      state.joinOrder = order;
+    }
+  }
+  if (state.match) return;
+  if (presenceList(state).length >= state.seats) startGame(env, state, tick);
+  else env.dispatcher.matchLabelUpdate(matchLabel(state));
+}
+
 /** Seats in join order; the server draws who breaks, racks the table and sends each presence its snapshot. */
 export function startGame(env: GameEnv, state: GameState, tick: number): void {
-  state.players = Object.keys(state.presences).slice(0, state.seats)
+  state.players = state.joinOrder.slice(0, state.seats)
     .map((userId) => ({ userId, username: state.presences[userId].username }));
   state.firstSeat = Math.floor(Math.random() * 2);
   const mode = modeOf(state);
@@ -35,6 +54,7 @@ export function handleLeave(env: GameEnv, state: GameState, presence: Presence, 
   if (!current || current.sessionId !== presence.sessionId) return;
   delete state.presences[presence.userId];
   if (!state.match) {
+    state.joinOrder = state.joinOrder.filter((userId) => userId !== presence.userId);
     env.dispatcher.matchLabelUpdate(matchLabel(state));
     return;
   }

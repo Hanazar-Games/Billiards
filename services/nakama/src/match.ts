@@ -6,7 +6,7 @@ import { OP, PROTOCOL_VERSION } from '@billiards/protocol';
 import { GRPC, rpcError, type Context, type Logger, type MatchHandler, type Nakama } from './nakama.ts';
 import { handleMessage } from './game/intake.ts';
 import { sendJson } from './game/send.ts';
-import { handleLeave, startGame } from './game/seats.ts';
+import { handleJoin, handleLeave } from './game/seats.ts';
 import { SECONDS, TICK_RATE, createGameState, matchLabel, presenceList, seatOf } from './game/state.ts';
 import type { GameEnv, GameState } from './game/state.ts';
 
@@ -44,12 +44,8 @@ export const billiardsMatch: MatchHandler<GameState> = {
   },
 
   matchJoin(ctx, logger, nk, dispatcher, tick, state, presences) {
-    for (const presence of presences) state.presences[presence.userId] = presence;
     state.emptyTicks = 0;
-    if (!state.match) {
-      if (presenceList(state).length >= state.seats) startGame({ ctx, logger, nk, dispatcher }, state, tick);
-      else dispatcher.matchLabelUpdate(matchLabel(state));
-    }
+    handleJoin({ ctx, logger, nk, dispatcher }, state, presences, tick);
     return { state };
   },
 

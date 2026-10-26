@@ -18,9 +18,9 @@ test('a partida começa quando os dois entram: cada um recebe o snapshot com o p
   game.join([b], 4);
 
   const snapshots = game.out().filter((m) => m.op === OP.MATCH_SNAPSHOT);
-  assert.equal(snapshots.length, 2);
-  assert.deepEqual(snapshots.map((s) => s.to!.map((p) => p.sessionId)), [[a.sessionId], [b.sessionId]]);
-  assert.deepEqual(snapshots.map((s) => s.header.you.seat), [0, 1]);   // seats follow the join order
+  // One per presence, each with its own seat; seats follow the join order.
+  assert.deepEqual(snapshots.map((s) => [s.to!.map((p) => p.sessionId), s.header.you.seat]).sort(),
+    [[[a.sessionId], 0], [[b.sessionId], 1]]);
   for (const { header, payload } of snapshots) {
     assert.equal(payload!.length, 0, 'the envelope is exactly header-sized');
     assert.equal(header.protocolVersion, PROTOCOL_VERSION);
@@ -48,6 +48,18 @@ test('a partida começa quando os dois entram: cada um recebe o snapshot com o p
   assert.deepEqual(game.state.players, [{ userId: 'a', username: 'user-a' }, { userId: 'b', username: 'user-b' }]);
   assert.deepEqual(JSON.parse(game.dispatcher.labels.at(-1)!),
     { mode: '8ball', format: '1v1', code: 'ABC234', private: true, open: false, started: true });
+});
+
+test('os lugares seguem a ordem de entrada, mesmo com o estado voltando do Go com as chaves fora de ordem', () => {
+  for (const [first, second] of [['a', 'b'], ['b', 'a']]) {
+    const game = newGame();
+    game.join([presence('c')]);
+    game.leave([presence('c')]);   // a lobby leave frees the seat
+    game.join([presence(first)]);
+    game.join([presence(second)]);
+    assert.deepEqual(game.state.players.map((p) => p.userId), [first, second]);
+    assert.deepEqual(game.out().map((m) => [m.to![0].userId, m.header.you.seat]).sort(), [['a', first === 'a' ? 0 : 1], ['b', first === 'a' ? 1 : 0]]);
+  }
 });
 
 test('a mesa online é a pool9ft, com raio e força máxima do sim', () => {

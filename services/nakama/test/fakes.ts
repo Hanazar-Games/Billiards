@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { currentSeat } from '@billiards/modes';
 import { OP, PROTOCOL_VERSION, decodeEnvelope } from '@billiards/protocol';
 import { billiardsMatch } from '../src/match.ts';
+import type { GameState } from '../src/game/state.ts';
 import type { MatchMessage, Presence, StorageWrite } from '../src/nakama.ts';
 
 export const logger = { debug() {}, info() {}, warn() {}, error() {} };
@@ -84,22 +85,41 @@ export function decodeSent(sent: Sent[]): Decoded[] {
   });
 }
 
-/** A billiards match driven like Nakama does: join attempts, joins, leaves and loop ticks. */
+/**
+ * Between handler calls Nakama's JS match core exports the state to Go and back,
+ * and a Go map keeps no key order. This does the same round trip, deterministically:
+ * a deep copy whose objects list their keys in descending order, keys added later included.
+ */
+export function roundTrip<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(roundTrip) as T;
+  if (value === null || typeof value !== 'object' || ArrayBuffer.isView(value)) return value;
+  const copy: Record<string, unknown> = {};
+  for (const key of Object.keys(value)) copy[key] = roundTrip((value as Record<string, unknown>)[key]);
+  return new Proxy(copy, { ownKeys: (target) => (Reflect.ownKeys(target) as string[]).sort().reverse() }) as T;
+}
+
+/** A billiards match driven like Nakama does: join attempts, joins, leaves and loop ticks, with the state round trip. */
 export function newGame(params: Record<string, unknown> = { mode: '8ball', format: '1v1', code: 'ABC234', private: true }) {
   const nk = fakeNakama();
   const dispatcher = fakeDispatcher();
-  const { state, tickRate, label } = billiardsMatch.matchInit(ctx, logger, nk as any, params);
+  const init = billiardsMatch.matchInit(ctx, logger, nk as any, params);
+  let state = roundTrip(init.state);
+  const keep = <R extends { state: GameState } | null>(result: R): R => {
+    if (result) state = roundTrip(result.state);
+    return result;
+  };
   return {
-    state,
-    tickRate,
-    label,
+    /** The state the next call gets (a new copy after every call). */
+    get state() { return state; },
+    tickRate: init.tickRate,
+    label: init.label,
     nk,
     dispatcher,
     attempt: (p: Presence, metadata: Record<string, unknown> = JOIN, tick = 0) =>
-      billiardsMatch.matchJoinAttempt(ctx, logger, nk as any, dispatcher, tick, state, p, metadata),
-    join: (presences: Presence[], tick = 0) => billiardsMatch.matchJoin(ctx, logger, nk as any, dispatcher, tick, state, presences),
-    leave: (presences: Presence[], tick = 0) => billiardsMatch.matchLeave(ctx, logger, nk as any, dispatcher, tick, state, presences),
-    loop: (tick: number, messages: MatchMessage[] = []) => billiardsMatch.matchLoop(ctx, logger, nk as any, dispatcher, tick, state, messages),
+      keep(billiardsMatch.matchJoinAttempt(ctx, logger, nk as any, dispatcher, tick, state, p, metadata)),
+    join: (presences: Presence[], tick = 0) => keep(billiardsMatch.matchJoin(ctx, logger, nk as any, dispatcher, tick, state, presences)),
+    leave: (presences: Presence[], tick = 0) => keep(billiardsMatch.matchLeave(ctx, logger, nk as any, dispatcher, tick, state, presences)),
+    loop: (tick: number, messages: MatchMessage[] = []) => keep(billiardsMatch.matchLoop(ctx, logger, nk as any, dispatcher, tick, state, messages)),
     /** What the dispatcher sent so far, decoded; `clear()` forgets it. */
     out: () => decodeSent(dispatcher.sent),
     clear: () => { dispatcher.sent.length = 0; },
@@ -117,5 +137,6 @@ export function startedGame(mode = '8ball', params: Record<string, unknown> = {}
   const shooter = seat === 0 ? a : b;
   const waiter = seat === 0 ? b : a;
   game.clear();
-  return { ...game, a, b, shooter, waiter, seat };
+  // Object.assign keeps the `state` getter (a spread would freeze its current value).
+  return Object.assign(game, { a, b, shooter, waiter, seat });
 }

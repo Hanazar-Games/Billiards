@@ -59,6 +59,11 @@ export interface GameState {
   seats: number;
   /** By userId: the player's newest connection. */
   presences: Record<string, Presence>;
+  /**
+   * The lobby's userIds in join order. The runtime hands the state to Go and back
+   * between calls, and objects come back with their keys in any order: only arrays keep it.
+   */
+  joinOrder: string[];
   /** By seat, fixed when the match starts. */
   players: { userId: string; username: string }[];
   phase: GamePhase;
@@ -98,6 +103,7 @@ export function createGameState(params: Record<string, unknown>): GameState {
     private: params.private === true,
     seats: SEATS[format] ?? 2,
     presences: {},
+    joinOrder: [],
     players: [],
     phase: 'LOBBY',
     match: null,
