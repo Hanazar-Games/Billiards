@@ -39,7 +39,7 @@
 
 ## Próximo passo
 
-1. **Escrever o plano da F3** (Nakama, contas e salas) com `superpowers:writing-plans` e pedir a revisão do usuário antes de implementar. A F3 pode correr em paralelo com o fim da F2 pelo roteiro; a F4 depende das duas.
+1. **O usuário revisa o plano da F3** (`docs/superpowers/plans/2026-10-25-f3-nakama-contas-salas.md`, 8 tarefas), escolhe a hospedagem (D049) e aprova ou ajusta as decisões propostas D050 a D052 (`open`). Também escolhe onde a F3 roda: esta máquina não tem Docker, e a integração precisa dele (D051). Só então a implementação começa, pela Tarefa 1.
 2. **O usuário confirma o F1-09** no navegador, quando quiser, seguindo `docs/f1/roteiro-teste-manual.md` (`npm run dev`, Treino livre, `await __referenceShot('draw-ref')` no console). Em 2026-10-25 o usuário preferiu adiar. Se a branca voltar como esperado, marcar `passes: true` e registrar a data; se não, abrir uma decisão nova sobre o recuo (a D041 aceitou a sensação medida).
 3. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium. O Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido. Sem esse download, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome do sistema.
 
@@ -219,3 +219,22 @@
   - O ledger desta execução foi commitado em `harness/sdd/2026-10-25-f2-modes-n-lugares/ledger.md`, e a dúvida sobre o `turnId` quando um lugar sai virou a D048 (`open`, para a F4).
   - Suíte depois das correções: `npm test` na raiz saiu com 0 (browser 33, runtime 69, full-match, local-2p 2/2, smoke 54; modes 51; protocol 7; sim 60); `tsc` limpo.
   - Achados menores ficaram registrados no ledger (por exemplo: `applyChoice` sem checar quem responde ao push-out, o que importa no servidor da F4; o HUD do convidado do LAN muda no golpe, antes das bolas caírem).
+
+### 2026-10-25 — sessão 2, continuação (plano da F3)
+
+- O usuário pediu o plano da F3. Ele foi escrito com `superpowers:writing-plans`: `docs/superpowers/plans/2026-10-25-f3-nakama-contas-salas.md`, com 8 tarefas:
+  1. Docker Compose com Nakama 3.41.0 e PostgreSQL 16;
+  2. empacotamento do módulo em TypeScript;
+  3. validadores de nome, avatar, código de sala e configuração em `packages/protocol`, sem dependências;
+  4. contas e perfil;
+  5. sala privada com código de 6 caracteres;
+  6. matchmaking 1×1;
+  7. integração no GitHub Actions;
+  8. fechamento.
+- Decisões propostas (`open`):
+  - D049: hospedagem numa VPS com o mesmo compose; fecha a D019 quando o usuário escolher;
+  - D050: bundle esbuild e tipos locais do runtime;
+  - D051: a integração roda na nuvem e na CI, porque esta máquina não tem Docker;
+  - D052: regras de conta e perfil.
+- Achado da auto-revisão: o `packages/modes` usa `structuredClone`, que não existe no runtime do Nakama. A Tarefa 3 o troca por uma cópia JSON, com um teste.
+- Nenhum código mudou nesta etapa.

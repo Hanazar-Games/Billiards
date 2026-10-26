@@ -809,5 +809,79 @@
       "F4",
       "packages/modes/src/match.ts"
     ]
+  },
+  {
+    "id": "D049",
+    "date": "2026-10-25",
+    "title": "Hospedagem: VPS com Docker Compose (fecha a D019)",
+    "decision": "Recomendação: VPS própria rodando o mesmo Docker Compose do desenvolvimento (Nakama, PostgreSQL e, na F4, o services/sim); a Heroic Cloud fica como saída se a operação pesar. A implantação acontece na F4. Escolha do usuário na revisão do plano da F3.",
+    "rationale": "Mesmo compose em dev e produção e custo previsível no beta. A Heroic Cloud não roda o services/sim (Node) junto do Nakama, então o sim precisaria de outra hospedagem de qualquer jeito.",
+    "alternatives": [
+      "Heroic Cloud para o Nakama e outra hospedagem para o services/sim",
+      "Plataforma de contêineres gerenciada (Fly.io, Railway) com PostgreSQL gerenciado"
+    ],
+    "status": "open",
+    "source": "plano da F3 (proposta, aguardando revisão do usuário)",
+    "refs": [
+      "spec §5.4",
+      "spec §12",
+      "D019",
+      "docs/superpowers/plans/2026-10-25-f3-nakama-contas-salas.md"
+    ]
+  },
+  {
+    "id": "D050",
+    "date": "2026-10-25",
+    "title": "Empacotamento do módulo do Nakama e tipos locais do runtime",
+    "decision": "services/nakama é empacotado pelo esbuild (format iife, target es2017) seguido de uma cola gerada com uma função global por handler registrado, como no spike da F0. Os tipos do runtime usados pelo módulo são declarados localmente (services/nakama/src/nakama.ts) em vez de depender do heroiclabs/nakama-common pelo GitHub.",
+    "rationale": "O goja só registra funções declaradas no escopo global; o spike provou o formato no Nakama 3.41.0. Os tipos oficiais não estão no npm, e uma dependência via GitHub complica o lockfile; o módulo usa uma parte pequena da API.",
+    "alternatives": [
+      "tsc com outFile e módulo none (padrão da documentação do Nakama)",
+      "Depender de heroiclabs/nakama-common via GitHub"
+    ],
+    "status": "open",
+    "source": "plano da F3 (proposta, aguardando revisão do usuário)",
+    "refs": [
+      "D017",
+      "spikes/sim-bench/build.mjs",
+      "docs/superpowers/plans/2026-10-25-f3-nakama-contas-salas.md"
+    ]
+  },
+  {
+    "id": "D051",
+    "date": "2026-10-25",
+    "title": "Onde rodam os testes de integração com Docker",
+    "decision": "Os testes de integração (npm run test:integration -w services/nakama) precisam do Docker e rodam nas sessões na nuvem (com dockerd) e no GitHub Actions (.github/workflows/integration.yml, a cada push na branch de trabalho). O npm test da raiz não depende do Docker. Itens F3 só são marcados depois de uma execução verde da integração, registrada no progress.md.",
+    "rationale": "Esta máquina Windows não tem o Docker instalado; o spike da F0 rodou o Nakama num contêiner com dockerd; a spec (§9.3) já prevê integração com Docker na CI.",
+    "alternatives": [
+      "Instalar o Docker Desktop nesta máquina",
+      "Rodar a integração só manualmente"
+    ],
+    "status": "open",
+    "source": "plano da F3 (proposta, aguardando revisão do usuário)",
+    "refs": [
+      "spec §9.3",
+      "D027",
+      "docs/superpowers/plans/2026-10-25-f3-nakama-contas-salas.md"
+    ]
+  },
+  {
+    "id": "D052",
+    "date": "2026-10-25",
+    "title": "Contas e perfil no Nakama",
+    "decision": "Username com 3 a 16 caracteres [a-z0-9_], guardado em minúsculas e validado por packages/protocol (filtro de palavras PT-BR, resistente a acento, maiúscula, leetspeak e separadores). Avatar: um de 12 presets (preset:a01 a preset:a12, no avatar_url). Perfil só muda pela RPC profile_update; o UpdateAccount nativo é bloqueado por hook, e os hooks de autenticação recusam username impróprio. Google pela autenticação nativa do Nakama; na F3 só se testa a recusa de token inválido, e o login real é conferido quando o cliente tiver a tela (F5).",
+    "rationale": "Nomes são públicos e únicos (§8.1); a validação concentrada na RPC e nos hooks cumpre \"clientes nunca escrevem direto\" (§9.2); tokens reais do Google não podem ser gerados num teste automático.",
+    "alternatives": [
+      "Deixar o UpdateAccount nativo com validação num hook",
+      "Avatar por upload de imagem"
+    ],
+    "status": "open",
+    "source": "plano da F3 (proposta, aguardando revisão do usuário)",
+    "refs": [
+      "spec §8.1",
+      "spec §9.2",
+      "D022",
+      "docs/superpowers/plans/2026-10-25-f3-nakama-contas-salas.md"
+    ]
   }
 ]
