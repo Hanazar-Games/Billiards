@@ -10,7 +10,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { OP, PROTOCOL_VERSION, SIM_VERSION, decodeTrajectory } from '@billiards/protocol';
 import { waitForNakama } from './env.ts';
-import { closeBots, eventually, newBot, rpc, serverError, sleep } from './bot.ts';
+import { call, closeBots, eventually, newBot, rpc, serverError, sleep } from './bot.ts';
 import { byTurn, startPrivateGame } from './game.ts';
 
 before(() => waitForNakama(60000));
@@ -199,10 +199,13 @@ test('desistência encerra a partida e grava o histórico uma vez', async () => 
   }
 
   // The record is written as the match ends; the client may read before the write commits.
-  const read = await eventually(
-    () => a.bot.client.readStorageObjects(a.bot.session, { object_ids: [{ collection: 'match_history', key: matchId, user_id: SYSTEM_USER_ID }] }),
-    (r) => r.ok && r.value.objects.length > 0);
-  if (!read.ok) throw read.error;
+  // Both reads run before any assertion, so a failure reports the server's message of each.
+  const asRead = { object_ids: [{ collection: 'match_history', key: matchId, user_id: SYSTEM_USER_ID }] };
+  const read = await eventually(() => call(a.bot.client.readStorageObjects(a.bot.session, asRead)), (r) => r.ok && r.value.objects.length > 0);
+  const list = await eventually(() => call(a.bot.client.listStorageObjects(a.bot.session, 'match_history', SYSTEM_USER_ID)), (r) => r.ok);
+  if (!read.ok || !list.ok) {
+    assert.fail(`read: ${read.ok ? 'ok' : read.error.message}; list: ${list.ok ? 'ok' : list.error.message}`);
+  }
   assert.equal(read.value.objects.length, 1);
   const record = read.value.objects[0];
   assert.deepEqual([record.collection, record.key, record.user_id, record.permission_read, record.permission_write],
@@ -230,6 +233,5 @@ test('desistência encerra a partida e grava o histórico uma vez', async () => 
   assert.ok(value.endedAt >= value.startedAt && value.endedAt - value.startedAt < 60000);
 
   // Exactly one object with this key in the collection (other tests' matches have theirs).
-  const list = await a.bot.client.listStorageObjects(a.bot.session, 'match_history', SYSTEM_USER_ID);
-  assert.equal(list.objects.filter((o) => o.key === matchId).length, 1);
+  assert.equal(list.value.objects.filter((o) => o.key === matchId).length, 1);
 });
