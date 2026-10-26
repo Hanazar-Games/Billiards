@@ -10,7 +10,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { OP, PROTOCOL_VERSION, SIM_VERSION, decodeTrajectory } from '@billiards/protocol';
 import { waitForNakama } from './env.ts';
-import { call, closeBots, eventually, newBot, rpc, serverError, sleep } from './bot.ts';
+import { call, closeBots, eventually, findStorageObject, newBot, rpc, serverError, sleep } from './bot.ts';
 import { byTurn, startPrivateGame } from './game.ts';
 
 before(() => waitForNakama(60000));
@@ -231,12 +231,10 @@ test('desistência encerra a partida e grava o histórico uma vez', async () => 
     });
   assert.ok(value.endedAt >= value.startedAt && value.endedAt - value.startedAt < 60000);
 
-  // Exactly one object with this key in the collection (other tests' matches have theirs).
-  // Nakama lists one object per page unless a limit is given (the cursor would lead to the others).
-  const listed = await eventually(() => call(client.listStorageObjects(session, 'match_history', SYSTEM_USER_ID, 100)),
-    (r) => r.ok && r.value.objects.some((o) => o.key === matchId));
+  // The listing has this key: the history is listed by key, and the keys are random match ids, so the
+  // record may be on any page once the database holds more than one (findStorageObject follows the cursor).
+  const listed = await eventually(() => findStorageObject(a.bot, 'match_history', SYSTEM_USER_ID, matchId), (r) => r.ok && r.value !== undefined);
   if (!listed.ok) throw listed.error;
-  const matching = listed.value.objects.filter((o) => o.key === matchId);
-  assert.equal(matching.length, 1, `objects listed with key ${matchId} among ${listed.value.objects.map((o) => o.key)}`);
-  assert.deepEqual(matching[0].value, value);
+  assert.ok(listed.value, `match_history listing has no object with key ${matchId}`);
+  assert.deepEqual(listed.value.value, value);
 });

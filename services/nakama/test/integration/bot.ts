@@ -1,7 +1,7 @@
 // Test bots: Node clients of the local Nakama (spec §9.3), with helpers for
 // RPC errors and socket events.
 import { randomUUID } from 'node:crypto';
-import { Client, type Session, type Socket } from '@heroiclabs/nakama-js';
+import { Client, type Session, type Socket, type StorageObject } from '@heroiclabs/nakama-js';
 import { NAKAMA } from './env.ts';
 
 export interface Bot {
@@ -110,4 +110,21 @@ export async function joinByCode(bot: Bot, code: string) {
   const result = await eventually(() => rpc(bot, 'join_by_code', { code }), (r) => r.ok || !/ROOM_NOT_FOUND/.test(r.error.message));
   if (!result.ok) throw result.error;
   return result.value;
+}
+
+/**
+ * The object with `key` in `userId`'s `collection`, found by listing it page by page along the
+ * cursor until it turns up or the listing ends (undefined). Nakama pages by key, and the keys of
+ * the match history are random match ids, so on a database that keeps its records (a local volume,
+ * the `server` machine) the object can be on any page.
+ */
+export async function findStorageObject(bot: Pick<Bot, 'client' | 'session'>, collection: string, userId: string, key: string): Promise<StorageObject | undefined> {
+  let cursor: string | undefined;
+  do {
+    const page = await call(bot.client.listStorageObjects(bot.session, collection, userId, 100, cursor));
+    const found = page.objects.find((o) => o.key === key);
+    if (found) return found;
+    cursor = page.cursor || undefined;
+  } while (cursor);
+  return undefined;
 }
