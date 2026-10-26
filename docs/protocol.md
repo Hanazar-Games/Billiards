@@ -274,7 +274,7 @@ Limites por conexão:
 | Limite | Valor | Excedente |
 |--------|-------|-----------|
 | `aim_update` e `ball_in_hand_move` (somados) | 15 por segundo | descartado em silêncio |
-| as outras mensagens | 5 por segundo | descartado em silêncio |
+| as outras mensagens (`shot_request`, `concede`, `push_out_choice`) | 5 por segundo | descartado em silêncio: um cliente que manda tacadas mais depressa que isso, como um bot sem pausa, perde o pedido sem receber resposta |
 | recusas (`shot_rejected`) | mais de 5 em 10 s | o servidor remove a conexão (`matchKick`). O lugar continua do jogador, que pode voltar dentro da reserva |
 
 A simulação tem 3 s de limite por tentativa e uma nova tentativa; 3 falhas na partida a abortam.

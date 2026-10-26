@@ -25,6 +25,13 @@ const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 const BREAK = { angle: 1.5708, power: 110, spin: { x: 0, y: 0 } };
 /** A whole match of the test bot takes tens of shots; this many without an end means the bots are stuck. */
 const MAX_MATCH_SHOTS = 200;
+/**
+ * The pause before each shot of the full match. The server keeps 5 messages per connection and second
+ * besides the aim (spec §9) and drops the rest without an answer; shots one after the other at the bots'
+ * speed (about 100 ms each) pass that in a bot's turn after turn, and the sixth in the second is lost.
+ * A player takes more than a second to line up a shot.
+ */
+const SHOT_PACE_MS = 300;
 
 test('os dois recebem o snapshot com lugares diferentes e a mesma mesa', async () => {
   const { bots: [a, b] } = await startPrivateGame();
@@ -256,6 +263,7 @@ test('dois bots jogam uma partida inteira de 8-ball', { timeout: 300000 }, async
   const took: number[] = [];
   for (;;) {
     assert.ok(results.length < MAX_MATCH_SHOTS, `no end after ${MAX_MATCH_SHOTS} shot results`);
+    if (results.length > 0) await sleep(SHOT_PACE_MS);
     const shooter = bySeat(seat);
     const request = chooseShot(state, seat);
     const marks = [a.received.length, b.received.length];
