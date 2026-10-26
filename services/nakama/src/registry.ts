@@ -3,6 +3,7 @@
 // call per entry, each pointing at a generated global function (D050): Nakama
 // reads the InitModule source to find them.
 import type { BeforeHook, Context, Logger, MatchHandler, MatchmakerMatchedHandler, Nakama, RpcHandler } from './nakama.ts';
+import { beforeAuthenticate, beforeUpdateAccount, rpcProfileUpdate } from './profile.ts';
 
 declare const __MODULE_VERSION__: string;
 
@@ -22,8 +23,13 @@ function rpcHealthcheckModule(_ctx: Context, _logger: Logger, _nk: Nakama, _payl
 }
 
 export const REGISTRY: Registry = {
-  rpcs: { healthcheck_module: rpcHealthcheckModule },
-  before: {},
+  rpcs: { healthcheck_module: rpcHealthcheckModule, profile_update: rpcProfileUpdate },
+  before: {
+    AuthenticateDevice: beforeAuthenticate,
+    AuthenticateEmail: beforeAuthenticate,
+    AuthenticateGoogle: beforeAuthenticate,
+    UpdateAccount: beforeUpdateAccount,
+  },
   matchmakerMatched: null,
   matches: {},
 };

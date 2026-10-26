@@ -13,5 +13,9 @@
   "devDependencies": {
     "@heroiclabs/nakama-js": "2.8.0",
     "esbuild": "0.28.2"
+  },
+  "dependencies": {
+    "@billiards/modes": "*",
+    "@billiards/protocol": "*"
   }
 }
