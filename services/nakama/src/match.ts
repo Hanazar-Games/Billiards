@@ -1,7 +1,7 @@
 // The authoritative "billiards" match, in its F3 lobby form: seats, joining,
 // leaving and the end of an empty room. The game itself (shots, turns, timer)
 // arrives in F4. The label is JSON so rooms can be found by code (spec §7.5).
-import type { MatchDispatcher, MatchHandler, Presence } from './nakama.ts';
+import { GRPC, rpcError, type Context, type Logger, type MatchDispatcher, type MatchHandler, type Nakama, type Presence } from './nakama.ts';
 
 export interface LobbyState {
   mode: string;
@@ -58,7 +58,10 @@ export const billiardsMatch: MatchHandler<LobbyState> = {
   },
 
   matchLeave(_ctx, _logger, _nk, dispatcher, _tick, state, presences) {
-    for (const presence of presences) delete state.presences[presence.userId];
+    // A player's newer connection keeps the seat when the older one leaves (§7.4).
+    for (const presence of presences) {
+      if (state.presences[presence.userId]?.sessionId === presence.sessionId) delete state.presences[presence.userId];
+    }
     relabel(dispatcher, state);
     return { state };
   },
@@ -80,3 +83,12 @@ export const billiardsMatch: MatchHandler<LobbyState> = {
     return { state, data: '' };
   },
 };
+
+/**
+ * Before ListMatches: refused. The label of a private room carries its code, so a
+ * client listing would expose every room; rooms are found with join_by_code.
+ * Live-match listing for spectators (§7.6, F7) will allow public labels only.
+ */
+export function beforeListMatches(_ctx: Context, _logger: Logger, _nk: Nakama, _data: unknown): never {
+  throw rpcError('MATCH_LISTING_DISABLED', GRPC.PERMISSION_DENIED);
+}

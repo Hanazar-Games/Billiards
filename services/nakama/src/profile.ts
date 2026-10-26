@@ -12,6 +12,18 @@ export function beforeAuthenticate(_ctx: Context, _logger: Logger, _nk: Nakama, 
   return { ...data, username: result.username };
 }
 
+/**
+ * Authentication methods without the username rules (custom ids, Facebook,
+ * Game Center, Apple, Steam need no server configuration): refused, so every
+ * account goes through device, e-mail or Google (D052).
+ */
+export const DISABLED_AUTH_METHODS = Object.freeze(['AuthenticateApple', 'AuthenticateCustom', 'AuthenticateFacebook',
+  'AuthenticateFacebookInstantGame', 'AuthenticateGameCenter', 'AuthenticateSteam']);
+
+export function beforeAuthMethodDisabled(_ctx: Context, _logger: Logger, _nk: Nakama, _data: unknown): never {
+  throw rpcError('AUTH_METHOD_DISABLED', GRPC.PERMISSION_DENIED);
+}
+
 /** Before UpdateAccount: always refused; the profile changes through profile_update. */
 export function beforeUpdateAccount(_ctx: Context, _logger: Logger, _nk: Nakama, _data: unknown): never {
   throw rpcError('PROFILE_VIA_RPC', GRPC.PERMISSION_DENIED);

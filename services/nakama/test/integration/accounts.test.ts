@@ -68,3 +68,7 @@ test('token do Google inválido é recusado', async () => {
   const bot = await newBot();
   await assert.rejects(bot.client.linkGoogle(bot.session, { token: 'not-a-google-token' }));
 });
+
+test('autenticação custom (sem validação de nome) é recusada', async () => {
+  await assert.rejects(call(newClient().authenticateCustom(`custom-${randomUUID()}`, true, 'merda')), /AUTH_METHOD_DISABLED/);
+});

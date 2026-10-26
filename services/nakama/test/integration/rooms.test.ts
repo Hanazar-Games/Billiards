@@ -43,3 +43,10 @@ test('modo ou formato inválido dá MODE_INVALID', async () => {
   await assert.rejects(rpc(bot, 'create_private_match', { mode: 'xyz', format: '1v1' }), /MODE_INVALID/);
   await assert.rejects(rpc(bot, 'create_private_match', { mode: '8ball', format: '2v2' }), /MODE_INVALID/);
 });
+
+test('o cliente não consegue listar salas privadas', async () => {
+  const [a, b] = await Promise.all([newBot(), newBot()]);
+  await rpc(a, 'create_private_match', { mode: '8ball', format: '1v1' });
+  await assert.rejects(b.client.listMatches(b.session, 10, true, undefined, 0, 64, '+label.private:true').catch(async (e) => { throw await serverError(e); }),
+    /MATCH_LISTING_DISABLED/);
+});

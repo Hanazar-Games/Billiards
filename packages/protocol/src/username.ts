@@ -11,12 +11,15 @@ export type UsernameValidation = { ok: true; username: string } | { ok: false; r
 /** Distinctive words: refused anywhere inside the name's skeleton. */
 const BLOCKED_WORDS = [
   'merda', 'porra', 'caralho', 'buceta', 'cacete', 'arrombad', 'punheta', 'siririca', 'boquete', 'xoxota', 'cuzao',
-  'filhadaputa', 'vagabund', 'putaria', 'estupr', 'pedofil', 'nazis', 'hitler', 'otario', 'babaca', 'retardad',
+  'filhadaputa', 'vagabund', 'putaria', 'estupr', 'pedofil', 'nazis', 'hitler', 'babaca', 'retardad',
   'mongoloid', 'escrot', 'desgracad', 'piroca', 'pentelh',
 ];
 
-/** Short or ambiguous words ("puta" is inside "computador"): refused only as a whole part of the name. */
-const BLOCKED_TOKENS = ['cu', 'fdp', 'vsf', 'pqp', 'tnc', 'krl', 'kct', 'puta', 'puto', 'viado', 'rola', 'foda', 'bosta', 'corno', 'xota', 'pau'];
+/**
+ * Short or ambiguous words ("puta" is inside "computador", "otario" inside "notario"):
+ * refused only as a whole part of the name or as parts joined across separators ("p_u_t_a").
+ */
+const BLOCKED_TOKENS = ['cu', 'fdp', 'vsf', 'pqp', 'tnc', 'krl', 'kct', 'puta', 'puto', 'viado', 'rola', 'foda', 'bosta', 'corno', 'xota', 'pau', 'otario'];
 
 const LEET: Record<string, string> = { 0: 'o', 1: 'i', 3: 'e', 4: 'a', 5: 's', 7: 't' };
 
@@ -25,22 +28,47 @@ export function normalizeUsername(raw: string): string {
   return raw.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
-/** Letters only, with leetspeak digits read as letters and repeated letters merged. */
-function skeleton(name: string): string {
-  return name.replace(/[013457]/g, (d) => LEET[d]).replace(/[^a-z]/g, '').replace(/(.)\1+/g, '$1');
+/** Letters only, with leetspeak digits read as letters. */
+function letters(name: string): string {
+  return name.replace(/[013457]/g, (d) => LEET[d]).replace(/[^a-z]/g, '');
 }
 
-const SKELETON_WORDS = BLOCKED_WORDS.map(skeleton);
+/** Runs of a letter cut to at most `max` ("porrrra" → "porra" with 2, "pora" with 1). */
+function collapse(text: string, max: number): string {
+  return text.replace(/(.)\1+/g, (run) => run[0].repeat(Math.min(run.length, max)));
+}
+
+const skeleton = (name: string) => collapse(letters(name), 1);
+
+/**
+ * A word with a double letter ("porra") is compared with runs cut to two, so it
+ * does not match "temporada"; the others with runs cut to one.
+ */
+const WORD_CHECKS = BLOCKED_WORDS.map((word) => {
+  const plain = letters(word);
+  const max = collapse(plain, 1) === plain ? 1 : 2;
+  return { max, word: collapse(plain, max) };
+});
 const SKELETON_TOKENS = BLOCKED_TOKENS.map(skeleton);
+
+/** Every run of consecutive parts joined ("p", "pu", "put", "puta", "u"…). */
+function joinedRuns(parts: string[]): string[] {
+  const runs: string[] = [];
+  for (let i = 0; i < parts.length; i++) {
+    for (let j = i + 1; j <= parts.length; j++) runs.push(parts.slice(i, j).join(''));
+  }
+  return runs;
+}
 
 export function validateUsername(raw: string): UsernameValidation {
   const username = typeof raw === 'string' ? normalizeUsername(raw) : '';
   if (!/^[a-z0-9_]{3,16}$/.test(username)) return { ok: false, reason: 'USERNAME_INVALID' };
-  const whole = skeleton(username);
-  if (SKELETON_WORDS.some((word) => whole.includes(word))) return { ok: false, reason: 'USERNAME_INVALID' };
-  // Parts split by "_" (read through leetspeak) and runs of letters split by anything else.
-  const parts = [...username.split('_').map(skeleton), ...username.split(/[^a-z]+/).map(skeleton)];
-  if (parts.some((part) => SKELETON_TOKENS.includes(part))) return { ok: false, reason: 'USERNAME_INVALID' };
+  const forms = [collapse(letters(username), 1), collapse(letters(username), 2)];
+  if (WORD_CHECKS.some(({ max, word }) => forms[max - 1].includes(word))) return { ok: false, reason: 'USERNAME_INVALID' };
+  // Parts split by "_" (read through leetspeak) and runs of letters split by anything else,
+  // alone or joined across the separators.
+  const runs = [...joinedRuns(username.split('_').map(letters)), ...joinedRuns(username.split(/[^a-z]+/))];
+  if (runs.some((run) => SKELETON_TOKENS.includes(collapse(run, 1)))) return { ok: false, reason: 'USERNAME_INVALID' };
   return { ok: true, username };
 }
 

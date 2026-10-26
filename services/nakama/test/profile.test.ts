@@ -1,7 +1,8 @@
 // Profile RPC and account hooks with a fake nk (spec §8.1, D052).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rpcProfileUpdate, beforeAuthenticate, beforeUpdateAccount } from '../src/profile.ts';
+import { rpcProfileUpdate, beforeAuthenticate, beforeUpdateAccount, beforeAuthMethodDisabled, DISABLED_AUTH_METHODS } from '../src/profile.ts';
+import { REGISTRY } from '../src/registry.ts';
 
 const logger = { debug() {}, info() {}, warn() {}, error() {} };
 const ctx = { env: {}, executionMode: 'rpc', userId: 'u1', username: 'guest_u1' };
@@ -57,4 +58,11 @@ test('a autenticação normaliza o username pedido e recusa um impróprio', () =
   assert.equal(beforeAuthenticate(ctx, logger, {} as any, { account: { id: 'd' }, create: true, username: 'Ana_B' }).username, 'ana_b');
   assert.deepEqual(beforeAuthenticate(ctx, logger, {} as any, { account: { id: 'd' }, create: true }), { account: { id: 'd' }, create: true });
   assert.throws(() => beforeAuthenticate(ctx, logger, {} as any, { account: { id: 'd' }, create: true, username: 'merda' }), /USERNAME_INVALID/);
+});
+
+test('métodos de autenticação sem validação de nome são recusados', () => {
+  assert.deepEqual([...DISABLED_AUTH_METHODS].sort(), ['AuthenticateApple', 'AuthenticateCustom', 'AuthenticateFacebook',
+    'AuthenticateFacebookInstantGame', 'AuthenticateGameCenter', 'AuthenticateSteam']);
+  for (const method of DISABLED_AUTH_METHODS) assert.equal(REGISTRY.before[method], beforeAuthMethodDisabled, method);
+  assert.throws(() => beforeAuthMethodDisabled(ctx, logger, {} as any, { account: { id: 'x' }, create: true, username: 'merda' }), /AUTH_METHOD_DISABLED/);
 });

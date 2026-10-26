@@ -15,7 +15,7 @@ function parsePayload(payload: string): unknown {
   }
 }
 
-/** Size bounds for the listing: null may reach the runtime as 0 and hide rooms with players. */
+/** Explicit size bounds for the server-side listing (rooms hold 2 players in F3). */
 const MAX_ROOM_SIZE = 64;
 
 function roomsWithCode(nk: Nakama, code: string) {

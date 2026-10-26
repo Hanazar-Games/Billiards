@@ -19,22 +19,22 @@ npm run infra:down                                 # derruba e apaga o volume do
 
 - Na primeira vez, `infra:up` copia `infra/.env.example` para `infra/.env`. Os valores são **só de desenvolvimento**.
 - API e socket: `http://127.0.0.1:7350`. Console: `http://127.0.0.1:7351` (usuário `admin`, senha `NAKAMA_CONSOLE_PASSWORD` do `.env`).
-- Para recarregar o módulo depois de mudar `services/nakama/src`, rode `npm run infra:up` de novo.
+- Para recarregar o módulo depois de mudar `services/nakama/src`, rode `npm run infra:reload`. Ele gera o módulo e recria o contêiner do Nakama, que só lê os módulos ao iniciar. Rodar `infra:up` de novo não basta.
 
 ## O que o servidor oferece
 
 | Recurso | Como usar | Erros (campo `message`) |
 |---------|-----------|-------------------------|
-| Convidado | `authenticateDevice(id, true)` | `USERNAME_INVALID`, se pedir um nome impróprio |
+| Convidado | `authenticateDevice(id, true)` | `USERNAME_INVALID`, se pedir um nome impróprio. Os outros métodos sem validação de nome (custom, Facebook, Game Center, Apple, Steam) dão `AUTH_METHOD_DISABLED` |
 | Vínculo de e-mail | `linkEmail(session, { email, password })`; depois `authenticateEmail(email, password, false)` | os do próprio Nakama |
 | Google | `linkGoogle(session, { token })` (login real a conferir na F5) | token inválido é recusado |
 | Perfil | RPC `profile_update` `{ username?, avatar? }` → `{ username, avatar }` | `USERNAME_INVALID`, `USERNAME_TAKEN`, `AVATAR_INVALID`, `PAYLOAD_INVALID` |
 | Perfil de outro jogador | `getUsers(session, [userId])` | — |
 | Sala privada | RPC `create_private_match` `{ mode: '8ball' \| '9ball', format: '1v1' }` → `{ matchId, code }` | `MODE_INVALID`, `ROOM_CODE_EXHAUSTED` |
-| Entrar pelo código | RPC `join_by_code` `{ code }` → `{ matchId }`; depois `socket.joinMatch(matchId)` | `CODE_INVALID`, `ROOM_NOT_FOUND`, `ROOM_FULL` |
+| Entrar pelo código | RPC `join_by_code` `{ code }` → `{ matchId }`; depois `socket.joinMatch(matchId)` | `CODE_INVALID`, `ROOM_NOT_FOUND`, `ROOM_FULL`. A listagem nativa de partidas é recusada (`MATCH_LISTING_DISABLED`), para não expor os códigos |
 | Fila 1×1 | `socket.addMatchmaker('+properties.mode:<mode> +properties.format:1v1', 2, 2, { mode, format: '1v1' })`; o evento `onmatchmakermatched` traz o `match_id` | bilhete com modo inválido não forma partida |
 
-- **Nomes:** de 3 a 16 caracteres `[a-z0-9_]`, guardados em minúsculas e sem acento. O filtro de palavras PT-BR pega maiúsculas, acentos, leetspeak e separadores (D052).
+- **Nomes:** de 3 a 16 caracteres `[a-z0-9_]`, guardados em minúsculas e sem acento. O filtro de palavras PT-BR pega maiúsculas, acentos, leetspeak e separadores, inclusive em palavras curtas como `p_u_t_a`. Ele não barra palavras comuns que contêm um trecho parecido, como `temporada` e `computador` (D052).
 - **Avatares:** `preset:a01` a `preset:a12`.
 - **Mudar o perfil:** o `UpdateAccount` nativo é recusado (`PROFILE_VIA_RPC`). O perfil só muda pela RPC.
 - **Códigos de sala:** 6 caracteres sem 0/O/1/I. A busca aceita minúsculas e espaços nas pontas.

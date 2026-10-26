@@ -26,6 +26,8 @@ jobs:
       - run: npm ci
       - run: cp infra/.env.example infra/.env
       - run: npm run infra:up
+      # Recreates Nakama with a fresh module, as a developer does after a change.
+      - run: npm run infra:reload
       - run: npm test -w services/nakama
       # The flags of the test:integration script, plus a JUnit report for the summary.
       - name: Integration tests

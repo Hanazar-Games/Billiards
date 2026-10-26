@@ -3,9 +3,9 @@
 // call per entry, each pointing at a generated global function (D050): Nakama
 // reads the InitModule source to find them.
 import type { BeforeHook, Context, Logger, MatchHandler, MatchmakerMatchedHandler, Nakama, RpcHandler } from './nakama.ts';
-import { beforeAuthenticate, beforeUpdateAccount, rpcProfileUpdate } from './profile.ts';
+import { beforeAuthenticate, beforeAuthMethodDisabled, beforeUpdateAccount, DISABLED_AUTH_METHODS, rpcProfileUpdate } from './profile.ts';
 import { rpcCreatePrivateMatch, rpcJoinByCode } from './rooms.ts';
-import { billiardsMatch } from './match.ts';
+import { beforeListMatches, billiardsMatch } from './match.ts';
 import { matchmakerMatched } from './matchmaker.ts';
 
 declare const __MODULE_VERSION__: string;
@@ -37,10 +37,14 @@ export const REGISTRY: Registry = {
     AuthenticateEmail: beforeAuthenticate,
     AuthenticateGoogle: beforeAuthenticate,
     UpdateAccount: beforeUpdateAccount,
+    ListMatches: beforeListMatches,
   },
   matchmakerMatched,
   matches: { billiards: billiardsMatch },
 };
+
+// Plain loop: the bundle targets the goja runtime, so no Object.fromEntries.
+for (const method of DISABLED_AUTH_METHODS) REGISTRY.before[method] = beforeAuthMethodDisabled;
 
 /** The global function name the glue gives a handler. */
 export function globalName(kind: 'rpc' | 'before' | 'matchmaker' | 'match', id: string, fn?: string): string {

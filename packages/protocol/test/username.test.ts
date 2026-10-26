@@ -23,3 +23,15 @@ test('avatar só de preset', () => {
   assert.equal(parseAvatar('preset:a07'), 'preset:a07');
   for (const v of ['preset:a13', 'https://x/y.png', '']) assert.equal(parseAvatar(v), null);
 });
+
+test('separadores não disfarçam palavras curtas', () => {
+  for (const name of ['p_u_t_a', 'pu_ta', 'p_u_t_4', 'f_o_d_a', 'v_i_a_d_o', 'via_do', 'b_o_s_t_a', 'co_rno', 'c_u', 'f_d_p', 'k_r_l', 'otario']) {
+    assert.deepEqual(validateUsername(name), { ok: false, reason: 'USERNAME_INVALID' }, name);
+  }
+});
+
+test('palavras comuns e lugares que contêm um pedaço bloqueado passam', () => {
+  for (const name of ['temporada', 'temporal', 'corporal', 'porao', 'evaporar', 'diaspora', 'iporanga', 'ponta_pora', 'notario', 'computador', 'enviado', 'paulo_c']) {
+    assert.equal(validateUsername(name).ok, true, name);
+  }
+});

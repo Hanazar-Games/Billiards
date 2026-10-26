@@ -884,5 +884,25 @@
       "D022",
       "docs/superpowers/plans/2026-10-25-f3-nakama-contas-salas.md"
     ]
+  },
+  {
+    "id": "D053",
+    "date": "2026-10-25",
+    "title": "APIs nativas do Nakama abertas ao cliente",
+    "decision": "Em aberto, para fechar antes da implantação da F4. Na F3, o módulo recusa por hook: os métodos de autenticação sem validação de nome (Custom, Facebook, FacebookInstantGame, GameCenter, Apple, Steam), o UpdateAccount (o perfil muda pela RPC profile_update) e o ListMatches (o rótulo de uma sala privada traz o código). Continuam abertos e precisam de decisão: canais de chat e mensagens diretas (a spec proíbe chat livre no MVP, D024), gravação direta no armazenamento (§9.2), grupos, status e partidas relayed criadas pelo cliente.",
+    "rationale": "Achado da revisão final da F3: cada API nativa aberta é uma porta para contornar as regras do servidor (§9.2). A F3 fechou as que afetam o que ela entrega; o resto depende do que a F4 vai usar.",
+    "alternatives": [
+      "Fechar tudo o que não for usado já na F3",
+      "Deixar aberto até haver abuso"
+    ],
+    "status": "open",
+    "source": "revisão final da F3",
+    "refs": [
+      "spec §9.2",
+      "D024",
+      "D052",
+      "F4",
+      "services/nakama/src/registry.ts"
+    ]
   }
 ]
