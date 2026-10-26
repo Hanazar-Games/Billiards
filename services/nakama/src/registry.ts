@@ -1,0 +1,36 @@
+// Everything the server module registers in Nakama. build.mjs bundles this
+// file (global `Billiards`) and generates InitModule with one literal register
+// call per entry, each pointing at a generated global function (D050): Nakama
+// reads the InitModule source to find them.
+import type { BeforeHook, Context, Logger, MatchHandler, MatchmakerMatchedHandler, Nakama, RpcHandler } from './nakama.ts';
+
+declare const __MODULE_VERSION__: string;
+
+export interface Registry {
+  rpcs: Record<string, RpcHandler>;
+  /** Keyed by the Nakama API name (registerBefore<Name>). */
+  before: Record<string, BeforeHook>;
+  matchmakerMatched: MatchmakerMatchedHandler | null;
+  matches: Record<string, MatchHandler>;
+}
+
+/** The functions every match handler has (registerMatch). */
+export const MATCH_FUNCTIONS = ['matchInit', 'matchJoinAttempt', 'matchJoin', 'matchLeave', 'matchLoop', 'matchTerminate', 'matchSignal'] as const;
+
+function rpcHealthcheckModule(_ctx: Context, _logger: Logger, _nk: Nakama, _payload: string): string {
+  return JSON.stringify({ module: 'billiards', version: __MODULE_VERSION__ });
+}
+
+export const REGISTRY: Registry = {
+  rpcs: { healthcheck_module: rpcHealthcheckModule },
+  before: {},
+  matchmakerMatched: null,
+  matches: {},
+};
+
+/** The global function name the glue gives a handler. */
+export function globalName(kind: 'rpc' | 'before' | 'matchmaker' | 'match', id: string, fn?: string): string {
+  if (kind === 'matchmaker') return 'matchmaker_matched';
+  if (kind === 'match') return `match_${id}_${fn}`;
+  return `${kind}_${id}`;
+}

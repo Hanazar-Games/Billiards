@@ -5,7 +5,13 @@
   "type": "module",
   "description": "Nakama server module of Billiards Online (runtime JS, bundled for goja).",
   "scripts": {
-    "build": "node -e \"const fs=require('fs');fs.mkdirSync('build',{recursive:true});fs.writeFileSync('build/index.js','function InitModule(ctx, logger, nk, initializer) {}\\n')\"",
+    "build": "node build.mjs",
+    "pretest": "node build.mjs",
+    "test": "node --test test/*.test.ts",
     "test:integration": "node --test test/integration/*.test.ts"
+  },
+  "devDependencies": {
+    "@heroiclabs/nakama-js": "2.8.0",
+    "esbuild": "0.28.2"
   }
 }

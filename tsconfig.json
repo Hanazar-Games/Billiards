@@ -12,5 +12,5 @@
     "checkJs": false,
     "skipLibCheck": true
   },
-  "include": ["packages/*/src", "packages/modes/test/types.check.ts"]
+  "include": ["packages/*/src", "packages/modes/test/types.check.ts", "services/nakama/src"]
 }
