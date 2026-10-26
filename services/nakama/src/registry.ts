@@ -4,6 +4,8 @@
 // reads the InitModule source to find them.
 import type { BeforeHook, Context, Logger, MatchHandler, MatchmakerMatchedHandler, Nakama, RpcHandler } from './nakama.ts';
 import { beforeAuthenticate, beforeUpdateAccount, rpcProfileUpdate } from './profile.ts';
+import { rpcCreatePrivateMatch, rpcJoinByCode } from './rooms.ts';
+import { billiardsMatch } from './match.ts';
 
 declare const __MODULE_VERSION__: string;
 
@@ -23,7 +25,12 @@ function rpcHealthcheckModule(_ctx: Context, _logger: Logger, _nk: Nakama, _payl
 }
 
 export const REGISTRY: Registry = {
-  rpcs: { healthcheck_module: rpcHealthcheckModule, profile_update: rpcProfileUpdate },
+  rpcs: {
+    healthcheck_module: rpcHealthcheckModule,
+    profile_update: rpcProfileUpdate,
+    create_private_match: rpcCreatePrivateMatch,
+    join_by_code: rpcJoinByCode,
+  },
   before: {
     AuthenticateDevice: beforeAuthenticate,
     AuthenticateEmail: beforeAuthenticate,
@@ -31,7 +38,7 @@ export const REGISTRY: Registry = {
     UpdateAccount: beforeUpdateAccount,
   },
   matchmakerMatched: null,
-  matches: {},
+  matches: { billiards: billiardsMatch },
 };
 
 /** The global function name the glue gives a handler. */
