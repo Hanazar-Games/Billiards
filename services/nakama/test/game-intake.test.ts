@@ -56,6 +56,24 @@ test('TURN_MISMATCH também manda um snapshot ao remetente, que acerta o turnId 
   assert.equal(out[1].header.you.seat, game.seat);
 });
 
+test('a próxima tacada leva o nextTurn.turnId do shot_result (= match.turnId), não o turnId dele', () => {
+  const game = startedGame();
+  game.loop(1, [message(game.shooter, OP.SHOT_REQUEST, shot(0, 1, { power: 0 }))]);
+  const result = game.out().find((m) => m.op === OP.SHOT_RESULT)!.header;
+  // The result's turnId is the turn it decided; the next turn is one more.
+  assert.deepEqual([result.turnId, result.nextTurn.turnId, result.match.turnId], [0, 1, 1]);
+  const next = result.nextTurn.seat === game.seat ? game.shooter : game.waiter;
+  game.clear();
+  game.loop(30, [message(next, OP.SHOT_REQUEST, shot(result.turnId, 2, { power: 0 }))]);
+  game.loop(31, [message(next, OP.SHOT_REQUEST, shot(result.nextTurn.turnId, 3, { power: 0 }))]);
+  assert.deepEqual(game.out().map((m) => [m.op, m.body ?? m.header.kind ?? m.header.turnId]), [
+    [OP.SHOT_REJECTED, { seq: 2, reason: 'TURN_MISMATCH' }],
+    [OP.MATCH_SNAPSHOT, 1],
+    [OP.SHOT_ACCEPTED, { turnId: 1, seq: 3, seat: result.nextTurn.seat, shot: { angle: 0.5, power: 0, spin: { x: 0, y: 0 } } }],
+    [OP.SHOT_RESULT, 'shot'],
+  ]);
+});
+
 test('as recusas seguem a ordem: fase, vez, turnId e as regras do modo sobre a tacada quantizada', () => {
   const game = startedGame();
   game.state.match!.turnId = 2;

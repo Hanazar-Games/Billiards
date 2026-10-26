@@ -183,7 +183,7 @@ Binário, little-endian:
 - **Posição:** `x` e `z` em centésimos de centímetro, no intervalo de ±327,67 cm.
 - **Rotação:** quatérnio `[x, y, z, w]` unitário na forma "três menores". `largest` é o índice da maior componente em módulo; ela não é gravada e vale `sqrt(1 − soma dos quadrados das outras)`, sempre positiva (o sinal do quatérnio é trocado se for preciso, porque `q` e `−q` são a mesma rotação). Cada uma das outras três componentes é um i16 igual a `valor · 32767 · √2`.
 - **Limites:** no máximo 65 535 quadros e 255 bolas por quadro. Valores fora da faixa fazem o codificador lançar `RangeError`, em vez de truncar.
-- **Sem tacada:** `timeout`, `choice` e uma tacada de força 0 levam a trajetória vazia (4 bytes, `frameCount` 0).
+- **Sem tacada:** `timeout`, `choice` e uma tacada de força 0 levam a trajetória vazia (4 bytes, `frameCount` 0). A de força 0 pode voltar num `playback` (seção 10).
 - **Tamanho:** de 4 bytes a algumas dezenas de KB; a abertura fica em torno de 27 KB.
 - **Decodificar:** `decodeTrajectory(bytes)` de `@billiards/protocol` devolve `[{ t, balls: [{ id, x, z, q }] }]`. Versão ou taxa desconhecida, buffer truncado e bytes sobrando são erros.
 
@@ -283,7 +283,7 @@ A simulação tem 3 s de limite por tentativa e uma nova tentativa; 3 falhas na 
 
 ## 9. Fluxo de uma tacada e reenvio idempotente
 
-1. O cliente do lugar da vez envia `shot_request` com o `turnId` do último snapshot ou `shot_result` e um `seq` novo.
+1. O cliente do lugar da vez envia `shot_request` com o `turnId` atual e um `seq` novo. O `turnId` atual é o `turnId` do último snapshot ou o `nextTurn.turnId` (igual a `match.turnId`) do último `shot_result`; o `turnId` do próprio `shot_result` é o da vez que ele decidiu, e leva `TURN_MISMATCH`.
 2. O servidor valida (seção 7.1). Se aceitar, manda `shot_accepted` a todos e chama o serviço de simulação.
 3. Com o resultado, aplica as regras, avança o `turnId` e manda um `shot_result` a todos. Se a decisão decidiu a partida, manda em seguida o `match_end`.
 4. Todos reproduzem a trajetória e aplicam `table` ao final.
@@ -296,7 +296,7 @@ Se a confirmação se perde ou o cliente não sabe se o pedido chegou, ele envia
 2. O cliente guarda o `matchId` e entra de novo (seção 1). O servidor remove qualquer conexão antiga do mesmo usuário, devolve o lugar, manda o `match_snapshot` a quem voltou e `seat_update` com `connected: true` aos outros.
 3. Se a última tacada ainda está em reprodução, o snapshot traz `playback: { result, offsetMs }` e a trajetória como carga útil do envelope. `result` é o cabeçalho do `shot_result` daquela tacada; `offsetMs = (tick atual − tick do envio) · 100`. O cliente retoma a reprodução desse ponto.
 4. O `playback` só vai enquanto `offsetMs` é menor que a duração da tacada arredondada para cima ao décimo de segundo, mais 1 s de folga. Por isso **o `offsetMs` pode passar do último quadro da trajetória e de `durationMs`, em até 1 s**: o cliente tem de tratar esse caso (ir direto ao estado final). Sem `playback`, a mesa oficial está em `table`.
-5. Um `timeout`, um `choice` ou uma tacada de força 0 não têm o que reproduzir e nunca vão em `playback`.
+5. Um `timeout` e um `choice` nunca vão em `playback`. Uma tacada de força 0 vai, durante o 1 s de folga, com a trajetória vazia (4 bytes, sem quadros) e `durationMs` 0: o cliente tem de aceitar um `playback` sem quadros e aplicar `table` direto.
 
 ## 11. Fim da partida e histórico
 

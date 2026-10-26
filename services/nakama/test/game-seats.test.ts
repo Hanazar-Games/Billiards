@@ -106,6 +106,32 @@ test('volta no meio da reprodução: o snapshot traz o resultado, o deslocamento
   assert.deepEqual(rejoin(640), [null, 0]);
 });
 
+test('volta logo depois de uma tacada de força 0: playback com a trajetória vazia, só durante o 1 s de folga', () => {
+  const game = startedGame();
+  game.loop(100, [message(game.shooter, OP.SHOT_REQUEST, shot(0, 1, 0))]);
+  const result = game.out().find((m) => m.op === OP.SHOT_RESULT)!;
+  assert.equal(result.header.durationMs, 0);
+  assert.deepEqual(decodeTrajectory(result.payload!), []);
+  assert.equal(game.state.lastResult!.durationTicks, 10, 'nothing to play, but the 1 s of slack');
+  game.leave([game.waiter], 101);
+
+  // [offsetMs or null, payload bytes] of the snapshot a new connection of the waiter gets at `tick`.
+  const rejoin = (tick: number) => {
+    game.clear();
+    game.join([presence(game.waiter.userId, `s-${tick}`)], tick);
+    const snapshot = game.out()[0];
+    assert.equal(snapshot.op, OP.MATCH_SNAPSHOT);
+    if (snapshot.header.playback) {
+      assert.deepEqual(snapshot.header.playback.result, result.header);
+      assert.deepEqual(decodeTrajectory(snapshot.payload!), [], 'the trajectory has no frames');
+    }
+    return [snapshot.header.playback ? snapshot.header.playback.offsetMs : null, snapshot.payload!.length];
+  };
+  assert.deepEqual(rejoin(105), [500, 4], 'a playback with the empty trajectory (4 bytes)');
+  assert.deepEqual(rejoin(109), [900, 4]);
+  assert.deepEqual(rejoin(110), [null, 0]);
+});
+
 test('segunda aba substitui a primeira, e a saída da primeira é ignorada', () => {
   const game = startedGame();
   const old = game.shooter;
