@@ -48,6 +48,15 @@ jobs:
           docker compose -f infra/docker-compose.yml --env-file infra/.env logs nakama sim > nakama.log 2>&1 || true
           cat nakama.log
           grep -iE '"level":"(error|warn)"|panic' nakama.log | head -20 | while IFS= read -r line; do echo "::warning title=nakama::${line:0:300}"; done
+      # The module's last lines about shots and the sim as one annotation: when the sim was called and how long it took.
+      - name: Shot timings
+        if: failure()
+        shell: bash
+        run: |
+          docker compose -f infra/docker-compose.yml --env-file infra/.env logs --no-color -t nakama sim > timings.log 2>&1 || true
+          text=$(grep -E 'shot resolved|sim failed|"path":"/simulate"|panic|"level":"error"' timings.log | tail -40 \
+            | sed -E 's/^([a-z]+-1 +\| [^ ]+) .*"msg":"([^"]*)".*$/\1 \2/' | cut -c1-200 | sed ':a;N;$!ba;s/\n/%0A/g')
+          echo "::notice title=shot timings::${text:0:3500}"
       - name: Stop the stack
         if: always()
         run: npm run infra:down

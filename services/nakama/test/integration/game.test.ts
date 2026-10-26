@@ -253,17 +253,26 @@ test('dois bots jogam uma partida inteira de 8-ball', { timeout: 300000 }, async
   let state = { match: a.snapshot!.match, table: a.snapshot!.table };
   let seat = a.snapshot!.turn!.seat;
   const results: any[] = [];
+  const took: number[] = [];
   for (;;) {
     assert.ok(results.length < MAX_MATCH_SHOTS, `no end after ${MAX_MATCH_SHOTS} shot results`);
     const shooter = bySeat(seat);
-    await shooter.shoot(chooseShot(state, seat));
+    const request = chooseShot(state, seat);
+    const marks = [a.received.length, b.received.length];
+    const sentAt = Date.now();
+    await shooter.shoot(request);
     let both;
     try {
       both = await Promise.all([a.waitFor(OP.SHOT_RESULT, undefined, 20000), b.waitFor(OP.SHOT_RESULT, undefined, 20000)]);
     } catch (err) {
-      const refusals = shooter.received.filter((m) => m.op === OP.SHOT_REJECTED || m.op === OP.ERROR).map((m) => m.body);
-      throw new Error(`no shot_result for the shot ${results.length + 1} of seat ${seat} (${(err as Error).message}); refusals: ${JSON.stringify(refusals)}`);
+      // What each bot got since the request, so a stall says which message is missing.
+      const got = [a, b].map((bot, i) => bot.received.slice(marks[i]).map((m) => (m.header ? `${m.op}:${m.header.kind ?? m.header.phase}` : `${m.op}:${JSON.stringify(m.body)}`)));
+      const [mineGot, otherGot] = shooter === a ? got : [got[1], got[0]];
+      throw new Error(`no shot_result for the shot ${results.length + 1} of seat ${seat} after ${Date.now() - sentAt} ms (${(err as Error).message}); `
+        + `request: ${JSON.stringify(request)}; the shooter got ${JSON.stringify(mineGot)}, the other got ${JSON.stringify(otherGot)}; `
+        + `ms of the shots so far: ${took.join(',')}`);
     }
+    took.push(Date.now() - sentAt);
     const [mine, theirs] = both;
     assert.deepEqual(mine.header.table, theirs.header.table);
     assert.deepEqual(mine.header.match, theirs.header.match);
