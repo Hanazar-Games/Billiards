@@ -1,0 +1,36 @@
+# Nakama integration (D051): brings up the local stack (infra/docker-compose.yml)
+# with the development values of infra/.env.example and runs the bot tests.
+name: Integration (Nakama)
+
+on:
+  push:
+    branches: ['claude/**']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  nakama:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: cp infra/.env.example infra/.env
+      - run: npm run infra:up
+      - run: npm test -w services/nakama
+      - run: npm run test:integration -w services/nakama
+      - name: Nakama logs
+        if: failure()
+        run: docker compose -f infra/docker-compose.yml --env-file infra/.env logs nakama
+      - name: Stop the stack
+        if: always()
+        run: npm run infra:down
