@@ -15,3 +15,7 @@ session:
 matchmaker:
   interval_sec: 1
   max_intervals: 3
+
+# Match labels reach the listing (join_by_code) within 100 ms instead of 1 s.
+match:
+  label_update_interval_ms: 100

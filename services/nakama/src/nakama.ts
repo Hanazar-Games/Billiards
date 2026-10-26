@@ -84,7 +84,11 @@ export interface MatchHandler<S = any> {
 /** gRPC status codes the runtime maps errors to. */
 export const GRPC = { INVALID_ARGUMENT: 3, NOT_FOUND: 5, ALREADY_EXISTS: 6, PERMISSION_DENIED: 7, FAILED_PRECONDITION: 9, RESOURCE_EXHAUSTED: 8 } as const;
 
-/** An error the client receives with `message` = the stable code (Global Constraints). */
-export function rpcError(code: string, grpc: number): Error & { code: number } {
-  return Object.assign(new Error(code), { code: grpc });
+/**
+ * An error the client receives with `message` = the stable code (Global
+ * Constraints). Nakama reads `message` and `code` from a thrown plain object;
+ * an Error instance would carry the goja stack into the message.
+ */
+export function rpcError(code: string, grpc: number): { message: string; code: number; toString(): string } {
+  return { message: code, code: grpc, toString: () => code };
 }

@@ -27,17 +27,18 @@ jobs:
       - run: cp infra/.env.example infra/.env
       - run: npm run infra:up
       - run: npm test -w services/nakama
+      # The flags of the test:integration script, plus a JUnit report for the summary.
       - name: Integration tests
-        run: npm run test:integration -w services/nakama 2>&1 | tee integration.log; exit ${PIPESTATUS[0]}
-        shell: bash
+        working-directory: services/nakama
+        run: >
+          node --test --test-concurrency=1 --test-timeout=90000 --test-force-exit
+          --test-reporter=spec --test-reporter-destination=stdout
+          --test-reporter=junit --test-reporter-destination=../../integration-junit.xml
+          test/integration/*.test.ts
       # Annotations are readable without signing in (the job log is not).
       - name: Test summary
         if: always()
-        shell: bash
-        run: |
-          [ -f integration.log ] || exit 0
-          grep -E '^(✔|✖|ℹ (tests|pass|fail))' integration.log | head -40 | while IFS= read -r line; do echo "::notice title=integration::$line"; done
-          grep -E 'Error|expected|actual' integration.log | head -20 | while IFS= read -r line; do echo "::error title=integration::$line"; done
+        run: node services/nakama/test/integration/summary.mjs integration-junit.xml
       - name: Nakama logs
         if: failure()
         shell: bash
