@@ -349,4 +349,4 @@ Só o Nakama chama o serviço, de dentro da rede do Compose; ele não publica po
 
 - `emote` (4) e `rematch_vote` (6) existem como códigos, mas o servidor ainda os recusa com `UNSUPPORTED_OP`.
 - 2×2, cada um por si e espectadores usam as mesmas mensagens; as regras de lugar e equipe já estão em `packages/modes`, mas o servidor só abre partidas 1×1.
-- A arrumação da mesa é fixa (`rack: 'fixed'`, D060) até haver uma ordem aleatória com semente.
+- A arrumação da mesa é fixa (`rack: 'fixed'`, D062) até haver uma ordem aleatória com semente.

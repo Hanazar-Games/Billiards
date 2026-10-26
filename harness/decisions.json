@@ -1035,7 +1035,8 @@
       "Histórico com leitura só dos jogadores",
       "Arrumação aleatória com semente já na F4"
     ],
-    "status": "accepted",
+    "status": "superseded",
+    "supersededBy": "D062",
     "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
     "refs": [
       "spec §7.1",
@@ -1055,7 +1056,8 @@
       "Deixar o sim recusar a bola na mão inválida (três falhas abortariam a partida)",
       "Ler o corpo de toda operação, inclusive da desistência"
     ],
-    "status": "accepted",
+    "status": "superseded",
+    "supersededBy": "D062",
     "source": "execução da F4-A (rulings do controlador, aprovadas pelo plano D054–D060)",
     "refs": [
       "D055",
@@ -1064,6 +1066,44 @@
       "services/nakama/src/game/intake.ts",
       "packages/protocol/src/messages.ts",
       "packages/modes/src/table.ts"
+    ]
+  },
+  {
+    "id": "D062",
+    "date": "2026-10-26",
+    "title": "Histórico com todas as decisões e regras do protocolo v1 corrigidas (substitui a D060 e a D061)",
+    "decision": "Substitui a D060 e a D061, corrigidas pela revisão final da F4-A, e as repete por inteiro. Histórico e arrumação (era a D060): coleção match_history, com chave = matchId e dono = usuário do sistema; leitura pública (2) e escrita só do servidor (0), gravada com version \"*\" (só cria). O registro traz os jogadores, quem abriu (sorteado pelo servidor), o resultado e todas as decisões da partida, em ordem, no campo decisions: [{ turnId, seat, kind, shot?, accept? }], com kind 'shot' (com a tacada quantizada), 'timeout' (inclusive a terceira seguida, que encerra a partida com ABANDON) ou 'choice' (a resposta de push-out do 9-ball, com accept). O decisions substitui o antigo shots; o summary.shots do match_end conta só as de kind 'shot'. Partidas abortadas não geram registro. A arrumação online continua fixa (D047) até haver uma ordem aleatória com semente. Regras do protocolo v1 (era a D061, sem mudar a D055): (1) Todo número de uma mensagem do cliente tem de ser finito e ter módulo de no máximo 1e6 (MAX_ABS_NUMBER); fora disso a mensagem é inválida (BAD_MESSAGE). O JSON.parse do goja já recusa literais como 1e999, e então a recusa vem com seq null. (2) CUE_BALL_INVALID é um motivo de recusa: a bola na mão a menos de PLACEMENT_CLEARANCE = 0,01 cm (um passo da quantização) de encostar numa tabela ou noutra bola em jogo, e a tacada sem cueBall com a branca encaçapada (isCueBallPlacementValid, em packages/modes/src/table.ts). A tabela é o nariz do chanfro da simulação: a bola encosta nele com o centro a cushionInset da borda, derivado de @billiards/sim/constants (cushionContactInset = cushionWidth + overhang/2 + (R + thickness/2) · √((2R)² + overhang²)/(2R), 10,594 cm na pool9ft, com CUSHION_BEVEL = { overhang: 3,2, thickness: 3 }) e levado em MatchConfig.table.cushionInset pelo onlineConfig() do servidor, sem o packages/modes importar o sim. O centro da branca fica em |x| ≤ largura/2 − cushionInset − 0,01 e |z| ≤ profundidade/2 − cushionInset − 0,01 (52,89 e 116,39 depois de quantizado) e a pelo menos 2R + 0,01 cm de cada outra bola em jogo. Nenhum ponto permitido fica no raio em que o sim encaçapa, então não há regra de proximidade das caçapas. Sem cushionInset (fora do servidor), o limite é a borda menos R, com a mesma folga. (3) A linha da cabeceira entra na kitchen: o validateCommon compara o z já quantizado com headStringZ + 1e-6, e z = −69,85 vale. (4) A recusa TURN_MISMATCH vem com um match_snapshot ao remetente (D058), para o cliente refazer o turnId; uma tacada que chega no tick do prazo é recusada como NOT_YOUR_TURN, porque o relógio roda antes das mensagens e a vez já passou. (5) Só as operações com conteúdo (1, 2, 3 e 7) têm o corpo lido como JSON: concede (5) não tem corpo, e 4 e 6 são reservadas (UNSUPPORTED_OP) sem que o corpo seja lido. (6) O cliente lê o match_history por coleção e chave, sem user_id, porque o Nakama 3.41 recusa o UUID zero como user_id numa leitura de cliente; a listagem é por chave (ids aleatórios) e se percorre com limite e cursor.",
+    "rationale": "A revisão final da F4-A achou, com a simulação real, três defeitos nas regras da D060 e da D061. O limite antigo da bola na mão (largura/2 − R) deixava a branca dentro do chanfro das tabelas: um toque de força 0,001 a lançava, e perto das caçapas ela caía na hora; e a branca a exatamente 2R de outra bola, tacada para longe, gerava um primeiro contato fantasma com ela. A linha da cabeceira quantizada (−69,85) ficava 1e-14 acima da linha em ponto flutuante e era recusada, ao contrário do cliente legado, que prende o ponto nela. E o registro só com as tacadas não refazia o 9-ball: um passe (accept: false) e a vez perdida por tempo de quem escolhe deixavam registros iguais, mas só a vez perdida é falta. Os motivos da D060 continuam (o histórico refaz a partida no servidor, a escrita só-cria garante um registro por partida e a leitura pública não expõe nada que a partida já não mostre), assim como os da D061 (lacunas que um servidor autoritativo não pode deixar abertas, §9.2).",
+    "alternatives": [
+      "Limite da bola na mão fixo em 4,5 R da borda, como o bot de teste, sem derivar da física",
+      "Limite exatamente no contato com a tabela, sem a folga de 0,01 cm (a simulação acusa o contato)",
+      "Regra de proximidade das caçapas como a do cliente legado (raio da caçapa + 0,45 R)",
+      "Pedir ao cliente uma folga na linha da cabeceira (z ≤ −69,86)",
+      "Registro com shots e uma lista à parte de vezes perdidas e escolhas",
+      "Histórico com leitura só dos jogadores (D060)",
+      "Arrumação aleatória com semente já na F4 (D060)",
+      "Um limite próprio para cada campo, em vez de um só para todo número (D061)",
+      "Deixar o sim recusar a bola na mão inválida (três falhas abortariam a partida) (D061)",
+      "Ler o corpo de toda operação, inclusive da desistência (D061)"
+    ],
+    "status": "accepted",
+    "source": "revisão final da F4-A",
+    "refs": [
+      "D060",
+      "D061",
+      "D047",
+      "D055",
+      "D058",
+      "spec §7.1",
+      "spec §9.1",
+      "docs/protocol.md",
+      "packages/modes/src/table.ts",
+      "packages/modes/src/shared.ts",
+      "packages/sim/src/constants.js",
+      "services/nakama/src/game/state.ts",
+      "services/nakama/src/game/end.ts",
+      "services/nakama/src/game/intake.ts",
+      "packages/protocol/src/messages.ts"
     ]
   }
 ]
