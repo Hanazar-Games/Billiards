@@ -15,8 +15,11 @@ function parsePayload(payload: string): unknown {
   }
 }
 
+/** Size bounds for the listing: null may reach the runtime as 0 and hide rooms with players. */
+const MAX_ROOM_SIZE = 64;
+
 function roomsWithCode(nk: Nakama, code: string) {
-  return nk.matchList(10, true, null, null, null, `+label.code:${code}`);
+  return nk.matchList(10, true, null, 0, MAX_ROOM_SIZE, `+label.code:${code}`);
 }
 
 /** RPC create_private_match { mode, format } → { matchId, code }. */

@@ -53,6 +53,15 @@ export async function serverError(err: unknown): Promise<Error> {
   return err instanceof Error ? err : new Error(String(err));
 }
 
+/** Awaits a client call; rejects with the server's message instead of a Response. */
+export async function call<T>(promise: Promise<T>): Promise<T> {
+  try {
+    return await promise;
+  } catch (err) {
+    throw await serverError(err);
+  }
+}
+
 /** Calls an RPC and returns its payload; rejects with the server's message. */
 export async function rpc(bot: Bot, id: string, input: object): Promise<any> {
   try {
