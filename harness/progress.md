@@ -270,4 +270,6 @@
   - o compose ganhou `NAKAMA_BIND`, que mantém o padrão `127.0.0.1` e aceita `0.0.0.0` para expor as portas na rede;
   - os testes de integração aceitam `NAKAMA_HOST` e `NAKAMA_PORT`.
 
-  O passo a passo está em `docs/f3/servidor-local.md`, seção "Servidor de testes na rede local". Execução do CI 40263967717: 18 testes passaram e nenhum falhou. Ainda falta rodar a integração contra o `server` quando o compose estiver no ar lá (`NAKAMA_HOST=server npm run test:integration -w services/nakama`).
+  O passo a passo está em `docs/f3/servidor-local.md`, seção "Servidor de testes na rede local". Execução do CI 40263967717: 18 testes passaram e nenhum falhou.
+- No `server`, o `infra:up` falhou no Node 22.22.1, que não executa TypeScript sem flag: o `build.mjs` importava `src/registry.ts`. Agora ele tira os nomes dos handlers do próprio bundle, avaliado em `node:vm`. Um teste roda o build com `--no-experimental-strip-types`.
+- Integração contra o `server` (2026-10-26, a partir desta máquina Windows): 18 testes passaram e nenhum falhou. Antes disso, `health.test.ts` e `module.test.ts` caíam ao sair com `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file srcwinasync.c` (Node 24.5 no Windows). A causa era o `--test-force-exit`: sem ele, os dois arquivos passam e a suíte termina sozinha em 77 s, porque o `closeBots` já fecha os sockets. A flag saiu do `test:integration` e do workflow.

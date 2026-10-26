@@ -8,7 +8,7 @@
     "build": "node build.mjs",
     "pretest": "node build.mjs",
     "test": "node --test test/*.test.ts",
-    "test:integration": "node --test --test-concurrency=1 --test-timeout=90000 --test-force-exit test/integration/*.test.ts"
+    "test:integration": "node --test --test-concurrency=1 --test-timeout=90000 test/integration/*.test.ts"
   },
   "devDependencies": {
     "@heroiclabs/nakama-js": "2.8.0",

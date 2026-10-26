@@ -33,7 +33,7 @@ jobs:
       - name: Integration tests
         working-directory: services/nakama
         run: >
-          node --test --test-concurrency=1 --test-timeout=90000 --test-force-exit
+          node --test --test-concurrency=1 --test-timeout=90000
           --test-reporter=spec --test-reporter-destination=stdout
           --test-reporter=junit --test-reporter-destination=../../integration-junit.xml
           test/integration/*.test.ts
