@@ -1,0 +1,11 @@
+{
+  "name": "@billiards/nakama-module",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Nakama server module of Billiards Online (runtime JS, bundled for goja).",
+  "scripts": {
+    "build": "node -e \"const fs=require('fs');fs.mkdirSync('build',{recursive:true});fs.writeFileSync('build/index.js','function InitModule(ctx, logger, nk, initializer) {}\\n')\"",
+    "test:integration": "node --test test/integration/*.test.ts"
+  }
+}

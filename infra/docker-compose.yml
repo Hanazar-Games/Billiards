@@ -1,0 +1,50 @@
+# Local development stack (F3): PostgreSQL 16 + Nakama 3.41.0 running the
+# billiards server module (services/nakama/build). Same images as the F0 spike.
+# Keys come from infra/.env (copied from .env.example: development values only).
+name: billiards
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: nakama
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "nakama"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  nakama:
+    image: heroiclabs/nakama:3.41.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - >
+        /nakama/nakama migrate up --database.address postgres:${POSTGRES_PASSWORD}@postgres:5432/nakama &&
+        exec /nakama/nakama --config /nakama/data/local.yml
+        --database.address postgres:${POSTGRES_PASSWORD}@postgres:5432/nakama
+        --socket.server_key ${NAKAMA_SERVER_KEY}
+        --runtime.http_key ${NAKAMA_HTTP_KEY}
+        --session.encryption_key ${NAKAMA_SESSION_KEY}
+        --session.refresh_encryption_key ${NAKAMA_SESSION_KEY}-refresh
+        --console.password ${NAKAMA_CONSOLE_PASSWORD}
+    volumes:
+      - ./nakama/local.yml:/nakama/data/local.yml:ro
+      - ../services/nakama/build:/nakama/data/modules:ro
+    ports:
+      - "127.0.0.1:7350:7350"
+      - "127.0.0.1:7351:7351"
+    healthcheck:
+      test: ["CMD", "/nakama/nakama", "healthcheck"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres-data:

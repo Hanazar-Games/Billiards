@@ -2,3 +2,7 @@ node_modules/
 .node/
 *.log
 .DS_Store
+
+# F3: local stack secrets and the built Nakama module
+infra/.env
+services/nakama/build/
