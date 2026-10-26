@@ -13,12 +13,23 @@ import type { GameEnv, GameState } from './state.ts';
 /** The largest seq the reader accepts (a 31-bit counter). */
 const MAX_SEQ = 2147483647;
 
+/** The client operations with a JSON body (spec §6.2, D055). */
+const WITH_CONTENT: number[] = [OP.AIM_UPDATE, OP.SHOT_REQUEST, OP.BALL_IN_HAND_MOVE, OP.PUSH_OUT_CHOICE];
+
 export function handleMessage(env: GameEnv, state: GameState, message: MatchMessage, tick: number): void {
   const sender = message.sender;
   if (!withinRate(state, sender.sessionId, message.opCode, tick)) return;
   const seat = seatOf(state, sender.userId);
   const current = state.presences[sender.userId];
   if (seat === null || !current || current.sessionId !== sender.sessionId) return;
+
+  // Only the operations that carry content are read; the body of any other is ignored.
+  if (message.opCode === OP.CONCEDE) return;   // no content; F4-06 handles it here
+  if (WITH_CONTENT.indexOf(message.opCode) < 0) {
+    // emote (4) and rematch_vote (6) are reserved; any other operation is unknown.
+    sendJson(env.dispatcher, OP.ERROR, { code: 'UNSUPPORTED_OP' }, [sender]);
+    return;
+  }
 
   let raw: unknown;
   try {
@@ -39,7 +50,7 @@ export function handleMessage(env: GameEnv, state: GameState, message: MatchMess
       handleShotRequest(env, state, sender, raw, tick);
       return;
     default:
-      // emote (4) and rematch_vote (6) are reserved; concede (5) and push_out_choice (7) arrive with F4-06 and F4-03.
+      // push_out_choice (7) arrives with F4-03.
       sendJson(env.dispatcher, OP.ERROR, { code: 'UNSUPPORTED_OP' }, [sender]);
   }
 }

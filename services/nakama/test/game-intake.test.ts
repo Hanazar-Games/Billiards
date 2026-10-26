@@ -167,6 +167,19 @@ test('mensagem da sessão antiga de um jogador é ignorada', () => {
   assert.deepEqual(game.out().map((m) => m.op), [OP.AIM_RELAY]);
 });
 
+test('operações sem conteúdo não são lidas: corpo vazio ou que não é JSON não dá BAD_MESSAGE', () => {
+  const game = startedGame();
+  game.loop(1, [message(game.waiter, OP.REMATCH_VOTE, ''), message(game.waiter, OP.EMOTE, 'not json')]);
+  game.loop(10, [message(game.shooter, 42, '')]);
+  game.loop(20, [message(game.shooter, OP.CONCEDE, '')]);   // concede (F4-06) carries no content
+  assert.deepEqual(sentSummary(game), [
+    [OP.ERROR, { code: 'UNSUPPORTED_OP' }, [game.waiter.sessionId]],
+    [OP.ERROR, { code: 'UNSUPPORTED_OP' }, [game.waiter.sessionId]],
+    [OP.ERROR, { code: 'UNSUPPORTED_OP' }, [game.shooter.sessionId]],
+  ]);
+  assert.deepEqual(game.state.invalid, {});
+});
+
 test('emote e rematch_vote dão UNSUPPORTED_OP', () => {
   const game = startedGame();
   game.loop(1, [message(game.waiter, OP.EMOTE, { id: 'wave' }), message(game.waiter, OP.REMATCH_VOTE, { yes: true })]);
