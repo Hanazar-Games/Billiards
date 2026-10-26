@@ -225,7 +225,7 @@
       "chamada sem segredo é recusada",
       "simVersion desconhecida é recusada"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F4-02",
@@ -236,7 +236,7 @@
       "números não finitos → shot_rejected",
       "mais de 5 inválidas em 10 s → conexão removida"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F4-03",
@@ -246,7 +246,7 @@
       "os dois bots terminam a tacada com o mesmo estado final",
       "tempo esgotado conta como falta"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F4-04",
@@ -256,7 +256,7 @@
       "bot cai no meio da reprodução, volta e termina no mesmo estado",
       "shot_request repetido não gera segunda tacada"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F4-05",
@@ -265,7 +265,7 @@
     "verification": [
       "bot ausente por mais de 60 s perde por W.O."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F4-06",
@@ -274,7 +274,7 @@
     "verification": [
       "partida concluída gera exatamente um registro em match_history"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F4-07",
@@ -284,7 +284,7 @@
       "teste de integração: dois bots jogam uma partida inteira de 8-ball",
       "docs/protocol.md descreve todos os códigos de operação"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F5-01",

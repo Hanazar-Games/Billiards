@@ -287,7 +287,7 @@ test('dois bots jogam uma partida inteira de 8-ball', { timeout: 300000 }, async
     assert.deepEqual(mine.payload, theirs.payload);
     assert.equal(mine.header.turnId, results.length);
     assert.equal(mine.header.match.turnId, results.length + 1);
-    assert.equal(mine.header.kind, 'shot', 'a bot that shoots at once never times out and 8-ball has no choices');
+    assert.equal(mine.header.kind, 'shot', 'the bots shoot within a second of their turn, so no turn times out, and 8-ball has no choices');
     assert.ok(decodeTrajectory(mine.payload!).length > 0);
     results.push(mine.header);
     if (!mine.header.nextTurn) break;

@@ -2,7 +2,11 @@
 
 ## Estado atual
 
-- **F4-A em revisão:** o plano [`2026-10-26-f4a-partida-online-servidor.md`](../docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md) está escrito e espera a revisão do usuário, junto com as decisões D054 a D060 (`open`). Ele cobre o servidor autoritativo: itens F4-01 a F4-07, em 8 tarefas. A D054 propõe deixar o cliente online, a implantação e a D053 para uma F4-B com plano próprio.
+- **F4-A concluída** (plano [`2026-10-26-f4a-partida-online-servidor.md`](../docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md), execução por subagentes, D054 a D061 `accepted`). O servidor autoritativo da partida online 1×1 está pronto e verificado com bots:
+  - contrato em `packages/protocol` (operações, leitores, quantização, envelope binário, trajetória v1), mesa autoritativa em `packages/modes` (`rackTable`, `placeCueBall`, `respotBalls`, `isCueBallPlacementValid`), `services/sim` (HTTP com segredo e versões N e N−1, em contêiner próprio) e a partida em `services/nakama` (snapshot, tacada, regras, cronômetro, reconexão, W.O., desistência e histórico);
+  - `docs/protocol.md` descreve o protocolo v1 (as operações, o envelope, a trajetória, a quantização, os motivos de recusa, os prazos, a reconexão e o `match_history`), e um teste confere que ele cita toda operação e recusa;
+  - a integração passou no GitHub Actions na execução **40380325534** (32 testes, nenhum falhou), com dois bots jogando uma partida inteira de 8-ball até o fim e o registro em `match_history` conferido. F4-01 a F4-07 marcados;
+  - falta a F4-B, o cliente online e a implantação, com plano próprio (D054).
 - **Fase:** F1-A concluída. F1-B executada (8 tarefas, plano `docs/superpowers/plans/2026-10-25-f1b-cliente-usa-sim.md`, D042 e D043 `accepted`); falta só a confirmação do F1-09 pelo usuário, no navegador. Plano da F1-A: `docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md`.
   - **F3 concluída** (plano `docs/superpowers/plans/2026-10-25-f3-nakama-contas-salas.md`, execução nativa, D049 a D052 `accepted`). O servidor local tem Docker Compose com Nakama 3.41.0 e PostgreSQL 16, e o módulo `services/nakama` cobre contas de convidado com vínculo de e-mail, perfil validado, salas privadas com código de 6 caracteres e matchmaking 1×1. A integração passou no GitHub Actions (execução 40257461881). F3-01 a F3-05 marcados. Ver `docs/f3/servidor-local.md`.
   - **F2 concluída** (plano `docs/superpowers/plans/2026-10-25-f2-modes-n-lugares.md`, execução nativa, D045 a D047 `accepted`). F2-01 a F2-05 marcados depois de rodar as verificações na suíte completa:
@@ -41,9 +45,25 @@
 
 ## Próximo passo
 
-1. **O usuário revisa o plano da F4-A** (`docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md`) e as decisões D054 a D060, e escolhe a forma de execução. Com a aprovação, a Tarefa 1 marca as decisões como `accepted` (a D044 e a D048 passam a `superseded`) e a execução começa.
-2. **O usuário confirma o F1-09** no navegador, quando quiser, seguindo `docs/f1/roteiro-teste-manual.md` (`npm run dev`, Treino livre, `await __referenceShot('draw-ref')` no console). Em 2026-10-25 o usuário preferiu adiar. Se a branca voltar como esperado, marcar `passes: true` e registrar a data; se não, abrir uma decisão nova sobre o recuo (a D041 aceitou a sensação medida).
-3. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium. O Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido. Sem esse download, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome do sistema.
+1. **Escrever o plano da F4-B** (cliente online: `OnlineMatchController`, telas de entrada, fila e sala; implantação na VPS com TLS; D053) com `superpowers:writing-plans`, e pedir a revisão do usuário antes de implementar. Notas da F4-A para ele:
+   - O cliente tem de tratar um `offsetMs` além do último quadro da trajetória (até 1 s de folga, `docs/protocol.md` seção 10): vai direto ao estado final.
+   - O cliente lê o `match_history` sem `user_id` e percorre a listagem pelo cursor (seção 11 do protocolo); o Nakama 3.41 recusa o UUID zero como `user_id` numa leitura de cliente.
+   - A bola na mão na `kitchen`: o servidor valida o `z` já quantizado, e a linha da cabeceira (−69,85000000000001) arredonda para −69,85, que fica acima dela. Um cliente que prende a branca exatamente na linha leva `CUE_BALL_OUTSIDE_KITCHEN`: prender em `z ≤ −69,86`, ou dar uma tolerância no `validateCommon` (decidir na F4-B).
+   - Os limites do `isCueBallPlacementValid` (`|z| ≤ 127 − R`) são mais folgados que a mesa: as tabelas e o chanfro ocupam cerca de 11,5 cm da borda (a branca posta ali é desviada de imediato). O cliente deve prender o ponto dentro de cerca de 4,5 R da borda; o `autoplay.ts` faz isso.
+   - Segredos de produção: `--runtime.env "SIM_SECRET=${SIM_SECRET}"` é expandido pelo Compose e pelo shell; um segredo com `$`, crase ou `"` quebra o comando e aparece nos argumentos do processo. Resolver na implantação.
+   - O `shot_request` conta no limite de 5 mensagens por segundo (as outras, fora a mira): o excedente é descartado sem resposta. Um cliente humano não chega perto, mas um bot precisa de pausa entre as tacadas.
+2. **O usuário atualiza o `server`** e roda a integração de lá (opcional): `git pull`, acrescentar `SIM_SECRET=dev-sim-secret` ao `infra/.env` (o Compose exige a variável, até no `infra:down`), `npm run infra:up` e, nesta máquina, `NAKAMA_HOST=server npm run test:integration -w services/nakama`.
+3. **O usuário confirma o F1-09** no navegador, quando quiser, seguindo `docs/f1/roteiro-teste-manual.md` (`npm run dev`, Treino livre, `await __referenceShot('draw-ref')` no console). Em 2026-10-25 o usuário preferiu adiar. Se a branca voltar como esperado, marcar `passes: true` e registrar a data; se não, abrir uma decisão nova sobre o recuo (a D041 aceitou a sensação medida).
+4. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium. O Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido. Sem esse download, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome do sistema.
+
+## Pendências da execução da F4-A (não bloqueiam; para a F4-B ou depois)
+
+- **Escrita só-cria não verificada num servidor real:** o `storageWrite` com `version: '*'` numa chave que já existe deve falhar, mas nenhum caminho do módulo escreve duas vezes, então só o teste unitário (escrita que lança vira aviso) cobre isso.
+- **Falhas do sim sem causa no aviso:** o `callSim` junta qualquer exceção em `SIM_TIMEOUT`, e o aviso `sim failed` não traz o status HTTP nem o texto; um `SIM_SECRET` errado aparece só como `SIM_HTTP`. Todo erro do serviço de simulação vira `SIM_INPUT_INVALID` (um defeito do motor parece entrada ruim).
+- **Estado da partida a cada tick:** o `lastResult` (cerca de 37 KB em base64, mais os eventos) atravessa a fronteira Go a cada tick até o fim da partida.
+- **Dois jogadores fora ao mesmo tempo:** a reserva que vence com o outro lugar fora por pouco tempo ainda encerra a partida como `ABORTED`, como o plano mandou.
+- **Sem testes próprios:** o caminho da tacada vencedora, o da vez perdida com vencedor e o da terceira vez perdida do 9-ball (traçados, mas sem teste); cada caminho de fim gravando um registro (só a desistência e a partida inteira).
+- **Menores:** `MS_PER_TICK` e `SECONDS.turn * TICK_RATE` repetidos em arquivos do módulo; o `ShotRequest` redeclarado em `packages/protocol` sem checagem de tipo contra o de `packages/modes`; o `typecheck` da raiz não cobre `services/sim` (sem `@types/node`); as fontes `source` de D054 a D060 ainda dizem "aguardando a revisão do usuário" (a aprovação está no registro de sessões e o arquivo só acrescenta).
 
 ## Pendências da F1-B (não bloqueiam; para a F2 ou depois)
 
@@ -295,3 +315,24 @@
   - D059: `services/sim`;
   - D060: histórico e arrumação fixa.
 - Antes do plano, nesta mesma sessão: a integração contra o `server` passou (18 de 18) depois de tirar o `--test-force-exit` (`d82c0db`); o CI 40268858280 passou sem a flag.
+
+### 2026-10-26 — sessão 2, continuação (execução da F4-A por subagentes; Tarefa 8)
+
+- O usuário aprovou o plano da F4-A com a D054 a D060 (`accepted`; a D044 e a D048 passaram a `superseded`) e escolheu a execução por subagentes: um implementador por tarefa e uma revisão por tarefa. Tarefas 1 a 7, cada uma com a integração vista verde no CI:
+  - T1, contrato do protocolo (`9cdba55`, `7869381`): mensagens, quantização, envelope e base64. A revisão trouxe o limite de 1e6 para todo número e o escape do cabeçalho sem expressão regular;
+  - T2, mesa autoritativa (`1175494`): `rackTable`, `placeCueBall`, `respotBalls`, `isCueBallPlacementValid`; o `turnId` avança quando um lugar sai;
+  - T3, `services/sim` (`3c0a93d`): segredo, versões, contêiner próprio; execução 40319971118;
+  - T4, início da partida, snapshot e entrada de mensagens (`2eef21d`, `d2ac3f4`, `00182ee`, `e07276f`); execução 40335959150;
+  - T5, tacada, simulação, regras e cronômetro (`386177b`); execução 40341712737;
+  - T6, reconexão, segunda aba e W.O. (`449556f`); execução 40358452240;
+  - T7, fim da partida, desistência e histórico (`1be0c24` a `0ba0737`, com cinco commits de teste para achar como um cliente lê o registro no Nakama 3.41); execução 40369657444.
+- Achados da execução que mudaram ou refinaram o protocolo (D061): o `JSON.parse` do goja recusa `1e999`; o estado da partida passa por Go entre as chamadas e perde a ordem das chaves (por isso o `joinOrder`); o Nakama 3.41 recusa o UUID zero como `user_id` numa leitura de cliente e lista uma página de um objeto só por padrão; `CUE_BALL_INVALID`; `TURN_MISMATCH` acompanhado de snapshot.
+- Tarefa 8 (`8cb3c11` a este fechamento):
+  - `autoplay.ts` (`chooseShot`) joga os dois lugares: abertura na bola da ponta com força 100, bola fantasma com o menor ângulo de corte, bola na mão atrás do alvo (ou na cabeceira). `SHOT.maxPower` é 110, então as forças 30 a 90 e 100 do enunciado valem como estão. O `z` da cabeceira sai arredondado para baixo, por causa da quantização.
+  - Validação offline do bot (`services/nakama/test/autoplay.test.ts`, 1 s): a partida inteira passa pelo `matchLoop` com o sim real e termina em 37 tacadas com `WIN`, sem recusa e com o histórico igual às tacadas. Uma bateria de 120 partidas com a abertura variando (força de 90 a 110 e ângulo de ±0,02 rad), com a versão final do bot: as 120 terminaram, com mediana de 33 tacadas e máximo de 65, bem abaixo do limite de 200.
+  - A primeira versão do bot travava em 1 de 120 partidas: uma bola parada na boca da caçapa, onde a bola fantasma fica dentro das tabelas e a branca é desviada (341 faltas `NO_BALL_HIT`). O bot passou a manter a branca e a fantasma a 4,5 raios da borda e a bater direto no alvo quando não há tacada de encaçapar.
+  - A partida inteira falhou duas vezes no CI (execuções 40377657260 e 40379200977), sempre na décima tacada, sem recusa nem resultado. A causa não era o servidor: o bot atirava a cada 100 ms, e o limite de 5 mensagens por segundo por conexão (especificado) descartou, sem resposta, a sexta mensagem de um bot no mesmo segundo. O teste passou a fazer uma pausa de 300 ms antes de cada tacada; o protocolo registra que o `shot_request` entra nesse limite. O relatório de falha do teste agora diz o que cada bot recebeu e quanto cada tacada levou.
+  - `docs/protocol.md` (PT-BR) escrito, com o teste `protocol-doc.test.ts` visto falhando antes (o arquivo não existia) e uma mutação (sem a linha da op 109 e do `CUE_BALL_INVALID`) que o derruba. D061 registrada. `docs/f3/servidor-local.md` ganhou o `sim`, o `SIM_SECRET`, o aviso para o `infra/.env` antigo e como ver uma partida de ponta a ponta; o `CLAUDE.md` ganhou os comandos de `services/sim`, `services/nakama` e `packages/protocol`; o roteiro separou a F4-A (concluída) da F4-B.
+  - Execução do CI **40380325534**: 32 testes de integração passaram e nenhum falhou (os 31 de antes e a partida inteira). F4-01 a F4-07 marcados: F4-01 pelos testes do `services/sim` no `npm test` (10 de 10); F4-02 a F4-07 pela integração.
+  - Suítes locais: `npm test` na raiz verde em tudo, menos no `test:browser` do cliente, que estoura o limite de 180 s do próprio arquivo nesta máquina (os 33 testes passam em 196,7 s numa cópia temporária com o limite maior; com `CI=1` o swiftshader fica lento demais e 9 falham por tempo). Passaram: client (suítes de Node; partida completa com 31 tacadas em 97,9 s; local-2p com 20 tacadas de 8-ball em 38 s e 32 de 9-ball em 50 s; smoke), modes 69, protocol 40, sim 60, nakama-module 78 e sim-service 10; `tsc` limpo; `init.sh` com 19 de 19 suítes rápidas.
+- Pendências conhecidas, sem bloqueio, na seção "Pendências da execução da F4-A". Falta a revisão final da branch da F4-A.
