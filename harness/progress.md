@@ -256,3 +256,13 @@
 - F3-01 a F3-05 marcados com base nessa execução.
 - Pendência: rodar `npm run infra:up && npm run test:integration -w services/nakama` nesta máquina quando o Docker Desktop estiver instalado.
 - Decisões de execução: `harness/sdd/2026-10-25-f3-nakama-contas-salas/ledger.md`.
+- Revisão final da branch da F3 (revisor novo): "With fixes". As correções entraram numa rodada só, cada uma com o teste visto falhando antes:
+  - Crítico: os métodos de login que o Nakama aceita sem configuração (custom, Facebook, Game Center, Apple, Steam) criavam contas sem passar pelo filtro de nomes. Agora são recusados (`AUTH_METHOD_DISABLED`).
+  - A listagem nativa de partidas expunha as salas privadas e seus códigos. Agora é recusada (`MATCH_LISTING_DISABLED`).
+  - O filtro de nomes:
+    - passa a pegar palavras curtas separadas por `_`, como `p_u_t_a` e `c_u`;
+    - deixa de barrar palavras comuns e lugares, como `temporada`, `Iporanga`, `Ponta Porã` e `notario`.
+  - A saída da conexão antiga de um jogador não libera mais o lugar da conexão nova.
+  - `npm run infra:reload` recarrega o módulo num servidor em execução; rodar `infra:up` de novo não recarregava.
+  - Execução do CI 40259666251: 18 testes de integração passaram e nenhum falhou.
+- Achados menores ficaram no ledger e na D053 (`open`, APIs nativas do Nakama ainda abertas, para fechar antes da implantação na F4).
