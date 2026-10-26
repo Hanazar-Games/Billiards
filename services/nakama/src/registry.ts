@@ -6,6 +6,7 @@ import type { BeforeHook, Context, Logger, MatchHandler, MatchmakerMatchedHandle
 import { beforeAuthenticate, beforeUpdateAccount, rpcProfileUpdate } from './profile.ts';
 import { rpcCreatePrivateMatch, rpcJoinByCode } from './rooms.ts';
 import { billiardsMatch } from './match.ts';
+import { matchmakerMatched } from './matchmaker.ts';
 
 declare const __MODULE_VERSION__: string;
 
@@ -37,7 +38,7 @@ export const REGISTRY: Registry = {
     AuthenticateGoogle: beforeAuthenticate,
     UpdateAccount: beforeUpdateAccount,
   },
-  matchmakerMatched: null,
+  matchmakerMatched,
   matches: { billiards: billiardsMatch },
 };
 
