@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.js",
+    "./constants": "./src/constants.js",
     "./corpus": "./test/corpus.js"
   },
   "scripts": {

@@ -23,6 +23,14 @@ export function newClient(): Client {
   return new Client(NAKAMA.serverKey, NAKAMA.host, NAKAMA.port, false);
 }
 
+/** A new connected socket of the bot's session, closed by closeBots(). */
+export async function openSocket(bot: Pick<Bot, 'client' | 'session'>): Promise<Socket> {
+  const socket = bot.client.createSocket(false, false);
+  await socket.connect(bot.session, true);
+  openSockets.add(socket);
+  return socket;
+}
+
 /** A guest with a fresh device id. */
 export async function newBot(): Promise<Bot> {
   const client = newClient();
@@ -34,23 +42,21 @@ export async function newBot(): Promise<Bot> {
     session,
     deviceId,
     async socket() {
-      if (!socket) {
-        socket = client.createSocket(false, false);
-        await socket.connect(session, true);
-        openSockets.add(socket);
-      }
+      if (!socket) socket = await openSocket({ client, session });
       return socket;
     },
   };
 }
 
-/** Error thrown by the client for an HTTP failure, with the server's message. */
+/** Error thrown by the client for an HTTP failure or a socket error ({ code, message }), with the server's message. */
 export async function serverError(err: unknown): Promise<Error> {
   if (err instanceof Response) {
     const body = await err.json().catch(() => ({}));
     return new Error(body.message ?? `HTTP ${err.status}`);
   }
-  return err instanceof Error ? err : new Error(String(err));
+  if (err instanceof Error) return err;
+  const message = (err as { message?: unknown } | null)?.message;
+  return new Error(typeof message === 'string' ? message : String(err));
 }
 
 /** Awaits a client call; rejects with the server's message instead of a Response. */

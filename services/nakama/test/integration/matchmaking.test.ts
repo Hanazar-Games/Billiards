@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import type { Socket } from '@heroiclabs/nakama-js';
 import { waitForNakama } from './env.ts';
 import { closeBots, newBot, once, sleep, withTimeout } from './bot.ts';
+import { JOIN_METADATA } from './game.ts';
 
 before(() => waitForNakama(60000));
 after(closeBots);
@@ -19,8 +20,8 @@ test('dois bots na fila formam uma partida', async () => {
   const [ma, mb] = await withTimeout(matched, 15000, 'onmatchmakermatched');
   assert.ok(ma.match_id);
   assert.equal(ma.match_id, mb.match_id);
-  await sa.joinMatch(ma.match_id);
-  const joined = await sb.joinMatch(mb.match_id);
+  await sa.joinMatch(ma.match_id, undefined, JOIN_METADATA);
+  const joined = await sb.joinMatch(mb.match_id, undefined, JOIN_METADATA);
   assert.equal(joined.presences.length + 1, 2);
   sa.disconnect(false); sb.disconnect(false);
 });

@@ -36,6 +36,17 @@ export interface User {
   avatarUrl: string;
 }
 
+/** A storage object to write (nk.storageWrite). */
+export interface StorageWrite {
+  collection: string;
+  key: string;
+  userId: string;
+  value: Record<string, unknown>;
+  version?: string;
+  permissionRead?: number;
+  permissionWrite?: number;
+}
+
 export interface Nakama {
   accountUpdateId(userId: string, username: string | null, displayName: string | null, timezone: string | null,
     location: string | null, langTag: string | null, avatarUrl: string | null, metadata: Record<string, unknown> | null): void;
@@ -43,17 +54,25 @@ export interface Nakama {
   matchList(limit: number, authoritative?: boolean | null, label?: string | null, minSize?: number | null,
     maxSize?: number | null, query?: string | null): MatchListing[];
   usersGetId(userIds: string[]): User[];
+  /** UTF-8 text of the bytes of a match message. */
+  binaryToString(data: ArrayBuffer): string;
+  /** Throws on a network error or timeout. */
+  httpRequest(url: string, method: string, headers: Record<string, string>, body: string, timeoutMs: number): { code: number; body: string };
+  storageWrite(writes: StorageWrite[]): unknown;
 }
 
 export interface MatchDispatcher {
-  broadcastMessage(opCode: number, data: string | null, presences?: Presence[] | null, sender?: Presence | null, reliable?: boolean): void;
+  /** `presences` null sends to everyone in the match. */
+  broadcastMessage(opCode: number, data: string | ArrayBuffer | null, presences?: Presence[] | null, sender?: Presence | null, reliable?: boolean): void;
+  matchKick(presences: Presence[]): void;
   matchLabelUpdate(label: string): void;
 }
 
 export interface MatchMessage {
   sender: Presence;
   opCode: number;
-  data: string;
+  /** The bytes the client sent (read with nk.binaryToString). */
+  data: ArrayBuffer;
 }
 
 export interface MatchmakerResult {

@@ -1,78 +1,69 @@
-// The authoritative "billiards" match, in its F3 lobby form: seats, joining,
-// leaving and the end of an empty room. The game itself (shots, turns, timer)
-// arrives in F4. The label is JSON so rooms can be found by code (spec §7.5).
-import { GRPC, rpcError, type Context, type Logger, type MatchDispatcher, type MatchHandler, type Nakama, type Presence } from './nakama.ts';
+// The authoritative "billiards" match (spec §7.2–7.5, F4-A): the lobby fills,
+// the match starts, messages come in and the room ends. The game itself lives in
+// game/; this handler builds a GameEnv on every call and wires the pieces. The
+// label is JSON so rooms can be found by code (spec §7.5).
+import { OP, PROTOCOL_VERSION } from '@billiards/protocol';
+import { GRPC, rpcError, type Context, type Logger, type MatchHandler, type Nakama } from './nakama.ts';
+import { handleMessage } from './game/intake.ts';
+import { sendJson } from './game/send.ts';
+import { handleLeave, startGame } from './game/seats.ts';
+import { SECONDS, TICK_RATE, createGameState, matchLabel, presenceList, seatOf } from './game/state.ts';
+import type { GameEnv, GameState } from './game/state.ts';
 
-export interface LobbyState {
-  mode: string;
-  format: string;
-  code: string;
-  private: boolean;
-  seats: number;
-  presences: Record<string, Presence>;
-  emptyTicks: number;
+/** Lobby ends: a public lobby nobody fills in time is aborted; any room ends once empty for long enough. */
+function roomEnded(env: GameEnv, state: GameState, tick: number): boolean {
+  if (state.phase === 'LOBBY' && !state.private && tick - state.createdTick >= SECONDS.fill * TICK_RATE) {
+    // F4-03 moves this into endMatch.
+    state.phase = 'ENDED';
+    state.end = { winnerTeam: null, reason: 'ABORTED', summary: { turns: 0, shots: 0 } };
+    sendJson(env.dispatcher, OP.MATCH_END, state.end);
+    return true;
+  }
+  if (presenceList(state).length > 0) {
+    state.emptyTicks = 0;
+    return false;
+  }
+  state.emptyTicks++;
+  return state.emptyTicks >= SECONDS.empty * TICK_RATE;
 }
 
-/** Ticks (1 per second) an empty room lives before it ends. */
-export const EMPTY_TICKS_LIMIT = 60;
-
-const SEATS: Record<string, number> = { '1v1': 2, '2v2': 4 };
-
-function label(state: LobbyState): string {
-  const open = Object.keys(state.presences).length < state.seats;
-  return JSON.stringify({ mode: state.mode, format: state.format, code: state.code, private: state.private, open });
-}
-
-function relabel(dispatcher: MatchDispatcher, state: LobbyState): void {
-  dispatcher.matchLabelUpdate(label(state));
-}
-
-export const billiardsMatch: MatchHandler<LobbyState> = {
+export const billiardsMatch: MatchHandler<GameState> = {
   matchInit(_ctx, _logger, _nk, params) {
-    const format = String(params.format);
-    const state: LobbyState = {
-      mode: String(params.mode),
-      format,
-      code: typeof params.code === 'string' ? params.code : '',
-      private: params.private === true,
-      seats: SEATS[format] ?? 2,
-      presences: {},
-      emptyTicks: 0,
-    };
-    return { state, tickRate: 1, label: label(state) };
+    const state = createGameState(params);
+    return { state, tickRate: TICK_RATE, label: matchLabel(state) };
   },
 
-  matchJoinAttempt(_ctx, _logger, _nk, _dispatcher, _tick, state, presence) {
-    // A player already seated may join again (a new connection replaces the old one).
-    if (!state.presences[presence.userId] && Object.keys(state.presences).length >= state.seats) {
-      return { state, accept: false, rejectMessage: 'ROOM_FULL' };
-    }
+  matchJoinAttempt(_ctx, _logger, _nk, _dispatcher, _tick, state, presence, metadata) {
+    if (Number(metadata?.protocolVersion) !== PROTOCOL_VERSION) return { state, accept: false, rejectMessage: 'PROTOCOL_MISMATCH' };
+    if (state.phase === 'ENDED') return { state, accept: false, rejectMessage: 'MATCH_ENDED' };
+    // Once started, only the match's players come back; in the lobby, a seated player may join again
+    // (a new connection replaces the old one).
+    const known = state.match ? seatOf(state, presence.userId) !== null : Boolean(state.presences[presence.userId]);
+    if (!known && (state.match || presenceList(state).length >= state.seats)) return { state, accept: false, rejectMessage: 'ROOM_FULL' };
     return { state, accept: true };
   },
 
-  matchJoin(_ctx, _logger, _nk, dispatcher, _tick, state, presences) {
+  matchJoin(ctx, logger, nk, dispatcher, tick, state, presences) {
     for (const presence of presences) state.presences[presence.userId] = presence;
     state.emptyTicks = 0;
-    relabel(dispatcher, state);
+    if (!state.match) {
+      if (presenceList(state).length >= state.seats) startGame({ ctx, logger, nk, dispatcher }, state, tick);
+      else dispatcher.matchLabelUpdate(matchLabel(state));
+    }
     return { state };
   },
 
-  matchLeave(_ctx, _logger, _nk, dispatcher, _tick, state, presences) {
-    // A player's newer connection keeps the seat when the older one leaves (§7.4).
-    for (const presence of presences) {
-      if (state.presences[presence.userId]?.sessionId === presence.sessionId) delete state.presences[presence.userId];
-    }
-    relabel(dispatcher, state);
+  matchLeave(ctx, logger, nk, dispatcher, tick, state, presences) {
+    const env: GameEnv = { ctx, logger, nk, dispatcher };
+    for (const presence of presences) handleLeave(env, state, presence, tick);
     return { state };
   },
 
-  matchLoop(_ctx, _logger, _nk, _dispatcher, _tick, state) {
-    if (Object.keys(state.presences).length > 0) {
-      state.emptyTicks = 0;
-      return { state };
-    }
-    state.emptyTicks++;
-    return state.emptyTicks >= EMPTY_TICKS_LIMIT ? null : { state };
+  matchLoop(ctx, logger, nk, dispatcher, tick, state, messages) {
+    const env: GameEnv = { ctx, logger, nk, dispatcher };
+    // F4-03 runs the clock here, before the messages: a shot that arrives on the deadline tick is late.
+    for (const message of messages) handleMessage(env, state, message, tick);
+    return roomEnded(env, state, tick) ? null : { state };
   },
 
   matchTerminate(_ctx, _logger, _nk, _dispatcher, _tick, state) {

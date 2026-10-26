@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@billiards/modes": "*",
-    "@billiards/protocol": "*"
+    "@billiards/protocol": "*",
+    "@billiards/sim": "*"
   }
 }
