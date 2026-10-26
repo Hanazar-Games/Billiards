@@ -14,7 +14,9 @@ export const OP = Object.freeze({
 });
 
 /** The server's reasons for a shot_rejected, besides the modes' RejectReason. */
-export const SERVER_REJECT_REASONS = ['BAD_MESSAGE', 'NOT_AWAITING_SHOT', 'TURN_MISMATCH', 'NO_CHOICE_PENDING'] as const;
+export const SERVER_REJECT_REASONS = [
+  'BAD_MESSAGE', 'NOT_AWAITING_SHOT', 'TURN_MISMATCH', 'NO_CHOICE_PENDING', 'CUE_BALL_INVALID',
+] as const;
 export type ServerRejectReason = (typeof SERVER_REJECT_REASONS)[number];
 
 /** Same shape as ShotRequest in packages/modes. */
@@ -34,13 +36,16 @@ export interface BallInHandMoveMessage { turnId: number; x: number; z: number }
 export interface PushOutChoiceMessage { turnId: number; accept: boolean }
 
 const MAX_INT31 = 2147483647;
+/** The readers reject any angle, power, spin or position above this, so quantizing never overflows to Infinity. */
+export const MAX_ABS_NUMBER = 1e6;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
+/** A finite number within ±MAX_ABS_NUMBER. */
+function isWireNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= MAX_ABS_NUMBER;
 }
 
 function isCounter(value: unknown): value is number {
@@ -48,7 +53,7 @@ function isCounter(value: unknown): value is number {
 }
 
 function readPair<A extends string, B extends string>(value: unknown, a: A, b: B): ({ [K in A | B]: number }) | null {
-  if (!isRecord(value) || !isFiniteNumber(value[a]) || !isFiniteNumber(value[b])) return null;
+  if (!isRecord(value) || !isWireNumber(value[a]) || !isWireNumber(value[b])) return null;
   return { [a]: value[a], [b]: value[b] } as { [K in A | B]: number };
 }
 
@@ -56,7 +61,7 @@ function readPair<A extends string, B extends string>(value: unknown, a: A, b: B
 export function parseShotRequest(raw: unknown): ShotRequestMessage | null {
   if (!isRecord(raw)) return null;
   const spin = readPair(raw.spin, 'x', 'y');
-  if (!isCounter(raw.turnId) || !isCounter(raw.seq) || !isFiniteNumber(raw.angle) || !isFiniteNumber(raw.power) || !spin) return null;
+  if (!isCounter(raw.turnId) || !isCounter(raw.seq) || !isWireNumber(raw.angle) || !isWireNumber(raw.power) || !spin) return null;
   const message: ShotRequestMessage = { turnId: raw.turnId, seq: raw.seq, angle: raw.angle, power: raw.power, spin };
   if (raw.cueBall !== undefined) {
     const cueBall = readPair(raw.cueBall, 'x', 'z');
@@ -73,17 +78,17 @@ export function parseShotRequest(raw: unknown): ShotRequestMessage | null {
 export function parseAimUpdate(raw: unknown): AimUpdateMessage | null {
   if (!isRecord(raw)) return null;
   const spin = readPair(raw.spin, 'x', 'y');
-  if (!isCounter(raw.turnId) || !isFiniteNumber(raw.angle) || !spin) return null;
+  if (!isCounter(raw.turnId) || !isWireNumber(raw.angle) || !spin) return null;
   const message: AimUpdateMessage = { turnId: raw.turnId, angle: raw.angle, spin };
   if (raw.power !== undefined) {
-    if (!isFiniteNumber(raw.power)) return null;
+    if (!isWireNumber(raw.power)) return null;
     message.power = raw.power;
   }
   return message;
 }
 
 export function parseBallInHandMove(raw: unknown): BallInHandMoveMessage | null {
-  if (!isRecord(raw) || !isCounter(raw.turnId) || !isFiniteNumber(raw.x) || !isFiniteNumber(raw.z)) return null;
+  if (!isRecord(raw) || !isCounter(raw.turnId) || !isWireNumber(raw.x) || !isWireNumber(raw.z)) return null;
   return { turnId: raw.turnId, x: raw.x, z: raw.z };
 }
 

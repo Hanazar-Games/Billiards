@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  PROTOCOL_VERSION, SIM_VERSION, OP, SERVER_REJECT_REASONS,
+  PROTOCOL_VERSION, SIM_VERSION, OP, SERVER_REJECT_REASONS, MAX_ABS_NUMBER,
   parseShotRequest, parseAimUpdate, parseBallInHandMove, parsePushOutChoice, quantizeShot,
 } from '../src/index.ts';
 
@@ -23,7 +23,8 @@ test('versões e operações do protocolo v1', () => {
     SEAT_UPDATE: 106, MATCH_END: 107, ERROR: 108, BALL_IN_HAND_RELAY: 109,
   });
   assert.equal(new Set(Object.values(OP)).size, Object.keys(OP).length);
-  assert.deepEqual([...SERVER_REJECT_REASONS], ['BAD_MESSAGE', 'NOT_AWAITING_SHOT', 'TURN_MISMATCH', 'NO_CHOICE_PENDING']);
+  assert.deepEqual([...SERVER_REJECT_REASONS], ['BAD_MESSAGE', 'NOT_AWAITING_SHOT', 'TURN_MISMATCH', 'NO_CHOICE_PENDING', 'CUE_BALL_INVALID']);
+  assert.equal(MAX_ABS_NUMBER, 1e6);
 });
 
 test('shot_request válido volta só com os campos conhecidos', () => {
@@ -59,6 +60,51 @@ test('números não finitos e inteiros inválidos dão null', () => {
   assert.deepEqual(parseShotRequest({ ...ok, cueBall: undefined, pushOut: undefined }), ok);
 });
 
+test('valores finitos acima de 1e6 dão null em todo campo numérico, e 1e6 ainda passa', () => {
+  const shot = (patch: (m: any, v: number) => void, v: number) => {
+    const m = { turnId: 1, seq: 1, angle: 0, power: 1, spin: { x: 0, y: 0 }, cueBall: { x: 1, z: 2 } };
+    patch(m, v);
+    return m;
+  };
+  const aim = (patch: (m: any, v: number) => void, v: number) => {
+    const m = { turnId: 1, angle: 0, spin: { x: 0, y: 0 }, power: 1 };
+    patch(m, v);
+    return m;
+  };
+  const hand = (patch: (m: any, v: number) => void, v: number) => {
+    const m = { turnId: 1, x: 0, z: 0 };
+    patch(m, v);
+    return m;
+  };
+  const cases: [string, (raw: unknown) => unknown, typeof shot, ((m: any, v: number) => void)[]][] = [
+    ['shot_request', parseShotRequest, shot, [(m, v) => { m.angle = v; }, (m, v) => { m.power = v; }, (m, v) => { m.spin.x = v; },
+      (m, v) => { m.spin.y = v; }, (m, v) => { m.cueBall.x = v; }, (m, v) => { m.cueBall.z = v; }]],
+    ['aim_update', parseAimUpdate, aim, [(m, v) => { m.angle = v; }, (m, v) => { m.power = v; }, (m, v) => { m.spin.x = v; }, (m, v) => { m.spin.y = v; }]],
+    ['ball_in_hand_move', parseBallInHandMove, hand, [(m, v) => { m.x = v; }, (m, v) => { m.z = v; }]],
+  ];
+  for (const [name, parse, build, patches] of cases) {
+    patches.forEach((patch, field) => {
+      for (const v of [1e7, -1e7, 1e6 + 1, -1e304, 1e306, 1.7e308]) {
+        assert.equal(parse(build(patch, v)), null, `${name} field ${field} value ${v}`);
+      }
+      for (const v of [MAX_ABS_NUMBER, -MAX_ABS_NUMBER]) {
+        assert.notEqual(parse(build(patch, v)), null, `${name} field ${field} value ${v}`);
+      }
+    });
+  }
+  // turnId and seq are counters with their own bound.
+  assert.notEqual(parseShotRequest({ turnId: 2147483647, seq: 2147483647, angle: 0, power: 0, spin: SPIN0 }), null);
+});
+
+test('o que os leitores aceitam, a quantização mantém finito', () => {
+  const big = MAX_ABS_NUMBER;
+  const parsed = parseShotRequest({ turnId: 0, seq: 0, angle: big, power: -big, spin: { x: big, y: -big }, cueBall: { x: -big, z: big } })!;
+  assert.ok(parsed);
+  const q = quantizeShot(parsed);
+  for (const value of [q.angle, q.power, q.cueBall!.x, q.cueBall!.z]) assert.ok(Number.isFinite(value));
+  assert.ok(Number.isFinite(q.spin.x) && Number.isFinite(q.spin.y) && Math.hypot(q.spin.x, q.spin.y) <= 1 + 1e-9);
+});
+
 test('aim_update, ball_in_hand_move e push_out_choice', () => {
   assert.deepEqual(parseAimUpdate({ turnId: 4, angle: 0.5, spin: { x: 0.1, y: -0.2 }, seat: 1 }),
     { turnId: 4, angle: 0.5, spin: { x: 0.1, y: -0.2 } });
@@ -82,21 +128,25 @@ test('aim_update, ball_in_hand_move e push_out_choice', () => {
   }
 });
 
-function onlyFiniteNumbers(value: unknown): boolean {
-  if (typeof value === 'number') return Number.isFinite(value);
-  if (value && typeof value === 'object') return Object.values(value).every(onlyFiniteNumbers);
+/** Every number is finite, and within MAX_ABS_NUMBER unless it is a turnId or seq counter. */
+function onlyBoundedNumbers(value: unknown, key = ''): boolean {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && (key === 'turnId' || key === 'seq' || Math.abs(value) <= MAX_ABS_NUMBER);
+  }
+  if (value && typeof value === 'object') return Object.entries(value).every(([k, v]) => onlyBoundedNumbers(v, k));
   return true;
 }
 
 test('fuzz: os leitores nunca lançam e só aceitam números finitos', () => {
   const rng = mulberry32(2024);
   const pick = <T>(items: T[]): T => items[Math.floor(rng() * items.length)];
-  const junkNumbers = [NaN, Infinity, -Infinity, -0, 0, 1, -1, 0.5, 1e308, -1e308, 2 ** 31, 2 ** 31 - 1, 2 ** 53, 1e-320, 1.5];
+  const junkNumbers = [NaN, Infinity, -Infinity, -0, 0, 1, -1, 0.5, 1e308, -1e308, 2 ** 31, 2 ** 31 - 1, 2 ** 53, 1e-320, 1.5,
+    1e6, -1e6, 1e6 + 1, 1e7, 1e304];
   const junk = (depth = 0): unknown => {
     const kind = Math.floor(rng() * (depth < 2 ? 9 : 6));
     switch (kind) {
       case 0: return pick(junkNumbers);
-      case 1: return (rng() - 0.5) * 2 * pick([1, 10, 1e6, 1e300]);
+      case 1: return (rng() - 0.5) * 2 * pick([1, 10, 1e6, 1e7, 1e300]);
       case 2: return pick(['', 'NaN', '1e999', '0', 'x', '{}', 'Infinity']);
       case 3: return pick([true, false]);
       case 4: return null;
@@ -134,7 +184,7 @@ test('fuzz: os leitores nunca lançam e só aceitam números finitos', () => {
     for (const [name, result] of results) {
       if (result === null) continue;
       accepted[name]++;
-      assert.ok(onlyFiniteNumbers(result), `${name} accepted a non-finite number`);
+      assert.ok(onlyBoundedNumbers(result), `${name} accepted a non-finite or out-of-bound number`);
       assert.ok(!('extra' in (result as object)), `${name} kept an unknown field`);
       assert.notEqual(result, input);
     }

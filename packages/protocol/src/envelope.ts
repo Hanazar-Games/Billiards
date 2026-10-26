@@ -10,7 +10,17 @@ const CHUNK = 1024;
 export function encodeEnvelope(header: unknown, payload: Uint8Array = new Uint8Array(0)): Uint8Array {
   const json = JSON.stringify(header);
   if (typeof json !== 'string') throw new TypeError('envelope header must be JSON-serializable');
-  const ascii = json.replace(/[\u0080-\uffff]/g, (c) => `\\u${(c.charCodeAt(0) + 0x10000).toString(16).slice(1)}`);
+  // A loop over UTF-16 code units, not a regex: goja's regex engine and surrogate pairs are uncertain.
+  // Surrogates are escaped one by one, which JSON.parse reads back as the same pair.
+  let ascii = '';
+  let from = 0;
+  for (let i = 0; i < json.length; i++) {
+    const code = json.charCodeAt(i);
+    if (code <= 0x7f) continue;
+    ascii += json.slice(from, i) + '\\u' + (code + 0x10000).toString(16).slice(1);
+    from = i + 1;
+  }
+  ascii += json.slice(from);
 
   const bytes = new Uint8Array(LENGTH_BYTES + ascii.length + payload.length);
   new DataView(bytes.buffer).setUint32(0, ascii.length, true);
