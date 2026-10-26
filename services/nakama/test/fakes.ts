@@ -188,6 +188,9 @@ export function newGame(params: Record<string, unknown> = { mode: '8ball', forma
     join: (presences: Presence[], tick = 0) => keep(billiardsMatch.matchJoin(ctx, logger, nk as any, dispatcher, tick, state, presences)),
     leave: (presences: Presence[], tick = 0) => keep(billiardsMatch.matchLeave(ctx, logger, nk as any, dispatcher, tick, state, presences)),
     loop: (tick: number, messages: MatchMessage[] = []) => keep(billiardsMatch.matchLoop(ctx, logger, nk as any, dispatcher, tick, state, messages)),
+    /** The node shuts down: Nakama gives the match `graceSeconds` to finish. */
+    terminate: (tick: number, graceSeconds = 10) =>
+      keep(billiardsMatch.matchTerminate(ctx, logger, nk as any, dispatcher, tick, state, graceSeconds)),
     /** What the dispatcher sent so far, decoded; `clear()` forgets it. */
     out: () => decodeSent(dispatcher.sent),
     clear: () => { dispatcher.sent.length = 0; },

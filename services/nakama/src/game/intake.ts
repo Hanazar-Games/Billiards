@@ -7,6 +7,7 @@ import { currentSeat, isCueBallPlacementValid } from '@billiards/modes';
 import { OP, parseAimUpdate, parseBallInHandMove, parsePushOutChoice, parseShotRequest, quantizeShot } from '@billiards/protocol';
 import type { ShotRequest } from '@billiards/protocol';
 import type { MatchMessage, Presence } from '../nakama.ts';
+import { concede } from './end.ts';
 import { sendJson, sendSnapshot } from './send.ts';
 import { acceptShot, pushOutChoice } from './shots.ts';
 import { LIMITS, TICK_RATE, modeOf, presenceList, seatOf } from './state.ts';
@@ -26,7 +27,10 @@ export function handleMessage(env: GameEnv, state: GameState, message: MatchMess
   if (seat === null || !current || current.sessionId !== sender.sessionId) return;
 
   // Only the operations that carry content are read; the body of any other is ignored.
-  if (message.opCode === OP.CONCEDE) return;   // no content; F4-06 handles it here
+  if (message.opCode === OP.CONCEDE) {
+    concede(env, state, seat, tick);   // no content: never read, never refused
+    return;
+  }
   if (WITH_CONTENT.indexOf(message.opCode) < 0) {
     // emote (4) and rematch_vote (6) are reserved; any other operation is unknown.
     sendJson(env.dispatcher, OP.ERROR, { code: 'UNSUPPORTED_OP' }, [sender]);

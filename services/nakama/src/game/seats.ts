@@ -48,6 +48,7 @@ export function startGame(env: GameEnv, state: GameState, tick: number): void {
   state.match = match;
   state.table = rackTable(mode.rackLayout(match.mode), ONLINE_TABLE);
   state.phase = 'AWAITING_SHOT';
+  state.startedAt = Date.now();
   state.deadlineTick = tick + SECONDS.turn * TICK_RATE;
   env.dispatcher.matchLabelUpdate(matchLabel(state));
   sendSnapshot(env.dispatcher, state, presenceList(state), tick);

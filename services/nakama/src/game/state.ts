@@ -73,6 +73,8 @@ export interface GameState {
   /** The seat that breaks, drawn by the server. */
   firstSeat: number;
   createdTick: number;
+  /** Wall-clock time the match started (Date.now()), for the history record; 0 while in the lobby. */
+  startedAt: number;
   emptyTicks: number;
   /** The tick the current turn times out. */
   deadlineTick: number;
@@ -112,6 +114,7 @@ export function createGameState(params: Record<string, unknown>): GameState {
     table: null,
     firstSeat: 0,
     createdTick: 0,
+    startedAt: 0,
     emptyTicks: 0,
     deadlineTick: 0,
     lastResult: null,

@@ -174,11 +174,12 @@ test('operações sem conteúdo não são lidas: corpo vazio ou que não é JSON
   const game = startedGame();
   game.loop(1, [message(game.waiter, OP.REMATCH_VOTE, ''), message(game.waiter, OP.EMOTE, 'not json')]);
   game.loop(10, [message(game.shooter, 42, '')]);
-  game.loop(20, [message(game.shooter, OP.CONCEDE, '')]);   // concede (F4-06) carries no content
+  game.loop(20, [message(game.shooter, OP.CONCEDE, '')]);   // concede carries no content: it ends the match
   assert.deepEqual(sentSummary(game), [
     [OP.ERROR, { code: 'UNSUPPORTED_OP' }, [game.waiter.sessionId]],
     [OP.ERROR, { code: 'UNSUPPORTED_OP' }, [game.waiter.sessionId]],
     [OP.ERROR, { code: 'UNSUPPORTED_OP' }, [game.shooter.sessionId]],
+    [OP.MATCH_END, { winnerTeam: 1 - game.seat, reason: 'CONCEDE', summary: { turns: 1, shots: 0 } }, null],
   ]);
   assert.deepEqual(game.state.invalid, {});
 });

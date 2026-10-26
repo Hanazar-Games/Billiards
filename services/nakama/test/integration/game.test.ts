@@ -5,17 +5,20 @@
 // F4-04: a player who drops during the playback comes back to the shot still playing,
 // a repeated shot_request is one shot, and a second tab replaces the first.
 // F4-05: a player away for more than 60 s loses by walkover.
+// F4-06: a concession ends the match and leaves exactly one record in match_history.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { OP, decodeTrajectory } from '@billiards/protocol';
+import { OP, PROTOCOL_VERSION, SIM_VERSION, decodeTrajectory } from '@billiards/protocol';
 import { waitForNakama } from './env.ts';
-import { closeBots, newBot, rpc, serverError, sleep } from './bot.ts';
+import { closeBots, eventually, newBot, rpc, serverError, sleep } from './bot.ts';
 import { byTurn, startPrivateGame } from './game.ts';
 
 before(() => waitForNakama(60000));
 after(closeBots);
 
 const SHOT = { angle: 0.5, power: 40, spin: { x: 0, y: 0 } };
+/** The owner of the records the server writes for itself. */
+const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 /** The strongest break, straight up the table (already quantized). */
 const BREAK = { angle: 1.5708, power: 110, spin: { x: 0, y: 0 } };
 
@@ -184,4 +187,49 @@ test('bot ausente por mais de 60 s perde por W.O.', { timeout: 90000 }, async ()
   const seconds = (Date.now() - started) / 1000;
   assert.ok(seconds >= 60 && seconds <= 70, `the walkover came after ${seconds} s`);
   assert.deepEqual([end.body.winnerTeam, end.body.reason], [a.seat, 'ABANDON']);
+});
+
+test('desistência encerra a partida e grava o histórico uma vez', async () => {
+  const { bots: [a, b], matchId } = await startPrivateGame();
+  const firstSeat = a.snapshot!.turn!.seat;
+  await a.send(OP.CONCEDE, '');   // no content: the server never reads it
+  const ends = await Promise.all([a.waitFor(OP.MATCH_END), b.waitFor(OP.MATCH_END)]);
+  for (const end of ends) {
+    assert.deepEqual(end.body, { winnerTeam: b.seat, reason: 'CONCEDE', summary: { turns: 1, shots: 0 } });
+  }
+
+  // The record is written as the match ends; the client may read before the write commits.
+  const read = await eventually(
+    () => a.bot.client.readStorageObjects(a.bot.session, { object_ids: [{ collection: 'match_history', key: matchId, user_id: SYSTEM_USER_ID }] }),
+    (r) => r.ok && r.value.objects.length > 0);
+  if (!read.ok) throw read.error;
+  assert.equal(read.value.objects.length, 1);
+  const record = read.value.objects[0];
+  assert.deepEqual([record.collection, record.key, record.user_id, record.permission_read, record.permission_write],
+    ['match_history', matchId, SYSTEM_USER_ID, 2, 0]);
+  const value = record.value as any;
+  assert.deepEqual(
+    { ...value, startedAt: typeof value.startedAt, endedAt: typeof value.endedAt },
+    {
+      matchId,
+      mode: '8ball',
+      format: '1v1',
+      private: true,
+      players: [a, b].map((player) => ({ seat: player.seat, team: player.seat, userId: player.bot.session.user_id, username: player.bot.session.username })),
+      firstSeat,
+      rack: 'fixed',
+      simVersion: SIM_VERSION,
+      protocolVersion: PROTOCOL_VERSION,
+      shots: [],
+      winnerTeam: b.seat,
+      reason: 'CONCEDE',
+      turns: 1,
+      startedAt: 'number',
+      endedAt: 'number',
+    });
+  assert.ok(value.endedAt >= value.startedAt && value.endedAt - value.startedAt < 60000);
+
+  // Exactly one object with this key in the collection (other tests' matches have theirs).
+  const list = await a.bot.client.listStorageObjects(a.bot.session, 'match_history', SYSTEM_USER_ID);
+  assert.equal(list.objects.filter((o) => o.key === matchId).length, 1);
 });

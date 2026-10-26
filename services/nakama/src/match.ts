@@ -69,10 +69,15 @@ export const billiardsMatch: MatchHandler<GameState> = {
     const env: GameEnv = { ctx, logger, nk, dispatcher };
     runClock(env, state, tick);
     for (const message of messages) handleMessage(env, state, message, tick);
+    // An ended match keeps the room for SECONDS.endLinger (the clients read match_end and the
+    // last result), without the clock, and then closes it.
+    if (state.phase === 'ENDED') return tick >= state.endTick + SECONDS.endLinger * TICK_RATE ? null : { state };
     return roomEnded(env, state, tick) ? null : { state };
   },
 
-  matchTerminate(_ctx, _logger, _nk, _dispatcher, _tick, state) {
+  /** The node shuts down: a match still on ends ABORTED (no winner, no history record). */
+  matchTerminate(ctx, logger, nk, dispatcher, tick, state) {
+    endMatch({ ctx, logger, nk, dispatcher }, state, tick, null, 'ABORTED');
     return { state };
   },
 
