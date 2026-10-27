@@ -91,12 +91,20 @@ docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml --en
   exec -T postgres pg_dump -U postgres nakama | gzip > nakama-$(date +%F).sql.gz
 ```
 
-Para restaurar numa máquina nova, depois do primeiro `infra:prod:up` e com o jogo parado para os jogadores:
+Para restaurar, numa máquina nova, a cópia entra num banco vazio, antes de o Nakama subir pela primeira vez: o `infra:prod:up` roda as migrações do Nakama, e uma cópia restaurada por cima de um banco já migrado falha em quase tudo sem parar. Com o `infra/.env` da máquina antiga (a mesma `POSTGRES_PASSWORD`):
+
+```bash
+docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml --env-file infra/.env up -d --wait postgres
+```
 
 ```bash
 gunzip -c nakama-AAAA-MM-DD.sql.gz | docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml \
-  --env-file infra/.env exec -T postgres psql -U postgres nakama
+  --env-file infra/.env exec -T postgres psql -U postgres -v ON_ERROR_STOP=1 --single-transaction nakama
 ```
+
+Se o `psql` parar com erro, nada foi gravado: confira se o volume `postgres-data` estava mesmo vazio (`docker volume ls`). Com a restauração completa, `npm run infra:prod:up` sobe o resto; as migrações do Nakama encontram o banco já no ponto.
+
+Para voltar uma cópia na mesma máquina, pare tudo (`npm run infra:prod:stop`), apague o volume do banco (`docker volume rm billiards_postgres-data`, depois de conferir que a cópia abre com `gunzip -t`) e siga os dois comandos acima.
 
 Leve a cópia para fora da máquina. Uma cópia por dia, num `cron`, já cobre o beta.
 
