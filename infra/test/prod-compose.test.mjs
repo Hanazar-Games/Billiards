@@ -11,7 +11,8 @@ import { fileURLToPath } from 'node:url';
 
 const infra = join(dirname(fileURLToPath(import.meta.url)), '..');
 const docker = spawnSync('docker', ['compose', 'version'], { encoding: 'utf8' });
-const noDocker = docker.status !== 0 && 'sem Docker Compose nesta máquina';
+// Skipped only outside CI: in the workflow, a missing Docker is a failure, not a skip.
+const noDocker = docker.status !== 0 && !process.env.CI && 'sem Docker Compose nesta máquina';
 
 /** The merged production config, from a generated .env. */
 function prodConfig() {
