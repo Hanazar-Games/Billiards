@@ -4,7 +4,8 @@
  * shape the server will send online (F4). Without a mode (free play, trainer)
  * it only simulates.
  */
-import { MODES, createMatch, applyRuling, removeMatchSeat, currentSeat, placeCueBall, eightBallStatus, nineBallStatus } from '@billiards/modes';
+import { MODES, createMatch, applyRuling, removeMatchSeat, currentSeat, placeCueBall } from '@billiards/modes';
+import { matchStatus } from './matchStatus.js';
 import { BALL, SHOT } from '../config.js';
 import { simClient as defaultSimClient } from '../sim/SimWorkerClient.js';
 
@@ -128,27 +129,7 @@ export class LocalMatchController {
 
   /** The legacy getStatus() shape, for the HUD, the AI and the spectator; null without a mode. */
   status() {
-    if (!this.match) return null;
-    const m = this.match.mode;
-    const eight = this.modeId === '8ball' ? eightBallStatus(m) : null;
-    const nine = this.modeId === '9ball' ? nineBallStatus(m) : null;
-    return {
-      currentPlayer: this.seat + 1,
-      breakShot: m.breakShot,
-      gameOver: m.winnerTeam !== null,
-      winner: m.winnerTeam === null ? null : m.winnerTeam + 1,
-      ballInHand: m.ballInHand ? { player: m.ballInHand.seat + 1, kitchen: m.ballInHand.zone === 'kitchen' } : null,
-      player1Group: eight?.groups[0] ?? null,
-      player2Group: eight?.groups[1] ?? null,
-      player1Remaining: eight?.remaining[0] ?? 7,
-      player2Remaining: eight?.remaining[1] ?? 7,
-      targetBall: nine?.targetBall ?? null,
-      pocketedCount: m.pocketed.length,
-      player1ConsecutiveFouls: m.fouls?.[0] ?? 0,
-      player2ConsecutiveFouls: m.fouls?.[1] ?? 0,
-      pushOutAvailable: !!m.pushOut?.available,
-      pushOutPending: !!m.pushOut?.pending,
-    };
+    return matchStatus(this.modeId, this.match);
   }
 
   /** The match state, plain JSON (LAN snapshots). */
