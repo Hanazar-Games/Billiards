@@ -1,0 +1,25 @@
+{
+  "name": "@billiards/sim",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./constants": "./src/constants.js",
+    "./corpus": "./test/corpus.js"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "golden:update": "node tools/update-golden.mjs",
+    "feel:reference": "node tools/legacy-reference.mjs",
+    "feel:sim-reference": "node tools/sim-reference.mjs",
+    "bench": "node --expose-gc bench/break.mjs"
+  },
+  "dependencies": {
+    "cannon-es": "0.20.0"
+  },
+  "devDependencies": {
+    "three": "^0.170.0",
+    "@billiards/protocol": "*"
+  }
+}

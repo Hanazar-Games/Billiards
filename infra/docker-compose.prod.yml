@@ -1,0 +1,40 @@
+# Production overlay (F4-13, D065), on top of docker-compose.yml:
+#   docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml --env-file infra/.env …
+# (npm run infra:prod:up checks infra/.env first). Caddy terminates TLS for
+# NAKAMA_DOMAIN (a Let's Encrypt certificate it renews by itself) and forwards to
+# nakama:7350; it is the only service with public ports. The console stays on
+# 127.0.0.1:7351 (ssh -L), PostgreSQL and the sim publish nothing, and every
+# service comes back after a crash or a reboot. docs/f4/implantacao.md.
+services:
+  postgres:
+    restart: unless-stopped
+
+  sim:
+    restart: unless-stopped
+
+  nakama:
+    restart: unless-stopped
+    # Replaces the development ports: no public API port, the console on this machine only.
+    ports: !override
+      - "127.0.0.1:7351:7351"
+
+  caddy:
+    image: caddy:2.10.0-alpine
+    restart: unless-stopped
+    depends_on:
+      nakama:
+        condition: service_healthy
+    environment:
+      NAKAMA_DOMAIN: "${NAKAMA_DOMAIN:?NAKAMA_DOMAIN is missing in infra/.env}"
+      ACME_EMAIL: "${ACME_EMAIL:?ACME_EMAIL is missing in infra/.env}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

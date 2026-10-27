@@ -1,0 +1,12 @@
+{
+  "name": "sim-bench",
+  "private": true,
+  "type": "module",
+  "description": "F0 spike (throwaway): measures headless shot simulation cost on Node and goja.",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

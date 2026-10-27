@@ -1,0 +1,1191 @@
+[
+  {
+    "id": "D001",
+    "date": "2026-10-24",
+    "title": "Fork definitivo do Hanazar-Games/Billiards",
+    "decision": "O projeto parte do Hanazar-Games/Billiards v1.26.13 (commit 0448b03, licença MIT) em rguilherme10/billiard, sem planos de puxar commits futuros do repositório original. O aviso de copyright MIT é mantido.",
+    "rationale": "A reorganização em monorepo inviabiliza merges do original, que recebe commits com frequência.",
+    "alternatives": [
+      "Fork acompanhando o upstream",
+      "Reescrever do zero"
+    ],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §5.2"
+    ]
+  },
+  {
+    "id": "D002",
+    "date": "2026-10-24",
+    "title": "Modelo de negócio free-to-play com venda de skins",
+    "decision": "Jogo gratuito, monetizado com venda direta de skins cosméticas. Outros modos de jogo e mais jogadores por partida virão depois.",
+    "rationale": "Definição do usuário.",
+    "alternatives": [
+      "Projeto pessoal",
+      "Comunidade sem monetização"
+    ],
+    "status": "accepted",
+    "source": "usuário",
+    "refs": [
+      "spec §1"
+    ]
+  },
+  {
+    "id": "D003",
+    "date": "2026-10-24",
+    "title": "Somente web, desktop e celular",
+    "decision": "Lançamento apenas no navegador (desktop e celular), instalável como PWA. Sem apps nas lojas por ora.",
+    "rationale": "Escolha do usuário (opção A). Evita a obrigatoriedade de compra no app e a taxa de 15–30% das lojas.",
+    "alternatives": [
+      "Web primeiro, apps depois",
+      "Apps nas lojas desde o início"
+    ],
+    "status": "accepted",
+    "source": "usuário",
+    "refs": [
+      "spec §1",
+      "spec §3"
+    ]
+  },
+  {
+    "id": "D004",
+    "date": "2026-10-24",
+    "title": "Pagamento por Pix e cartão",
+    "decision": "Pagamentos via Pix e cartão por um provedor web (Mercado Pago ou Stripe), atrás da interface PaymentProvider. A escolha do provedor fica para a F8 (ver D029).",
+    "rationale": "Consequência de D003; os dois provedores aceitam Pix no Brasil.",
+    "alternatives": [
+      "Compra no app das lojas"
+    ],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §8.4"
+    ]
+  },
+  {
+    "id": "D005",
+    "date": "2026-10-24",
+    "title": "Sem caixas de recompensa",
+    "decision": "Skins são vendidas diretamente, nunca por sorteio (loot box).",
+    "rationale": "O ECA Digital (Lei 15.211/2025) proíbe caixas de recompensa em jogos acessíveis a crianças e adolescentes. Confirmar com advogado antes da F8.",
+    "alternatives": [
+      "Caixas de recompensa"
+    ],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §8.4",
+      "spec §11"
+    ]
+  },
+  {
+    "id": "D006",
+    "date": "2026-10-24",
+    "title": "Skins apenas do catálogo do jogo",
+    "decision": "Jogadores escolhem skins do catálogo; não há envio de modelos ou texturas próprios.",
+    "rationale": "Escopo muito menor; sem moderação de conteúdo enviado.",
+    "alternatives": [
+      "Skins criadas pelos jogadores"
+    ],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §3"
+    ]
+  },
+  {
+    "id": "D007",
+    "date": "2026-10-24",
+    "title": "Luvas fora do escopo",
+    "decision": "Luvas ficam fora do MVP e do lançamento até haver um modelo de mão animado.",
+    "rationale": "A cena atual não tem mão nem jogador, só o taco; luvas exigem modelagem, rig, poses e ajustes de câmera.",
+    "alternatives": [
+      "Luvas no MVP"
+    ],
+    "status": "accepted",
+    "source": "código",
+    "refs": [
+      "spec §4 item 7"
+    ]
+  },
+  {
+    "id": "D008",
+    "date": "2026-10-24",
+    "title": "Cosméticos do MVP com presets; modelos 3D antes da venda",
+    "decision": "O MVP usa os presets procedurais existentes (CueThemes, BallThemes, TableThemes). Antes das skins pagas (F8), entra o pipeline GLB/KTX2 com CDN.",
+    "rationale": "Os presets já existem; skins pagas precisam de arte mais elaborada para vender.",
+    "alternatives": [
+      "Pipeline de modelos 3D já no MVP"
+    ],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §8.2",
+      "spec §8.5"
+    ]
+  },
+  {
+    "id": "D009",
+    "date": "2026-10-24",
+    "title": "Arquitetura: Nakama + serviço de simulação em Node",
+    "decision": "O Nakama é dono das partidas, regras, contas, inventário e loja; um serviço Node sem estado (services/sim) executa a física autoritativa, uma chamada HTTP interna por tacada.",
+    "rationale": "Mesma física e mesmo motor (V8) no cliente e no servidor; serviço fácil de testar e escalar; o Nakama fica com o que faz bem.",
+    "alternatives": [
+      "Tudo dentro do Nakama (goja)",
+      "Tudo em Node sem Nakama (Colyseus ou servidor próprio)"
+    ],
+    "status": "accepted",
+    "source": "usuário",
+    "refs": [
+      "spec §5"
+    ]
+  },
+  {
+    "id": "D010",
+    "date": "2026-10-24",
+    "title": "Física extraída para pacote sem gráficos com passo fixo",
+    "decision": "packages/sim contém a física sem Three.js, DOM ou relógio de parede, com passo fixo de 1/360 s, física customizada aplicada a cada passo e limite de 20 s de tempo simulado.",
+    "rationale": "Hoje a física está acoplada à renderização e a física customizada roda por frame, então o resultado tende a depender do FPS.",
+    "alternatives": [
+      "Rodar o código atual com stubs de Three.js no servidor"
+    ],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "note": "o ritmo da física customizada foi substituído pela D036; o resto da D010 vale",
+    "refs": [
+      "spec §4 itens 1–2",
+      "spec §6"
+    ]
+  },
+  {
+    "id": "D011",
+    "date": "2026-10-24",
+    "title": "Sincronização pela trajetória autoritativa",
+    "decision": "O servidor envia a trajetória amostrada (30 amostras/s, só bolas em movimento, binária), os eventos e o estado final exato; os clientes apenas reproduzem.",
+    "rationale": "Motores JS diferentes divergem em funções matemáticas e a sinuca amplifica as diferenças; simular em cada cliente causaria saltos visíveis.",
+    "alternatives": [
+      "Cada cliente simula e corrige no fim"
+    ],
+    "status": "accepted",
+    "source": "usuário",
+    "refs": [
+      "spec §6",
+      "spec §6.1"
+    ]
+  },
+  {
+    "id": "D012",
+    "date": "2026-10-24",
+    "title": "Caminho único de reprodução",
+    "decision": "Online, offline e replays usam o mesmo formato de trajetória e o mesmo reprodutor. Offline, a simulação roda em Web Worker.",
+    "rationale": "Um único caminho de código no Game.js; menos divergência entre modos.",
+    "alternatives": [
+      "Manter a física ao vivo no modo offline"
+    ],
+    "status": "accepted",
+    "source": "usuário",
+    "refs": [
+      "spec §5.3",
+      "spec §6"
+    ]
+  },
+  {
+    "id": "D013",
+    "date": "2026-10-24",
+    "title": "Partidas com N lugares e equipes",
+    "decision": "O estado da partida tem N lugares, equipes e ordem de turno definida pelo modo desde o início. Formatos: 1×1, duplas 2×2, cada um por si (3–5) e espectadores. O MVP lança só o 1×1.",
+    "rationale": "O usuário quer os três formatos; mudar de 2 para N jogadores depois exigiria refazer protocolo e dados.",
+    "alternatives": [
+      "Somente 1×1"
+    ],
+    "status": "accepted",
+    "source": "usuário",
+    "refs": [
+      "spec §7.2"
+    ]
+  },
+  {
+    "id": "D014",
+    "date": "2026-10-24",
+    "title": "Modos de jogo com interface comum",
+    "decision": "Regras em packages/modes seguindo a interface GameMode (createInitialState, rackLayout, validateShot, resolveShot, onSeatRemoved). 8-ball primeiro; 9-ball portado; cutthroat na F9.",
+    "rationale": "Novos modos entram sem mexer no servidor de partidas.",
+    "alternatives": [
+      "Regras embutidas no manipulador de partida"
+    ],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §7.1"
+    ]
+  },
+  {
+    "id": "D015",
+    "date": "2026-10-24",
+    "title": "Monorepo e linguagens",
+    "decision": "npm workspaces com packages/{sim,modes,protocol}, apps/client, services/{nakama,sim}, infra/. TypeScript em modes, protocol e services; JavaScript com // @ts-check + JSDoc em packages/sim; JavaScript no cliente.",
+    "rationale": "Extração da física com mudança mínima; tipos onde o código é novo.",
+    "alternatives": [
+      "Migrar tudo para TypeScript",
+      "Manter tudo em JavaScript"
+    ],
+    "status": "accepted",
+    "source": "usuário",
+    "refs": [
+      "spec §5.2"
+    ]
+  },
+  {
+    "id": "D016",
+    "date": "2026-10-24",
+    "title": "Remover o multiplayer LAN",
+    "decision": "NetworkClient.js, lan-server.js e LanRoomPanel.js são removidos quando o OnlineMatchController existir (F4).",
+    "rationale": "O LAN é autoritativo no host e é substituído pelo Nakama.",
+    "alternatives": [
+      "Manter LAN em paralelo"
+    ],
+    "status": "accepted",
+    "source": "usuário",
+    "refs": [
+      "spec §5.3"
+    ]
+  },
+  {
+    "id": "D017",
+    "date": "2026-10-24",
+    "title": "Física dentro do Nakama como opção de implantação",
+    "decision": "A física NÃO roda dentro do Nakama: mantém-se services/sim em Node (D009). No goja do Nakama 3.41.0 a abertura levou 22,4 s (p95 22,6 s), cerca de 175× o Node (128 ms), contra o limite de 250 ms; o bundle carregou sem alterar src/.",
+    "rationale": "O goja é um interpretador sem JIT e sem APIs do Node; desempenho desconhecido.",
+    "alternatives": [
+      "Sempre services/sim",
+      "Sempre dentro do Nakama"
+    ],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §5.5",
+      "docs/superpowers/plans/2026-10-24-f0-spike-runtime-simulacao.md"
+    ],
+    "evidence": "docs/spikes/2026-10-24-runtime-simulacao.md",
+    "resolvedAt": "2026-10-24"
+  },
+  {
+    "id": "D018",
+    "date": "2026-10-24",
+    "title": "Interface em PT-BR; sistemas locais só offline",
+    "decision": "A interface é traduzida para PT-BR (F5). Carreira, conquistas, torneios, replays e desafios continuam em localStorage, disponíveis apenas offline.",
+    "rationale": "Público brasileiro; migrar os sistemas locais para o servidor não é necessário para o MVP.",
+    "alternatives": [
+      "Migrar sistemas locais para o Nakama no MVP"
+    ],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §3",
+      "spec §4 item 8"
+    ]
+  },
+  {
+    "id": "D019",
+    "date": "2026-10-24",
+    "title": "Hospedagem em Docker",
+    "decision": "Nakama, PostgreSQL e sim em Docker; cliente estático em CDN; região única no lançamento. VPS própria ou Heroic Cloud: decidir na F3.",
+    "rationale": "O desenho funciona com as duas opções.",
+    "alternatives": [
+      "Kubernetes desde o início"
+    ],
+    "status": "superseded",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §5.4"
+    ],
+    "supersededBy": "D049"
+  },
+  {
+    "id": "D020",
+    "date": "2026-10-24",
+    "title": "Cronômetro e ausência",
+    "decision": "Cronômetro de 45 s por tacada (configurável por modo); tempo esgotado conta como falta; 3 tempos esgotados seguidos = abandono; lugar reservado por 60 s após queda. Depois disso: W.O. no 1×1, parceiro assume no 2×2, eliminação no cada um por si.",
+    "rationale": "Com 4–5 jogadores, um ausente trava a partida.",
+    "alternatives": [
+      "Sem cronômetro"
+    ],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §7.3",
+      "spec §7.4"
+    ],
+    "review": "Ajustar valores nos testes de jogo da F4."
+  },
+  {
+    "id": "D021",
+    "date": "2026-10-24",
+    "title": "Espectadores",
+    "decision": "Espectadores entram com role 'spectator', até 50 por partida; mensagens de jogo vindas deles são descartadas; em ranqueadas recebem com atraso de uma tacada. Reaproveitam src/spectator/.",
+    "rationale": "Requisito do usuário; o atraso evita que um espectador sopre informações a um jogador.",
+    "alternatives": [
+      "Sem atraso"
+    ],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §7.6"
+    ]
+  },
+  {
+    "id": "D022",
+    "date": "2026-10-24",
+    "title": "Contas",
+    "decision": "Entrada como convidado (autenticação por dispositivo), com vínculo de Google e e-mail/senha; comprar exige conta vinculada.",
+    "rationale": "Entrada sem atrito sem que o jogador perca itens comprados ao trocar de aparelho.",
+    "alternatives": [
+      "Cadastro obrigatório"
+    ],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §8.1"
+    ]
+  },
+  {
+    "id": "D023",
+    "date": "2026-10-24",
+    "title": "Visibilidade das skins na partida",
+    "decision": "O taco de cada jogador é visto por todos; bolas e mesa aparecem conforme o que cada participante tiver equipado.",
+    "rationale": "Quem compra uma mesa sempre a vê; o taco identifica o jogador.",
+    "alternatives": [
+      "Mesa e bolas do anfitrião para todos"
+    ],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §8.3"
+    ],
+    "review": "Questão em aberto na spec §12; revisar com o usuário."
+  },
+  {
+    "id": "D024",
+    "date": "2026-10-24",
+    "title": "Sem chat livre no MVP",
+    "decision": "Comunicação apenas por emotes predefinidos.",
+    "rationale": "Evita moderação e riscos com menores.",
+    "alternatives": [
+      "Chat de texto com filtro"
+    ],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §3",
+      "spec §9.2"
+    ]
+  },
+  {
+    "id": "D025",
+    "date": "2026-10-24",
+    "title": "Loja vende itens em reais, sem moeda virtual paga",
+    "decision": "Cada item tem preço em centavos de real; estorno remove exatamente o item comprado.",
+    "rationale": "Mais simples técnica e juridicamente do que moeda virtual.",
+    "alternatives": [
+      "Moeda virtual comprada com dinheiro"
+    ],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §8.4"
+    ]
+  },
+  {
+    "id": "D026",
+    "date": "2026-10-24",
+    "title": "MVP casual; ranking na F9",
+    "decision": "O MVP tem apenas partidas casuais. Na F9, rating com OpenSkill (equipes e partidas com vários jogadores).",
+    "rationale": "Elo não lida bem com 2×2 e cada um por si.",
+    "alternatives": [
+      "Elo",
+      "Glicko-2"
+    ],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §7.5"
+    ]
+  },
+  {
+    "id": "D027",
+    "date": "2026-10-24",
+    "title": "Harness de desenvolvimento",
+    "decision": "CLAUDE.md orienta os agentes; harness/ guarda decisions.json (este arquivo, só acrescentado), feature_list.json (critérios verificáveis com passes), progress.md (registro de sessões) e init.sh (dependências + testes rápidos + resumo). Um hook SessionStart roda o init.sh nas sessões na nuvem.",
+    "rationale": "Pedido do usuário; mantém memória entre sessões e torna o progresso verificável.",
+    "alternatives": [],
+    "status": "accepted",
+    "source": "usuário",
+    "refs": [
+      "CLAUDE.md"
+    ]
+  },
+  {
+    "id": "D028",
+    "date": "2026-10-24",
+    "title": "Commit a cada interação",
+    "decision": "Ao fim de cada interação com o usuário, as mudanças são commitadas e enviadas à branch de trabalho (nunca direto na main), com harness/progress.md atualizado.",
+    "rationale": "Pedido do usuário; o contêiner da nuvem é efêmero.",
+    "alternatives": [],
+    "status": "accepted",
+    "source": "usuário",
+    "refs": [
+      "CLAUDE.md"
+    ]
+  },
+  {
+    "id": "D029",
+    "date": "2026-10-24",
+    "title": "Provedor de pagamento",
+    "decision": "Mercado Pago ou Stripe: comparar taxas, Pix, estornos e emissão fiscal no início da F8.",
+    "rationale": "Ainda não é necessário decidir.",
+    "alternatives": [
+      "Mercado Pago",
+      "Stripe"
+    ],
+    "status": "open",
+    "source": "recomendação aceita",
+    "refs": [
+      "spec §12"
+    ]
+  },
+  {
+    "id": "D030",
+    "date": "2026-10-24",
+    "title": "Idioma de documentos e código",
+    "decision": "Documentos de planejamento e harness em PT-BR; identificadores, comentários de código e mensagens de commit em inglês.",
+    "rationale": "Mantém o padrão do código existente e a convenção de commits do repositório.",
+    "alternatives": [],
+    "status": "accepted",
+    "source": "recomendação aceita",
+    "refs": [
+      "CLAUDE.md"
+    ]
+  },
+  {
+    "id": "D031",
+    "date": "2026-10-24",
+    "title": "Otimizar a simulação na F1",
+    "decision": "packages/sim deve ter abertura com p95 ≤ 100 ms no contêiner de referência (Intel Xeon, 4 vCPUs, Node 22). Investigar iterações do solver (38), SAPBroadphase, limites de repouso e custo das guardas por passo.",
+    "rationale": "No spike F0, a abertura com passo fixo teve p95 de 158 ms no Node, acima do critério de 100 ms.",
+    "alternatives": [
+      "Aceitar 158 ms",
+      "Reduzir a frequência do passo fixo"
+    ],
+    "status": "superseded",
+    "source": "spike F0",
+    "refs": [
+      "docs/spikes/2026-10-24-runtime-simulacao.md",
+      "spec §9.3"
+    ],
+    "supersededBy": "D034"
+  },
+  {
+    "id": "D032",
+    "date": "2026-10-24",
+    "title": "Teste de sensação por métricas de tacadas com uma bola",
+    "decision": "O teste de sensação da F1 compara com o legado a 60 FPS, com tolerância de ±5%: distância percorrida, tempo até parar, ângulo de saída da tabela, recuo/seguimento e desvio por efeito em tacadas com uma bola; e, na abertura, a distribuição de tempo simulado e de bolas movidas. Não compara posições finais de tacadas com várias bolas. O corpus golden inclui tacadas que encaçapam.",
+    "rationale": "O spike mostrou que tacadas com várias bolas são caóticas: fixed × legacy60 diverge até 150 cm, tanto quanto legacy60 × legacy144 (138 cm). Comparar posições finais nelas não mede sensação.",
+    "alternatives": [
+      "Comparar posições finais com tolerância larga"
+    ],
+    "status": "superseded",
+    "source": "spike F0",
+    "refs": [
+      "docs/spikes/2026-10-24-runtime-simulacao.md",
+      "harness/feature_list.json F1-05, F1-06"
+    ],
+    "supersededBy": "D033"
+  },
+  {
+    "id": "D033",
+    "date": "2026-10-24",
+    "title": "Teste de sensação com tolerância medida no próprio legado",
+    "decision": "O teste de sensação da F1 usa um corpus com tacadas de uma bola na tabela, encaçapes simples de duas bolas, uma abertura e tacadas de baixa energia. Métricas: distância percorrida e posição final (não o tempo até parar, dominado pela frenagem em baixa velocidade) e o conjunto de bolas encaçapadas, que precisa ser igual. A tolerância de cada métrica é o espalhamento entre o legado a 60 e a 144 FPS, que os jogadores já experimentam, medido na F1 sobre esse corpus. O recuo (draw) não é referência: é item de calibragem (F1-09), porque no legado o efeito para trás destrói o momento da bola.",
+    "rationale": "A revisão final da F0 mostrou que a D032 não se sustentava: a sensibilidade depende da energia, não do número de bolas (soft move 14 bolas e diverge 0,56 cm); o sistema é sensível (perturbação de 1e-3 cm na branca muda a abertura em 11 cm), mas não diverge com perturbações mínimas (1e-6 cm → 0,018 cm); a diferença de 100+ cm entre modelos vem da diferença sistemática do passo das guardas (1/60 contra 1/360 s), amplificada; e o próprio passo fixo já viola ±5% em tacadas de uma bola (english na tabela: −6,8% na distância).",
+    "alternatives": [
+      "Tolerância fixa de ±5% (D032)",
+      "Comparar posições finais de todas as tacadas"
+    ],
+    "status": "accepted",
+    "source": "revisão final da F0",
+    "refs": [
+      "docs/spikes/2026-10-24-runtime-simulacao.md",
+      "spec §9.3",
+      "harness/feature_list.json F1-05, F1-06, F1-09"
+    ]
+  },
+  {
+    "id": "D034",
+    "date": "2026-10-24",
+    "title": "Meta de otimização relativa ao spike",
+    "decision": "Otimizar packages/sim até a abertura com passo fixo ter mediana pelo menos 1,3× mais rápida que o modelo fixed do spike (spikes/sim-bench), medidos no mesmo processo e na mesma máquina, com coleta de lixo forçada antes de cada tacada; p95 é métrica secundária, informada mas não usada como critério. Investigar iterações do solver (38), SAPBroadphase, limites de repouso e custo das guardas por passo.",
+    "rationale": "D031 usava p95 ≤ 100 ms absoluto, mas a mesma medição variou de 133 a 167 ms no contêiner compartilhado, e parte do p95 vinha da coleta de lixo da montagem do mundo. A mediana da abertura (128 ms) já justifica otimizar; 1,3× leva a mediana a cerca de 100 ms nesta máquina.",
+    "alternatives": [
+      "p95 ≤ 100 ms absoluto (D031)"
+    ],
+    "status": "accepted",
+    "source": "revisão final da F0",
+    "refs": [
+      "docs/spikes/2026-10-24-runtime-simulacao.md",
+      "harness/feature_list.json F1-08"
+    ]
+  },
+  {
+    "id": "D035",
+    "date": "2026-10-24",
+    "title": "Envelope de tolerância do teste de sensação",
+    "decision": "A tolerância de cada métrica de sensação (D033) é o envelope [mín, máx] do legado rodado a 30, 60, 120 e 144 FPS com relógio congelado, alargado por max(1 cm, 2% do valor do legado a 60 FPS) em comprimentos e posições, e por 1 em contagens. O conjunto de bolas encaçapadas precisa ser igual ao do legado a 60 FPS (exceto na abertura, que usa contagem).",
+    "rationale": "Só o par 60×144 subestima a variação que os jogadores já experimentam (a sondagem do plano da F1-A mostrou uma tacada reta 0,1 cm fora desse par mesmo com o legado reproduzido fielmente). O relógio congelado tira o corte de subpassos por relógio do cannon-es.",
+    "alternatives": [
+      "Só o par 60×144 (D033 literal)",
+      "Tolerância percentual fixa"
+    ],
+    "status": "superseded",
+    "supersededBy": "D038",
+    "source": "plano da F1-A aprovado pelo usuário",
+    "refs": [
+      "docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md",
+      "D033"
+    ]
+  },
+  {
+    "id": "D036",
+    "date": "2026-10-24",
+    "title": "Física customizada em ritmo fixo de 60 Hz",
+    "decision": "packages/sim avança o cannon-es em passos de 1/360 s e aplica a física customizada (guardas, caçapas, parada) a cada 6 passos, com dt = 1/60 s de tempo simulado. Substitui o trecho de D010 que dizia \"a cada passo\".",
+    "rationale": "Medido no planejamento da F1-A: aplicar a física customizada a cada passo muda a sensação além da variação do próprio legado (tacada longa: +11,5% de percurso; efeito na tabela: a branca cai na caçapa), enquanto o ritmo fixo de 60 Hz reproduz o legado a 60 FPS (recuo idêntico; tacada longa 574 cm contra 575–584 cm) e continua independente do FPS da tela, porque o ritmo é de tempo simulado.",
+    "alternatives": [
+      "Física customizada a cada passo (D010 original)"
+    ],
+    "status": "accepted",
+    "source": "plano da F1-A aprovado pelo usuário",
+    "refs": [
+      "docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md",
+      "D010",
+      "spec §6"
+    ]
+  },
+  {
+    "id": "D037",
+    "date": "2026-10-24",
+    "title": "Limite de tamanho da trajetória",
+    "decision": "Critério F1-04: cada tacada do corpus codificada ocupa no máximo 48 KB, e o tamanho de cada uma é registrado. Substitui \"tacada típica até 30 KB\".",
+    "rationale": "Com o ritmo de 60 Hz (D036), a abertura codificada mediu 35,4 KB e a tacada com efeito 34,2 KB na sondagem do plano; 30 KB não cabe a abertura.",
+    "alternatives": [
+      "Codificação delta para caber em 30 KB"
+    ],
+    "status": "accepted",
+    "source": "plano da F1-A aprovado pelo usuário",
+    "refs": [
+      "docs/superpowers/plans/2026-10-24-f1a-nucleo-simulacao.md",
+      "spec §6.1",
+      "harness/feature_list.json F1-04"
+    ]
+  },
+  {
+    "id": "D038",
+    "date": "2026-10-24",
+    "title": "Envelope de sensação medido em 14 taxas de quadro",
+    "decision": "O envelope do teste de sensação passa a ser medido no legado a 24, 30, 40, 48, 50, 60, 72, 75, 90, 100, 120, 144, 165 e 240 FPS, com relógio congelado, em vez de 30, 60, 120 e 144 FPS. A margem não muda: max(1 cm, 2% do valor a 60 FPS) em comprimentos, max(1 cm, 2% do cuePath a 60 FPS) em posições, ±1 em contagens, e as bolas encaçapadas iguais às de 60 FPS. Substitui a D035.",
+    "rationale": "Na Tarefa 7 da F1-A, com TUNING = TUNING_LEGACY, o sim reproduz o legado a 60 Hz fixo (mesmas posições finais), mas 2 das 11 tacadas saem do envelope de 4 FPS. Na english (abertura com efeito, caótica), o totalPath foi 1601,3 cm, contra 1025–1448 cm no legado. Na pot-side, o cuePath foi 193,6 cm, contra 164–185 cm: depois do encaçape, a branca vai para a esquerda ou para a direita conforme o FPS. Com 14 taxas reais de tela, o legado varia 1012–1753 cm e 162,7–194,1 cm, e as 11 tacadas passam. As tacadas estáveis continuam com envelope estreito (soft: 134,1–134,7 cm; rail-straight: 420,6–444,2 cm). As aberturas ficam pouco restritas (break: 931–1875 cm).",
+    "alternatives": [
+      "Manter a D035 e trocar english e pot-side por tacadas estáveis entre FPS",
+      "Manter a D035 e aceitar as duas falhas como conhecidas"
+    ],
+    "status": "accepted",
+    "source": "execução da F1-A, Tarefa 7; aceita pelo usuário em 2026-10-24",
+    "refs": [
+      "D035",
+      "D033",
+      "packages/sim/test/feel.test.js",
+      "packages/sim/tools/legacy-reference.mjs",
+      "harness/sdd/2026-10-24-f1a-nucleo-simulacao/ledger.md"
+    ]
+  },
+  {
+    "id": "D039",
+    "date": "2026-10-24",
+    "title": "Calibragem do recuo: parâmetros não fecham com a sensação do legado",
+    "decision": "Em aberto. Até a decisão, TUNING continua igual a TUNING_LEGACY (sensação 11/11, recuo quebrado) e os dois testes de calibration.test.js rodam como todo. Opções medidas: (1) aceitar a sensação nova após teste de jogo, com o melhor ajuste medido (ballTableFriction 0, rollCoupling 2,04, rollingResistance 3,11, damping 0,0408, rollingSpinFriction 0,195, angularDamping 0,00674, sideSpinFriction 0,96: recuo de 61 cm, invariante conservado, 8/11 na sensação) e uma decisão nova que troque a referência de long-stun, pot-corner e pot-side; (2) manter o recuo do legado e adiar a F1-09; (3) outra correção do modelo (atrito de deslizamento constante no lugar do acoplamento exponencial e revisão do rebote na tabela), sem prazo garantido.",
+    "rationale": "Tarefa 8 da F1-A. O atrito bola-mesa do cannon-es leva a bola ao rolamento no primeiro passo e conserva 1,5v + ωR em vez de 2,5v + ωR. É isso que mata o recuo, mas o envelope de sensação foi medido nesse comportamento. Sem esse atrito (único ponto de partida que conserva o invariante), a branca carrega o efeito de rolamento depois do contato e da tabela, e a pot-side percorre 105–135 cm contra 163–194 cm do legado. Em mais de 800 combinações de rollCoupling, rollingResistance, damping, rollingSpinFriction, angularDamping, sideSpinFriction e atrito pequeno, nenhuma passou nos três critérios; pot-side ficou fora em todas. Duas mudanças de modelo testadas (inércia efetiva do legado no acoplamento; rolamento casado com o rebote na tabela) não resolveram.",
+    "alternatives": [
+      "Aceitar a sensação nova após teste de jogo",
+      "Manter o recuo do legado (F1-09 adiada)",
+      "Outra correção do modelo"
+    ],
+    "status": "superseded",
+    "source": "execução da F1-A, Tarefa 8; o plano manda parar e levar as opções medidas ao usuário quando a calibragem não fecha",
+    "refs": [
+      "docs/f1/calibragem-recuo.md",
+      "packages/sim/test/calibration.test.js",
+      "packages/sim/tools/feel-report.mjs",
+      "harness/feature_list.json F1-09",
+      "D033",
+      "D038"
+    ],
+    "supersededBy": "D041"
+  },
+  {
+    "id": "D040",
+    "date": "2026-10-24",
+    "title": "Verificação de \"sem Three.js\" restrita ao código de packages/sim",
+    "decision": "A verificação do F1-02 passa a ser grep -rn \"from 'three'\" packages/sim/src, mais o teste de imports de table.test.js, em vez de grep sobre todo o packages/sim.",
+    "rationale": "O harness de paridade e de referência de sensação (packages/sim/test/legacy) carrega o cliente legado para comparar bit a bit, e o cliente importa three; o grep literal sobre packages/sim encontra essa linha. O critério quer que o pacote não dependa de Three.js nem de DOM, e isso vale para src, que é o que o servidor executa. O plano da F1-A já verifica o F1-02 pelo teste de imports de table.test.js.",
+    "alternatives": [
+      "Mover o harness do legado para fora de packages/sim",
+      "Manter o grep sobre todo o pacote e deixar o F1-02 falso"
+    ],
+    "status": "accepted",
+    "source": "plano da F1-A aprovado pelo usuário (Tarefa 10, Passo 1: \"F1-02: o teste de imports de table.test.js\")",
+    "refs": [
+      "harness/feature_list.json F1-02",
+      "packages/sim/test/table.test.js",
+      "packages/sim/test/legacy/legacy-world.js"
+    ]
+  },
+  {
+    "id": "D041",
+    "date": "2026-10-25",
+    "title": "Recuo calibrado e sensação nova em long-stun, pot-corner e pot-side",
+    "decision": "TUNING passa a ser o melhor ajuste medido na Tarefa 8 (tentativa 6 de docs/f1/calibragem-recuo.md): ballTableFriction 0, rollCoupling 2,04, rollingResistance 3,11, damping 0,0408, rollingSpinFriction 0,195, angularDamping 0,00674 e sideSpinFriction 0,96. Os outros parâmetros ficam com o valor de TUNING_LEGACY, que não muda e segue usado na paridade com o legado. Na draw-ref, a branca volta 61,1 cm; numa bola sozinha com efeito para trás, 2,5v + ωR vai de 367,9 para 370,3 em 0,1 s. No teste de sensação, long-stun, pot-corner e pot-side deixam de usar o envelope do legado: a referência delas passa a ser o sim calibrado (packages/sim/test/feel/sim-reference.json, gerado por tools/sim-reference.mjs), com as margens da D038 em volta de um valor único, porque o sim não depende da taxa de quadros. As outras 8 tacadas continuam no envelope do legado. A medida do legado das 3 tacadas fica em legacy-reference.json, para comparação. Mudar essa lista ou regenerar sim-reference.json exige decisão nova. Resolve a D039 (opção 1) e altera a D033 e a D038 só nessas 3 tacadas.",
+    "rationale": "Nenhum ajuste medido passou ao mesmo tempo nos 2 testes de recuo e no envelope do legado (D039). O atrito bola-mesa do cannon-es, que quebra o recuo, é o mesmo comportamento sobre o qual o envelope foi medido. O usuário escolheu o recuo funcionando em vez da sensação do legado nessas 3 tacadas. Diferenças de cuePath em relação ao legado: long-stun 675 cm, contra 548–633 cm; pot-corner 92 cm, contra 66–89 cm; pot-side 119 cm, contra 163–194 cm. As bolas encaçapadas são as mesmas do legado nas 3. A confirmação no navegador (segundo critério do F1-09) fica para a F1-B.",
+    "alternatives": [
+      "Manter o recuo do legado e adiar o F1-09 (D039, opção 2)",
+      "Outra correção do modelo, sem prazo garantido (D039, opção 3)",
+      "Tirar as 3 tacadas do teste de sensação, sem referência nova"
+    ],
+    "status": "accepted",
+    "source": "escolhida pelo usuário em 2026-10-25 (D039, opção 1)",
+    "refs": [
+      "D039",
+      "D033",
+      "D038",
+      "docs/f1/calibragem-recuo.md",
+      "packages/sim/src/constants.js",
+      "packages/sim/test/calibration.test.js",
+      "packages/sim/test/feel/reference.js",
+      "packages/sim/test/feel/sim-reference.json",
+      "packages/sim/tools/sim-reference.mjs",
+      "harness/feature_list.json F1-06, F1-09"
+    ]
+  },
+  {
+    "id": "D042",
+    "date": "2026-10-25",
+    "title": "Cópia congelada da física legada para os testes do sim",
+    "decision": "Os testes de paridade e de sensação de packages/sim e o spike spikes/sim-bench passam a carregar uma cópia dos 10 arquivos de física do legado (config.js, core/PhysicsWorld.js, game/Table.js, game/TableProfiles.js, game/BallsManager.js, game/Ball.js, theme/TableThemes.js, theme/ProceduralTextures.js, theme/BallThemes.js, trainer/DrillData.js) em packages/sim/test/legacy/client/, idênticos aos da base 0448b03. Um MANIFEST.json com o SHA-256 de cada arquivo (com CRLF trocado por LF) impede edição, e um teste garante que nenhum teste, ferramenta ou benchmark importa apps/client.",
+    "rationale": "Hoje legacy-world.js, legacy-run.js e spikes/sim-bench/src/world.js importam apps/client/src. A F1-B tira a física legada do cliente, o que quebraria a paridade bit a bit com TUNING_LEGACY (D041), a regeneração da referência de sensação (D038) e o benchmark (D034).",
+    "alternatives": [
+      "Manter os arquivos de física em apps/client/src sem uso pelo jogo",
+      "Ler os arquivos da base pelo git durante os testes"
+    ],
+    "status": "accepted",
+    "source": "plano da F1-B aprovado pelo usuário em 2026-10-25",
+    "refs": [
+      "docs/superpowers/plans/2026-10-25-f1b-cliente-usa-sim.md",
+      "packages/sim/test/legacy/legacy-world.js",
+      "spikes/sim-bench/src/world.js",
+      "D034",
+      "D038",
+      "D041"
+    ]
+  },
+  {
+    "id": "D043",
+    "date": "2026-10-25",
+    "title": "Replays continuam no formato atual durante a F1-B",
+    "decision": "Na F1-B, ShotRecorder, ReplayLibrary e o replay instantâneo mantêm o formato atual, gravado dos meshes durante a reprodução da trajetória. A migração dos replays para a trajetória v1 e para o TrajectoryPlayer fica para a F4. Adia em parte a D012 (replays usam o mesmo formato e o mesmo reprodutor).",
+    "rationale": "Os replays salvos ficam no localStorage no formato antigo, e convertê-los exige migração. Nenhum critério de saída da F1-B depende disso. A F4 publica o formato v1 em docs/protocol.md.",
+    "alternatives": [
+      "Migrar os replays na F1-B, com conversão dos salvos",
+      "Descartar os replays salvos ao trocar o formato"
+    ],
+    "status": "accepted",
+    "source": "plano da F1-B aprovado pelo usuário em 2026-10-25",
+    "refs": [
+      "docs/superpowers/plans/2026-10-25-f1b-cliente-usa-sim.md",
+      "D012",
+      "apps/client/src/replay/ShotRecorder.js",
+      "apps/client/src/replay/ReplayLibrary.js"
+    ]
+  },
+  {
+    "id": "D044",
+    "date": "2026-10-25",
+    "title": "Rotação rápida na trajetória v1 (amostras de 30 Hz)",
+    "decision": "Em aberto, para decidir antes que a F4 congele docs/protocol.md. A trajetória v1 amostra a orientação das bolas a 30 Hz, e uma bola que gira mais de meia volta entre duas amostras (ω > 94 rad/s, rolando a mais de ~270 cm/s) é indistinguível de uma que gira menos no sentido contrário: o arco curto a mostra girando ao contrário. Opções: (a) taxa de amostragem maior para a orientação; (b) velocidade angular nos quadros; (c) manter a heurística do reprodutor. Enquanto isso, o TrajectoryPlayer usa a heurística (c): quando o deslocamento entre amostras passa de meia volta de rolamento (|d|/R > π), escolhe entre o arco curto e o longo o que tem o eixo de acordo com o rolamento.",
+    "rationale": "Medido na revisão final da F1-B, contra a pose verdadeira a 360 Hz no meio de cada intervalo: no corpus, o arco curto mostra 44 de 23.537 poses de bola giradas ao contrário (abertura 3, long-stun 5, follow 6, english 15, rail-english 11, draw-ref 2, draw-rack 2), e a heurística deixa 27 (abertura 0, long-stun 0). Em 157 tacadas (o corpus e mais 144 sintéticas, com uma e duas bolas, forças de 20 a 110 e efeitos para cima, para baixo e laterais), os intervalos errados caem de 855 para 380, mas 105 que estavam certos passam a errados: tacadas rápidas com efeito para trás moderado. A heurística não resolve a bola com efeito forte: com efeito para cima ou lateral (follow, english), ela gira mais de meia volta com menos de meia volta de rolamento; com efeito para trás (draw), gira mais de meia volta contra o rolamento. Só a trajetória pode resolver de vez, e mudar o formato depois da F4 exige versão nova.",
+    "alternatives": [
+      "Amostrar a orientação a 60 Hz ou mais (trajetória maior)",
+      "Mandar a velocidade angular em cada quadro (o reprodutor integra entre as amostras)",
+      "Manter só a heurística do reprodutor"
+    ],
+    "status": "superseded",
+    "supersededBy": "D057",
+    "source": "revisão final da F1-B",
+    "refs": [
+      "spec §6.1",
+      "D011",
+      "D012",
+      "F4",
+      "apps/client/src/sim/TrajectoryPlayer.js",
+      "apps/client/test/trajectory-player.test.js"
+    ]
+  },
+  {
+    "id": "D045",
+    "date": "2026-10-25",
+    "title": "Interface de modos na F2",
+    "decision": "GameMode ganha resolveTimeout(state, seat) e applyChoice(state, seat, choice) (resposta ao push-out do 9-ball), e resolveShot recebe a tacada como 5º argumento (o push-out é declarado em ShotRequest.pushOut). Ruling ganha respot: number[], e messages vira { code, params? }[]. Os eventos são a lista SimEvent do sim, redeclarada em packages/modes sem importar o sim. A ordem de turnos (lugares, equipes e lugar da vez) mora no ModeState (turn); o MatchState guarda conexões, turnId e fase. Lugares e equipes começam em 0; no cliente, jogador = lugar + 1.",
+    "rationale": "A interface da spec não cobre tempo esgotado, push-out nem bola reposta; mensagens como \"打进 N 颗球\" precisam de parâmetros; e uma fonte única para a ordem de turnos (que a D013 diz ser definida pelo modo) evita duas cópias que divergem.",
+    "alternatives": [
+      "Seguir a interface da spec ao pé da letra e tratar push-out e tempo esgotado fora do modo",
+      "Guardar lugares e equipes no MatchState e passá-los ao modo a cada chamada"
+    ],
+    "status": "accepted",
+    "source": "plano da F2 aprovado pelo usuário em 2026-10-25",
+    "refs": [
+      "spec §7.1",
+      "spec §7.2",
+      "D013",
+      "D014",
+      "docs/superpowers/plans/2026-10-25-f2-modes-n-lugares.md"
+    ]
+  },
+  {
+    "id": "D046",
+    "date": "2026-10-25",
+    "title": "Cópia congelada das regras legadas para o teste diferencial",
+    "decision": "packages/modes/test/legacy/ guarda game/Rules.js, game/NineBallRules.js, config.js e core/UIText.js de 0448b03:src/, idênticos, com manifesto SHA-256 como na D042. Os testes diferenciais do 8-ball e do 9-ball comparam milhares de tacadas aleatórias com essa cópia.",
+    "rationale": "Os 28 testes portados cobrem só 4 caminhos do 8-ball. Comparar com o legado é o que garante que o port mantém cada ramo, e a cópia sobrevive à remoção das regras do cliente.",
+    "alternatives": [
+      "Só os 28 testes portados",
+      "Escrever um teste por ramo das regras, sem o legado"
+    ],
+    "status": "accepted",
+    "source": "plano da F2 aprovado pelo usuário em 2026-10-25",
+    "refs": [
+      "D042",
+      "spec §7.1",
+      "docs/superpowers/plans/2026-10-25-f2-modes-n-lugares.md"
+    ]
+  },
+  {
+    "id": "D047",
+    "date": "2026-10-25",
+    "title": "Arrumação fixa na F2",
+    "decision": "Na F2, rackLayout reproduz a arrumação fixa de hoje (BallsManager._rackEightBall e _rackNineBall), sem sorteio. O rng fica na assinatura; a ordem aleatória com semente do servidor (spec §7.1) é decidida na F4.",
+    "rationale": "O jogo offline sempre arrumou assim, e a semente vem do servidor, que só existe na F4.",
+    "alternatives": [
+      "Sortear a arrumação já na F2, com semente local"
+    ],
+    "status": "accepted",
+    "source": "plano da F2 aprovado pelo usuário em 2026-10-25",
+    "refs": [
+      "spec §7.1",
+      "F4",
+      "docs/superpowers/plans/2026-10-25-f2-modes-n-lugares.md"
+    ]
+  },
+  {
+    "id": "D048",
+    "date": "2026-10-25",
+    "title": "turnId quando um lugar sai da partida",
+    "decision": "Em aberto, para decidir na F4. Na F2, removeMatchSeat (desistência ou abandono) não avança o turnId: ele conta só as decisões de tacada, tempo esgotado e push-out. Se a saída do lugar da vez passar a vez, um shot_request atrasado do lugar seguinte com o turnId antigo seria aceito; avançar o turnId na saída fecha essa porta.",
+    "rationale": "Achado da revisão final da F2. O turnId é o que torna o shot_request idempotente (spec §7.4), e a F4 é quem define o protocolo.",
+    "alternatives": [
+      "Avançar o turnId em toda saída de lugar",
+      "Avançar só quando a saída muda o lugar da vez",
+      "Manter como está (só decisões avançam)"
+    ],
+    "status": "superseded",
+    "supersededBy": "D058",
+    "source": "revisão final da F2",
+    "refs": [
+      "spec §7.4",
+      "F4",
+      "packages/modes/src/match.ts"
+    ]
+  },
+  {
+    "id": "D049",
+    "date": "2026-10-25",
+    "title": "Hospedagem: VPS com Docker Compose (fecha a D019)",
+    "decision": "VPS própria rodando o mesmo Docker Compose do desenvolvimento (Nakama, PostgreSQL e, na F4, o services/sim); a Heroic Cloud fica como saída se a operação pesar. A implantação acontece na F4. Escolhida pelo usuário na revisão do plano da F3.",
+    "rationale": "Mesmo compose em dev e produção e custo previsível no beta. A Heroic Cloud não roda o services/sim (Node) junto do Nakama, então o sim precisaria de outra hospedagem de qualquer jeito.",
+    "alternatives": [
+      "Heroic Cloud para o Nakama e outra hospedagem para o services/sim",
+      "Plataforma de contêineres gerenciada (Fly.io, Railway) com PostgreSQL gerenciado"
+    ],
+    "status": "accepted",
+    "source": "plano da F3 aprovado pelo usuário em 2026-10-25 (D049: VPS)",
+    "refs": [
+      "spec §5.4",
+      "spec §12",
+      "D019",
+      "docs/superpowers/plans/2026-10-25-f3-nakama-contas-salas.md"
+    ]
+  },
+  {
+    "id": "D050",
+    "date": "2026-10-25",
+    "title": "Empacotamento do módulo do Nakama e tipos locais do runtime",
+    "decision": "services/nakama é empacotado pelo esbuild (format iife, target es2017) seguido de uma cola gerada com uma função global por handler registrado, como no spike da F0. Os tipos do runtime usados pelo módulo são declarados localmente (services/nakama/src/nakama.ts) em vez de depender do heroiclabs/nakama-common pelo GitHub.",
+    "rationale": "O goja só registra funções declaradas no escopo global; o spike provou o formato no Nakama 3.41.0. Os tipos oficiais não estão no npm, e uma dependência via GitHub complica o lockfile; o módulo usa uma parte pequena da API.",
+    "alternatives": [
+      "tsc com outFile e módulo none (padrão da documentação do Nakama)",
+      "Depender de heroiclabs/nakama-common via GitHub"
+    ],
+    "status": "accepted",
+    "source": "plano da F3 aprovado pelo usuário em 2026-10-25 (D049: VPS)",
+    "refs": [
+      "D017",
+      "spikes/sim-bench/build.mjs",
+      "docs/superpowers/plans/2026-10-25-f3-nakama-contas-salas.md"
+    ]
+  },
+  {
+    "id": "D051",
+    "date": "2026-10-25",
+    "title": "Onde rodam os testes de integração com Docker",
+    "decision": "Os testes de integração (npm run test:integration -w services/nakama) precisam do Docker e rodam nas sessões na nuvem (com dockerd) e no GitHub Actions (.github/workflows/integration.yml, a cada push na branch de trabalho). O npm test da raiz não depende do Docker. Itens F3 só são marcados depois de uma execução verde da integração, registrada no progress.md.",
+    "rationale": "Esta máquina Windows não tem o Docker instalado; o spike da F0 rodou o Nakama num contêiner com dockerd; a spec (§9.3) já prevê integração com Docker na CI.",
+    "alternatives": [
+      "Instalar o Docker Desktop nesta máquina",
+      "Rodar a integração só manualmente"
+    ],
+    "status": "accepted",
+    "source": "plano da F3 aprovado pelo usuário em 2026-10-25 (D049: VPS)",
+    "refs": [
+      "spec §9.3",
+      "D027",
+      "docs/superpowers/plans/2026-10-25-f3-nakama-contas-salas.md"
+    ]
+  },
+  {
+    "id": "D052",
+    "date": "2026-10-25",
+    "title": "Contas e perfil no Nakama",
+    "decision": "Username com 3 a 16 caracteres [a-z0-9_], guardado em minúsculas e validado por packages/protocol (filtro de palavras PT-BR, resistente a acento, maiúscula, leetspeak e separadores). Avatar: um de 12 presets (preset:a01 a preset:a12, no avatar_url). Perfil só muda pela RPC profile_update; o UpdateAccount nativo é bloqueado por hook, e os hooks de autenticação recusam username impróprio. Google pela autenticação nativa do Nakama; na F3 só se testa a recusa de token inválido, e o login real é conferido quando o cliente tiver a tela (F5).",
+    "rationale": "Nomes são públicos e únicos (§8.1); a validação concentrada na RPC e nos hooks cumpre \"clientes nunca escrevem direto\" (§9.2); tokens reais do Google não podem ser gerados num teste automático.",
+    "alternatives": [
+      "Deixar o UpdateAccount nativo com validação num hook",
+      "Avatar por upload de imagem"
+    ],
+    "status": "accepted",
+    "source": "plano da F3 aprovado pelo usuário em 2026-10-25 (D049: VPS)",
+    "refs": [
+      "spec §8.1",
+      "spec §9.2",
+      "D022",
+      "docs/superpowers/plans/2026-10-25-f3-nakama-contas-salas.md"
+    ]
+  },
+  {
+    "id": "D053",
+    "date": "2026-10-25",
+    "title": "APIs nativas do Nakama abertas ao cliente",
+    "decision": "Em aberto, para fechar antes da implantação da F4. Na F3, o módulo recusa por hook: os métodos de autenticação sem validação de nome (Custom, Facebook, FacebookInstantGame, GameCenter, Apple, Steam), o UpdateAccount (o perfil muda pela RPC profile_update) e o ListMatches (o rótulo de uma sala privada traz o código). Continuam abertos e precisam de decisão: canais de chat e mensagens diretas (a spec proíbe chat livre no MVP, D024), gravação direta no armazenamento (§9.2), grupos, status e partidas relayed criadas pelo cliente.",
+    "rationale": "Achado da revisão final da F3: cada API nativa aberta é uma porta para contornar as regras do servidor (§9.2). A F3 fechou as que afetam o que ela entrega; o resto depende do que a F4 vai usar.",
+    "alternatives": [
+      "Fechar tudo o que não for usado já na F3",
+      "Deixar aberto até haver abuso"
+    ],
+    "status": "superseded",
+    "supersededBy": "D064",
+    "source": "revisão final da F3",
+    "refs": [
+      "spec §9.2",
+      "D024",
+      "D052",
+      "F4",
+      "services/nakama/src/registry.ts"
+    ]
+  },
+  {
+    "id": "D054",
+    "date": "2026-10-26",
+    "title": "F4 em duas partes: servidor (F4-A) e cliente online (F4-B)",
+    "decision": "A F4-A (plano docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md) entrega o servidor autoritativo: itens F4-01 a F4-07, verificados com bots. A F4-B, com plano próprio, entrega o cliente online (OnlineMatchController e telas mínimas de entrada, fila e sala), a implantação na VPS com TLS e o fechamento da D053, com itens novos. O critério de saída da F4 ganha \"dois navegadores jogam uma partida online 1×1 completa\" (F4-B).",
+    "rationale": "O roteiro só pede bots, mas o marco vertical da spec (§10) e o OnlineMatchController (§5.3) pedem o cliente. A F4 inteira (8 a 14 dias) passa do tamanho que se revisa de uma vez, e o cliente consome o contrato do servidor.",
+    "alternatives": [
+      "Uma F4 só, com servidor e cliente no mesmo plano",
+      "Deixar o cliente online para a F5"
+    ],
+    "status": "accepted",
+    "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "spec §5.3",
+      "spec §10",
+      "D049",
+      "D053",
+      "docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md"
+    ]
+  },
+  {
+    "id": "D055",
+    "date": "2026-10-26",
+    "title": "Protocolo v1 da partida",
+    "decision": "PROTOCOL_VERSION = 1 e SIM_VERSION = 1, conferidos ao entrar (metadado protocolVersion; diferente → PROTOCOL_MISMATCH). Operações C→S 1 a 7 (a 7, push_out_choice, é nova) e S→C 101 a 109 (a 109 retransmite ball_in_hand_move); emote (4) e rematch_vote (6) ficam reservadas (UNSUPPORTED_OP) até a F4-B ou a F5. As mensagens 101 e 105 vão num envelope binário [u32 LE tamanho do cabeçalho][cabeçalho JSON em ASCII][trajetória v1]; as outras, em JSON. Quantização: ângulo 1e-5 rad, força 1e-3, efeito 1e-3 (comprimento nunca acima de 1), posição da branca 0,01 cm.",
+    "rationale": "A spec fixa as operações e o envelope, mas não cobre o push-out do 9-ball nem a prévia da bola na mão; sem a operação 7, uma sala de 9-ball (já permitida na F3) trava no push-out. O cabeçalho fica em ASCII porque o goja não tem TextEncoder.",
+    "alternatives": [
+      "Tudo em JSON, com a trajetória em base64 dentro do JSON",
+      "Só 8-ball online na F4"
+    ],
+    "status": "accepted",
+    "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "spec §6.2",
+      "spec §6.3",
+      "D045",
+      "docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md"
+    ]
+  },
+  {
+    "id": "D056",
+    "date": "2026-10-26",
+    "title": "Ritmo da partida e reprodução",
+    "decision": "tickRate 10. O servidor aceita a próxima tacada sem esperar a reprodução; o prazo da vez é o fim da reprodução (simSeconds + 1 s) mais 45 s. As fases usadas são LOBBY, AWAITING_SHOT e ENDED; SIMULATING dura só a chamada síncrona ao sim, e a reprodução é descrita pelo último resultado do snapshot (com o deslocamento).",
+    "rationale": "Um cliente que atira antes da hora só perde a própria animação, porque o estado é do servidor. Esperar a reprodução no servidor faria uma partida de teste levar vários minutos. O prazo cumpre o \"cronômetro começa ao fim da reprodução\" (§6).",
+    "alternatives": [
+      "Fase PLAYBACK no servidor, que recusa tacadas até o fim da reprodução"
+    ],
+    "status": "accepted",
+    "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "spec §6",
+      "spec §7.2",
+      "spec §7.3",
+      "D020",
+      "docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md"
+    ]
+  },
+  {
+    "id": "D057",
+    "date": "2026-10-26",
+    "title": "Trajetória v1 mantida (fecha a D044)",
+    "decision": "Fecha a D044 com a opção (c): a trajetória continua v1, e o TrajectoryPlayer mantém a heurística do arco. Uma v2 com velocidade angular pode vir depois, com TRAJECTORY_VERSION e PROTOCOL_VERSION novos.",
+    "rationale": "O cliente é web e recarrega quando a versão muda (§6.3), então mudar o formato depois custa pouco. As poses giradas ao contrário que restam (27 em 23.537) são um defeito visual, não de estado.",
+    "alternatives": [
+      "(a) Amostrar a orientação a uma taxa maior",
+      "(b) Velocidade angular nos quadros já na v1"
+    ],
+    "status": "accepted",
+    "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "D044",
+      "spec §6.1",
+      "spec §6.3",
+      "docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md"
+    ]
+  },
+  {
+    "id": "D058",
+    "date": "2026-10-26",
+    "title": "turnId avança quando um lugar sai (fecha a D048)",
+    "decision": "Fecha a D048: removeMatchSeat sempre avança o turnId.",
+    "rationale": "Nenhum shot_request antigo é aceito depois que um lugar sai. Uma tacada em trânsito do lugar que continua recebe TURN_MISMATCH e um snapshot, e é reenviada com o turnId novo.",
+    "alternatives": [
+      "Avançar só quando a saída muda o lugar da vez",
+      "Não avançar (como na F2)"
+    ],
+    "status": "accepted",
+    "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "D048",
+      "spec §7.4",
+      "packages/modes/src/match.ts",
+      "docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md"
+    ]
+  },
+  {
+    "id": "D059",
+    "date": "2026-10-26",
+    "title": "services/sim: contêiner, segredo e versões",
+    "decision": "O services/sim é um bundle do esbuild (services/sim/build/server.mjs) numa imagem node:24-alpine, só na rede do Docker Compose, sem porta publicada. Exige o segredo no cabeçalho x-sim-secret (variável SIM_SECRET) e tem um registro de versões { 1: simulateShot }. A resposta é JSON, com a trajetória v1 em base64.",
+    "rationale": "O contêiner não baixa dependências no build. A trajetória vai em base64 porque o nk.httpRequest só lida com texto. O registro de versões permite aceitar N e N−1 durante uma atualização (§6.3).",
+    "alternatives": [
+      "Imagem com npm ci do workspace",
+      "Resposta binária"
+    ],
+    "status": "accepted",
+    "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "spec §5.1",
+      "spec §6.3",
+      "spec §9.2",
+      "D009",
+      "D017",
+      "D049",
+      "docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md"
+    ]
+  },
+  {
+    "id": "D060",
+    "date": "2026-10-26",
+    "title": "Histórico de partidas e arrumação online",
+    "decision": "Coleção match_history, com chave = matchId e dono = usuário do sistema; leitura pública (2) e escrita só do servidor (0), gravada com version \"*\" (só cria). O registro traz os jogadores, quem abriu (sorteado pelo servidor), as tacadas quantizadas e o resultado. Partidas abortadas não geram registro. A arrumação online continua fixa (D047) até haver uma ordem aleatória com semente.",
+    "rationale": "O histórico com as tacadas permite refazer a partida no servidor, e a escrita só-cria garante um registro por partida (§9.1). A leitura pública não expõe nada que a partida já não mostre.",
+    "alternatives": [
+      "Histórico com leitura só dos jogadores",
+      "Arrumação aleatória com semente já na F4"
+    ],
+    "status": "superseded",
+    "supersededBy": "D062",
+    "source": "plano da F4-A (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "spec §7.1",
+      "spec §9.1",
+      "D047",
+      "docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md"
+    ]
+  },
+  {
+    "id": "D061",
+    "date": "2026-10-26",
+    "title": "Regras do protocolo v1 fixadas na execução da F4-A",
+    "decision": "Fixadas na execução, sem mudar a D055. (1) Todo número de uma mensagem do cliente tem de ser finito e ter módulo de no máximo 1e6 (MAX_ABS_NUMBER); fora disso a mensagem é inválida (BAD_MESSAGE). O JSON.parse do goja já recusa literais como 1e999, e então a recusa vem com seq null. (2) CUE_BALL_INVALID é um novo motivo de recusa: a bola na mão fora da superfície de jogo (|x| > largura/2 − R ou |z| > profundidade/2 − R) ou a menos de 2R de outra bola em jogo, e a tacada sem cueBall com a branca encaçapada (isCueBallPlacementValid, em packages/modes/src/table.ts). (3) A recusa TURN_MISMATCH vem com um match_snapshot ao remetente (D058), para o cliente refazer o turnId; uma tacada que chega no tick do prazo é recusada como NOT_YOUR_TURN, porque o relógio roda antes das mensagens e a vez já passou. (4) Só as operações com conteúdo (1, 2, 3 e 7) têm o corpo lido como JSON: concede (5) não tem corpo, e 4 e 6 são reservadas (UNSUPPORTED_OP) sem que o corpo seja lido. (5) O cliente lê o match_history por coleção e chave, sem user_id, porque o Nakama 3.41 recusa o UUID zero como user_id numa leitura de cliente; a listagem é por chave (ids aleatórios) e se percorre com limite e cursor.",
+    "rationale": "O plano fixou o formato das mensagens, mas a execução achou lacunas que um servidor autoritativo não pode deixar abertas (§9.2): números enormes que viram Infinity ao quantizar, a branca posta fora da mesa ou sobre outra bola, uma tacada em trânsito sem como ressincronizar o turnId, uma desistência sem corpo que a leitura de JSON contaria como mensagem inválida e uma leitura do histórico que o Nakama 3.41 não aceita como o plano a escrevera.",
+    "alternatives": [
+      "Um limite próprio para cada campo, em vez de um só para todo número",
+      "Deixar o sim recusar a bola na mão inválida (três falhas abortariam a partida)",
+      "Ler o corpo de toda operação, inclusive da desistência"
+    ],
+    "status": "superseded",
+    "supersededBy": "D062",
+    "source": "execução da F4-A (rulings do controlador, aprovadas pelo plano D054–D060)",
+    "refs": [
+      "D055",
+      "D058",
+      "docs/protocol.md",
+      "services/nakama/src/game/intake.ts",
+      "packages/protocol/src/messages.ts",
+      "packages/modes/src/table.ts"
+    ]
+  },
+  {
+    "id": "D062",
+    "date": "2026-10-26",
+    "title": "Histórico com todas as decisões e regras do protocolo v1 corrigidas (substitui a D060 e a D061)",
+    "decision": "Substitui a D060 e a D061, corrigidas pela revisão final da F4-A, e as repete por inteiro. Histórico e arrumação (era a D060): coleção match_history, com chave = matchId e dono = usuário do sistema; leitura pública (2) e escrita só do servidor (0), gravada com version \"*\" (só cria). O registro traz os jogadores, quem abriu (sorteado pelo servidor), o resultado e todas as decisões da partida, em ordem, no campo decisions: [{ turnId, seat, kind, shot?, accept? }], com kind 'shot' (com a tacada quantizada), 'timeout' (inclusive a terceira seguida, que encerra a partida com ABANDON) ou 'choice' (a resposta de push-out do 9-ball, com accept). O decisions substitui o antigo shots; o summary.shots do match_end conta só as de kind 'shot'. Partidas abortadas não geram registro. A arrumação online continua fixa (D047) até haver uma ordem aleatória com semente. Regras do protocolo v1 (era a D061, sem mudar a D055): (1) Todo número de uma mensagem do cliente tem de ser finito e ter módulo de no máximo 1e6 (MAX_ABS_NUMBER); fora disso a mensagem é inválida (BAD_MESSAGE). O JSON.parse do goja já recusa literais como 1e999, e então a recusa vem com seq null. (2) CUE_BALL_INVALID é um motivo de recusa: a bola na mão a menos de PLACEMENT_CLEARANCE = 0,01 cm (um passo da quantização) de encostar numa tabela ou noutra bola em jogo, e a tacada sem cueBall com a branca encaçapada (isCueBallPlacementValid, em packages/modes/src/table.ts). A tabela é o nariz do chanfro da simulação: a bola encosta nele com o centro a cushionInset da borda, derivado de @billiards/sim/constants (cushionContactInset = cushionWidth + overhang/2 + (R + thickness/2) · √((2R)² + overhang²)/(2R), 10,594 cm na pool9ft, com CUSHION_BEVEL = { overhang: 3,2, thickness: 3 }) e levado em MatchConfig.table.cushionInset pelo onlineConfig() do servidor, sem o packages/modes importar o sim. O centro da branca fica em |x| ≤ largura/2 − cushionInset − 0,01 e |z| ≤ profundidade/2 − cushionInset − 0,01 (52,89 e 116,39 depois de quantizado) e a pelo menos 2R + 0,01 cm de cada outra bola em jogo. Nenhum ponto permitido fica no raio em que o sim encaçapa, então não há regra de proximidade das caçapas. Sem cushionInset (fora do servidor), o limite é a borda menos R, com a mesma folga. (3) A linha da cabeceira entra na kitchen: o validateCommon compara o z já quantizado com headStringZ + 1e-6, e z = −69,85 vale. (4) A recusa TURN_MISMATCH vem com um match_snapshot ao remetente (D058), para o cliente refazer o turnId; uma tacada que chega no tick do prazo é recusada como NOT_YOUR_TURN, porque o relógio roda antes das mensagens e a vez já passou. (5) Só as operações com conteúdo (1, 2, 3 e 7) têm o corpo lido como JSON: concede (5) não tem corpo, e 4 e 6 são reservadas (UNSUPPORTED_OP) sem que o corpo seja lido. (6) O cliente lê o match_history por coleção e chave, sem user_id, porque o Nakama 3.41 recusa o UUID zero como user_id numa leitura de cliente; a listagem é por chave (ids aleatórios) e se percorre com limite e cursor.",
+    "rationale": "A revisão final da F4-A achou, com a simulação real, três defeitos nas regras da D060 e da D061. O limite antigo da bola na mão (largura/2 − R) deixava a branca dentro do chanfro das tabelas: um toque de força 0,001 a lançava, e perto das caçapas ela caía na hora; e a branca a exatamente 2R de outra bola, tacada para longe, gerava um primeiro contato fantasma com ela. A linha da cabeceira quantizada (−69,85) ficava 1e-14 acima da linha em ponto flutuante e era recusada, ao contrário do cliente legado, que prende o ponto nela. E o registro só com as tacadas não refazia o 9-ball: um passe (accept: false) e a vez perdida por tempo de quem escolhe deixavam registros iguais, mas só a vez perdida é falta. Os motivos da D060 continuam (o histórico refaz a partida no servidor, a escrita só-cria garante um registro por partida e a leitura pública não expõe nada que a partida já não mostre), assim como os da D061 (lacunas que um servidor autoritativo não pode deixar abertas, §9.2).",
+    "alternatives": [
+      "Limite da bola na mão fixo em 4,5 R da borda, como o bot de teste, sem derivar da física",
+      "Limite exatamente no contato com a tabela, sem a folga de 0,01 cm (a simulação acusa o contato)",
+      "Regra de proximidade das caçapas como a do cliente legado (raio da caçapa + 0,45 R)",
+      "Pedir ao cliente uma folga na linha da cabeceira (z ≤ −69,86)",
+      "Registro com shots e uma lista à parte de vezes perdidas e escolhas",
+      "Histórico com leitura só dos jogadores (D060)",
+      "Arrumação aleatória com semente já na F4 (D060)",
+      "Um limite próprio para cada campo, em vez de um só para todo número (D061)",
+      "Deixar o sim recusar a bola na mão inválida (três falhas abortariam a partida) (D061)",
+      "Ler o corpo de toda operação, inclusive da desistência (D061)"
+    ],
+    "status": "accepted",
+    "source": "revisão final da F4-A",
+    "refs": [
+      "D060",
+      "D061",
+      "D047",
+      "D055",
+      "D058",
+      "spec §7.1",
+      "spec §9.1",
+      "docs/protocol.md",
+      "packages/modes/src/table.ts",
+      "packages/modes/src/shared.ts",
+      "packages/sim/src/constants.js",
+      "services/nakama/src/game/state.ts",
+      "services/nakama/src/game/end.ts",
+      "services/nakama/src/game/intake.ts",
+      "packages/protocol/src/messages.ts"
+    ]
+  },
+  {
+    "id": "D063",
+    "date": "2026-10-27",
+    "title": "Forma do cliente online (F4-B)",
+    "decision": "OnlineMatchController com a mesma interface do LocalMatchController, mais eventos para o que o servidor manda sem pedido (tacada do adversário, tempo esgotado, escolha, volta, fim). O Game aplica a mesa oficial (table do shot_result) no fim de cada tacada online e não repõe bolas sozinho. Endereço do servidor em VITE_NAKAMA_URL e chave em VITE_NAKAMA_SERVER_KEY; sem endereço, o build de produção mostra o online como indisponível. O cliente reconecta sozinho durante os 60 s da reserva e guarda o matchId para voltar depois de recarregar a página. Fila e sala para 8-ball e 9-ball. Telas novas em PT-BR. O LAN fica como está até a F5, que o remove (spec §5.3).",
+    "rationale": "A spec pede que os dois controladores entreguem ao Game a mesma coisa (§5.3); a diferença do online é o que chega sem pedido. Remover o LAN agora mexeria em muito do Game junto com o caminho online.",
+    "alternatives": [
+      "Um Game separado para o online",
+      "Remover o LAN já na F4-B",
+      "Só 8-ball online até a F9"
+    ],
+    "status": "accepted",
+    "source": "plano da F4-B (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "spec §5.3",
+      "spec §6.3",
+      "spec §7.4",
+      "docs/protocol.md",
+      "docs/superpowers/plans/2026-10-27-f4b-cliente-online-implantacao.md"
+    ]
+  },
+  {
+    "id": "D064",
+    "date": "2026-10-27",
+    "title": "APIs nativas do Nakama: o que fica aberto (fecha a D053)",
+    "decision": "Ficam abertas só as APIs nativas que o jogo usa: autenticação por dispositivo, e-mail e Google (já validadas); SessionRefresh, SessionLogout, GetAccount e GetUsers; vínculo e desvínculo de dispositivo, e-mail e Google; as RPCs; ReadStorageObjects e ListStorageObjects; ListNotifications e DeleteNotifications; no socket, a fila e a partida (MatchmakerAdd, MatchmakerRemove, MatchJoin, MatchLeave, MatchDataSend). O resto é recusado por hook: escrita e remoção no armazenamento, amigos, grupos, canais e mensagens diretas, status, Party*, MatchCreate, placares e torneios, validação de compras, exclusão nativa de conta e vínculo de métodos sem validação de nome.",
+    "rationale": "Cada API aberta é uma porta para contornar as regras do servidor (§9.2). Fechar por hook é barato, e reabrir é uma linha quando uma fase precisar (grupos na F7, compras na F8).",
+    "alternatives": [
+      "Fechar só chat e escrita no armazenamento",
+      "Deixar aberto até haver abuso"
+    ],
+    "status": "accepted",
+    "source": "plano da F4-B (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "spec §9.2",
+      "D024",
+      "D053",
+      "services/nakama/src/registry.ts",
+      "docs/superpowers/plans/2026-10-27-f4b-cliente-online-implantacao.md"
+    ]
+  },
+  {
+    "id": "D065",
+    "date": "2026-10-27",
+    "title": "Implantação de produção com TLS",
+    "decision": "infra/docker-compose.prod.yml sobrepõe o compose de desenvolvimento e acrescenta o Caddy (caddy:2.10.0-alpine) nas portas 80 e 443, encaminhando o domínio para nakama:7350. O Nakama só publica o console em 127.0.0.1:7351 (acesso por túnel SSH); PostgreSQL e sim não publicam portas. Os segredos ficam no infra/.env da máquina, cada um casando com ^[A-Za-z0-9_-]{24,}$, conferidos pelo infra/check-env.mjs antes de subir. O cliente segue no GitHub Pages, gerado com as variáveis do repositório NAKAMA_URL e NAKAMA_SERVER_KEY. A máquina e o domínio são do usuário. Alternativa: o server da rede atrás de um Cloudflare Tunnel, sem o Caddy.",
+    "rationale": "O Caddy obtém e renova o certificado sozinho, e o mesmo compose roda em qualquer máquina com Docker e domínio. O padrão dos segredos resolve a expansão do SIM_SECRET pelo Compose e pelo shell, ponto aberto da F4-A.",
+    "alternatives": [
+      "Nginx com Certbot",
+      "Cloudflare Tunnel no server da rede",
+      "Heroic Cloud para o Nakama"
+    ],
+    "status": "accepted",
+    "source": "plano da F4-B (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "spec §5.1",
+      "spec §5.4",
+      "spec §9.4",
+      "D049",
+      "docs/superpowers/plans/2026-10-27-f4b-cliente-online-implantacao.md"
+    ]
+  },
+  {
+    "id": "D066",
+    "date": "2026-10-27",
+    "title": "CI do cliente online",
+    "decision": "O deploy.yml passa para o Node 24, e o caminho base do Pages vem do nome do repositório. O teste com dois navegadores (test:online) roda no job de integração, que passa a instalar o Chrome e ganha timeout-minutes 35. O npm test da raiz continua sem Docker.",
+    "rationale": "Com o Node 22, o npm test do deploy.yml não executa os testes .ts, e a publicação quebraria no merge para a main; o caminho /Billiards/ vem do repositório original. A partida entre dois navegadores precisa do Nakama e do Chrome juntos, o que só o job de integração tem.",
+    "alternatives": [
+      "Um workflow separado para o teste de navegador online",
+      "Rodar o test:online só manualmente"
+    ],
+    "status": "accepted",
+    "source": "plano da F4-B (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "D051",
+      ".github/workflows/deploy.yml",
+      ".github/workflows/integration.yml",
+      "docs/superpowers/plans/2026-10-27-f4b-cliente-online-implantacao.md"
+    ]
+  }
+]

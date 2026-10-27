@@ -1,0 +1,541 @@
+[
+  {
+    "id": "F0-01",
+    "phase": "F0",
+    "description": "Harness de desenvolvimento: CLAUDE.md, decisions.json, feature_list.json, progress.md, init.sh e hook SessionStart",
+    "verification": [
+      "bash harness/init.sh termina com código 0 e imprime 'fast suites: 15/15 passing'"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F0-02",
+    "phase": "F0",
+    "description": "Mundo físico sem gráficos montado a partir dos módulos existentes no Node",
+    "verification": [
+      "cd spikes/sim-bench && npm test: teste 'mundo 8-ball pool9ft tem 16 bolas, 6 caçapas e corpos de tabela' passa"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F0-03",
+    "phase": "F0",
+    "description": "Executor de tacadas com modelos fixo e legado, determinístico com semente",
+    "verification": [
+      "cd spikes/sim-bench && npm test: testes de determinismo, fim antes do limite e legado 60/144 fps passam"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F0-04",
+    "phase": "F0",
+    "description": "Bundle IIFE único e medição no Node",
+    "verification": [
+      "teste 'bundle IIFE produz os mesmos hashes do código ESM' passa",
+      "spikes/sim-bench/results/node.json tem 15 resultados"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F0-05",
+    "phase": "F0",
+    "description": "Medição no goja (Nakama real ou runner Go)",
+    "verification": [
+      "spikes/sim-bench/results/goja.json tem 5 resultados e o campo runtime identifica a versão"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F0-06",
+    "phase": "F0",
+    "description": "Relatório do spike e decisão D017",
+    "verification": [
+      "docs/spikes/2026-10-24-runtime-simulacao.md existe",
+      "D017 em harness/decisions.json tem status 'accepted'"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F1-01",
+    "phase": "F1",
+    "description": "Monorepo com npm workspaces; cliente movido para apps/client",
+    "verification": [
+      "npm test na raiz passa todas as suítes existentes",
+      "npm run build gera o cliente"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F1-02",
+    "phase": "F1",
+    "description": "packages/sim sem Three.js nem DOM, expondo simulateShot(estado, tacada)",
+    "verification": [
+      "grep -rn \"from 'three'\" packages/sim/src não encontra nada; o teste de imports de table.test.js também recusa APIs de navegador e aleatoriedade (D040)",
+      "testes unitários de packages/sim passam"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F1-03",
+    "phase": "F1",
+    "description": "Passo fixo de 1/360 s, física customizada a 60 Hz de tempo simulado (D036), limite de 20 s simulados e eventos (ball_ball, ball_cushion, pocket, first_contact), incluindo o efeito de tabela",
+    "verification": [
+      "teste: tacada com efeito lateral na tabela muda a velocidade angular como no legado",
+      "teste: eventos de uma tacada de referência saem na ordem esperada"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F1-04",
+    "phase": "F1",
+    "description": "Codificação binária da trajetória v1 em packages/protocol",
+    "verification": [
+      "teste de ida e volta: posições dentro de 0,005 cm e rotações com erro ≤ 0,001 rad",
+      "cada tacada do corpus codificada ocupa até 48 KB; tamanhos registrados (D037)"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F1-05",
+    "phase": "F1",
+    "description": "Testes golden da simulação",
+    "verification": [
+      "conjunto golden idêntico bit a bit em duas execuções seguidas",
+      "o conjunto golden inclui tacadas de uma bola na tabela, ao menos 3 encaçapes simples e uma abertura (D033)"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F1-06",
+    "phase": "F1",
+    "description": "Teste de sensação contra a física legada, com tolerância medida no próprio legado (D033)",
+    "verification": [
+      "tolerância de cada métrica = envelope do legado em 14 taxas de quadro, alargado pelas margens da D038, medido sobre o corpus da F1 e registrado em packages/sim/test/feel/legacy-reference.json (D033, D038); em long-stun, pot-corner e pot-side, a referência é o sim calibrado, com as mesmas margens, registrada em packages/sim/test/feel/sim-reference.json (D041)",
+      "distância percorrida e posição final do passo fixo dentro dessa tolerância; conjunto de bolas encaçapadas igual ao da referência a 60 FPS (D033, D038, D041)"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F1-07",
+    "phase": "F1",
+    "description": "Cliente offline simula em Web Worker e reproduz trajetórias",
+    "verification": [
+      "teste de navegador: partida de 8-ball contra a IA vai até o fim sem erros no console"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F2-01",
+    "phase": "F2",
+    "description": "Interface GameMode e MatchState com N lugares e equipes",
+    "verification": [
+      "testes de tipos e de invariantes (sempre há um lugar da vez até o fim) passam"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F2-02",
+    "phase": "F2",
+    "description": "8-ball portado para packages/modes",
+    "verification": [
+      "os 28 testes de regras portados passam"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F2-03",
+    "phase": "F2",
+    "description": "9-ball portado para packages/modes",
+    "verification": [
+      "testes de push-out, três faltas e bola mais baixa passam"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F2-04",
+    "phase": "F2",
+    "description": "Ordem de turnos para 2×2 e cada um por si",
+    "verification": [
+      "teste 2×2: ordem A1, B1, A2, B2",
+      "teste de 5 lugares: eliminados são pulados"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F2-05",
+    "phase": "F2",
+    "description": "LocalMatchController no cliente usando sim e modes",
+    "verification": [
+      "suítes de navegador existentes passam",
+      "partida local de 2 jogadores vai até o fim"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F3-01",
+    "phase": "F3",
+    "description": "Infra local: docker compose com Nakama e PostgreSQL",
+    "verification": [
+      "docker compose up -d e o healthcheck do Nakama respondem em até 60 s"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F3-02",
+    "phase": "F3",
+    "description": "Autenticação: dispositivo, vínculo de e-mail e de Google",
+    "verification": [
+      "bot entra como convidado, vincula e-mail e entra de novo com e-mail na mesma conta"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F3-03",
+    "phase": "F3",
+    "description": "Perfil: username público, avatar de preset, filtro de palavras",
+    "verification": [
+      "RPC recusa username impróprio",
+      "perfil de outro jogador é legível"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F3-04",
+    "phase": "F3",
+    "description": "Sala privada com código de 6 caracteres",
+    "verification": [
+      "bot A cria a sala; bot B entra pelo código"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F3-05",
+    "phase": "F3",
+    "description": "Matchmaking 1×1",
+    "verification": [
+      "dois bots na fila formam uma partida"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F4-01",
+    "phase": "F4",
+    "description": "services/sim: HTTP interno com segredo e versões N e N−1",
+    "verification": [
+      "chamada sem segredo é recusada",
+      "simVersion desconhecida é recusada"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F4-02",
+    "phase": "F4",
+    "description": "Validação e quantização de shot_request no Nakama",
+    "verification": [
+      "tacada fora do turno → shot_rejected",
+      "números não finitos → shot_rejected",
+      "mais de 5 inválidas em 10 s → conexão removida"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F4-03",
+    "phase": "F4",
+    "description": "shot_result com trajetória, eventos, decisão e cronômetro",
+    "verification": [
+      "os dois bots terminam a tacada com o mesmo estado final",
+      "tempo esgotado conta como falta"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F4-04",
+    "phase": "F4",
+    "description": "Reconexão com snapshot e deslocamento; seq idempotente",
+    "verification": [
+      "bot cai no meio da reprodução, volta e termina no mesmo estado",
+      "shot_request repetido não gera segunda tacada"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F4-05",
+    "phase": "F4",
+    "description": "Abandono e W.O. após 60 s",
+    "verification": [
+      "bot ausente por mais de 60 s perde por W.O."
+    ],
+    "passes": true
+  },
+  {
+    "id": "F4-06",
+    "phase": "F4",
+    "description": "Histórico de partidas gravado uma única vez",
+    "verification": [
+      "partida concluída gera exatamente um registro em match_history"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F4-07",
+    "phase": "F4",
+    "description": "Partida online 1×1 completa (marco vertical) e docs/protocol.md",
+    "verification": [
+      "teste de integração: dois bots jogam uma partida inteira de 8-ball",
+      "docs/protocol.md descreve todos os códigos de operação"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F4-08",
+    "phase": "F4",
+    "description": "Cliente online: entrada como convidado, fila 1×1 e sala privada pelo código",
+    "verification": [
+      "a fila junta os dois navegadores numa partida de 9-ball",
+      "PROTOCOL_MISMATCH pede para atualizar a página"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F4-09",
+    "phase": "F4",
+    "description": "OnlineMatchController e Game: tacadas decididas pelo servidor",
+    "verification": [
+      "a tacada do adversário é reproduzida e a mesa termina na oficial",
+      "a tacada local só se move quando o servidor responde"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F4-10",
+    "phase": "F4",
+    "description": "Dois navegadores jogam uma partida online 1×1 completa (marco da F4)",
+    "verification": [
+      "dois navegadores jogam uma partida online inteira de 8-ball"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F4-11",
+    "phase": "F4",
+    "description": "Reconexão no cliente",
+    "verification": [
+      "queda no meio da reprodução: o navegador volta e termina no mesmo estado",
+      "recarregar a página no meio da partida volta para a mesma partida"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F4-12",
+    "phase": "F4",
+    "description": "APIs nativas fora do uso do jogo recusadas (D064)",
+    "verification": [
+      "APIs nativas fora do uso do jogo são recusadas"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F4-13",
+    "phase": "F4",
+    "description": "Servidor de produção com TLS",
+    "verification": [
+      "o Nakama de produção responde por HTTPS e WSS (a integração e o test:online contra o domínio de produção)"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F5-01",
+    "phase": "F5",
+    "description": "Interface de toque: mira, força, efeito e câmera",
+    "verification": [
+      "teste Puppeteer com eventos de toque completa uma tacada"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F5-02",
+    "phase": "F5",
+    "description": "Interface em PT-BR",
+    "verification": [
+      "nenhum caractere CJK nos textos da interface (teste automatizado sobre UIText)"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F5-03",
+    "phase": "F5",
+    "description": "Perfil gráfico leve e PWA instalável",
+    "verification": [
+      "manifest e service worker válidos (auditoria Lighthouse PWA)"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F6-01",
+    "phase": "F6",
+    "description": "Catálogo versionado e RPC get_catalog",
+    "verification": [
+      "get_catalog devolve itens ativos e a versão"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F6-02",
+    "phase": "F6",
+    "description": "Inventário e loadout com escrita só no servidor",
+    "verification": [
+      "escrita direta do cliente no armazenamento é recusada",
+      "equip de item não possuído é recusado"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F6-03",
+    "phase": "F6",
+    "description": "Loadout na partida",
+    "verification": [
+      "match_snapshot traz o loadout de cada lugar",
+      "o taco do adversário aparece no cliente"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F6-04",
+    "phase": "F6",
+    "description": "Tela de prévia de itens",
+    "verification": [
+      "teste de navegador abre a prévia de taco, bolas e mesa"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F7-01",
+    "phase": "F7",
+    "description": "Espectadores",
+    "verification": [
+      "espectador recebe shot_result",
+      "shot_request de espectador é descartado"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F7-02",
+    "phase": "F7",
+    "description": "Duplas 2×2 com grupos no matchmaking",
+    "verification": [
+      "grupo de 2 bots entra junto e joga uma partida 2×2 completa"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F8-01",
+    "phase": "F8",
+    "description": "PaymentProvider e create_order",
+    "verification": [
+      "pedido criado com preço do catálogo e status pending"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F8-02",
+    "phase": "F8",
+    "description": "Webhook idempotente e concessão atômica",
+    "verification": [
+      "webhook duplicado em sandbox concede o item uma única vez"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F8-03",
+    "phase": "F8",
+    "description": "Estorno e chargeback",
+    "verification": [
+      "estorno remove o item e restaura o padrão no loadout"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F8-04",
+    "phase": "F8",
+    "description": "Pipeline de assets GLB/KTX2 com CDN",
+    "verification": [
+      "skin GLB carrega da CDN",
+      "falha de carregamento cai na skin padrão"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F8-05",
+    "phase": "F8",
+    "description": "Conformidade para o lançamento",
+    "verification": [
+      "checklist de LGPD, CDC, ECA Digital e fiscal aprovado por advogado e contador"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F9-01",
+    "phase": "F9",
+    "description": "Cada um por si: cutthroat com 3 e 5 jogadores",
+    "verification": [
+      "partidas completas com 3 e 5 bots"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F9-02",
+    "phase": "F9",
+    "description": "9-ball online",
+    "verification": [
+      "partida completa de 9-ball entre 2 bots, com push-out"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F9-03",
+    "phase": "F9",
+    "description": "Ranking com OpenSkill",
+    "verification": [
+      "rating atualizado uma única vez por partida"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F9-04",
+    "phase": "F9",
+    "description": "Progressão: XP e recompensas",
+    "verification": [
+      "XP concedido no fim da partida, uma única vez"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F9-05",
+    "phase": "F9",
+    "description": "Teste de carga",
+    "verification": [
+      "p95 entre shot_request e shot_result abaixo de 500 ms com a carga-alvo"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F1-08",
+    "phase": "F1",
+    "description": "Otimização da simulação (D034)",
+    "verification": [
+      "no mesmo processo e máquina, com GC forçado antes de cada tacada: mediana da abertura do packages/sim ≥ 1,3× mais rápida que o modelo fixed de spikes/sim-bench (20 execuções + 3 de aquecimento); p95 informado (D034)"
+    ],
+    "passes": true
+  },
+  {
+    "id": "F1-09",
+    "phase": "F1",
+    "description": "Calibragem do recuo (draw): o efeito para trás não deve destruir o momento da bola (D033)",
+    "verification": [
+      "tacada de referência com bola-alvo a 50 cm, força 60 e efeito y = −0,8: a branca volta depois do contato",
+      "a mesma tacada no jogo, no navegador, tem o comportamento confirmado pelo usuário"
+    ],
+    "passes": false,
+    "notes": "parte do sim feita na F1-A: com o TUNING da D041, a branca da draw-ref volta 61 cm (packages/sim/test/calibration.test.js); falta a confirmação no navegador (F1-B)"
+  }
+]

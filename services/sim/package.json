@@ -1,0 +1,19 @@
+{
+  "name": "@billiards/sim-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Internal shot simulation service of Billiards Online (HTTP; the Nakama module calls it inside the compose network).",
+  "scripts": {
+    "build": "node build.mjs",
+    "pretest": "node build.mjs",
+    "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@billiards/protocol": "*",
+    "@billiards/sim": "*"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

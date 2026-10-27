@@ -1,0 +1,10 @@
+# Production TLS (F4-13, D065): Caddy gets and renews the certificate of
+# NAKAMA_DOMAIN and forwards the Nakama API and its WebSocket to the nakama
+# container. Both values come from infra/.env through docker-compose.prod.yml.
+{
+	email {$ACME_EMAIL}
+}
+
+{$NAKAMA_DOMAIN} {
+	reverse_proxy nakama:7350
+}

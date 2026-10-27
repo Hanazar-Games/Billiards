@@ -1,0 +1,1438 @@
+import * as THREE from 'three';
+import { TABLE, BALL } from '../config.js';
+import { getDefaultTableProfile } from './TableProfiles.js';
+import {
+  TABLE_THEMES, FELT_THEMES, WOOD_THEMES, METAL_TRIM_THEMES, POCKET_LEATHER_THEMES,
+  applyMaterialTheme,
+} from '../theme/TableThemes.js';
+import { createClothNapTexture, createClothPatternTexture, createClothWearTexture } from '../theme/ProceduralTextures.js';
+
+export class Table {
+  constructor(tableProfile = null) {
+    this.profile = tableProfile || getDefaultTableProfile();
+    this.meshGroup = new THREE.Group();
+    this._materials = {};
+    this._themeMeshes = {};
+    this._clothTextures = {};
+
+    this.createPlayingSurface();
+    this.createCushions();
+    this.createPockets();
+    this.createRails();
+    this.createRailBevels();
+    this.createApron();
+    this.createPocketDetails();
+    this.createPocketNets();
+    this.createCushionEndCaps();
+    this.createPocketJaws();
+    this.createTournamentCastings();
+    this.createApronPanelDetails();
+    this.createHiddenStretcher();
+    this.createRailSights();
+    this.createCornerCaps();
+    this.createLegs();
+  }
+
+  addToScene(scene) {
+    scene.add(this.meshGroup);
+  }
+
+  _mat(name, props) {
+    if (this._materials[name]) return this._materials[name];
+    const mat = new THREE.MeshStandardMaterial(props);
+    this._materials[name] = mat;
+    return mat;
+  }
+
+  /**
+   * Compute unified geometry metrics for all table components.
+   * Every visual modelling method should read from this helper so that
+   * cushions, rails, bevels, end-caps and jaws stay aligned when the
+   * table profile (size / pocket radius) changes.
+   *
+   * Cushion gaps are the physics baseline and must not change.
+   * Rail / bevel / jaw gaps are purely visual and derived from them.
+   */
+  _getTableGeometryMetrics() {
+    const p = this.profile;
+    const halfW = p.width / 2;
+    const halfD = p.depth / 2;
+    const cw = p.cushionWidth;
+    const ch = BALL.radius * 2;
+    const cornerR = p.cornerPocketRadius ?? p.pocketRadius;
+    const sideR = p.sidePocketRadius ?? p.pocketRadius;
+
+    const railH = 8;
+    const railW = 12;
+
+    // ── Cushion gaps — physics baseline, MUST NOT CHANGE ──
+    const cCornerGap = cornerR * 2.25;
+    const cSideGap = sideR * 2.65;
+
+    // ── Rail gaps — visual, fixed offset beyond cushion ends ──
+    const rCornerGap = cornerR * 2.9;
+    const rSideGap = sideR * 3.05;
+
+    // ── Bevel gaps — must match rails exactly ──
+    const bCornerGap = rCornerGap;
+    const bSideGap = rSideGap;
+
+    // ── End-cap gaps — bridge cushion ends to pocket mouth ──
+    const capCornerGap = cCornerGap;
+    const capSideGap = cSideGap;
+
+    // ── Cushion segment lengths ──
+    const cShortLen = p.width - cCornerGap * 2;
+    const cLongSegLen = (p.depth - cSideGap - cCornerGap * 2) / 2;
+    const cLongZ = cSideGap / 2 + cLongSegLen / 2;
+
+    // ── Rail segment lengths ──
+    const rShortLen = p.width - rCornerGap * 2;
+    const rSideLen = (p.depth - rSideGap) / 2;
+    const rSideZ = rSideGap / 2 + rSideLen / 2;
+
+    // ── Jaw metrics ──
+    // Jaw bridges the gap between a rail end and its matching cushion end.
+    const jawWidth = cw + 1.0;
+    const jawHeight = railH - 0.5;
+
+    // Corner short-rail jaw (bridges rail short end → cushion short end, along X)
+    const jawCornerShort = {
+      xOffset: halfW - (rCornerGap + cCornerGap) / 2,
+      zOffset: halfD - cw / 2,
+      len: Math.max(3.5, rCornerGap - cCornerGap),
+      width: jawWidth,
+      height: jawHeight,
+    };
+
+    // Corner long-rail jaw (bridges rail long end → cushion long end, along Z)
+    const jawCornerLong = {
+      xOffset: halfW - cw / 2,
+      zOffset: halfD - (rCornerGap + cCornerGap) / 2,
+      len: Math.max(3.5, rCornerGap - cCornerGap),
+      width: jawWidth,
+      height: jawHeight,
+    };
+
+    // Side-pocket jaw (bridges rail side end → cushion side end, along Z)
+    const jawSide = {
+      xOffset: halfW - cw / 2,
+      zOffset: (rSideGap + cSideGap) / 4,
+      len: Math.max(3.0, (rSideGap - cSideGap) / 2),
+      width: jawWidth,
+      height: jawHeight,
+    };
+
+    return {
+      halfW, halfD, cw, ch, cornerR, sideR, railH, railW,
+      cCornerGap, cSideGap,
+      rCornerGap, rSideGap,
+      bCornerGap, bSideGap,
+      capCornerGap, capSideGap,
+      cShortLen, cLongSegLen, cLongZ,
+      rShortLen, rSideLen, rSideZ,
+      jawCornerShort, jawCornerLong, jawSide,
+    };
+  }
+
+  createPlayingSurface() {
+    const geo = new THREE.BoxGeometry(this.profile.width, this.profile.height, this.profile.depth);
+    const mat = this._mat('felt', {
+      color: TABLE.feltColor,
+      roughness: 0.88,
+      metalness: 0.0,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.y = -this.profile.height / 2;
+    mesh.receiveShadow = true;
+    this.meshGroup.add(mesh);
+
+    // Cloth nap overlay
+    const napGeo = new THREE.PlaneGeometry(this.profile.width - 20, this.profile.depth - 20, 1, 1);
+    const napMat = this._mat('nap', {
+      color: 0x116b45,
+      roughness: 1.0,
+      metalness: 0.0,
+      transparent: true,
+      opacity: 0.32,
+    });
+    const nap = new THREE.Mesh(napGeo, napMat);
+    nap.rotation.x = -Math.PI / 2;
+    nap.position.y = 0.06;
+    nap.receiveShadow = true;
+    this.meshGroup.add(nap);
+    this._themeMeshes.nap = nap;
+
+    // Edge strips
+    const edgeMat = this._mat('edge', {
+      color: 0x083a25,
+      roughness: 0.95,
+      metalness: 0.0,
+    });
+    const edgeInset = 7;
+    const edgeParts = [
+      [0, 0.09, -this.profile.depth / 2 + edgeInset, this.profile.width - 18, 0.12, 1.2],
+      [0, 0.09, this.profile.depth / 2 - edgeInset, this.profile.width - 18, 0.12, 1.2],
+      [-this.profile.width / 2 + edgeInset, 0.09, 0, 1.2, 0.12, this.profile.depth - 18],
+      [this.profile.width / 2 - edgeInset, 0.09, 0, 1.2, 0.12, this.profile.depth - 18],
+    ];
+    for (const [x, y, z, w, h, d] of edgeParts) {
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), edgeMat);
+      edge.position.set(x, y, z);
+      this.meshGroup.add(edge);
+    }
+
+    // Slate bed edge
+    const slateMat = this._mat('slate', {
+      color: 0x6e7068,
+      roughness: 0.6,
+      metalness: 0.02,
+    });
+    const slateH = 2.2;
+    const slateOverhang = 1.5;
+    const slateY = -slateH / 2 - 0.5;
+    const slateParts = [
+      [0, slateY, -this.profile.depth / 2 - slateOverhang / 2, this.profile.width + 4, slateH, slateOverhang],
+      [0, slateY, this.profile.depth / 2 + slateOverhang / 2, this.profile.width + 4, slateH, slateOverhang],
+      [-this.profile.width / 2 - slateOverhang / 2, slateY, 0, slateOverhang, slateH, this.profile.depth + 4],
+      [this.profile.width / 2 + slateOverhang / 2, slateY, 0, slateOverhang, slateH, this.profile.depth + 4],
+    ];
+    for (const [x, y, z, w, h, d] of slateParts) {
+      const slate = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), slateMat);
+      slate.position.set(x, y, z);
+      slate.receiveShadow = true;
+      this.meshGroup.add(slate);
+    }
+  }
+
+  createCushions() {
+    const m = this._getTableGeometryMetrics();
+    const cy = BALL.radius;
+
+    // Short rails
+    this.addCushion(
+      new THREE.BoxGeometry(m.cShortLen, m.ch, m.cw),
+      0, cy, -m.halfD + m.cw / 2, 0, 1
+    );
+    this.addCushion(
+      new THREE.BoxGeometry(m.cShortLen, m.ch, m.cw),
+      0, cy, m.halfD - m.cw / 2, 0, -1
+    );
+
+    // Long rail segments
+    this.addCushion(
+      new THREE.BoxGeometry(m.cw, m.ch, m.cLongSegLen),
+      -m.halfW + m.cw / 2, cy, -m.cLongZ, 1, 0
+    );
+    this.addCushion(
+      new THREE.BoxGeometry(m.cw, m.ch, m.cLongSegLen),
+      -m.halfW + m.cw / 2, cy, m.cLongZ, 1, 0
+    );
+    this.addCushion(
+      new THREE.BoxGeometry(m.cw, m.ch, m.cLongSegLen),
+      m.halfW - m.cw / 2, cy, -m.cLongZ, -1, 0
+    );
+    this.addCushion(
+      new THREE.BoxGeometry(m.cw, m.ch, m.cLongSegLen),
+      m.halfW - m.cw / 2, cy, m.cLongZ, -1, 0
+    );
+  }
+
+  addCushion(geo, x, y, z, bevelNx, bevelNz) {
+    if (!this._materials.cushion) {
+      this._materials.cushion = this._mat('cushion', {
+        color: TABLE.cushionColor,
+        roughness: 0.78,
+        metalness: 0.0,
+      });
+    }
+    const mat = this._materials.cushion;
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    this.meshGroup.add(mesh);
+
+    if (bevelNx !== 0 || bevelNz !== 0) {
+      this._addCushionBevel(x, y, z, geo, bevelNx, bevelNz);
+    }
+  }
+
+  _addCushionBevel(cx, cy, cz, geo, nx, nz) {
+    const h = BALL.radius * 2;
+    const inset = this.profile.cushionWidth / 2;
+    const overhang = 3.2;
+    const thick = 0.9;
+
+    let width, len;
+    if (Math.abs(nx) > 0.5) {
+      len = geo.parameters.depth;
+      width = len;
+    } else {
+      len = geo.parameters.width;
+      width = len;
+    }
+
+    const v = [];
+    if (Math.abs(nx) > 0.5) {
+      v.push(cx + nx * inset, 0, cz - width / 2);
+      v.push(cx + nx * inset, 0, cz + width / 2);
+      v.push(cx + nx * (inset + overhang), h, cz - width / 2);
+      v.push(cx + nx * (inset + overhang), h, cz + width / 2);
+    } else {
+      v.push(cx - width / 2, 0, cz + nz * inset);
+      v.push(cx + width / 2, 0, cz + nz * inset);
+      v.push(cx - width / 2, h, cz + nz * (inset + overhang));
+      v.push(cx + width / 2, h, cz + nz * (inset + overhang));
+    }
+
+    const dx = -nx * thick;
+    const dz = -nz * thick;
+    const p = v;
+    const pb = [
+      v[0] + dx, v[1], v[2] + dz,
+      v[3] + dx, v[4], v[5] + dz,
+      v[6] + dx, v[7], v[8] + dz,
+      v[9] + dx, v[10], v[11] + dz,
+    ];
+
+    const positions = new Float32Array([
+      // front face
+      p[0], p[1], p[2],  p[3], p[4], p[5],  p[9], p[10], p[11],
+      p[0], p[1], p[2],  p[9], p[10], p[11],  p[6], p[7], p[8],
+      // back face
+      pb[0], pb[1], pb[2],  pb[9], pb[10], pb[11],  pb[3], pb[4], pb[5],
+      pb[0], pb[1], pb[2],  pb[6], pb[7], pb[8],  pb[9], pb[10], pb[11],
+      // side 0-1
+      p[0], p[1], p[2],  p[3], p[4], p[5],  pb[3], pb[4], pb[5],
+      p[0], p[1], p[2],  pb[3], pb[4], pb[5],  pb[0], pb[1], pb[2],
+      // side 1-3
+      p[3], p[4], p[5],  p[9], p[10], p[11],  pb[9], pb[10], pb[11],
+      p[3], p[4], p[5],  pb[9], pb[10], pb[11],  pb[3], pb[4], pb[5],
+      // side 3-2
+      p[9], p[10], p[11],  p[6], p[7], p[8],  pb[6], pb[7], pb[8],
+      p[9], p[10], p[11],  pb[6], pb[7], pb[8],  pb[9], pb[10], pb[11],
+      // side 2-0
+      p[6], p[7], p[8],  p[0], p[1], p[2],  pb[0], pb[1], pb[2],
+      p[6], p[7], p[8],  pb[0], pb[1], pb[2],  pb[6], pb[7], pb[8],
+    ]);
+
+    const bevelGeo = new THREE.BufferGeometry();
+    bevelGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    bevelGeo.computeVertexNormals();
+
+    const bevelMat = this._mat('bevel', {
+      color: 0x0b5c32,
+      roughness: 0.85,
+      metalness: 0.0,
+    });
+    const bevelMesh = new THREE.Mesh(bevelGeo, bevelMat);
+    bevelMesh.castShadow = true;
+    bevelMesh.receiveShadow = true;
+    this.meshGroup.add(bevelMesh);
+  }
+
+  createPockets() {
+    const pocketMat = this._mat('pocketHole', { color: 0x050505, roughness: 1.0 });
+
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
+    const positions = [
+      [-halfW, 0, -halfD],
+      [halfW, 0, -halfD],
+      [-halfW, 0, 0],
+      [halfW, 0, 0],
+      [-halfW, 0, halfD],
+      [halfW, 0, halfD],
+    ];
+
+    this.pocketPositions = [];
+
+    for (let i = 0; i < positions.length; i++) {
+      const [x, y, z] = positions[i];
+      const isCorner = i === 0 || i === 1 || i === 4 || i === 5;
+      const radius = isCorner
+        ? (this.profile.cornerPocketRadius ?? this.profile.pocketRadius)
+        : (this.profile.sidePocketRadius ?? this.profile.pocketRadius);
+
+      const pocketGeo = new THREE.CylinderGeometry(radius, radius, this.profile.height + 4, 24);
+      const mesh = new THREE.Mesh(pocketGeo, pocketMat);
+      mesh.position.set(x, y - 2, z);
+      mesh.receiveShadow = true;
+      this.meshGroup.add(mesh);
+
+      const pos = new THREE.Vector3(x, y, z);
+      pos.radius = radius;
+      pos.type = isCorner ? 'corner' : 'side';
+      this.pocketPositions.push(pos);
+    }
+  }
+
+  createRails() {
+    const m = this._getTableGeometryMetrics();
+    const railMat = this._mat('rail', {
+      color: 0x221a16,
+      roughness: 0.36,
+      metalness: 0.18,
+    });
+    const topInsertMat = this._mat('topInsert', {
+      color: 0x604328,
+      roughness: 0.32,
+      metalness: 0.08,
+    });
+    const roundMat = this._mat('round', {
+      color: 0x2e231d,
+      roughness: 0.3,
+      metalness: 0.22,
+    });
+    const roundTubeR = 0.9;
+
+    // Short rails
+    const rail1 = new THREE.Mesh(new THREE.BoxGeometry(m.rShortLen, m.railH, m.railW), railMat);
+    rail1.position.set(0, m.railH / 2, -m.halfD - m.railW / 2);
+    rail1.castShadow = true;
+    this.meshGroup.add(rail1);
+    this._addRailTopInsert(0, m.railH + 1.0, -m.halfD - m.railW / 2, m.rShortLen - 12, 1.2, m.railW * 0.62, topInsertMat);
+
+    const rail2 = new THREE.Mesh(new THREE.BoxGeometry(m.rShortLen, m.railH, m.railW), railMat);
+    rail2.position.set(0, m.railH / 2, m.halfD + m.railW / 2);
+    rail2.castShadow = true;
+    this.meshGroup.add(rail2);
+    this._addRailTopInsert(0, m.railH + 1.0, m.halfD + m.railW / 2, m.rShortLen - 12, 1.2, m.railW * 0.62, topInsertMat);
+
+    const roundShort = new THREE.Mesh(
+      new THREE.CylinderGeometry(roundTubeR, roundTubeR, m.rShortLen, 14, 1, false, 0, Math.PI),
+      roundMat
+    );
+    roundShort.rotation.z = Math.PI / 2;
+    roundShort.position.set(0, m.railH + roundTubeR, -m.halfD - m.railW / 2 + roundTubeR);
+    roundShort.castShadow = true;
+    this.meshGroup.add(roundShort);
+
+    const roundShort2 = roundShort.clone();
+    roundShort2.position.set(0, m.railH + roundTubeR, m.halfD + m.railW / 2 - roundTubeR);
+    this.meshGroup.add(roundShort2);
+
+    // Side rails
+    const sideX = [-m.halfW - m.railW / 2, m.halfW + m.railW / 2];
+    for (const x of sideX) {
+      for (const z of [-m.rSideZ, m.rSideZ]) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(m.railW, m.railH, m.rSideLen), railMat);
+        rail.position.set(x, m.railH / 2, z);
+        rail.castShadow = true;
+        this.meshGroup.add(rail);
+        this._addRailTopInsert(x, m.railH + 1.0, z, m.railW * 0.62, 1.2, m.rSideLen - 10, topInsertMat);
+      }
+    }
+
+    for (const x of sideX) {
+      for (const z of [-m.rSideZ, m.rSideZ]) {
+        const roundSide = new THREE.Mesh(
+          new THREE.CylinderGeometry(roundTubeR, roundTubeR, m.rSideLen, 14, 1, false, 0, Math.PI),
+          roundMat
+        );
+        roundSide.rotation.x = Math.PI / 2;
+        const nx = x < 0 ? 1 : -1;
+        roundSide.position.set(x + nx * roundTubeR, m.railH + roundTubeR, z);
+        roundSide.castShadow = true;
+        this.meshGroup.add(roundSide);
+      }
+    }
+  }
+
+  _addRailTopInsert(x, y, z, w, h, d, material) {
+    const insert = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+    insert.position.set(x, y, z);
+    insert.castShadow = true;
+    insert.receiveShadow = true;
+    this.meshGroup.add(insert);
+  }
+
+  createRailBevels() {
+    const m = this._getTableGeometryMetrics();
+    const bevelMat = this._mat('railBevel', {
+      color: 0x9c5e26,
+      roughness: 0.34,
+      metalness: 0.16,
+    });
+
+    const bevels = [
+      [0, 10.2, -m.halfD - 0.8, m.rShortLen, 1.0, 2.2],
+      [0, 10.2, m.halfD + 0.8, m.rShortLen, 1.0, 2.2],
+    ];
+    for (const z of [-m.rSideZ, m.rSideZ]) {
+      bevels.push([-m.halfW - 0.8, 10.2, z, 2.2, 1.0, m.rSideLen]);
+      bevels.push([m.halfW + 0.8, 10.2, z, 2.2, 1.0, m.rSideLen]);
+    }
+
+    for (const [x, y, z, w, h, d] of bevels) {
+      const bevel = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bevelMat);
+      bevel.position.set(x, y, z);
+      bevel.castShadow = true;
+      this.meshGroup.add(bevel);
+    }
+  }
+
+  createApron() {
+    const apronMat = this._mat('apron', {
+      color: 0x151313,
+      roughness: 0.42,
+      metalness: 0.14,
+    });
+    const trimMat = this._mat('trim', {
+      color: 0xb9aaa0,
+      roughness: 0.22,
+      metalness: 0.62,
+    });
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
+
+    const parts = [
+      [0, -13, -halfD - 10, this.profile.width + 26, 16, 8],
+      [0, -13, halfD + 10, this.profile.width + 26, 16, 8],
+      [-halfW - 10, -13, 0, 8, 16, this.profile.depth + 18],
+      [halfW + 10, -13, 0, 8, 16, this.profile.depth + 18],
+    ];
+
+    for (const [x, y, z, w, h, d] of parts) {
+      const apron = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), apronMat);
+      apron.position.set(x, y, z);
+      apron.castShadow = true;
+      apron.receiveShadow = true;
+      this.meshGroup.add(apron);
+    }
+
+    const trims = [
+      [0, 8.3, -halfD - 7, this.profile.width + 18, 0.5, 2.4],
+      [0, 8.3, halfD + 7, this.profile.width + 18, 0.5, 2.4],
+      [-halfW - 7, 8.3, 0, 2.4, 0.5, this.profile.depth + 14],
+      [halfW + 7, 8.3, 0, 2.4, 0.5, this.profile.depth + 14],
+    ];
+
+    for (const [x, y, z, w, h, d] of trims) {
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), trimMat);
+      trim.position.set(x, y, z);
+      trim.castShadow = true;
+      this.meshGroup.add(trim);
+    }
+
+    const bracketMat = this._mat('bracket', {
+      color: 0x8a8078,
+      roughness: 0.22,
+      metalness: 0.72,
+    });
+    const bracketPositions = [
+      [-halfW - 5, -2, -halfD - 5],
+      [halfW + 5, -2, -halfD - 5],
+      [-halfW - 5, -2, halfD + 5],
+      [halfW + 5, -2, halfD + 5],
+    ];
+    for (const [x, y, z] of bracketPositions) {
+      const bracket = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 5), bracketMat);
+      bracket.position.set(x, y, z);
+      bracket.castShadow = true;
+      this.meshGroup.add(bracket);
+
+      const bolt = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.6, 0.6, 0.8, 12),
+        bracketMat
+      );
+      bolt.position.set(x, y + 1.9, z);
+      this.meshGroup.add(bolt);
+    }
+  }
+
+  createPocketDetails() {
+    const linerMat = this._mat('liner', {
+      color: 0x090909,
+      roughness: 0.78,
+      metalness: 0.05,
+    });
+    const ringMat = this._mat('pocketRing', {
+      color: 0x101010,
+      roughness: 0.45,
+      metalness: 0.35,
+    });
+    const cupMat = this._mat('cup', {
+      color: 0x030303,
+      roughness: 0.9,
+      metalness: 0.02,
+    });
+    const leatherMat = this._mat('leather', {
+      color: 0x3d2314,
+      roughness: 0.62,
+      metalness: 0.04,
+    });
+
+    for (const pocket of this.pocketPositions) {
+      const r = pocket.radius;
+
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(r * 1.12, 1.65, 12, 48),
+        ringMat
+      );
+      ring.position.set(pocket.x, 1.1, pocket.z);
+      ring.rotation.x = Math.PI / 2;
+      ring.castShadow = true;
+      this.meshGroup.add(ring);
+
+      const facing = new THREE.Mesh(
+        new THREE.TorusGeometry(r * 1.32, 2.4, 10, 48),
+        leatherMat
+      );
+      facing.position.set(pocket.x, 0.35, pocket.z);
+      facing.rotation.x = Math.PI / 2;
+      facing.castShadow = true;
+      this.meshGroup.add(facing);
+
+      const skirt = new THREE.Mesh(
+        new THREE.TorusGeometry(r * 1.25, 1.6, 10, 48),
+        leatherMat
+      );
+      skirt.position.set(pocket.x, 0.02, pocket.z);
+      skirt.rotation.x = Math.PI / 2;
+      skirt.castShadow = true;
+      this.meshGroup.add(skirt);
+
+      const drop = new THREE.Mesh(
+        new THREE.CylinderGeometry(r * 0.96, r * 0.7, 16, 36),
+        linerMat
+      );
+      drop.position.set(pocket.x, -8, pocket.z);
+      drop.receiveShadow = true;
+      this.meshGroup.add(drop);
+
+      const cup = new THREE.Mesh(
+        new THREE.CylinderGeometry(r * 0.7, r * 0.52, 8, 32),
+        cupMat
+      );
+      cup.position.set(pocket.x, -19, pocket.z);
+      cup.receiveShadow = true;
+      this.meshGroup.add(cup);
+    }
+  }
+
+  createPocketNets() {
+    const netMat = this._mat('net', {
+      color: 0x1a1208,
+      roughness: 0.72,
+      metalness: 0.08,
+    });
+    const chainMat = this._mat('chain', {
+      color: 0x3a2e1e,
+      roughness: 0.45,
+      metalness: 0.35,
+    });
+
+    this._themeMeshes.pocketNets = [];
+    this._materials.bagMats = [];
+
+    for (const pocket of this.pocketPositions) {
+      const count = 5;
+      for (let i = 0; i < count; i++) {
+        const t = (i + 1) / (count + 1);
+        const radius = pocket.radius * (0.85 - t * 0.45);
+        const y = -2 - t * 14;
+        const tube = 0.7 - t * 0.35;
+
+        const link = new THREE.Mesh(
+          new THREE.TorusGeometry(radius, Math.max(0.25, tube), 10, 32),
+          i % 2 === 0 ? netMat : chainMat
+        );
+        link.position.set(pocket.x, y, pocket.z);
+        link.rotation.x = Math.PI / 2 + (Math.random() - 0.5) * 0.06;
+        this.meshGroup.add(link);
+        this._themeMeshes.pocketNets.push(link);
+      }
+
+      // Net bag bottom — tapered cone that hangs below the last ring
+      const bagMat = netMat.clone();
+      bagMat.transparent = true;
+      bagMat.opacity = 0.85;
+      this._materials.bagMats.push(bagMat);
+      const bagGeo = new THREE.CylinderGeometry(
+        pocket.radius * 0.38, pocket.radius * 0.12, 14, 24, 1, true
+      );
+      const bag = new THREE.Mesh(bagGeo, bagMat);
+      bag.position.set(pocket.x, -20, pocket.z);
+      this.meshGroup.add(bag);
+      this._themeMeshes.pocketNets.push(bag);
+
+      // Bottom ring (net收口)
+      const bottomRing = new THREE.Mesh(
+        new THREE.TorusGeometry(pocket.radius * 0.12, 0.35, 8, 20),
+        chainMat
+      );
+      bottomRing.position.set(pocket.x, -27, pocket.z);
+      bottomRing.rotation.x = Math.PI / 2;
+      this.meshGroup.add(bottomRing);
+      this._themeMeshes.pocketNets.push(bottomRing);
+    }
+  }
+
+  // ── Cushion end caps — slanted quads that close the gap between cushion
+  // block ends and the pocket mouth, turning abrupt vertical cuts into a
+  // natural throat. ──
+  createCushionEndCaps() {
+    const m = this._getTableGeometryMetrics();
+    const capMat = this._mat('cushionCap', {
+      color: TABLE.cushionColor,
+      roughness: 0.78,
+      metalness: 0.0,
+      side: THREE.DoubleSide,
+    });
+
+    const addCap = (a, b, c, d) => {
+      const positions = new Float32Array([
+        a.x, a.y, a.z,  b.x, b.y, b.z,  c.x, c.y, c.z,
+        a.x, a.y, a.z,  c.x, c.y, c.z,  d.x, d.y, d.z,
+      ]);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, capMat);
+      mesh.castShadow = true;
+      this.meshGroup.add(mesh);
+    };
+
+    // Corner pockets: 2 caps per pocket (short-rail end + long-rail end)
+    for (const sx of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        const px = sx * (m.halfW - m.cornerR * 0.35);
+        const pz = sz * (m.halfD - m.cornerR * 0.35);
+        const pyTop = m.ch + 2.2;
+
+        // Short-rail cushion end cap
+        const sx1 = sx * (m.halfW - m.capCornerGap);
+        addCap(
+          new THREE.Vector3(sx1, 0, sz * (m.halfD - m.cw)),
+          new THREE.Vector3(sx1, m.ch, sz * (m.halfD - m.cw)),
+          new THREE.Vector3(px, pyTop, pz),
+          new THREE.Vector3(px, 0, pz)
+        );
+
+        // Long-rail cushion end cap
+        const sz1 = sz * (m.halfD - m.capCornerGap);
+        addCap(
+          new THREE.Vector3(sx * (m.halfW - m.cw), 0, sz1),
+          new THREE.Vector3(sx * (m.halfW - m.cw), m.ch, sz1),
+          new THREE.Vector3(px, pyTop, pz),
+          new THREE.Vector3(px, 0, pz)
+        );
+      }
+    }
+
+    // Side pockets: 2 caps per side pocket
+    const zEnd = m.capSideGap / 2;
+    for (const sx of [-1, 1]) {
+      const px = sx * (m.halfW - m.sideR * 0.35);
+      const pyTop = m.ch + 1.8;
+      for (const dir of [-1, 1]) {
+        const sz1 = dir * zEnd;
+        addCap(
+          new THREE.Vector3(sx * (m.halfW - m.cw), 0, sz1),
+          new THREE.Vector3(sx * (m.halfW - m.cw), m.ch, sz1),
+          new THREE.Vector3(px, pyTop, 0),
+          new THREE.Vector3(px, 0, 0)
+        );
+      }
+    }
+  }
+
+  // ── Pocket jaws — substantial blocks with slanted tops that visually
+  // bridge cushion ends and rail ends at each pocket. ──
+  createPocketJaws() {
+    const m = this._getTableGeometryMetrics();
+    const jawMat = this._mat('jaw', {
+      color: 0x0a0a0a,
+      roughness: 0.55,
+      metalness: 0.25,
+    });
+
+    // Helper: add a jaw block + slanted top facet.
+    // angle is chosen so that local -z points toward table interior
+    // and local +z points toward the pocket.
+    const addJaw = (x, z, angle, length, width, height) => {
+      const group = new THREE.Group();
+      group.position.set(x, height / 2, z);
+      group.rotation.y = angle;
+      this.meshGroup.add(group);
+
+      // Base block
+      const base = new THREE.Mesh(
+        new THREE.BoxGeometry(length, height, width), jawMat);
+      base.castShadow = true;
+      group.add(base);
+
+      // Top slanted facet (triangular prism toward pocket)
+      const h = height * 0.55;
+      const d = width * 0.7;
+      const positions = new Float32Array([
+        // front slant face (facing toward table interior, local -z)
+        -length / 2, height / 2, -width / 2,
+         length / 2, height / 2 + h, -width / 2 + d,
+         length / 2, height / 2, -width / 2,
+        -length / 2, height / 2, -width / 2,
+        -length / 2, height / 2 + h, -width / 2 + d,
+         length / 2, height / 2 + h, -width / 2 + d,
+        // back face (facing toward pocket, local +z)
+        -length / 2, height / 2, width / 2,
+         length / 2, height / 2, width / 2,
+         length / 2, height / 2 + h, width / 2 - d,
+        -length / 2, height / 2, width / 2,
+         length / 2, height / 2 + h, width / 2 - d,
+        -length / 2, height / 2 + h, width / 2 - d,
+        // left end
+        -length / 2, height / 2, -width / 2,
+        -length / 2, height / 2 + h, -width / 2 + d,
+        -length / 2, height / 2 + h, width / 2 - d,
+        -length / 2, height / 2, -width / 2,
+        -length / 2, height / 2 + h, width / 2 - d,
+        -length / 2, height / 2, width / 2,
+        // right end
+         length / 2, height / 2, -width / 2,
+         length / 2, height / 2 + h, width / 2 - d,
+         length / 2, height / 2 + h, -width / 2 + d,
+         length / 2, height / 2, -width / 2,
+         length / 2, height / 2, width / 2,
+         length / 2, height / 2 + h, width / 2 - d,
+        // top
+        -length / 2, height / 2 + h, -width / 2 + d,
+         length / 2, height / 2 + h, -width / 2 + d,
+         length / 2, height / 2 + h, width / 2 - d,
+        -length / 2, height / 2 + h, -width / 2 + d,
+         length / 2, height / 2 + h, width / 2 - d,
+        -length / 2, height / 2 + h, width / 2 - d,
+      ]);
+      const facetGeo = new THREE.BufferGeometry();
+      facetGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      facetGeo.computeVertexNormals();
+      const facet = new THREE.Mesh(facetGeo, jawMat);
+      facet.castShadow = true;
+      group.add(facet);
+    };
+
+    // Corner pocket jaws
+    for (const sx of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        // Short-rail jaw (along X, bridging rail short end → cushion short end)
+        // sz = -1 (front): table interior is +z, pocket is -z → angle = Math.PI
+        // sz =  1 (back):  table interior is -z, pocket is +z → angle = 0
+        const shortAngle = sz < 0 ? Math.PI : 0;
+        addJaw(
+          sx * m.jawCornerShort.xOffset,
+          sz * m.jawCornerShort.zOffset,
+          shortAngle,
+          m.jawCornerShort.len,
+          m.jawCornerShort.width,
+          m.jawCornerShort.height
+        );
+
+        // Long-rail jaw (along Z, bridging rail long end → cushion long end)
+        // sx = -1 (left):  table interior is +x, pocket is -x → angle = Math.PI / 2
+        // sx =  1 (right): table interior is -x, pocket is +x → angle = -Math.PI / 2
+        const longAngle = sx < 0 ? Math.PI / 2 : -Math.PI / 2;
+        addJaw(
+          sx * m.jawCornerLong.xOffset,
+          sz * m.jawCornerLong.zOffset,
+          longAngle,
+          m.jawCornerLong.len,
+          m.jawCornerLong.width,
+          m.jawCornerLong.height
+        );
+      }
+    }
+
+    // Side pocket jaws
+    for (const sx of [-1, 1]) {
+      // sx = -1 (left):  table interior is +x, pocket is -x → angle = Math.PI / 2
+      // sx =  1 (right): table interior is -x, pocket is +x → angle = -Math.PI / 2
+      const sideAngle = sx < 0 ? Math.PI / 2 : -Math.PI / 2;
+      addJaw(
+        sx * m.jawSide.xOffset,
+        -m.jawSide.zOffset,
+        sideAngle,
+        m.jawSide.len,
+        m.jawSide.width,
+        m.jawSide.height
+      );
+      addJaw(
+        sx * m.jawSide.xOffset,
+        m.jawSide.zOffset,
+        sideAngle,
+        m.jawSide.len,
+        m.jawSide.width,
+        m.jawSide.height
+      );
+    }
+  }
+
+  createTournamentCastings() {
+    const nickelMat = this._mat('nickel', {
+      color: 0xb8b0a6,
+      roughness: 0.18,
+      metalness: 0.78,
+    });
+    const blackInsetMat = this._mat('blackInset', {
+      color: 0x0a0a0b,
+      roughness: 0.32,
+      metalness: 0.28,
+    });
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
+    const railTopY = 9.45;
+
+    const cornerPositions = [
+      [-halfW - 6.8, -halfD - 6.8, Math.PI / 4],
+      [halfW + 6.8, -halfD - 6.8, -Math.PI / 4],
+      [-halfW - 6.8, halfD + 6.8, -Math.PI / 4],
+      [halfW + 6.8, halfD + 6.8, Math.PI / 4],
+    ];
+
+    for (const [x, z, rot] of cornerPositions) {
+      const casting = new THREE.Mesh(new THREE.BoxGeometry(11, 1.4, 5.5), nickelMat);
+      casting.position.set(x, railTopY - 0.3, z);
+      casting.rotation.y = rot;
+      casting.castShadow = true;
+      casting.receiveShadow = true;
+      this.meshGroup.add(casting);
+
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(7.5, 0.35, 3.2), blackInsetMat);
+      pad.position.set(x, railTopY + 0.45, z);
+      pad.rotation.y = rot;
+      pad.castShadow = true;
+      this.meshGroup.add(pad);
+    }
+
+    for (const sx of [-1, 1]) {
+      const x = sx * (halfW + 6.3);
+      for (const z of [-12.5, 12.5]) {
+        const sideCasting = new THREE.Mesh(new THREE.BoxGeometry(8.5, 2.6, 18), nickelMat);
+        sideCasting.position.set(x, railTopY, z);
+        sideCasting.castShadow = true;
+        sideCasting.receiveShadow = true;
+        this.meshGroup.add(sideCasting);
+      }
+    }
+
+    const seamMat = this._mat('seam', {
+      color: 0xd8d0c4,
+      roughness: 0.2,
+      metalness: 0.7,
+    });
+    const seamPositions = [
+      [-halfW * 0.34, -halfD - 6],
+      [halfW * 0.34, -halfD - 6],
+      [-halfW * 0.34, halfD + 6],
+      [halfW * 0.34, halfD + 6],
+    ];
+    for (const [x, z] of seamPositions) {
+      const seam = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.6, 9.2), seamMat);
+      seam.position.set(x, 9.55, z);
+      seam.castShadow = true;
+      this.meshGroup.add(seam);
+    }
+  }
+
+  createApronPanelDetails() {
+    const panelMat = this._mat('panel', {
+      color: 0x090909,
+      roughness: 0.5,
+      metalness: 0.22,
+    });
+    const nickelMat = this._mat('apronNickel', {
+      color: 0xb7aea3,
+      roughness: 0.2,
+      metalness: 0.72,
+    });
+    const badgeMat = this._mat('badge', {
+      color: 0xe2d8c9,
+      roughness: 0.16,
+      metalness: 0.82,
+    });
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
+
+    const panels = [
+      [0, -11.8, -halfD - 14.4, this.profile.width * 0.72, 7.2, 0.9],
+      [0, -11.8, halfD + 14.4, this.profile.width * 0.72, 7.2, 0.9],
+      [-halfW - 14.4, -11.8, 0, 0.9, 7.2, this.profile.depth * 0.66],
+      [halfW + 14.4, -11.8, 0, 0.9, 7.2, this.profile.depth * 0.66],
+    ];
+
+    for (const [x, y, z, w, h, d] of panels) {
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), panelMat);
+      panel.position.set(x, y, z);
+      panel.receiveShadow = true;
+      this.meshGroup.add(panel);
+    }
+
+    const shortBadges = [
+      [0, -7.0, -halfD - 15.05, this.profile.width * 0.28, 2.2, 0.6],
+      [0, -7.0, halfD + 15.05, this.profile.width * 0.28, 2.2, 0.6],
+    ];
+    for (const [x, y, z, w, h, d] of shortBadges) {
+      const badge = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), badgeMat);
+      badge.position.set(x, y, z);
+      badge.castShadow = true;
+      this.meshGroup.add(badge);
+    }
+
+    const sideStrips = [
+      [-halfW - 15.05, -7.4, -this.profile.depth * 0.26, 0.6, 2.0, 26],
+      [-halfW - 15.05, -7.4, this.profile.depth * 0.26, 0.6, 2.0, 26],
+      [halfW + 15.05, -7.4, -this.profile.depth * 0.26, 0.6, 2.0, 26],
+      [halfW + 15.05, -7.4, this.profile.depth * 0.26, 0.6, 2.0, 26],
+    ];
+    for (const [x, y, z, w, h, d] of sideStrips) {
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), nickelMat);
+      strip.position.set(x, y, z);
+      strip.castShadow = true;
+      this.meshGroup.add(strip);
+    }
+  }
+
+  createHiddenStretcher() {
+    const stretcherMat = this._mat('stretcher', {
+      color: 0x101010,
+      roughness: 0.48,
+      metalness: 0.18,
+    });
+    const nickelMat = this._mat('stretcherNickel', {
+      color: 0xa89d92,
+      roughness: 0.2,
+      metalness: 0.7,
+    });
+
+    const spine = new THREE.Mesh(new THREE.BoxGeometry(14, 7, this.profile.depth * 0.54), stretcherMat);
+    spine.position.set(0, -49, 0);
+    spine.castShadow = true;
+    spine.receiveShadow = true;
+    this.meshGroup.add(spine);
+
+    for (const z of [-this.profile.depth * 0.2, this.profile.depth * 0.2]) {
+      const collar = new THREE.Mesh(new THREE.BoxGeometry(16, 1.6, 5.5), nickelMat);
+      collar.position.set(0, -44.4, z);
+      collar.castShadow = true;
+      this.meshGroup.add(collar);
+    }
+  }
+
+  createRailSights() {
+    const sightMat = this._mat('sight', {
+      color: 0xf3e6c7,
+      roughness: 0.18,
+      metalness: 0.05,
+      emissive: 0x1c1408,
+      emissiveIntensity: 0.15,
+    });
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
+    const positions = [];
+
+    for (const x of [-halfW * 0.66, -halfW * 0.33, 0, halfW * 0.33, halfW * 0.66]) {
+      positions.push([x, halfD + 6, Math.PI / 2]);
+      positions.push([x, -halfD - 6, Math.PI / 2]);
+    }
+    for (const z of [-halfD * 0.5, 0, halfD * 0.5]) {
+      positions.push([halfW + 6, z, 0]);
+      positions.push([-halfW - 6, z, 0]);
+    }
+
+    for (const [x, z, rot] of positions) {
+      const sight = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.45, 20), sightMat);
+      sight.position.set(x, 8.3, z);
+      sight.rotation.z = rot;
+      this.meshGroup.add(sight);
+    }
+  }
+
+  createCornerCaps() {
+    const capMat = this._mat('cap', {
+      color: 0x0e0f10,
+      roughness: 0.24,
+      metalness: 0.72,
+    });
+    const nickelMat = this._mat('capNickel', {
+      color: 0xb6ada3,
+      roughness: 0.2,
+      metalness: 0.75,
+    });
+    const halfW = this.profile.width / 2;
+    const halfD = this.profile.depth / 2;
+    const capPositions = [
+      [-halfW - 7, 9.0, -halfD - 7],
+      [halfW + 7, 9.0, -halfD - 7],
+      [-halfW - 7, 9.0, halfD + 7],
+      [halfW + 7, 9.0, halfD + 7],
+    ];
+
+    for (const [x, y, z] of capPositions) {
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(6.2, 5.2, 1.0, 8), capMat);
+      cap.position.set(x, y - 0.5, z);
+      cap.rotation.y = Math.PI / 8;
+      cap.castShadow = true;
+      this.meshGroup.add(cap);
+
+      const crown = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.2, 0.35, 8), nickelMat);
+      crown.position.set(x, y + 0.15, z);
+      crown.rotation.y = Math.PI / 8;
+      crown.castShadow = true;
+      this.meshGroup.add(crown);
+    }
+  }
+
+  createLegs() {
+    const legMat = this._mat('leg', {
+      color: 0x15100d,
+      roughness: 0.42,
+      metalness: 0.18,
+    });
+    const faceMat = this._mat('legFace', {
+      color: 0x2d2118,
+      roughness: 0.36,
+      metalness: 0.12,
+    });
+    const footMat = this._mat('foot', {
+      color: 0x0a0a0a,
+      roughness: 0.3,
+      metalness: 0.55,
+    });
+    const levelerMat = this._mat('leveler', {
+      color: 0xc8c0b7,
+      roughness: 0.18,
+      metalness: 0.85,
+    });
+    const legH = 65;
+    const halfW = this.profile.width / 2 + 7;
+    const halfD = this.profile.depth / 2 + 9;
+
+    const positions = [
+      [-halfW, -legH / 2 - this.profile.height, -halfD, 1],
+      [halfW, -legH / 2 - this.profile.height, -halfD, -1],
+      [-halfW, -legH / 2 - this.profile.height, halfD, -1],
+      [halfW, -legH / 2 - this.profile.height, halfD, 1],
+    ];
+
+    for (const [x, y, z, tilt] of positions) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(14, legH, 18), legMat);
+      leg.position.set(x, y, z);
+      leg.castShadow = true;
+      leg.receiveShadow = true;
+      this.meshGroup.add(leg);
+
+      // Vertical fluting (decorative grooves) on outer face
+      const fluteCount = 3;
+      const fluteW = 1.2;
+      const fluteDepth = 0.8;
+      for (let i = 0; i < fluteCount; i++) {
+        const fx = x + (i - 1) * 3.5;
+        const flute = new THREE.Mesh(
+          new THREE.BoxGeometry(fluteW, legH * 0.55, fluteDepth),
+          faceMat
+        );
+        flute.position.set(fx, y + 4, z + Math.sign(z) * (9.0 + fluteDepth / 2));
+        this.meshGroup.add(flute);
+      }
+
+      const face = new THREE.Mesh(new THREE.BoxGeometry(11.5, legH * 0.72, 1.1), faceMat);
+      face.position.set(x, y + 2, z + Math.sign(z) * 9.6);
+      face.castShadow = true;
+      this.meshGroup.add(face);
+
+      const base = new THREE.Mesh(new THREE.BoxGeometry(22, 5.4, 25), footMat);
+      base.position.set(x, -legH - this.profile.height - 2.7, z);
+      base.castShadow = true;
+      base.receiveShadow = true;
+      this.meshGroup.add(base);
+
+      const leveler = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.8, 1.5, 28), levelerMat);
+      leveler.position.set(x, -legH - this.profile.height - 6.2, z);
+      leveler.castShadow = true;
+      leveler.receiveShadow = true;
+      this.meshGroup.add(leveler);
+    }
+
+    // Visible upper stretcher bars (side-to-side and front-to-back)
+    const stretcherMat = this._mat('legStretcher', {
+      color: 0x121010, roughness: 0.40, metalness: 0.20,
+    });
+    const stretcherNickelMat = this._mat('legStretcherNickel', {
+      color: 0xa89d92, roughness: 0.20, metalness: 0.70,
+    });
+
+    // Long side stretchers (front-to-back)
+    for (const sx of [-1, 1]) {
+      const bar = new THREE.Mesh(
+        new THREE.BoxGeometry(5, 4.5, this.profile.depth * 0.62),
+        stretcherMat
+      );
+      bar.position.set(sx * halfW, -this.profile.height - 28, 0);
+      bar.castShadow = true;
+      this.meshGroup.add(bar);
+
+      // Collar at each end
+      for (const sz of [-1, 1]) {
+        const collar = new THREE.Mesh(
+          new THREE.BoxGeometry(7.5, 1.8, 4.5),
+          stretcherNickelMat
+        );
+        collar.position.set(sx * halfW, -this.profile.height - 24, sz * this.profile.depth * 0.28);
+        collar.castShadow = true;
+        this.meshGroup.add(collar);
+      }
+    }
+
+    // Short end stretchers (left-to-right) — only connect front pair and back pair
+    for (const sz of [-1, 1]) {
+      const bar = new THREE.Mesh(
+        new THREE.BoxGeometry(this.profile.width * 0.52, 4.5, 5),
+        stretcherMat
+      );
+      bar.position.set(0, -this.profile.height - 36, sz * halfD);
+      bar.castShadow = true;
+      this.meshGroup.add(bar);
+
+      for (const sx of [-1, 1]) {
+        const collar = new THREE.Mesh(
+          new THREE.BoxGeometry(4.5, 1.8, 7.5),
+          stretcherNickelMat
+        );
+        collar.position.set(sx * this.profile.width * 0.24, -this.profile.height - 32, sz * halfD);
+        collar.castShadow = true;
+        this.meshGroup.add(collar);
+      }
+    }
+  }
+
+  // ── Theme application ──
+
+  applyVisualSettings(settings) {
+    // Legacy-to-V2 mapping fallbacks
+    const legacyFeltMap = { classic: 'classicGreen', blue: 'blue', red: 'red', black: 'black', purple: 'purple' };
+    const legacyWoodMap = { classic: 'classic', dark: 'darkWalnut', light: 'lightOak', black: 'blackLacquer' };
+
+    const tableThemeId = settings.get('tableTheme') || 'classic';
+    const feltThemeId = settings.get('feltTheme') || legacyFeltMap[settings.get('feltColorTheme')] || 'classicGreen';
+    const woodThemeId = settings.get('woodTheme') || legacyWoodMap[settings.get('woodColorTheme')] || 'classic';
+    const metalThemeId = settings.get('metalTrimTheme') || 'nickel';
+    const leatherThemeId = settings.get('pocketLeatherTheme') || 'brown';
+
+    // Resolve preset overrides
+    const tablePreset = TABLE_THEMES[tableThemeId] || TABLE_THEMES.classic;
+    const feltKey = tablePreset.felt || feltThemeId;
+    const woodKey = tablePreset.wood || woodThemeId;
+    const metalKey = tablePreset.metal || metalThemeId;
+
+    const felt = FELT_THEMES[feltKey] || FELT_THEMES.classicGreen;
+    const wood = WOOD_THEMES[woodKey] || WOOD_THEMES.classic;
+    const metal = METAL_TRIM_THEMES[metalKey] || METAL_TRIM_THEMES.nickel;
+    const leather = POCKET_LEATHER_THEMES[leatherThemeId] || POCKET_LEATHER_THEMES.brown;
+
+    const tableReflection = settings.get('tableReflection') !== false;
+
+    // Apply felt colors
+    applyMaterialTheme(this._materials.felt, felt.felt);
+    applyMaterialTheme(this._materials.cushion, felt.cushion);
+    applyMaterialTheme(this._materials.bevel, felt.bevel);
+    applyMaterialTheme(this._materials.nap, felt.nap);
+    applyMaterialTheme(this._materials.edge, felt.edge);
+
+    // Apply wood colors
+    applyMaterialTheme(this._materials.rail, wood.rail);
+    applyMaterialTheme(this._materials.topInsert, wood.topInsert);
+    applyMaterialTheme(this._materials.round, wood.round);
+    applyMaterialTheme(this._materials.railBevel, wood.railBevel);
+    applyMaterialTheme(this._materials.apron, wood.apron);
+    applyMaterialTheme(this._materials.leg, wood.leg);
+    applyMaterialTheme(this._materials.legFace, wood.legFace);
+    applyMaterialTheme(this._materials.legStretcher, wood.apron);
+    applyMaterialTheme(this._materials.legStretcherNickel, metal.stretcherNickel);
+
+    // Apply metal trim colors
+    applyMaterialTheme(this._materials.trim, metal.trim);
+    applyMaterialTheme(this._materials.bracket, metal.bracket);
+    applyMaterialTheme(this._materials.nickel, metal.nickel);
+    applyMaterialTheme(this._materials.seam, metal.seam);
+    applyMaterialTheme(this._materials.capNickel, metal.capNickel);
+    applyMaterialTheme(this._materials.leveler, metal.leveler);
+    applyMaterialTheme(this._materials.foot, metal.foot);
+    applyMaterialTheme(this._materials.apronNickel, metal.apronNickel);
+    applyMaterialTheme(this._materials.stretcherNickel, metal.stretcherNickel);
+    applyMaterialTheme(this._materials.badge, metal.badge);
+    applyMaterialTheme(this._materials.casting, metal.casting);
+    applyMaterialTheme(this._materials.sight, metal.sight);
+
+    // Apply pocket leather (including cloned bag material)
+    applyMaterialTheme(this._materials.leather, leather.leather);
+    applyMaterialTheme(this._materials.net, leather.net);
+    applyMaterialTheme(this._materials.chain, leather.chain);
+    if (this._materials.bagMats) {
+      for (const bagMat of this._materials.bagMats) {
+        applyMaterialTheme(bagMat, leather.net);
+      }
+    }
+
+    // Apply jaw and cushion-cap materials
+    applyMaterialTheme(this._materials.jaw, wood.rail);
+    applyMaterialTheme(this._materials.cushionCap, felt.cushion);
+
+    // Reflection toggle: dull reflective surfaces when disabled
+    if (!tableReflection) {
+      const dullReflective = (mat) => {
+        if (!mat) return;
+        mat.metalness = Math.max(0, mat.metalness - 0.25);
+        mat.roughness = Math.min(1, mat.roughness + 0.18);
+      };
+      dullReflective(this._materials.rail);
+      dullReflective(this._materials.round);
+      dullReflective(this._materials.railBevel);
+      dullReflective(this._materials.topInsert);
+      dullReflective(this._materials.trim);
+      dullReflective(this._materials.bracket);
+      dullReflective(this._materials.nickel);
+      dullReflective(this._materials.seam);
+      dullReflective(this._materials.capNickel);
+      dullReflective(this._materials.leveler);
+      dullReflective(this._materials.apronNickel);
+      dullReflective(this._materials.stretcherNickel);
+      dullReflective(this._materials.badge);
+      dullReflective(this._materials.casting);
+      dullReflective(this._materials.sight);
+      dullReflective(this._materials.jaw);
+      dullReflective(this._materials.cushionCap);
+    }
+
+    // Show/hide cloth nap
+    if (this._themeMeshes.nap) {
+      this._themeMeshes.nap.visible = settings.get('clothNapEnabled') !== false;
+    }
+
+    // Pocket net detail level
+    const netDetail = settings.get('pocketNetDetail') || 'high';
+    if (this._themeMeshes.pocketNets) {
+      for (const mesh of this._themeMeshes.pocketNets) {
+        mesh.visible = netDetail !== 'off';
+        if (netDetail === 'low') {
+          mesh.scale.set(0.6, 0.6, 0.6);
+        } else {
+          mesh.scale.set(1, 1, 1);
+        }
+      }
+    }
+
+    // Update cloth textures (nap, pattern, wear)
+    this._updateClothTextures(settings);
+  }
+
+  _updateClothTextures(settings) {
+    const napEnabled = settings.get('clothNapEnabled') !== false;
+    const patternStrength = settings.get('clothPatternStrength') ?? 0.35;
+    const wearEnabled = settings.get('clothWearEnabled') !== false;
+
+    const feltMat = this._materials.felt;
+    if (!feltMat) return;
+
+    // Null bumpMap before disposing so Three.js doesn't reference freed textures
+    if (feltMat.bumpMap) { feltMat.bumpMap = null; feltMat.needsUpdate = true; }
+
+    // Dispose old textures (individual + composite)
+    if (this._clothTextures.nap) { this._clothTextures.nap.dispose(); this._clothTextures.nap = null; }
+    if (this._clothTextures.pattern) { this._clothTextures.pattern.dispose(); this._clothTextures.pattern = null; }
+    if (this._clothTextures.wear) { this._clothTextures.wear.dispose(); this._clothTextures.wear = null; }
+    if (this._clothTextures.composite) { this._clothTextures.composite.dispose(); this._clothTextures.composite = null; }
+
+    const maps = [];
+
+    if (napEnabled) {
+      const napTex = createClothNapTexture(512, 512, 0.5);
+      this._clothTextures.nap = napTex;
+      maps.push(napTex);
+    }
+
+    if (patternStrength > 0.02) {
+      const patTex = createClothPatternTexture(512, 512, patternStrength);
+      this._clothTextures.pattern = patTex;
+      maps.push(patTex);
+    }
+
+    if (wearEnabled) {
+      const wearTex = createClothWearTexture(512, 512);
+      this._clothTextures.wear = wearTex;
+      maps.push(wearTex);
+    }
+
+    if (maps.length > 0) {
+      if (maps.length === 1) {
+        feltMat.bumpMap = maps[0];
+      } else {
+        // Composite all cloth detail textures into a single canvas
+        // so they all contribute to the bump map instead of discarding extras
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#808080';
+        ctx.fillRect(0, 0, 512, 512);
+        // Average-composite bump maps by drawing at reduced opacity onto neutral grey.
+        // With N textures, each at 1/N opacity produces a balanced blend.
+        const layerAlpha = maps.length > 0 ? 1.0 / maps.length : 1.0;
+        for (const tex of maps) {
+          if (tex.image) {
+            ctx.globalAlpha = layerAlpha;
+            ctx.drawImage(tex.image, 0, 0);
+          }
+        }
+        const composite = new THREE.CanvasTexture(canvas);
+        composite.wrapS = THREE.RepeatWrapping;
+        composite.wrapT = THREE.RepeatWrapping;
+        composite.colorSpace = THREE.NoColorSpace;
+        feltMat.bumpMap = composite;
+        this._clothTextures.composite = composite;
+        // Dispose individual textures after compositing
+        for (const tex of maps) tex.dispose();
+        this._clothTextures.nap = null;
+        this._clothTextures.pattern = null;
+        this._clothTextures.wear = null;
+      }
+      feltMat.bumpScale = 0.06;
+    } else {
+      feltMat.bumpMap = null;
+    }
+    feltMat.needsUpdate = true;
+  }
+
+  getPocketPositions() {
+    return this.pocketPositions;
+  }
+
+  dispose() {
+    if (!this.meshGroup) return; // guard against second call
+    if (this.meshGroup.parent) {
+      this.meshGroup.parent.remove(this.meshGroup);
+    }
+    this.meshGroup.traverse((child) => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach((m) => {
+            if (m.map) { m.map.dispose(); m.map = null; }
+            m.dispose();
+          });
+        } else {
+          if (child.material.map) { child.material.map.dispose(); child.material.map = null; }
+          child.material.dispose();
+        }
+      }
+    });
+
+    Object.values(this._clothTextures).forEach((t) => t && t.dispose());
+    this._clothTextures = {};
+
+    this.pocketPositions = null;
+    this.profile = null;
+    this.meshGroup = null;
+    this._materials = {};
+    this._themeMeshes = {};
+  }
+}

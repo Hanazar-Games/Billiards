@@ -1,0 +1,22 @@
+{
+  "name": "@billiards/nakama-module",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Nakama server module of Billiards Online (runtime JS, bundled for goja).",
+  "scripts": {
+    "build": "node build.mjs",
+    "pretest": "node build.mjs",
+    "test": "node --test test/*.test.ts",
+    "test:integration": "node --test --test-concurrency=1 --test-timeout=90000 test/integration/*.test.ts"
+  },
+  "devDependencies": {
+    "@heroiclabs/nakama-js": "2.8.0",
+    "esbuild": "0.28.2"
+  },
+  "dependencies": {
+    "@billiards/modes": "*",
+    "@billiards/protocol": "*",
+    "@billiards/sim": "*"
+  }
+}

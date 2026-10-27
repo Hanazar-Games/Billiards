@@ -1,0 +1,88 @@
+# Nakama integration (D051): brings up the local stack (infra/docker-compose.yml)
+# with the development values of infra/.env.example and runs the bot tests, then
+# the two-browser online e2e (apps/client test:online) against the same stack.
+name: Integration (Nakama)
+
+on:
+  push:
+    branches: ['claude/**']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  nakama:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: cp infra/.env.example infra/.env
+      # F4-13 (D065): the production .env check and the ports of the production compose (needs Docker).
+      - run: npm run test:infra
+      - run: npm run infra:up
+      # Recreates Nakama with a fresh module, as a developer does after a change.
+      - run: npm run infra:reload
+      - run: npm test -w services/nakama
+      # The flags of the test:integration script, plus a JUnit report for the summary.
+      - name: Integration tests
+        working-directory: services/nakama
+        run: >
+          node --test --test-concurrency=1 --test-timeout=90000
+          --test-reporter=spec --test-reporter-destination=stdout
+          --test-reporter=junit --test-reporter-destination=../../integration-junit.xml
+          test/integration/*.test.ts
+      # F4-10/F4-11 (D066): two browsers play online against the same stack, through the online panel.
+      # The runner already has Chrome's system libraries; this fetches the Chrome that Puppeteer pins.
+      - name: Install Chrome
+        run: npx puppeteer browsers install chrome
+      # The test:online script, plus a JUnit report and a summary line per match for the annotations.
+      # Two swiftshader pages draw few frames a second and the game caps a frame at 0.1 s: the
+      # playback runs 16 times faster so a whole 8-ball match fits the test's 15 minutes.
+      - name: Online e2e (two browsers)
+        working-directory: apps/client
+        env:
+          NAKAMA_URL: http://127.0.0.1:7350
+          E2E_PLAYBACK_RATE: '16'
+          E2E_REPORT: ${{ github.workspace }}/online-e2e.txt
+        run: >
+          node --test --test-reporter=spec --test-reporter-destination=stdout
+          --test-reporter=junit --test-reporter-destination=../../online-junit.xml
+          test/online-match.test.js
+      - name: Online e2e summary
+        if: always()
+        shell: bash
+        run: |
+          node services/nakama/test/integration/summary.mjs online-junit.xml 'online e2e'
+          if [ -f online-e2e.txt ]; then while IFS= read -r line; do echo "::notice title=online e2e::$line"; done < online-e2e.txt; fi
+      # Annotations are readable without signing in (the job log is not).
+      - name: Test summary
+        if: always()
+        run: node services/nakama/test/integration/summary.mjs integration-junit.xml
+      - name: Nakama logs
+        if: failure()
+        shell: bash
+        run: |
+          docker compose -f infra/docker-compose.yml --env-file infra/.env logs nakama sim > nakama.log 2>&1 || true
+          cat nakama.log
+          grep -iE '"level":"(error|warn)"|panic' nakama.log | head -20 | while IFS= read -r line; do echo "::warning title=nakama::${line:0:300}"; done
+      # The module's last lines about shots and the sim as one annotation: when the sim was called and how long it took.
+      - name: Shot timings
+        if: failure()
+        shell: bash
+        run: |
+          docker compose -f infra/docker-compose.yml --env-file infra/.env logs --no-color -t nakama sim > timings.log 2>&1 || true
+          text=$(grep -E 'shot resolved|sim failed|"path":"/simulate"|panic|"level":"error"' timings.log | tail -14 \
+            | sed -E 's/^([a-z]+-1 +\| [^ ]+) .*"msg":"([^"]*)".*$/\1 \2/' | cut -c1-200 | sed ':a;N;$!ba;s/\n/%0A/g')
+          echo "::notice title=shot timings::${text:0:3500}"
+      - name: Stop the stack
+        if: always()
+        run: npm run infra:down

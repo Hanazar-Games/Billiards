@@ -1,0 +1,12 @@
+{
+  "config.js": "924153cd234861eb7b6134279dd4eb434f02c55cde94964c88a49018d66a8898",
+  "core/PhysicsWorld.js": "fe19e84c5cea4e5fe5950b8f0f51143f2c4cd0b11cbefa552bba88d0b4f8ea67",
+  "game/Ball.js": "c13e28e79dbf49542b9c0c1213389eee06a1044c466a8711866233a4ebc07ed4",
+  "game/BallsManager.js": "71462ee7d74c2176068dc82d985dffac6e612f3b493c61d699f0090664ae8975",
+  "game/Table.js": "cadfa6bea734b8552b62937b068d631d8bc1c5c3d6f6ee3ceb6bd64592172e88",
+  "game/TableProfiles.js": "428f8c6ac2aa390b2072b19f4cc4e8cc23a8ad4dbf7aae207a2fec9b683c7c49",
+  "theme/BallThemes.js": "5739a489e3834e781998b45fe4035cafc6153a9c32890308d36f45846c70d4cb",
+  "theme/ProceduralTextures.js": "dc8d78539010821ae9e4b942fa784b1e0b37be6bc37def8dfc3c669d2424250a",
+  "theme/TableThemes.js": "b5caf91b538c8f87eaf99146201c35a3b249605d024d87743052a66603dc898c",
+  "trainer/DrillData.js": "73811f58e37108defbe73892e5a880de6ba6a31d2f5db1ddd761ae24beaf5a0a"
+}
