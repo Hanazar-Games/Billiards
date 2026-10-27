@@ -57,6 +57,14 @@
 3. **O usuário confirma o F1-09** no navegador, quando quiser, seguindo `docs/f1/roteiro-teste-manual.md` (`npm run dev`, Treino livre, `await __referenceShot('draw-ref')` no console). Em 2026-10-25 o usuário preferiu adiar. Se a branca voltar como esperado, marcar `passes: true` e registrar a data; se não, abrir uma decisão nova sobre o recuo (a D041 aceitou a sensação medida).
 4. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium. O Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido. Sem esse download, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome do sistema.
 
+## Pendências da execução da F4-B (menores da revisão final; não bloqueiam)
+
+- **Conexão:** o `send()` da `OnlineSession` não trata a promessa do `sendMatchState` (uma desistência durante a reconexão some sem aviso); uma tentativa de volta que conecta mas não entra deixa aquele socket aberto; o `connect` do nakama-js espera até 30 s, e o `offline` pode chegar 85 a 90 s depois da queda.
+- **Controlador e jogo:** no snapshot, o ramo da tacada já vista pula o tratamento do pedido pendente; o `initialFromResult` quase nunca é alcançado (o primeiro snapshot chega antes de o `Game` ouvir); eventos entre o `whenReady` e o `installOnline` se perdem; na volta no meio da reprodução, bolas já encaçapadas ficam na boca da caçapa até o fim; `PROTOCOL_MISMATCH` na reconexão mostra "Conexão perdida"; o contador pode passar de 45 s; a pausa congela a reprodução e o relógio local enquanto o do servidor corre.
+- **Painel:** botões ativos durante as RPCs (dois cliques em "Criar sala" criam duas salas); depois da fila, o "Entrando" ainda diz "Procurando adversário…"; o bilhete da fila não leva a versão do protocolo.
+- **Verificação:** o `replaced` depende de o Nakama avisar a conexão expulsa, e o teste da segunda aba não confere isso; o e2e de queda derruba quem assiste depois do `shot_result`, e o Review Focus 2 (a própria tacada em trânsito) não é exercitado contra o servidor real.
+- **Documentos:** a seção 13 do `docs/protocol.md` cita "101, 103 a 107 e 109" (a 103 é ignorada; a 102 e a 108 são tratadas); o `source` de D063 a D066 ainda diz "proposta, aguardando a revisão"; o caminho do Cloudflare Tunnel não avisa que um volume antigo do `server` mantém a `POSTGRES_PASSWORD` de antes.
+
 ## Pendências da execução da F4-A (não bloqueiam; para a F4-B ou depois)
 
 - **Escrita só-cria não verificada num servidor real:** o `storageWrite` com `version: '*'` numa chave que já existe deve falhar, mas nenhum caminho do módulo escreve duas vezes, então só o teste unitário (escrita que lança vira aviso) cobre isso.
@@ -373,4 +381,14 @@
 - Suítes: `test:online-unit` 44, `test:online-game` 9, `test:full-match` (37 tacadas), `test:local-2p` (52 e 30 tacadas), `test:smoke` 54, modes 70, protocol 40, sim 61, nakama-module 97, sim-service 10, `test:infra` 5 (mais 2 que precisam do Docker), `typecheck` limpo e `init.sh` ok. O `test:browser` estoura os 180 s do arquivo nesta máquina, como na F4-A.
 - Na CI, dois navegadores com swiftshader desenham poucos quadros por segundo e o laço do jogo limita o quadro a 0,1 s: com a reprodução a 4×, a partida inteira passou dos 15 min (execução 40549706442). A CI agora reproduz a 16× (`E2E_PLAYBACK_RATE`), e o e2e vira anotações (JUnit e uma linha por partida). Uma espera de texto de 15 s na recarga falhou uma vez (40554403856) e passou a esperar 30 s, conferindo a cada 200 ms e relatando o estado da página se faltar. Verde em **40556758176**: 8-ball com 71 tacadas em 175 s.
 - O `server` parou de responder nas portas 7350 e 7351 durante a última rodada daqui (o ping responde).
-- Falta a produção (passo 6 da Tarefa 9), que precisa da máquina e do domínio do usuário, e a revisão final da branch.
+- **Revisão final** (revisor Opus, `acbf660..d8c99a0`): "With fixes", com 1 crítico e 8 importantes, todos corrigidos numa passada, cada um com o teste visto falhando antes:
+  - "Cancelar" ou "Voltar" com a sala aberta deixava o jogador na partida; agora sai dela, e a fila é cancelada ao fechar o painel; uma conexão perdida durante a espera mostra o aviso.
+  - O fim da partida com a própria tacada ainda sem resultado aparece na hora (antes, o jogo ficava em `SHOOTING`).
+  - `SIM_FAILED` devolve a vez ao jogador, sem o controlador reenviar a tacada sozinho (antes, três falhas em segundos encerravam a partida).
+  - A sessão volta a conectar depois de `offline`; a fila falha com a queda; "Match not found" do Nakama esquece o `matchId`; a renovação vencida entra de novo pelo dispositivo.
+  - "Voltar ao menu" no meio da partida sai dela (reserva de 60 s e W.O.), sem conceder sem confirmação.
+  - O servidor recusa entrar numa partida *relayed* pelo token do matchmaker (D064).
+  - A restauração do banco no `docs/f4/implantacao.md` agora entra num volume vazio, antes de o Nakama migrar.
+  - Os menores ficaram na seção "Pendências da execução da F4-B".
+  - Verde na CI **40564924972**: integração 34 de 34 (com a recusa da partida *relayed*) e `test:online` 4 de 4; a partida de 8-ball levou 119 tacadas e 603 s, perto do limite de 14 min do teste na CI (a IA pode precisar de mais tacadas; o teste falha antes do tempo, dizendo até onde foi).
+- Falta a produção (passo 6 da Tarefa 9), que precisa da máquina e do domínio do usuário.
