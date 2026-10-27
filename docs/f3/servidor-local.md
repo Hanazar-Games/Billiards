@@ -52,7 +52,7 @@ Para rodar o servidor em outra máquina da rede (por exemplo, `server`) e testar
    NAKAMA_HOST=server npm run test:integration -w services/nakama
    ```
 
-   No PowerShell, use `$env:NAKAMA_HOST='server'` antes do comando. Se as chaves do `.env` do servidor forem diferentes das de desenvolvimento, passe também `NAKAMA_SERVER_KEY` e `NAKAMA_HTTP_KEY`. `NAKAMA_PORT` muda a porta da API (o padrão é 7350).
+   No PowerShell, use `$env:NAKAMA_HOST='server'` antes do comando; no Prompt de Comando (cmd), `set "NAKAMA_HOST=server"`. Sem a variável, os testes procuram um Nakama em `127.0.0.1`: cada arquivo espera 60 s pelo healthcheck e falha. Se as chaves do `.env` do servidor forem diferentes das de desenvolvimento, passe também `NAKAMA_SERVER_KEY` e `NAKAMA_HTTP_KEY`. `NAKAMA_PORT` muda a porta da API (o padrão é 7350).
 
 3. **Para atualizar o servidor depois de mudar o módulo:** no servidor, rode `git pull && npm run infra:reload`.
 
