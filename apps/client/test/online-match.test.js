@@ -5,6 +5,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { isDeepStrictEqual } from 'node:util';
+import { appendFileSync } from 'node:fs';
 import { createServer } from 'vite';
 import puppeteer from 'puppeteer';
 import { browserOptions, prepareBrowserPage } from './browser-options.js';
@@ -19,7 +20,15 @@ const { newBot, findStorageObject, eventually, closeBots } = await import('../..
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 // The hard AI takes about 100 shots to finish an 8-ball rack (test/local-2p-match.test.js uses the same cap).
 const MAX_SHOTS = Number(process.env.E2E_MAX_SHOTS ?? 300);
-const PLAYBACK_RATE = 4;
+// The game loop caps a frame at 0.1 s: where frames are slow (two swiftshader pages in CI), a higher
+// rate keeps a shot's playback short. The server does not wait for it (D056).
+const PLAYBACK_RATE = Number(process.env.E2E_PLAYBACK_RATE ?? 4);
+const MATCH_TIMEOUT_MS = Number(process.env.E2E_MATCH_TIMEOUT_MS ?? 900000);
+
+/** One line for the CI summary (E2E_REPORT names the file; see .github/workflows/integration.yml). */
+function report(line) {
+  if (process.env.E2E_REPORT) appendFileSync(process.env.E2E_REPORT, `${line}\n`);
+}
 
 let server;
 let browser;
@@ -225,7 +234,7 @@ const diagnose = (page) => page.evaluate(() => {
 
 const showsText = (page, text) => page.waitForFunction((t) => document.body.innerText.includes(t), { timeout: 15000 }, text);
 
-test('dois navegadores jogam uma partida online inteira de 8-ball', { timeout: 900000 }, async () => {
+test('dois navegadores jogam uma partida online inteira de 8-ball', { timeout: MATCH_TIMEOUT_MS }, async () => {
   const players = await Promise.all([openPlayer('A'), openPlayer('B')]);
   const [a, b] = players;
   try {
@@ -236,12 +245,19 @@ test('dois navegadores jogam uma partida online inteira de 8-ball', { timeout: 9
     assert.notEqual(va.localSeat, vb.localSeat);
 
     let shots = 0;
+    // A minute before the test's own timeout, fail with how far the match got.
+    const seconds = () => ((Date.now() - started) / 1000).toFixed(1);
     while (await playShot(players, shots + 1)) {
       shots++;
       assert.ok(shots <= MAX_SHOTS, `sem fim depois de ${MAX_SHOTS} tacadas`);
+      if (Date.now() - started > MATCH_TIMEOUT_MS - 60000) {
+        report(`8-ball: sem fim em ${seconds()} s, ${shots} tacadas`);
+        assert.fail(`sem fim em ${seconds()} s: ${shots} tacadas`);
+      }
     }
     const ends = await Promise.all(players.map((p) => p.page.evaluate(() => ({ ...__menu.game.match.end, text: document.body.innerText }))));
-    console.log(`8-ball online: ${shots} tacadas, vencedor ${ends[0].winnerTeam}, ${((Date.now() - started) / 1000).toFixed(1)} s`);
+    console.log(`8-ball online: ${shots} tacadas, vencedor ${ends[0].winnerTeam}, ${seconds()} s`);
+    report(`8-ball: ${shots} tacadas em ${seconds()} s (${(Number(seconds()) / shots).toFixed(1)} s por tacada)`);
     assert.equal(ends[0].reason, 'WIN');
     assert.equal(ends[0].winnerTeam, ends[1].winnerTeam);
     const winner = ends.findIndex((e) => e.text.includes('Vitória!'));

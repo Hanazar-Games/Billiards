@@ -44,10 +44,25 @@ jobs:
       # The runner already has Chrome's system libraries; this fetches the Chrome that Puppeteer pins.
       - name: Install Chrome
         run: npx puppeteer browsers install chrome
+      # The test:online script, plus a JUnit report and a summary line per match for the annotations.
+      # Two swiftshader pages draw few frames a second and the game caps a frame at 0.1 s: the
+      # playback runs 16 times faster so a whole 8-ball match fits the test's 15 minutes.
       - name: Online e2e (two browsers)
+        working-directory: apps/client
         env:
           NAKAMA_URL: http://127.0.0.1:7350
-        run: npm run test:online -w apps/client
+          E2E_PLAYBACK_RATE: '16'
+          E2E_REPORT: ${{ github.workspace }}/online-e2e.txt
+        run: >
+          node --test --test-reporter=spec --test-reporter-destination=stdout
+          --test-reporter=junit --test-reporter-destination=../../online-junit.xml
+          test/online-match.test.js
+      - name: Online e2e summary
+        if: always()
+        shell: bash
+        run: |
+          node services/nakama/test/integration/summary.mjs online-junit.xml 'online e2e'
+          if [ -f online-e2e.txt ]; then while IFS= read -r line; do echo "::notice title=online e2e::$line"; done < online-e2e.txt; fi
       # Annotations are readable without signing in (the job log is not).
       - name: Test summary
         if: always()

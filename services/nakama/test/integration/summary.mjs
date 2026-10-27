@@ -4,8 +4,9 @@
 import { readFileSync, existsSync } from 'node:fs';
 
 const file = process.argv[2] ?? 'integration-junit.xml';
+const title = process.argv[3] ?? 'integration';
 if (!existsSync(file)) {
-  console.log(`::warning title=integration::no report at ${file}`);
+  console.log(`::warning title=${title}::no report at ${file}`);
   process.exit(0);
 }
 const xml = readFileSync(file, 'utf8');
@@ -23,5 +24,5 @@ for (const match of xml.matchAll(/<testcase\b([^>]*?)(\/>|>([\s\S]*?)<\/testcase
   const detail = unescape(failure[2] ?? '').split('\n').filter((l) => l.trim() && !/^\s+at /.test(l)).slice(0, 6).join('\n');
   failures.push({ name, message: unescape(attrMessage) + (detail ? ` | ${detail}` : '') });
 }
-console.log(`::notice title=integration totals::${passed} passed, ${failures.length} failed`);
+console.log(`::notice title=${title} totals::${passed} passed, ${failures.length} failed`);
 for (const f of failures) console.log(`::error title=${oneLine(f.name)}::${oneLine(f.message)}`);
