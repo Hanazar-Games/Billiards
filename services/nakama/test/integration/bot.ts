@@ -20,21 +20,21 @@ export function closeBots(): void {
 }
 
 export function newClient(): Client {
-  return new Client(NAKAMA.serverKey, NAKAMA.host, NAKAMA.port, false);
+  return new Client(NAKAMA.serverKey, NAKAMA.host, NAKAMA.port, NAKAMA.useSSL);
 }
 
 /** A new connected socket of the bot's session, closed by closeBots(). */
 export async function openSocket(bot: Pick<Bot, 'client' | 'session'>): Promise<Socket> {
-  const socket = bot.client.createSocket(false, false);
+  const socket = bot.client.createSocket(NAKAMA.useSSL, false);
   await socket.connect(bot.session, true);
   openSockets.add(socket);
   return socket;
 }
 
-/** A guest with a fresh device id. */
+/** A guest with a fresh device id; the bot- prefix marks test accounts (docs/f4/implantacao.md). */
 export async function newBot(): Promise<Bot> {
   const client = newClient();
-  const deviceId = randomUUID();
+  const deviceId = `bot-${randomUUID()}`;
   const session = await client.authenticateDevice(deviceId, true);
   let socket: Socket | null = null;
   return {

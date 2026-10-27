@@ -36,7 +36,8 @@
     "test:no-legacy-rules": "node test/no-legacy-rules.test.js",
     "test:local-2p": "node test/local-2p-match.test.js",
     "test:online-unit": "node --test test/online-config.test.js test/online-session.test.js test/online-match-controller.test.js test/online-panel.test.js",
-    "test:online-game": "node --test test/online-game.test.js"
+    "test:online-game": "node --test test/online-game.test.js",
+    "test:online": "node --test test/online-match.test.js"
   },
   "dependencies": {
     "@billiards/modes": "*",
