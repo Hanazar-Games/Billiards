@@ -34,3 +34,14 @@ export function beforeNativeApiClosed(ctx: Context, logger: Logger, _nk: Nakama,
   logger.debug(`native API closed for user ${ctx.userId ?? '?'}`);
   throw rpcError('NATIVE_API_CLOSED', GRPC.PERMISSION_DENIED);
 }
+
+/**
+ * MatchJoin stays open for the billiards matches, joined by id, but not for a relayed
+ * match: the matchmaker hands out a token when matchmakerMatched creates nothing (tickets
+ * with properties that are no billiards mode), and in a relayed match clients exchange
+ * anything through the server (free chat, D024; §9.2).
+ */
+export function beforeMatchJoin(ctx: Context, logger: Logger, nk: Nakama, envelope: any): any {
+  if (envelope?.matchJoin?.token) beforeNativeApiClosed(ctx, logger, nk, envelope);
+  return envelope;
+}

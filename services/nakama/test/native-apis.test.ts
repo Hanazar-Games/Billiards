@@ -37,7 +37,20 @@ test('as APIs que o jogo usa continuam abertas', () => {
     'LinkEmail', 'LinkGoogle', 'LinkDevice', 'UnlinkEmail', 'UnlinkGoogle', 'UnlinkDevice', 'ListNotifications', 'DeleteNotifications']) {
     assert.equal(REGISTRY.before[id], undefined, `${id} stays open`);
   }
-  for (const id of ['MatchmakerAdd', 'MatchmakerRemove', 'MatchJoin', 'MatchLeave', 'MatchDataSend']) {
+  for (const id of ['MatchmakerAdd', 'MatchmakerRemove', 'MatchLeave', 'MatchDataSend']) {
     assert.equal(REGISTRY.rtBefore[id], undefined, `${id} stays open`);
   }
+});
+
+test('entrar numa partida pelo token do matchmaker (partida relayed) é recusado; pelo id continua aberto', () => {
+  const { calls, context } = loadBundleAndInit();
+  const fn = new Map(calls.map(([kind, id, f]) => [`${kind}:${id}`, f])).get('rtBefore:MatchJoin');
+  assert.ok(fn, 'rtBefore:MatchJoin is registered');
+  const byId = { matchJoin: { matchId: 'm1.nakama', metadata: { protocolVersion: '1' } } };
+  assert.equal(context[fn](ctx, logger, {}, byId), byId);
+  assert.throws(() => context[fn](ctx, logger, {}, { matchJoin: { token: 'relayed-token' } }), (err: any) => {
+    assert.match(String(err.message), /NATIVE_API_CLOSED/);
+    assert.equal(err.code, 7);
+    return true;
+  });
 });

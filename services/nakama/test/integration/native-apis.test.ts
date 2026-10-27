@@ -4,7 +4,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { waitForNakama } from './env.ts';
-import { closeBots, newBot, serverError } from './bot.ts';
+import { closeBots, newBot, once, serverError, withTimeout } from './bot.ts';
 
 before(() => waitForNakama(60000));
 after(closeBots);
@@ -34,4 +34,16 @@ test('APIs nativas fora do uso do jogo são recusadas', async () => {
   assert.equal(users.users?.length, 1);
   const read = await client.readStorageObjects(session, { object_ids: [{ collection: 'match_history', key: randomUUID() }] });
   assert.deepEqual(read.objects ?? [], []);
+});
+
+test('a partida relayed que o matchmaker dá a propriedades desconhecidas é recusada', async () => {
+  const [a, b] = await Promise.all([newBot(), newBot()]);
+  const [sa, sb] = await Promise.all([a.socket(), b.socket()]);
+  const matched = Promise.all([once<any>(sa, 'onmatchmakermatched'), once<any>(sb, 'onmatchmakermatched')]);
+  // No billiards mode: matchmakerMatched creates nothing, and Nakama hands out a relayed-match token.
+  const mode = `x${randomUUID().slice(0, 8)}`;
+  await Promise.all([sa, sb].map((s) => s.addMatchmaker(`+properties.mode:${mode}`, 2, 2, { mode })));
+  const [ma] = await withTimeout(matched, 20000, 'matchmaker');
+  assert.ok(ma.token && !ma.match_id, 'a relayed-match token');
+  await assert.rejects(refused(sa.joinMatch(undefined, ma.token)), /NATIVE_API_CLOSED/);
 });

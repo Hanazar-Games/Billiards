@@ -7,7 +7,7 @@ import { beforeAuthenticate, beforeAuthMethodDisabled, beforeUpdateAccount, DISA
 import { rpcCreatePrivateMatch, rpcJoinByCode } from './rooms.ts';
 import { beforeListMatches, billiardsMatch } from './match.ts';
 import { matchmakerMatched } from './matchmaker.ts';
-import { beforeNativeApiClosed, CLOSED_NATIVE_APIS, CLOSED_RT_APIS } from './nativeApis.ts';
+import { beforeMatchJoin, beforeNativeApiClosed, CLOSED_NATIVE_APIS, CLOSED_RT_APIS } from './nativeApis.ts';
 
 declare const __MODULE_VERSION__: string;
 
@@ -54,6 +54,7 @@ for (const method of DISABLED_AUTH_METHODS) REGISTRY.before[method] = beforeAuth
 // D064: the native APIs the game does not use.
 for (const api of CLOSED_NATIVE_APIS) REGISTRY.before[api] = beforeNativeApiClosed;
 for (const api of CLOSED_RT_APIS) REGISTRY.rtBefore[api] = beforeNativeApiClosed;
+REGISTRY.rtBefore.MatchJoin = beforeMatchJoin;
 
 /** The global function name the glue gives a handler. */
 export function globalName(kind: 'rpc' | 'before' | 'rtBefore' | 'matchmaker' | 'match', id: string, fn?: string): string {
