@@ -26,6 +26,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: cp infra/.env.example infra/.env
+      # F4-13 (D065): the production .env check and the ports of the production compose (needs Docker).
+      - run: npm run test:infra
       - run: npm run infra:up
       # Recreates Nakama with a fresh module, as a developer does after a change.
       - run: npm run infra:reload

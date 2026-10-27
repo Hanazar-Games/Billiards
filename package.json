@@ -16,7 +16,11 @@
     "typecheck": "tsc -p tsconfig.json",
     "infra:up": "node -e \"const fs=require('fs');if(!fs.existsSync('infra/.env'))fs.copyFileSync('infra/.env.example','infra/.env')\" && npm run build -w services/nakama && npm run build -w services/sim && docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --wait --build",
     "infra:down": "docker compose -f infra/docker-compose.yml --env-file infra/.env down -v",
-    "infra:reload": "npm run build -w services/nakama && npm run build -w services/sim && docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --wait --build --force-recreate nakama"
+    "infra:reload": "npm run build -w services/nakama && npm run build -w services/sim && docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --wait --build --force-recreate nakama",
+    "infra:prod:up": "node infra/check-env.mjs && npm run build -w services/nakama && npm run build -w services/sim && docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml --env-file infra/.env up -d --build --wait",
+    "infra:prod:logs": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml --env-file infra/.env logs -f --tail=200",
+    "infra:prod:stop": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml --env-file infra/.env stop",
+    "test:infra": "node --test infra/test/*.test.mjs"
   },
   "devDependencies": {
     "typescript": "5.9.3"
