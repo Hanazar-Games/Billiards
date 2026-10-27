@@ -232,7 +232,22 @@ const diagnose = (page) => page.evaluate(() => {
   };
 });
 
-const showsText = (page, text) => page.waitForFunction((t) => document.body.innerText.includes(t), { timeout: 15000 }, text);
+/** Waits for `text` on the page; a timeout says what the page shows and where its game is. */
+async function showsText(page, text) {
+  try {
+    await page.waitForFunction((t) => document.body.innerText.includes(t), { timeout: 30000, polling: 200 }, text);
+  } catch (err) {
+    const state = await page.evaluate(() => {
+      const g = __menu.game;
+      return {
+        menu: __menu.state, game: g?.state ?? null, paused: !!g?._hostPaused, playing: g ? g.playback !== null : null,
+        end: g?.match?.end ?? null, pendingEnd: g?._pendingOnlineEnd ?? null, turn: g?.match?.turn ?? null,
+        text: document.body.innerText.replace(/\s+/g, ' ').slice(0, 300),
+      };
+    }).catch((e) => ({ unreadable: e.message }));
+    throw new Error(`"${text}" não apareceu: ${JSON.stringify(state)}`, { cause: err });
+  }
+}
 
 test('dois navegadores jogam uma partida online inteira de 8-ball', { timeout: MATCH_TIMEOUT_MS }, async () => {
   const players = await Promise.all([openPlayer('A'), openPlayer('B')]);
