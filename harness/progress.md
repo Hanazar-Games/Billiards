@@ -357,3 +357,4 @@
 - O usuário instalou o Node 24 pelo `nvm`, que não vem pelo `apt`. Com ele, as suítes sem navegador passaram lá: protocol 40, modes 70, sim 61, sim-service 10 e nakama-module 90. As de navegador do cliente ficam de fora, porque o servidor não tem Chrome.
 - `docs/f3/servidor-local.md` ganhou os passos do `nvm` e o comando das suítes sem navegador.
 - A integração da F4-A também passou contra a pilha nova do `server` (Nakama, PostgreSQL e `sim`), com 32 testes passando e nenhum falhando em 220 s. Isso inclui o tempo esgotado, o W.O. e a partida inteira de 8-ball entre bots, que levou 17 s. Rodar a integração nesta máquina sem `NAKAMA_HOST` aponta para `127.0.0.1`, onde não há Nakama, e todo arquivo falha depois de 60 s de espera. O `servidor-local.md` agora mostra a sintaxe do cmd.
+- Com `NAKAMA_HOST=server`, a integração também passou a partir desta máquina Windows contra o `server`.
