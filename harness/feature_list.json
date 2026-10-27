@@ -294,7 +294,7 @@
       "a fila junta os dois navegadores numa partida de 9-ball",
       "PROTOCOL_MISMATCH pede para atualizar a página"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F4-09",
@@ -304,7 +304,7 @@
       "a tacada do adversário é reproduzida e a mesa termina na oficial",
       "a tacada local só se move quando o servidor responde"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F4-10",
@@ -313,7 +313,7 @@
     "verification": [
       "dois navegadores jogam uma partida online inteira de 8-ball"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F4-11",
@@ -323,7 +323,7 @@
       "queda no meio da reprodução: o navegador volta e termina no mesmo estado",
       "recarregar a página no meio da partida volta para a mesma partida"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F4-12",
@@ -332,7 +332,7 @@
     "verification": [
       "APIs nativas fora do uso do jogo são recusadas"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "F4-13",

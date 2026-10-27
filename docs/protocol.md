@@ -345,7 +345,16 @@ Só o Nakama chama o serviço, de dentro da rede do Compose; ele não publica po
 
 `GET /healthz` responde `{ ok: true, versions }`. Qualquer resposta que não seja 200 conta como falha da tentativa (seção 7.2).
 
-## 13. Reservado para depois
+## 13. Cliente de referência
+
+O cliente do jogo (F4-B, D063) implementa este protocolo em dois módulos de `apps/client/src`:
+
+- **`online/OnlineSession.js`:** a conexão. Conta de convidado por dispositivo, os RPCs de perfil e sala, a fila 1×1, a entrada na partida com `protocolVersion`, a decodificação das mensagens (envelope em 101 e 105, JSON nas outras) e a reconexão dentro da reserva de 60 s (seção 10).
+- **`match/OnlineMatchController.js`:** a partida. Dá ao `Game` a mesma interface do controlador local; envia `shot_request` com `(turnId, seq)` e trata o reenvio da seção 9; transforma 101, 103 a 107 e 109 em eventos; e manda `aim_update` e `ball_in_hand_move` no ritmo da seção 8, somados em até 10 por segundo.
+
+Os testes `apps/client/test/online-session.test.js` e `online-match-controller.test.js` mostram cada mensagem com um servidor falso; o `test:online` joga com dois navegadores contra o Nakama.
+
+## 14. Reservado para depois
 
 - `emote` (4) e `rematch_vote` (6) existem como códigos, mas o servidor ainda os recusa com `UNSUPPORTED_OP`.
 - 2×2, cada um por si e espectadores usam as mesmas mensagens; as regras de lugar e equipe já estão em `packages/modes`, mas o servidor só abre partidas 1×1.

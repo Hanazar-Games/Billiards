@@ -52,7 +52,15 @@ Para rodar o servidor em outra máquina da rede (por exemplo, `server`) e testar
    NAKAMA_HOST=server npm run test:integration -w services/nakama
    ```
 
-   No PowerShell, use `$env:NAKAMA_HOST='server'` antes do comando; no Prompt de Comando (cmd), `set "NAKAMA_HOST=server"`. Sem a variável, os testes procuram um Nakama em `127.0.0.1`: cada arquivo espera 60 s pelo healthcheck e falha. Se as chaves do `.env` do servidor forem diferentes das de desenvolvimento, passe também `NAKAMA_SERVER_KEY` e `NAKAMA_HTTP_KEY`. `NAKAMA_PORT` muda a porta da API (o padrão é 7350).
+   No PowerShell, use `$env:NAKAMA_HOST='server'` antes do comando; no Prompt de Comando (cmd), `set "NAKAMA_HOST=server"`. Sem a variável, os testes procuram um Nakama em `127.0.0.1`: cada arquivo espera 60 s pelo healthcheck e falha. Se as chaves do `.env` do servidor forem diferentes das de desenvolvimento, passe também `NAKAMA_SERVER_KEY` e `NAKAMA_HTTP_KEY`. `NAKAMA_PORT` muda a porta da API (o padrão é 7350). `NAKAMA_URL=http://server:7350` faz o mesmo numa variável só, e com `https://` liga o TLS (a produção, `docs/f4/implantacao.md`).
+
+   Os dois navegadores de ponta a ponta (F4-10, F4-11) usam o mesmo servidor; o Chrome desta máquina serve (`PUPPETEER_EXECUTABLE_PATH`, veja o `CLAUDE.md`):
+
+   ```bash
+   NAKAMA_URL=http://server:7350 npm run test:online -w apps/client
+   ```
+
+   São quatro testes, em cerca de 3 min: uma partida inteira de 8-ball por uma sala com código, a fila de 9-ball com desistência, a queda no meio da reprodução e a recarga da página. Não rode junto com o `test:integration`: a fila dos bots e a dos navegadores se misturam.
 
 3. **Para atualizar o servidor depois de mudar o módulo:** no servidor, rode `git pull && npm run infra:reload`.
 
@@ -91,4 +99,4 @@ Os outros mostram cada parte, com o nome que o `feature_list.json` cita: `tacada
 
 ## Segredos em produção
 
-Na VPS (D049), as chaves (`NAKAMA_SERVER_KEY`, `NAKAMA_HTTP_KEY`, `NAKAMA_SESSION_KEY`, `NAKAMA_CONSOLE_PASSWORD`, `POSTGRES_PASSWORD` e `SIM_SECRET`) vêm do ambiente do servidor e nunca entram no repositório. O `SIM_SECRET` chega ao Nakama por `--runtime.env "SIM_SECRET=${SIM_SECRET}"`, expandido pelo Compose e pelo shell: um segredo com `$`, crase ou `"` quebra o comando, e ele aparece nos argumentos do processo. Isso se resolve na implantação, que é da F4-B.
+Na VPS (D049), as chaves (`NAKAMA_SERVER_KEY`, `NAKAMA_HTTP_KEY`, `NAKAMA_SESSION_KEY`, `NAKAMA_CONSOLE_PASSWORD`, `POSTGRES_PASSWORD` e `SIM_SECRET`) vêm do ambiente do servidor e nunca entram no repositório. O `SIM_SECRET` chega ao Nakama por `--runtime.env "SIM_SECRET=${SIM_SECRET}"`, expandido pelo Compose e pelo shell: um segredo com `$`, crase ou `"` quebra o comando, e ele aparece nos argumentos do processo. A F4-B resolveu isso (D065): os segredos casam com `^[A-Za-z0-9_-]{24,}$`, conferidos pelo `infra/check-env.mjs` antes de subir a produção, e o passo a passo está em `docs/f4/implantacao.md`.
