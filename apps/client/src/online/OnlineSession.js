@@ -25,6 +25,8 @@ const KNOWN_CODES = new Set([
   'USERNAME_INVALID', 'USERNAME_TAKEN', 'AVATAR_INVALID', 'PAYLOAD_INVALID', 'MODE_INVALID', 'ROOM_CODE_EXHAUSTED',
   'CODE_INVALID', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'PROTOCOL_MISMATCH', 'MATCH_ENDED', 'NATIVE_API_CLOSED',
 ]);
+/** Nakama's own messages that mean one of ours: a match it no longer knows has ended. */
+const NAKAMA_MESSAGES = { 'Match not found': 'MATCH_ENDED' };
 /** Join refusals that another attempt cannot fix. */
 const FINAL_JOIN_CODES = new Set(['PROTOCOL_MISMATCH', 'MATCH_ENDED', 'ROOM_FULL']);
 
@@ -46,6 +48,7 @@ async function toOnlineError(err) {
   } else if (err && typeof err.message === 'string') {
     message = err.message;
   }
+  if (NAKAMA_MESSAGES[message]) return new OnlineError(NAKAMA_MESSAGES[message], err);
   return new OnlineError(KNOWN_CODES.has(message) ? message : 'NETWORK', err);
 }
 
@@ -74,17 +77,15 @@ export class OnlineSession extends EventTarget {
     this._queue = null;
   }
 
-  /** Signs in the device's guest account and connects the socket; again, keeps what is open. */
+  /**
+   * Signs in the device's guest account and connects the socket; again, keeps
+   * what is open (or being reconnected), and after a lost connection starts over.
+   */
   async start() {
-    if (this.session && this.socket && !this._closing) return { userId: this.session.user_id, username: this.session.username };
+    if (this.session && (this.socket || this._reconnect) && !this._closing) return { userId: this.session.user_id, username: this.session.username };
     this._closing = false;
-    let deviceId = this.storage.getItem(DEVICE_KEY);
-    if (!deviceId) {
-      deviceId = crypto.randomUUID();
-      this.storage.setItem(DEVICE_KEY, deviceId);
-    }
     try {
-      this.session = await this.client.authenticateDevice(deviceId, true);
+      this.session = await this.client.authenticateDevice(this._deviceId(), true);
       await this._connectSocket();
     } catch (err) {
       throw await toOnlineError(err);
@@ -122,11 +123,14 @@ export class OnlineSession extends EventTarget {
   async queue(mode) {
     if (this._queue) throw new OnlineError('ALREADY_QUEUED');
     let ticket;
+    const socket = this.socket;
     try {
-      ticket = (await this.socket.addMatchmaker(`+properties.mode:${mode} +properties.format:1v1`, 2, 2, { mode, format: '1v1' })).ticket;
+      ticket = (await socket.addMatchmaker(`+properties.mode:${mode} +properties.format:1v1`, 2, 2, { mode, format: '1v1' })).ticket;
     } catch (err) {
       throw await toOnlineError(err);
     }
+    // The connection dropped while the ticket was on its way: it died with that session.
+    if (this.socket !== socket) throw new OnlineError('NETWORK');
     return new Promise((resolve, reject) => { this._queue = { ticket, resolve, reject }; });
   }
 
@@ -199,9 +203,24 @@ export class OnlineSession extends EventTarget {
     }
   }
 
+  _deviceId() {
+    let deviceId = this.storage.getItem(DEVICE_KEY);
+    if (!deviceId) {
+      deviceId = crypto.randomUUID();
+      this.storage.setItem(DEVICE_KEY, deviceId);
+    }
+    return deviceId;
+  }
+
   async _ensureFreshSession() {
-    if (this.session?.isexpired((this.now() + SESSION_MARGIN_MS) / 1000)) {
+    const at = (this.now() + SESSION_MARGIN_MS) / 1000;
+    if (!this.session?.isexpired(at)) return;
+    try {
+      if (this.session.isrefreshexpired?.(at)) throw new Error('refresh token expired');
       this.session = await this.client.sessionRefresh(this.session);
+    } catch {
+      // The refresh token can outlive nothing (Nakama's lasts 1 h by default): the device signs in again.
+      this.session = await this.client.authenticateDevice(this._deviceId(), true);
     }
   }
 
@@ -252,6 +271,12 @@ export class OnlineSession extends EventTarget {
 
   _dropped() {
     if (this._reconnect) return;
+    // The dead socket goes; a new one replaces it only once connected. A queue ticket
+    // belongs to the socket's session on the server, so the search ends here.
+    this.socket = null;
+    const queue = this._queue;
+    this._queue = null;
+    queue?.reject(new OnlineError('NETWORK'));
     this._reconnect = { since: this.now(), attempt: 0, timer: null };
     this._emitConnection({ state: 'reconnecting' });
     this._scheduleAttempt();

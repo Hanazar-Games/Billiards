@@ -59,12 +59,12 @@ class FakeSocket {
 
 function fakeServer() {
   const server = {
-    connects: 0, connectFails: 0, joins: [], joinErrors: [], left: [], tickets: [], removed: [], sockets: [], auths: [], rpcs: [], refreshes: 0,
+    connects: 0, connectFails: 0, refreshFails: false, joins: [], joinErrors: [], left: [], tickets: [], removed: [], sockets: [], auths: [], rpcs: [], refreshes: 0,
     rpcAnswers: {},
     expiresAt: Infinity,
     client: {
       async authenticateDevice(id, create) { server.auths.push({ id, create }); return session(); },
-      async sessionRefresh() { server.refreshes++; server.expiresAt = Infinity; return session(); },
+      async sessionRefresh() { server.refreshes++; if (server.refreshFails) throw new Error('refresh token expired'); server.expiresAt = Infinity; return session(); },
       async rpc(_s, id, input) {
         server.rpcs.push({ id, input });
         const answers = server.rpcAnswers[id] ?? [{ ok: {} }];
@@ -277,4 +277,66 @@ test('a partida que terminou durante a queda dá offline com o motivo', async ()
   await time.advance(1_000);
   assert.deepEqual(events.at(-1), { state: 'offline', reason: 'MATCH_ENDED' });
   assert.equal(session.storedMatchId(), null);
+});
+
+test('depois de offline, start conecta de novo com um socket novo', async () => {
+  const server = fakeServer();
+  const { session, time } = newSession(server);
+  const states = [];
+  session.addEventListener('connection', (e) => states.push(e.detail.state));
+  await session.start();
+  await session.joinMatch('m1');
+  server.connectFails = 1000;
+  session.dropConnection();
+  await time.advance(70_000);
+  assert.equal(states.at(-1), 'offline');
+  server.connectFails = 0;
+  const sockets = server.sockets.length;
+  await session.start();
+  assert.equal(server.sockets.length, sockets + 1);
+  assert.equal(session.socket, lastSocket(server));
+  const queued = session.queue('8ball');
+  queued.catch(() => {});
+  await time.advance(0);
+  assert.equal(server.tickets.length, 1);
+});
+
+test('a fila cai junto com a conexão: o pedido falha com NETWORK', async () => {
+  const server = fakeServer();
+  const { session } = newSession(server);
+  await session.start();
+  const queued = session.queue('9ball');
+  session.dropConnection();
+  await assert.rejects(queued, (err) => err instanceof OnlineError && err.code === 'NETWORK');
+});
+
+test('partida que o Nakama não conhece mais (Match not found) é esquecida e não é tentada de novo', async () => {
+  const server = fakeServer();
+  const { session, storage, time } = newSession(server);
+  storage.setItem('billiards.online.matchId', 'gone');
+  await session.start();
+  server.joinErrors.push('Match not found');
+  await assert.rejects(session.joinMatch('gone'), (err) => err.code === 'MATCH_ENDED');
+  assert.equal(session.storedMatchId(), null);
+
+  const events = [];
+  session.addEventListener('connection', (e) => events.push(e.detail));
+  await session.joinMatch('m2');
+  server.joinErrors.push('Match not found');
+  session.dropConnection();
+  await time.advance(20_000);
+  assert.deepEqual(events.at(-1), { state: 'offline', reason: 'MATCH_ENDED' });
+  assert.equal(server.joins.filter((j) => j.matchId === 'm2').length, 2);
+});
+
+test('sessão cujo token de renovação venceu entra de novo pelo dispositivo', async () => {
+  const server = fakeServer();
+  const { session, time } = newSession(server);
+  await session.start();
+  server.expiresAt = time.now() + 30_000;
+  server.refreshFails = true;
+  await session.createRoom('8ball');
+  assert.equal(server.auths.length, 2);
+  assert.equal(server.auths[1].id, server.auths[0].id);
+  assert.equal(server.rpcs.at(-1).id, 'create_private_match');
 });
