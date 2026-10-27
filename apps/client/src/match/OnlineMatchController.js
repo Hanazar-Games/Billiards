@@ -246,7 +246,7 @@ export class OnlineMatchController extends EventTarget {
       case OP.SHOT_REJECTED: return this._onRejected(body);
       case OP.SEAT_UPDATE: return this._onSeat(body);
       case OP.MATCH_END: return this._onEnd(body);
-      case OP.ERROR: return this._emit('error', { code: body?.code });
+      case OP.ERROR: return this._onError(body);
       case OP.AIM_RELAY: return this._onRelay('aim', body, { angle: body?.angle, spin: body?.spin, power: body?.power });
       case OP.BALL_IN_HAND_RELAY: return this._onRelay('ballInHand', body, { x: body?.x, z: body?.z });
       default: return undefined;
@@ -325,6 +325,16 @@ export class OnlineMatchController extends EventTarget {
     // A timeout or a choice ends any shot of ours still in flight: the server refuses it.
     this._settlePending(fail('stale shot result', { stale: true }));
     this._emit(header.kind === 'timeout' ? 'timeout' : 'choice', { ruling, table: header.table, seat: header.seat });
+  }
+
+  /**
+   * SIM_FAILED: the shot did not happen and the turn starts again (spec §9.1). The
+   * shot in flight is refused, so the player shoots again; the snapshot that follows
+   * finds nothing pending and resends nothing (three failures end the match).
+   */
+  _onError(body) {
+    if (body?.code === 'SIM_FAILED') this._settlePending(fail('the simulation failed', { rejected: true, reason: 'SIM_FAILED' }));
+    this._emit('error', { code: body?.code });
   }
 
   /** The opponent's aim or ball in hand, for the current turn only; the match does not change. */

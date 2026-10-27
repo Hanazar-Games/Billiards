@@ -299,3 +299,17 @@ test('a mira e a bola na mão do outro lugar viram eventos, sem mudar a partida'
   assert.equal(controller.match, before.match);
   assert.equal(controller.table, before.table);
 });
+
+test('SIM_FAILED devolve a vez: a tacada pendente é recusada e não é reenviada sozinha', async () => {
+  const { session, controller, snapshot, table } = setup();
+  session.deliver(OP.MATCH_SNAPSHOT, { header: snapshot() });
+  const request = controller.submitShot(table, breakResult(table).shot);
+  const errors = [];
+  controller.addEventListener('error', (e) => errors.push(e.detail.code));
+  // The server sends the error, then a snapshot with the same turn (docs/protocol.md 7.2).
+  session.deliver(OP.ERROR, { body: { code: 'SIM_FAILED' } });
+  session.deliver(OP.MATCH_SNAPSHOT, { header: snapshot() });
+  await assert.rejects(request, (err) => err.rejected === true && err.reason === 'SIM_FAILED');
+  assert.equal(session.sent.filter((m) => m.op === OP.SHOT_REQUEST).length, 1);
+  assert.deepEqual(errors, ['SIM_FAILED']);
+});

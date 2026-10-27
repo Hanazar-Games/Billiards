@@ -32,14 +32,23 @@ export function installOnline(game, controller) {
   on('aim', (d) => showRemoteAim(game, d));
   on('ballInHand', (d) => showRemoteBallInHand(game, d));
   on('end', (d) => {
-    if (game.state === 'SHOOTING') game._pendingOnlineEnd = d; // shown when the shot finishes playing
+    // A shot still playing is seen to its end first; one still waiting for its result
+    // never gets one (the controller refuses it), so the end shows at once.
+    if (game.state === 'SHOOTING' && game.playback) game._pendingOnlineEnd = d;
     else showOnlineEnd(game, d);
   });
   on('error', (d) => {
-    if (d.code === 'SIM_FAILED') game.ui.setMessage(T.simFailed, 4000, 2);
+    // Only the shooter can play again; the opponent just keeps waiting.
+    if (d.code === 'SIM_FAILED') { if (game.isLocalPlayerTurn()) game.ui.setMessage(T.simFailed, 4000, 2); }
     else console.warn('[online] server error', d.code);
   });
-  return () => { for (const off of offs) off(); };
+  return () => {
+    for (const off of offs) off();
+    // Leaving the game before the end (the pause menu's Voltar ao menu) leaves the match:
+    // the server's 60 s reserve starts now instead of after three missed turns. A tab
+    // that took the match over keeps it.
+    if (!controller.end && !game._onlineReplaced) controller.session?.leaveMatch?.()?.catch?.(() => {});
+  };
 }
 
 /** The first turn of an online game (after Game.init). */
@@ -161,6 +170,7 @@ function onConnection(game, { state, reason }) {
     game.ui.setMessage(T.reconnected, 2000, 2);
   } else if (state === 'offline' || state === 'replaced') {
     game._hostPaused = true;
+    if (state === 'replaced') game._onlineReplaced = true;
     const text = state === 'replaced' ? T.replaced : reason === 'MATCH_ENDED' ? T.endedWhileAway : T.connectionLost;
     game.ui.setMessage(text, 0, 3);
     leaveSoon(game, LEAVE_DELAY_MS);

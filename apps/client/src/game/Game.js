@@ -1143,8 +1143,9 @@ export class Game {
 
   /** The shot could not be simulated: the balls stay put and the player aims again. */
   _cancelShot(table, err) {
-    if (this.online && err?.rejected && (err.reason === 'NOT_YOUR_TURN' || err.reason === 'TURN_MISMATCH')) {
-      // The turn moved on meanwhile: the server's snapshot or result sets the table.
+    if (this.online && err?.rejected && ['NOT_YOUR_TURN', 'TURN_MISMATCH', 'SIM_FAILED'].includes(err.reason)) {
+      // The turn moved on meanwhile, or starts again after a failed simulation (its own
+      // message comes with the server's error): the server's snapshot or result sets the table.
       this.ballsManager.applyTableState(this.match.table ?? table);
       this.trails.stopRecording();
       this.recorder.reset();

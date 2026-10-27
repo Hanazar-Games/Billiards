@@ -234,6 +234,43 @@ test('na própria vez, a mira e a bola na mão saem para o servidor', { timeout:
   await page.close();
 });
 
+test('o fim com a própria tacada ainda sem resultado aparece na hora', { timeout: 120000 }, async () => {
+  const { page, errors } = await openPage();
+  await startOnline(page, { localSeat: 0, turnSeat: 0 });
+  await page.evaluate(() => {
+    const game = __menu.game;
+    game.aimDirection.set(0, 0, 1).normalize();
+    game.power = 70;
+    game.state = 'CHARGING';
+    game.charging = true;
+    game.onMouseUp({ type: 'pointerup' });
+  });
+  await page.waitForFunction(() => __fake.lastShotRequest() !== null && __menu.game.state === 'SHOOTING');
+  // The third SIM_FAILED aborts the match: the shot never gets a result.
+  await page.evaluate(() => __fake.end({ winnerTeam: null, reason: 'ABORTED', summary: { turns: 1, shots: 0 } }));
+  await page.waitForFunction(() => __menu.game.state === 'GAME_OVER', { timeout: 5000 });
+  assert.ok(await page.evaluate(() => document.body.innerText.includes('Partida cancelada, sem resultado')));
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
+test('voltar ao menu no meio da partida sai dela; depois do fim, não', { timeout: 120000 }, async () => {
+  const { page, errors } = await openPage();
+  await startOnline(page, { localSeat: 0, turnSeat: 1 });
+  await page.evaluate(() => __menu._returnToMenu());
+  await page.waitForFunction(() => __menu.state === 'MENU');
+  assert.equal(await page.evaluate(() => __fake.session.left), 1);
+
+  await startOnline(page, { localSeat: 0, turnSeat: 1 });
+  await page.evaluate(() => __fake.end({ winnerTeam: 0, reason: 'WIN', summary: { turns: 9, shots: 9 } }));
+  await page.waitForFunction(() => __menu.game.state === 'GAME_OVER');
+  await page.evaluate(() => __menu._returnToMenu());
+  await page.waitForFunction(() => __menu.state === 'MENU');
+  assert.equal(await page.evaluate(() => __fake.session.left), undefined);
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
 test('os modos offline continuam iguais', { timeout: 120000 }, async () => {
   const { page, errors } = await openPage();
   await page.evaluate(() => __menu._startGame('vsai'));

@@ -16,6 +16,9 @@ class FakeSession extends EventTarget {
   send(op, body) { this.sent.push({ op, body }); }
   deliver(op, fields) { this.dispatchEvent(new CustomEvent('message', { detail: { op, ...fields } })); }
   connection(detail) { this.dispatchEvent(new CustomEvent('connection', { detail })); }
+  /** How many times the game left the match (undefined: never). */
+  async leaveMatch() { this.left = (this.left ?? 0) + 1; }
+  forgetMatch() {}
 }
 
 const plain = (ruling) => ({ fouls: ruling.fouls, ballInHand: ruling.ballInHand, nextSeat: ruling.nextSeat, winnerTeam: ruling.winnerTeam, respot: ruling.respot, messages: ruling.messages });
