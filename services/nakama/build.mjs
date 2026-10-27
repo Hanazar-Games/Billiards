@@ -41,6 +41,11 @@ for (const id of Object.keys(REGISTRY.before)) {
   functions.push(`function ${name}(ctx, logger, nk, data) { return Billiards.REGISTRY.before[${JSON.stringify(id)}](ctx, logger, nk, data); }`);
   registrations.push(`  initializer.registerBefore${id}(${name});`);
 }
+for (const id of Object.keys(REGISTRY.rtBefore)) {
+  const name = globalName('rtBefore', id);
+  functions.push(`function ${name}(ctx, logger, nk, envelope) { return Billiards.REGISTRY.rtBefore[${JSON.stringify(id)}](ctx, logger, nk, envelope); }`);
+  registrations.push(`  initializer.registerRtBefore(${JSON.stringify(id)}, ${name});`);
+}
 if (REGISTRY.matchmakerMatched) {
   const name = globalName('matchmaker', 'matched');
   functions.push(`function ${name}(ctx, logger, nk, matches) { return Billiards.REGISTRY.matchmakerMatched(ctx, logger, nk, matches); }`);

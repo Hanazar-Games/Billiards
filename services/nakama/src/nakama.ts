@@ -86,6 +86,9 @@ export type RpcHandler = (ctx: Context, logger: Logger, nk: Nakama, payload: str
 /** Returns the (possibly changed) request, or nothing to refuse it. */
 export type BeforeHook = (ctx: Context, logger: Logger, nk: Nakama, data: any) => any;
 
+/** Realtime (socket) before hook, registered with registerRtBefore(id, fn); same contract as BeforeHook. */
+export type RtBeforeHook = (ctx: Context, logger: Logger, nk: Nakama, envelope: any) => any;
+
 /** Returns the id of the match to send the players to, or nothing to fall back to a relayed match. */
 export type MatchmakerMatchedHandler = (ctx: Context, logger: Logger, nk: Nakama, matches: MatchmakerResult[]) => string | void;
 

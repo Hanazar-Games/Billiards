@@ -2,11 +2,12 @@
 // file (global `Billiards`) and generates InitModule with one literal register
 // call per entry, each pointing at a generated global function (D050): Nakama
 // reads the InitModule source to find them.
-import type { BeforeHook, Context, Logger, MatchHandler, MatchmakerMatchedHandler, Nakama, RpcHandler } from './nakama.ts';
+import type { BeforeHook, Context, Logger, MatchHandler, MatchmakerMatchedHandler, Nakama, RpcHandler, RtBeforeHook } from './nakama.ts';
 import { beforeAuthenticate, beforeAuthMethodDisabled, beforeUpdateAccount, DISABLED_AUTH_METHODS, rpcProfileUpdate } from './profile.ts';
 import { rpcCreatePrivateMatch, rpcJoinByCode } from './rooms.ts';
 import { beforeListMatches, billiardsMatch } from './match.ts';
 import { matchmakerMatched } from './matchmaker.ts';
+import { beforeNativeApiClosed, CLOSED_NATIVE_APIS, CLOSED_RT_APIS } from './nativeApis.ts';
 
 declare const __MODULE_VERSION__: string;
 
@@ -14,6 +15,8 @@ export interface Registry {
   rpcs: Record<string, RpcHandler>;
   /** Keyed by the Nakama API name (registerBefore<Name>). */
   before: Record<string, BeforeHook>;
+  /** Keyed by the realtime message name (registerRtBefore(id, fn)). */
+  rtBefore: Record<string, RtBeforeHook>;
   matchmakerMatched: MatchmakerMatchedHandler | null;
   matches: Record<string, MatchHandler>;
 }
@@ -41,15 +44,19 @@ export const REGISTRY: Registry = {
     UpdateAccount: beforeUpdateAccount,
     ListMatches: beforeListMatches,
   },
+  rtBefore: {},
   matchmakerMatched,
   matches: { billiards: billiardsMatch },
 };
 
 // Plain loop: the bundle targets the goja runtime, so no Object.fromEntries.
 for (const method of DISABLED_AUTH_METHODS) REGISTRY.before[method] = beforeAuthMethodDisabled;
+// D064: the native APIs the game does not use.
+for (const api of CLOSED_NATIVE_APIS) REGISTRY.before[api] = beforeNativeApiClosed;
+for (const api of CLOSED_RT_APIS) REGISTRY.rtBefore[api] = beforeNativeApiClosed;
 
 /** The global function name the glue gives a handler. */
-export function globalName(kind: 'rpc' | 'before' | 'matchmaker' | 'match', id: string, fn?: string): string {
+export function globalName(kind: 'rpc' | 'before' | 'rtBefore' | 'matchmaker' | 'match', id: string, fn?: string): string {
   if (kind === 'matchmaker') return 'matchmaker_matched';
   if (kind === 'match') return `match_${id}_${fn}`;
   return `${kind}_${id}`;

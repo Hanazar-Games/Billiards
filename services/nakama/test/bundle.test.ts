@@ -3,35 +3,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
 import { spawnSync } from 'node:child_process';
 import { REGISTRY, globalName, MATCH_FUNCTIONS } from '../src/registry.ts';
-
-const source = readFileSync(new URL('../build/index.js', import.meta.url), 'utf8');
-
-/** Runs the bundle and InitModule in a fresh context; returns [kind, id, function name] per registration. */
-function loadBundleAndInit() {
-  const context = vm.createContext({});
-  vm.runInContext(source, context);
-  const calls: [string, string, string][] = [];
-  const initializer = new Proxy({}, {
-    get: (_, key: string) => (...args: any[]) => {
-      if (key === 'registerRpc') calls.push(['rpc', args[0], args[1].name]);
-      else if (key === 'registerMatchmakerMatched') calls.push(['matchmaker', 'matched', args[0].name]);
-      else if (key === 'registerMatch') for (const [fn, f] of Object.entries(args[1] as Record<string, Function>)) calls.push(['match', `${args[0]}.${fn}`, f.name]);
-      else if (key.startsWith('registerBefore')) calls.push(['before', key.slice('registerBefore'.length), args[0].name]);
-      else throw new Error(`unexpected initializer call ${key}`);
-    },
-  });
-  const logger = { info() {}, warn() {}, error() {}, debug() {} };
-  context.InitModule({}, logger, {}, initializer);
-  return { calls, context };
-}
+import { bundleSource as source, loadBundleAndInit } from './bundleLoader.ts';
 
 function expectedRegistrations(): string[] {
   return [
     ...Object.keys(REGISTRY.rpcs).map((id) => `rpc:${id}`),
     ...Object.keys(REGISTRY.before).map((id) => `before:${id}`),
+    ...Object.keys(REGISTRY.rtBefore).map((id) => `rtBefore:${id}`),
     ...(REGISTRY.matchmakerMatched ? ['matchmaker:matched'] : []),
     ...Object.keys(REGISTRY.matches).flatMap((id) => MATCH_FUNCTIONS.map((fn) => `match:${id}.${fn}`)),
   ].sort();
