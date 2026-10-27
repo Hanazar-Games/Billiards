@@ -9,7 +9,7 @@ import { InputHandler } from '../input/InputHandler.js';
 import { Cue } from './Cue.js';
 import { LocalMatchController } from '../match/LocalMatchController.js';
 import { toTurnResult } from '../match/turnResult.js';
-import { installOnline, enterOnlineTurn, flushOnlineEnd, updateOnlineTimer, onlinePlacementAllowed, concedeOnline } from './onlineGame.js';
+import { installOnline, enterOnlineTurn, flushOnlineEnd, updateOnlineTimer, onlinePlacementAllowed, concedeOnline, sendOnlinePresence } from './onlineGame.js';
 import { AchievementSystem } from '../achievements/AchievementSystem.js';
 import { AchievementPanel } from '../achievements/AchievementPanel.js';
 import { UI } from '../ui/UI.js';
@@ -1455,6 +1455,7 @@ export class Game {
     } else if (this.state === 'CHARGING' && this.cue && this.cue.visible) {
       this.updateDragPower();
     }
+    if (this.online) sendOnlinePresence(this);
 
     // Fade or hide room elements that obstruct the camera view
     if (this.room) {

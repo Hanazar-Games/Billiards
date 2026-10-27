@@ -177,6 +177,63 @@ test('fim da partida mostra o resultado e volta ao menu', { timeout: 120000 }, a
   await page.close();
 });
 
+test('a mira do adversário gira o taco; a bola na mão dele move a branca', { timeout: 120000 }, async () => {
+  const { page, errors } = await openPage();
+  await startOnline(page, { localSeat: 0, turnSeat: 0 });
+  // Our timeout: the opponent gets ball in hand anywhere.
+  await page.evaluate(() => __fake.timeout());
+  await page.waitForFunction(() => __menu.game.state === 'AIM' && !__menu.game.isLocalPlayerTurn());
+  const before = await page.evaluate(() => ({ match: JSON.stringify(__fake.controller.match), table: JSON.stringify(__fake.controller.table) }));
+  await page.evaluate(() => __fake.aim(1, { angle: 0.3, spin: { x: 0, y: 0 }, power: 0 }));
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+  const aim = await page.evaluate(() => ({
+    angle: Math.atan2(__menu.game.aimDirection.z, __menu.game.aimDirection.x),
+    cueVisible: __menu.game.cue.visible,
+  }));
+  assert.ok(Math.abs(aim.angle - 0.3) < 1e-9, `aim ${aim.angle}`);
+  assert.equal(aim.cueVisible, true);
+  await page.evaluate(() => __fake.ballInHand(1, 20, -60));
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 100)));
+  const cue = await page.evaluate(() => {
+    const ball = __menu.game.ballsManager.getCueBall();
+    return { x: ball.mesh.position.x, z: ball.mesh.position.z, pocketed: ball.pocketed };
+  });
+  assert.deepEqual(cue, { x: 20, z: -60, pocketed: false });
+  const after = await page.evaluate(() => ({ match: JSON.stringify(__fake.controller.match), table: JSON.stringify(__fake.controller.table) }));
+  assert.deepEqual(after, before);
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
+test('na própria vez, a mira e a bola na mão saem para o servidor', { timeout: 120000 }, async () => {
+  const { page, errors } = await openPage();
+  await startOnline(page, { localSeat: 0, turnSeat: 0 });
+  for (const [x, y] of [[600, 300], [680, 340], [760, 420]]) await page.mouse.move(x, y, { steps: 4 });
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 400)));
+  const aim = await page.evaluate(() => ({
+    sent: __fake.session.sent.filter((m) => m.op === 1).map((m) => m.body),
+    angle: Math.atan2(__menu.game.aimDirection.z, __menu.game.aimDirection.x),
+    turnId: __fake.match.turnId,
+  }));
+  assert.ok(aim.sent.length >= 1);
+  assert.ok(aim.sent.every((b) => b.turnId === aim.turnId));
+  assert.ok(Math.abs(aim.sent.at(-1).angle - aim.angle) < 1e-9);
+
+  // The opponent times out: our ball in hand, dragged with the mouse.
+  await page.evaluate(() => { __fake.timeout(); __fake.timeout(); });
+  await page.waitForFunction(() => __menu.game.ballInHand && __menu.game.isLocalPlayerTurn());
+  for (const [x, y] of [[640, 420], [600, 460], [560, 480]]) await page.mouse.move(x, y, { steps: 4 });
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 400)));
+  const hand = await page.evaluate(() => {
+    const ball = __menu.game.ballsManager.getCueBall();
+    return { sent: __fake.session.sent.filter((m) => m.op === 3).map((m) => m.body), x: ball.mesh.position.x, z: ball.mesh.position.z };
+  });
+  assert.ok(hand.sent.length >= 1);
+  assert.deepEqual({ x: hand.sent.at(-1).x, z: hand.sent.at(-1).z }, { x: hand.x, z: hand.z });
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
 test('os modos offline continuam iguais', { timeout: 120000 }, async () => {
   const { page, errors } = await openPage();
   await page.evaluate(() => __menu._startGame('vsai'));

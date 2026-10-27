@@ -20,9 +20,30 @@ class FakeSession extends EventTarget {
   deliver(op, fields) { this.dispatchEvent(new CustomEvent('message', { detail: { op, ...fields } })); }
 }
 
-function setup({ localSeat = 0, turnSeat = 0, modeId = '8ball', now = () => 1000 } = {}) {
+/** A clock whose timers run when the test advances it. */
+function fakeClock(start = 1000) {
+  const clock = { t: start, timers: [] };
+  clock.now = () => clock.t;
+  clock.setTimer = (fn, ms) => { const timer = { at: clock.t + ms, fn }; clock.timers.push(timer); return timer; };
+  clock.clearTimer = (timer) => { clock.timers = clock.timers.filter((x) => x !== timer); };
+  clock.advance = (ms) => {
+    const end = clock.t + ms;
+    for (;;) {
+      const due = clock.timers.filter((x) => x.at <= end).sort((a, b) => a.at - b.at)[0];
+      if (!due) break;
+      clock.clearTimer(due);
+      clock.t = due.at;
+      due.fn();
+    }
+    clock.t = end;
+  };
+  return clock;
+}
+
+function setup({ localSeat = 0, turnSeat = 0, modeId = '8ball', now = () => 1000, clock = null } = {}) {
   const session = new FakeSession();
-  const controller = new OnlineMatchController({ session, matchId: 'm1', modeId, tableProfile: profile, now });
+  const timers = clock ? { now: clock.now, setTimer: clock.setTimer, clearTimer: clock.clearTimer } : { now };
+  const controller = new OnlineMatchController({ session, matchId: 'm1', modeId, tableProfile: profile, ...timers });
   const match = createMatch(MODES[modeId], config, () => 0.5, turnSeat);
   const table = rackTable(MODES[modeId].rackLayout(match.mode), 'pool9ft');
   const snapshot = (over = {}) => ({
@@ -217,4 +238,64 @@ test('status() é o mesmo do LocalMatchController para o mesmo estado', () => {
   session.deliver(OP.MATCH_SNAPSHOT, { header: snapshot() });
   assert.deepEqual(controller.status(), matchStatus('8ball', match));
   assert.equal(controller.status().currentPlayer, 2);
+});
+
+test('aim_update sai no máximo a cada 100 ms, com o turnId atual e só na própria vez', () => {
+  const clock = fakeClock();
+  const { session, controller, snapshot, match } = setup({ clock });
+  session.deliver(OP.MATCH_SNAPSHOT, { header: snapshot() });
+  const times = [];
+  const send = session.send.bind(session);
+  session.send = (op, body) => { times.push(clock.t); send(op, body); };
+  for (let i = 0; i < 30; i++) {
+    controller.sendAim({ angle: i / 10, spin: { x: 0, y: 0 }, power: 0 });
+    clock.advance(33);
+  }
+  const inWindow = session.sent.filter((m) => m.op === OP.AIM_UPDATE);
+  assert.ok(inWindow.length <= 10 && inWindow.length >= 9, `${inWindow.length} sends in 990 ms`);
+  for (let i = 1; i < times.length; i++) assert.ok(times[i] - times[i - 1] >= 100, `sends ${times[i] - times[i - 1]} ms apart`);
+  assert.ok(inWindow.every((m) => m.body.turnId === match.turnId));
+  clock.advance(200);
+  const aims = session.sent.filter((m) => m.op === OP.AIM_UPDATE);
+  assert.deepEqual(aims.at(-1).body, { turnId: match.turnId, angle: 2.9, spin: { x: 0, y: 0 }, power: 0 });
+
+  const other = setup({ clock: fakeClock(), localSeat: 1, turnSeat: 0 });
+  other.session.deliver(OP.MATCH_SNAPSHOT, { header: other.snapshot() });
+  other.controller.sendAim({ angle: 1, spin: { x: 0, y: 0 } });
+  other.controller.sendBallInHand({ x: 0, z: 0 });
+  assert.deepEqual(other.session.sent, []);
+});
+
+test('mira e bola na mão dividem o mesmo ritmo; a tacada descarta o que ainda ia sair', () => {
+  const clock = fakeClock();
+  const { session, controller, snapshot, match, table } = setup({ clock });
+  session.deliver(OP.MATCH_SNAPSHOT, { header: snapshot() });
+  controller.sendBallInHand({ x: 0.1, z: -0.5 });
+  controller.sendAim({ angle: 1, spin: { x: 0.2, y: 0 }, power: 10 });
+  assert.deepEqual(session.sent, [{ op: OP.BALL_IN_HAND_MOVE, body: { turnId: match.turnId, x: 0.1, z: -0.5 } }]);
+  clock.advance(100);
+  assert.deepEqual(session.sent[1], { op: OP.AIM_UPDATE, body: { turnId: match.turnId, angle: 1, spin: { x: 0.2, y: 0 }, power: 10 } });
+  controller.sendAim({ angle: 2, spin: { x: 0, y: 0 } });
+  controller.submitShot(table, breakResult(table).shot);
+  clock.advance(500);
+  assert.deepEqual(session.sent.map((m) => m.op), [OP.BALL_IN_HAND_MOVE, OP.AIM_UPDATE, OP.SHOT_REQUEST]);
+});
+
+test('a mira e a bola na mão do outro lugar viram eventos, sem mudar a partida', () => {
+  const { session, controller, snapshot, match } = setup({ localSeat: 0, turnSeat: 1 });
+  session.deliver(OP.MATCH_SNAPSHOT, { header: snapshot() });
+  const before = { match: controller.match, table: controller.table };
+  const seen = [];
+  controller.addEventListener('aim', (e) => seen.push(['aim', e.detail]));
+  controller.addEventListener('ballInHand', (e) => seen.push(['ballInHand', e.detail]));
+  session.deliver(OP.AIM_RELAY, { body: { seat: 1, turnId: match.turnId, angle: 0.5, spin: { x: 0, y: 0.1 }, power: 20 } });
+  session.deliver(OP.BALL_IN_HAND_RELAY, { body: { seat: 1, turnId: match.turnId, x: 0.2, z: 0.3 } });
+  session.deliver(OP.AIM_RELAY, { body: { seat: 0, turnId: match.turnId, angle: 9, spin: { x: 0, y: 0 } } });
+  session.deliver(OP.AIM_RELAY, { body: { seat: 1, turnId: match.turnId - 1, angle: 9, spin: { x: 0, y: 0 } } });
+  assert.deepEqual(seen, [
+    ['aim', { seat: 1, angle: 0.5, spin: { x: 0, y: 0.1 }, power: 20 }],
+    ['ballInHand', { seat: 1, x: 0.2, z: 0.3 }],
+  ]);
+  assert.equal(controller.match, before.match);
+  assert.equal(controller.table, before.table);
 });

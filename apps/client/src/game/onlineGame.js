@@ -7,6 +7,7 @@
  */
 import { isCueBallPlacementValid } from '@billiards/modes';
 import { ONLINE_TEXT as T, onlineEndText } from '../match/onlineText.js';
+import { BALL, SHOT } from '../config.js';
 
 /** Back to the menu this long after a lost connection, a takeover or the end. */
 const LEAVE_DELAY_MS = 3000;
@@ -28,6 +29,8 @@ export function installOnline(game, controller) {
     if (d.seat !== controller.localSeat) game.ui.setMessage(d.connected ? T.opponentBack : T.opponentAway, 4000, 2);
   });
   on('connection', (d) => onConnection(game, d));
+  on('aim', (d) => showRemoteAim(game, d));
+  on('ballInHand', (d) => showRemoteBallInHand(game, d));
   on('end', (d) => {
     if (game.state === 'SHOOTING') game._pendingOnlineEnd = d; // shown when the shot finishes playing
     else showOnlineEnd(game, d);
@@ -212,6 +215,58 @@ export function updateOnlineTimer(game) {
     game._onlineTimeUpShown = true;
     game.ui.setMessage(T.timeUp, 3000, 2);
   }
+}
+
+/**
+ * On the local turn, what the player aims or drags goes to the server when it
+ * changes (the controller paces it); called every frame.
+ */
+export function sendOnlinePresence(game) {
+  if (!game._canAdjustShot()) return;
+  if (game.ballInHand) {
+    const cue = game.ballsManager.getCueBall();
+    if (!cue || cue.pocketed) return;
+    const { x, z } = cue.mesh.position;
+    const turnId = game.match.turn?.turnId;
+    const last = game._sentBallInHand;
+    if (last && last.turnId === turnId && last.x === x && last.z === z) return;
+    game._sentBallInHand = { turnId, x, z };
+    game.match.sendBallInHand({ x, z });
+    return;
+  }
+  const angle = Math.atan2(game.aimDirection.z, game.aimDirection.x);
+  // The tip offset never leaves the unit circle, as in Game._simulateShot.
+  const spinLength = Math.max(1, Math.hypot(game.cueTipOffset.x, game.cueTipOffset.y));
+  const spin = { x: game.cueTipOffset.x / spinLength, y: game.cueTipOffset.y / spinLength };
+  const power = game.state === 'CHARGING' ? game.power : 0;
+  const turnId = game.match.turn?.turnId;
+  const last = game._sentAim;
+  if (last && last.turnId === turnId && last.angle === angle && last.spin.x === spin.x && last.spin.y === spin.y && last.power === power) return;
+  game._sentAim = { turnId, angle, spin, power };
+  game.match.sendAim({ angle, spin, power });
+}
+
+/** The opponent's turn: the cue follows their aim (and pulls back with their power). */
+function showRemoteAim(game, { seat, angle, power }) {
+  if (seat + 1 !== game.currentPlayer || game.isLocalPlayerTurn() || !['AIM', 'CHARGING'].includes(game.state)) return;
+  if (!Number.isFinite(angle)) return;
+  game.aimDirection.set(Math.cos(angle), 0, Math.sin(angle));
+  const cue = game.ballsManager.getCueBall();
+  if (!cue || cue.pocketed) return;
+  const maxPower = game.match.config?.maxPower ?? SHOT.maxPower;
+  const pullback = Number.isFinite(power) ? (Math.min(Math.max(power, 0), maxPower) / maxPower) * 40 : 0;
+  game.cue?.setAim(cue.mesh.position, game.aimDirection, pullback);
+}
+
+/** The opponent drags the cue ball in hand: it moves here too (the server checks the real placement). */
+function showRemoteBallInHand(game, { seat, x, z }) {
+  if (seat + 1 !== game.currentPlayer || game.isLocalPlayerTurn() || game.state !== 'AIM') return;
+  if (!Number.isFinite(x) || !Number.isFinite(z)) return;
+  if (game.match.status()?.ballInHand?.player !== seat + 1) return;
+  const cue = game.ballsManager.getCueBall();
+  if (!cue) return;
+  cue.reset(x, BALL.radius, z);
+  game.cue?.setAim(cue.mesh.position, game.aimDirection);
 }
 
 /** The server's placement rule (D062): inside the cushion nose and clear of the balls, once quantized. */

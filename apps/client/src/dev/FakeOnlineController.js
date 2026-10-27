@@ -103,6 +103,9 @@ export function createFakeOnlineMatch({ modeId = '8ball', localSeat = 0, turnSea
     /** Decides a shot without sending it (a shot the client missed while away). */
     decideQuietly(seat, shot, sim, options) { return decide(seat, shot, sim, { seq: 1, ...options }).header; },
     end(body) { session.deliver(OP.MATCH_END, { body }); },
+    /** The opponent's aim and ball in hand, as the server relays them. */
+    aim(seat, aim) { session.deliver(OP.AIM_RELAY, { body: { seat, turnId: server.match.turnId, ...aim } }); },
+    ballInHand(seat, x, z) { session.deliver(OP.BALL_IN_HAND_RELAY, { body: { seat, turnId: server.match.turnId, x, z } }); },
     seat(seat, connected) { session.deliver(OP.SEAT_UPDATE, { body: { seat, connected } }); },
   };
 }

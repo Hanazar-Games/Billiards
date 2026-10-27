@@ -11,6 +11,8 @@ import { matchStatus } from './matchStatus.js';
 
 /** The countdown shown runs this much ahead of the server's, for the latency. */
 const DEADLINE_MARGIN_MS = 500;
+/** Aim and ball-in-hand updates share one pace: at most one per this interval (docs/protocol.md, 10/s). */
+const PRESENCE_INTERVAL_MS = 100;
 
 /** @param {string} message @param {object} fields */
 const fail = (message, fields) => Object.assign(new Error(message), fields);
@@ -48,10 +50,12 @@ function initialFromResult(result) {
 export class OnlineMatchController extends EventTarget {
   /**
    * @param {{ session: EventTarget & { send(op: number, body?: object): void }, matchId: string,
-   *   modeId: '8ball' | '9ball' | null, tableProfile: { width: number, depth: number }, now?: () => number }} options
+   *   modeId: '8ball' | '9ball' | null, tableProfile: { width: number, depth: number }, now?: () => number,
+   *   setTimer?: typeof setTimeout, clearTimer?: typeof clearTimeout }} options
    *   (a null mode, as when joining by code, comes with the first snapshot)
    */
-  constructor({ session, matchId, modeId, tableProfile, now = () => Date.now() }) {
+  constructor({ session, matchId, modeId, tableProfile, now = () => Date.now(),
+    setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (t) => clearTimeout(t) }) {
     super();
     if (modeId !== null && !MODES[modeId]) throw new RangeError(`unknown mode ${modeId}`);
     this.session = session;
@@ -60,6 +64,8 @@ export class OnlineMatchController extends EventTarget {
     this.mode = modeId ? MODES[modeId] : null;
     this.tableProfile = tableProfile;
     this.now = now;
+    this.setTimer = setTimer;
+    this.clearTimer = clearTimer;
     this.online = true;
     /** @type {import('@billiards/modes').MatchState | null} */
     this.match = null;
@@ -77,6 +83,10 @@ export class OnlineMatchController extends EventTarget {
     this._ready = new Promise((resolve, reject) => { this._readyResolve = resolve; this._readyReject = reject; });
     this._ready.catch(() => {});
     this._isReady = false;
+    /** Presence updates waiting for their slot, latest per kind (aim, ballInHand). */
+    this._outbox = new Map();
+    this._outboxTimer = null;
+    this._lastPresenceAt = -Infinity;
     this._onMessage = (e) => this._handle(e.detail);
     this._onConnection = (e) => this.dispatchEvent(new CustomEvent('connection', { detail: e.detail }));
     session.addEventListener('message', this._onMessage);
@@ -121,6 +131,7 @@ export class OnlineMatchController extends EventTarget {
       return Promise.reject(fail('not this client\'s turn', { rejected: true, reason: 'NOT_YOUR_TURN' }));
     }
     this._settlePending(fail('stale shot result', { stale: true }));
+    this._clearOutbox(); // an aim that has not left yet would arrive after the shot
     const body = { turnId: this.turn.turnId, seq: ++this._seq, angle: shot.angle, power: shot.power, spin: { x: shot.spin.x, y: shot.spin.y } };
     if (shot.cueBall) body.cueBall = { x: shot.cueBall.x, z: shot.cueBall.z };
     if (shot.pushOut) body.pushOut = true;
@@ -129,6 +140,18 @@ export class OnlineMatchController extends EventTarget {
       this._pending = { turnId: body.turnId, seq: body.seq, body, initial, resolve, reject };
       this.session.send(OP.SHOT_REQUEST, body);
     });
+  }
+
+  /** What the local player is aiming (visual only; the server relays it to the opponent). */
+  sendAim({ angle, spin, power }) {
+    const body = { angle, spin: { x: spin.x, y: spin.y } };
+    if (power !== undefined) body.power = power;
+    this._queuePresence('aim', OP.AIM_UPDATE, body);
+  }
+
+  /** Where the local player is dragging the cue ball in hand (visual only). */
+  sendBallInHand({ x, z }) {
+    this._queuePresence('ballInHand', OP.BALL_IN_HAND_MOVE, { x, z });
   }
 
   /** Online the server runs the clock. */
@@ -156,7 +179,47 @@ export class OnlineMatchController extends EventTarget {
   dispose() {
     this.session.removeEventListener('message', this._onMessage);
     this.session.removeEventListener('connection', this._onConnection);
+    this._clearOutbox();
     this._settlePending(fail('stale shot result', { stale: true }));
+  }
+
+  _isLocalTurn() {
+    return !!this.turn && this.turn.seat === this.localSeat;
+  }
+
+  /** Only on this client's turn; the latest of each kind waits for the next free slot. */
+  _queuePresence(kind, op, body) {
+    if (!this._isLocalTurn()) return;
+    this._outbox.delete(kind);
+    this._outbox.set(kind, { op, body });
+    this._flushOutbox();
+  }
+
+  _flushOutbox() {
+    if (this._outboxTimer !== null || this._outbox.size === 0) return;
+    const wait = this._lastPresenceAt + PRESENCE_INTERVAL_MS - this.now();
+    if (wait > 0) {
+      this._outboxTimer = this.setTimer(() => {
+        this._outboxTimer = null;
+        this._flushOutbox();
+      }, wait);
+      return;
+    }
+    if (!this._isLocalTurn()) {
+      this._outbox.clear();
+      return;
+    }
+    const [kind, { op, body }] = this._outbox.entries().next().value;
+    this._outbox.delete(kind);
+    this._lastPresenceAt = this.now();
+    this.session.send(op, { turnId: this.turn.turnId, ...body });
+    this._flushOutbox();
+  }
+
+  _clearOutbox() {
+    this._outbox.clear();
+    if (this._outboxTimer !== null) this.clearTimer(this._outboxTimer);
+    this._outboxTimer = null;
   }
 
   _emit(type, detail) {
@@ -184,6 +247,8 @@ export class OnlineMatchController extends EventTarget {
       case OP.SEAT_UPDATE: return this._onSeat(body);
       case OP.MATCH_END: return this._onEnd(body);
       case OP.ERROR: return this._emit('error', { code: body?.code });
+      case OP.AIM_RELAY: return this._onRelay('aim', body, { angle: body?.angle, spin: body?.spin, power: body?.power });
+      case OP.BALL_IN_HAND_RELAY: return this._onRelay('ballInHand', body, { x: body?.x, z: body?.z });
       default: return undefined;
     }
   }
@@ -260,6 +325,12 @@ export class OnlineMatchController extends EventTarget {
     // A timeout or a choice ends any shot of ours still in flight: the server refuses it.
     this._settlePending(fail('stale shot result', { stale: true }));
     this._emit(header.kind === 'timeout' ? 'timeout' : 'choice', { ruling, table: header.table, seat: header.seat });
+  }
+
+  /** The opponent's aim or ball in hand, for the current turn only; the match does not change. */
+  _onRelay(type, body, fields) {
+    if (!body || body.seat === this.localSeat || !this.turn || body.turnId !== this.turn.turnId) return;
+    this._emit(type, { seat: body.seat, ...fields });
   }
 
   _onRejected(body) {
