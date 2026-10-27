@@ -31,11 +31,12 @@
     "test:full-match": "node test/full-match.test.js",
     "test:dist": "node test/dist-smoke.test.js",
     "test:pages": "node test/dist-smoke.test.js --pages",
-    "test": "npm run test:table && npm run test:lan && npm run test:ai && npm run test:audio && npm run test:instant-replay && npm run test:career && npm run test:ui-layout && npm run test:settings-audit && npm run test:trainer-challenge-safety && npm run test:achievement-toast && npm run test:tournament && npm run test:highlight && npm run test:panels && npm run test:runtime && npm run test:sim-worker && npm run test:trajectory-player && npm run test:local-match && npm run test:online-unit && npm run test:no-legacy-physics && npm run test:no-legacy-rules && npm run test:browser && npm run test:full-match && npm run test:local-2p && npm run test:smoke",
+    "test": "npm run test:table && npm run test:lan && npm run test:ai && npm run test:audio && npm run test:instant-replay && npm run test:career && npm run test:ui-layout && npm run test:settings-audit && npm run test:trainer-challenge-safety && npm run test:achievement-toast && npm run test:tournament && npm run test:highlight && npm run test:panels && npm run test:runtime && npm run test:sim-worker && npm run test:trajectory-player && npm run test:local-match && npm run test:online-unit && npm run test:no-legacy-physics && npm run test:no-legacy-rules && npm run test:browser && npm run test:full-match && npm run test:local-2p && npm run test:online-game && npm run test:smoke",
     "test:local-match": "node test/local-match.test.js",
     "test:no-legacy-rules": "node test/no-legacy-rules.test.js",
     "test:local-2p": "node test/local-2p-match.test.js",
-    "test:online-unit": "node --test test/online-config.test.js test/online-session.test.js test/online-match-controller.test.js"
+    "test:online-unit": "node --test test/online-config.test.js test/online-session.test.js test/online-match-controller.test.js",
+    "test:online-game": "node --test test/online-game.test.js"
   },
   "dependencies": {
     "@billiards/modes": "*",

@@ -849,6 +849,13 @@ export class MenuSystem {
     this.loop.start();
   }
 
+  /** An online match (D063): the controller has its first snapshot; the server decides everything. */
+  async _startOnlineGame(controller) {
+    const mode = controller.modeId === '9ball' ? '9ball' : '8ball';
+    const config = { ...this._getModeConfig(mode, 'pool9ft'), matchController: controller };
+    await this._startGame(mode, null, null, 1, null, 'pool9ft', config);
+  }
+
   _showLanRoom() {
     this._hideAllPanels(new Set([this.lanRoomPanel]));
     if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; }

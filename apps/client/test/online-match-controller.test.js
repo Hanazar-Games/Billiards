@@ -200,6 +200,16 @@ test('o fim antes do primeiro snapshot rejeita o whenReady com o fim', async () 
   await assert.rejects(ready, (err) => err.end?.reason === 'ABORTED');
 });
 
+test('sem modo (entrada pelo código), o modo vem com o primeiro snapshot', () => {
+  const { snapshot } = setup({ modeId: '9ball' });
+  const session = new FakeSession();
+  const controller = new OnlineMatchController({ session, matchId: 'm1', modeId: null, tableProfile: profile });
+  session.deliver(OP.MATCH_SNAPSHOT, { header: snapshot() });
+  assert.equal(controller.modeId, '9ball');
+  assert.equal(controller.mode.id, '9ball');
+  assert.equal(controller.status().targetBall, 1);
+});
+
 test('status() é o mesmo do LocalMatchController para o mesmo estado', () => {
   const local = new LocalMatchController({ modeId: '8ball', tableProfile: profile, simClient: { simulate() {} } });
   assert.deepEqual(matchStatus('8ball', local.match), local.status());

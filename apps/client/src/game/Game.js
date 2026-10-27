@@ -9,6 +9,7 @@ import { InputHandler } from '../input/InputHandler.js';
 import { Cue } from './Cue.js';
 import { LocalMatchController } from '../match/LocalMatchController.js';
 import { toTurnResult } from '../match/turnResult.js';
+import { installOnline, enterOnlineTurn, flushOnlineEnd, updateOnlineTimer, onlinePlacementAllowed, concedeOnline } from './onlineGame.js';
 import { AchievementSystem } from '../achievements/AchievementSystem.js';
 import { AchievementPanel } from '../achievements/AchievementPanel.js';
 import { UI } from '../ui/UI.js';
@@ -97,7 +98,12 @@ export class Game {
     this.paused = false;
 
     // Network multiplayer fields
-    this.networkMode = null; // null | 'lan'
+    this.networkMode = null; // null | 'lan' | 'online'
+    this.online = false; // an OnlineMatchController plays: the server decides (D063)
+    this._officialTable = null; // the server's table at the end of the online shot playing
+    this._pendingOnlineEnd = null;
+    this._onlineUninstall = null;
+    this._onlineLeaveTimer = null;
     this.networkRole = null; // null | 'host' | 'client'
     this.localPlayerId = 1;
     this.networkController = null;
@@ -191,7 +197,17 @@ export class Game {
 
     // The match controller decides with packages/modes; free play and the trainer have no rules.
     const modeId = this.mode === 'trainer' || this.mode === 'freeplay' ? null : this.mode === '9ball' ? '9ball' : '8ball';
-    this.match = new LocalMatchController({ modeId, tableProfile: this.tableProfile, simClient: this._simClient });
+    const online = modeConfig.matchController?.online ? modeConfig.matchController : null;
+    this.match = online ?? new LocalMatchController({ modeId, tableProfile: this.tableProfile, simClient: this._simClient });
+    if (online) {
+      this.online = true;
+      this.networkMode = 'online';
+      this.localPlayerId = online.localSeat + 1;
+      this.currentPlayer = online.seat + 1;
+      const name = (seat) => online.seats.find((s) => s.seat === seat)?.username ?? `Jogador ${seat + 1}`;
+      this.networkPlayer1Name = name(0);
+      this.networkPlayer2Name = name(1);
+    }
 
     // Audio manager is already initialised by MenuSystem (shared singleton).
     // Game only calls init() when it owns a standalone instance.
@@ -208,6 +224,11 @@ export class Game {
     } else {
       this._turnTimerEnabled = false;
       this._turnTimerMax = 0;
+    }
+    if (this.online) {
+      // The server runs a 45 s turn clock (spec §7.3); the countdown follows its deadline.
+      this._turnTimerMax = 45;
+      this._turnTimerEnabled = true;
     }
     this._turnTimerRemaining = this._turnTimerMax;
     this._turnTimerRunning = false;
@@ -231,6 +252,8 @@ export class Game {
       this.ballsManager.applyLayout(this.match.newRack(this.currentPlayer - 1));
     }
     this.ballsManager.addToScene(this.scene);
+    // Online, the table is the server's (pocketed balls included).
+    if (this.online) this.ballsManager.applyTableState(this.match.table);
     // Apply ball visual settings after creation
     for (const ball of this.ballsManager.balls) {
       ball.updateVisualSettings(settings);
@@ -339,7 +362,7 @@ export class Game {
     this.inGameSettings.setZIndex(100);
     // Lock fairness settings in competitive modes (both UI and SettingsStore)
     const fairnessKeys = Array.from(MATCH_FAIRNESS_KEYS);
-    if (this.networkRole === 'client' || this.matchManager) {
+    if (this.networkRole === 'client' || this.matchManager || this.online) {
       this.inGameSettings.setLockedKeys(fairnessKeys);
       settings.setLockedKeys(fairnessKeys);
     }
@@ -381,6 +404,10 @@ export class Game {
     // Show game tutorial steps for new players
     this._showGameTutorial();
     this._initialized = true;
+    if (this.online) {
+      this._onlineUninstall = installOnline(this, this.match);
+      enterOnlineTurn(this);
+    }
 
     // In spectator mode, auto-start AI turn if it's AI's turn at game start
     if (this.bothAI && this._shouldTriggerAI() && this.state === 'AIM') {
@@ -798,6 +825,8 @@ export class Game {
     if (x < -halfW || x > halfW || z < -halfD || z > halfD) {
       return 'OUT_OF_BOUNDS';
     }
+    // Online, the server's rule decides (the cushion nose, clear of the balls).
+    if (this.online && !onlinePlacementAllowed(this, x, z)) return 'OUT_OF_BOUNDS';
 
     // Behind the head string restriction (break foul ball-in-hand)
     if (behindHeadString) {
@@ -1063,11 +1092,12 @@ export class Game {
       request = Promise.reject(err);
     }
     Promise.resolve(request)
-      .then(({ initial, result, ruling }) => {
+      .then(({ initial, result, ruling, table: official }) => {
         if (!live()) return;
         this._pushOutDeclared = false;
         this._placedCueBall = null;
         this._shotRuling = ruling;
+        this._officialTable = official ?? null;
         this._startPlayback(initial, result, impact);
       })
       .catch(err => { if (!err?.stale && live()) this._cancelShot(table, err); });
@@ -1113,6 +1143,14 @@ export class Game {
 
   /** The shot could not be simulated: the balls stay put and the player aims again. */
   _cancelShot(table, err) {
+    if (this.online && err?.rejected && (err.reason === 'NOT_YOUR_TURN' || err.reason === 'TURN_MISMATCH')) {
+      // The turn moved on meanwhile: the server's snapshot or result sets the table.
+      this.ballsManager.applyTableState(this.match.table ?? table);
+      this.trails.stopRecording();
+      this.recorder.reset();
+      this._enterAimState();
+      return;
+    }
     if (!err?.rejected) console.warn('[Game] shot simulation failed, the shot is cancelled:', err);
     this.ballsManager.applyTableState(table);
     if (this._strikeHideTimer) { clearTimeout(this._strikeHideTimer); this._strikeHideTimer = null; }
@@ -1143,7 +1181,13 @@ export class Game {
 
   /** The match controller's ruling in the shape resolveTurn consumes. */
   _turnResult(ruling) {
-    return toTurnResult(this.match.modeId, ruling, this.match.status(), [this.networkPlayer1Name, this.networkPlayer2Name]);
+    const result = toTurnResult(this.match.modeId, ruling, this.match.status(), [this.networkPlayer1Name, this.networkPlayer2Name]);
+    if (this.online) {
+      // The official table already has the respotted balls.
+      result.respotEightBall = false;
+      result.respotNineBall = false;
+    }
+    return result;
   }
 
   /** Ball in hand ended: the next shot tells the match where the cue ball went. */
@@ -1166,7 +1210,13 @@ export class Game {
     if (over()) return;
     if (done) {
       this.playback = null;
+      if (this._officialTable) {
+        // Online, the shot ends on the server's table (respotted balls included).
+        this.ballsManager.applyTableState(this._officialTable);
+        this._officialTable = null;
+      }
       this.resolveTurn(this.turnPocketedIds);
+      if (this.online) flushOnlineEnd(this);
     }
   }
 
@@ -1462,6 +1512,10 @@ export class Game {
   }
 
   _updateTurnTimer(dt) {
+    if (this.online) {
+      updateOnlineTimer(this);
+      return;
+    }
     if (!this._turnTimerEnabled) return;
     if (!Number.isFinite(dt)) dt = 0.016;
 
@@ -1499,6 +1553,7 @@ export class Game {
 
   _onTurnTimerExpired() {
     if (this.state === 'GAME_OVER' || this.state === 'DISPOSED') return;
+    if (this.online) return; // the server decides timeouts online
     // Network clients should not locally resolve turn timeouts — host is authoritative
     if (this.networkMode && this.networkRole === 'client') {
       this.ui.setMessage('⏰ 回合时间到，等待房主确认…', 2000, 2);
@@ -1697,6 +1752,12 @@ export class Game {
   /** Apply push-out choice (accept/pass) and update game state. */
   _applyPushOutChoice(choice) {
     if (!this.match?.status()?.pushOutPending) return;
+    if (this.online) {
+      // The server decides; its `choice` result moves the turn (onlineGame.js).
+      if (this.isLocalPlayerTurn()) this.match.choosePushOut(choice === 'accept');
+      this.ui.hidePushOutChoice();
+      return;
+    }
     const result = { nextPlayer: this.match.choosePushOut(choice === 'accept').nextSeat + 1 };
 
     this.currentPlayer = result.nextPlayer;
@@ -1975,7 +2036,7 @@ export class Game {
       this.ui.hideThreeFoulWarning();
 
       // Match mode: delegate to match engine instead of local reset
-      if (!this.matchManager && !this.onGameEnd) {
+      if (!this.matchManager && !this.onGameEnd && !this.online) {
         this.ui.showResetButton(() => this._onResetButtonClicked(), UIText.gameOverResetLabel);
       }
 
@@ -2095,7 +2156,7 @@ export class Game {
         // In spectator mode, skip ball-in-hand UI and auto-place for AI
         this.ballInHand = false;
         this.ballInHandBehindLine = false;
-      } else {
+      } else if (!this.online || this.isLocalPlayerTurn()) {
         this.startBallInHand(result.message, result.ballInHandBehindLine);
       }
     }
@@ -3004,7 +3065,11 @@ export class Game {
     if (this.state === 'GAME_OVER' || this.state === 'DISPOSED') return;
     if (this.mode === 'freeplay') return;
     if (this.mode === 'trainer') return;
-    if (this.networkMode) {
+    if (this.online) {
+      concedeOnline(this);
+      return;
+    }
+    if (this.networkMode === 'lan') {
       this.ui.setMessage(UIText.networkCannotConcede, 2000, 2);
       return;
     }
@@ -3678,6 +3743,9 @@ export class Game {
     this.aiPlayer1 = null;
     this.aiPlayer2 = null;
     this.networkController = null;
+    this._onlineUninstall?.();
+    this._onlineUninstall = null;
+    if (this._onlineLeaveTimer) { clearTimeout(this._onlineLeaveTimer); this._onlineLeaveTimer = null; }
     this.match?.dispose();
     this.match = null;
     this._settingsOpen = false;

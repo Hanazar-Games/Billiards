@@ -48,15 +48,16 @@ function initialFromResult(result) {
 export class OnlineMatchController extends EventTarget {
   /**
    * @param {{ session: EventTarget & { send(op: number, body?: object): void }, matchId: string,
-   *   modeId: '8ball' | '9ball', tableProfile: { width: number, depth: number }, now?: () => number }} options
+   *   modeId: '8ball' | '9ball' | null, tableProfile: { width: number, depth: number }, now?: () => number }} options
+   *   (a null mode, as when joining by code, comes with the first snapshot)
    */
   constructor({ session, matchId, modeId, tableProfile, now = () => Date.now() }) {
     super();
-    if (!MODES[modeId]) throw new RangeError(`unknown mode ${modeId}`);
+    if (modeId !== null && !MODES[modeId]) throw new RangeError(`unknown mode ${modeId}`);
     this.session = session;
     this.matchId = matchId;
     this.modeId = modeId;
-    this.mode = MODES[modeId];
+    this.mode = modeId ? MODES[modeId] : null;
     this.tableProfile = tableProfile;
     this.now = now;
     this.online = true;
@@ -188,6 +189,10 @@ export class OnlineMatchController extends EventTarget {
   }
 
   _onSnapshot(header, payload) {
+    if (!this.modeId && MODES[header.mode]) {
+      this.modeId = header.mode;
+      this.mode = MODES[header.mode];
+    }
     this.localSeat = header.you?.seat ?? this.localSeat;
     this.seats = header.seats ?? this.seats;
     const previousTable = this.table;
@@ -214,7 +219,7 @@ export class OnlineMatchController extends EventTarget {
         const shot = replay.result.shot;
         const before = previousTable ? (shot?.cueBall ? placeCueBall(previousTable, shot.cueBall) : previousTable) : initialFromResult(result);
         this._lastShotKey = key;
-        playback = { initial: before, result, ruling: replay.result.ruling, table: replay.result.table, seat: replay.result.seat, offsetMs: replay.offsetMs };
+        playback = { initial: before, result, ruling: replay.result.ruling, table: replay.result.table, seat: replay.result.seat, shot, offsetMs: replay.offsetMs };
       }
     }
     if (this._pending && !continuing) {
@@ -249,7 +254,7 @@ export class OnlineMatchController extends EventTarget {
       }
       const shot = header.shot;
       const initial = shot?.cueBall ? placeCueBall(previousTable, shot.cueBall) : previousTable;
-      this._emit('remoteShot', { initial, result, ruling, table: header.table, seat: header.seat });
+      this._emit('remoteShot', { initial, result, ruling, table: header.table, seat: header.seat, shot });
       return;
     }
     // A timeout or a choice ends any shot of ours still in flight: the server refuses it.
