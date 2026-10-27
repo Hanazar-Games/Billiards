@@ -74,8 +74,10 @@ export class OnlineSession extends EventTarget {
     this._queue = null;
   }
 
-  /** Signs in the device's guest account and connects the socket. */
+  /** Signs in the device's guest account and connects the socket; again, keeps what is open. */
   async start() {
+    if (this.session && this.socket && !this._closing) return { userId: this.session.user_id, username: this.session.username };
+    this._closing = false;
     let deviceId = this.storage.getItem(DEVICE_KEY);
     if (!deviceId) {
       deviceId = crypto.randomUUID();

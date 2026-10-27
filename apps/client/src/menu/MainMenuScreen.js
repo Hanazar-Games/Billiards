@@ -12,7 +12,7 @@ import { VERSION_TAG } from '../core/Version.js';
  *  - Back button when returning from settings
  */
 export class MainMenuScreen {
-  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onShowChallenges, onQuit, onLanMultiplayer, onMatchSetup, onShowTrainer, onShowTournament, onShowCareer, onShowHighlights) {
+  constructor(onSelectMode, onSettings, onAchievements, onShowReplays, onShowChallenges, onQuit, onLanMultiplayer, onMatchSetup, onShowTrainer, onShowTournament, onShowCareer, onShowHighlights, onOnline) {
     this.onSelectMode = onSelectMode || (() => {});
     this.onSettings = onSettings;
     this.onAchievements = onAchievements;
@@ -20,6 +20,7 @@ export class MainMenuScreen {
     this.onShowChallenges = onShowChallenges;
     this.onQuit = onQuit;
     this.onLanMultiplayer = onLanMultiplayer;
+    this.onOnline = onOnline;
     this.onMatchSetup = onMatchSetup;
     this.onShowTrainer = onShowTrainer;
     this.onShowTournament = onShowTournament;
@@ -121,6 +122,9 @@ export class MainMenuScreen {
     });
     this._addButton(socialGroup, 'AI 对战观赛', '两台电脑自动对弈 · 转播视角 · 实时解说', () => {
       this._fadeOut(() => this.onSelectMode('spectator'));
+    });
+    this._addButton(socialGroup, '🌐 Jogar online', 'Partida 1×1 pela internet: fila ou sala com código', () => {
+      if (this.onOnline) this.onOnline();
     });
     this._addButton(socialGroup, '局域网联机', '同一 Wi-Fi 下创建或加入房间，与好友对战', () => {
       if (this.onLanMultiplayer) this.onLanMultiplayer();
@@ -272,6 +276,7 @@ export class MainMenuScreen {
     this.onShowChallenges = null;
     this.onQuit = null;
     this.onLanMultiplayer = null;
+    this.onOnline = null;
     this.onMatchSetup = null;
     this.onShowTrainer = null;
     this.onShowTournament = null;

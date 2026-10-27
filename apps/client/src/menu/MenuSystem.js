@@ -44,6 +44,9 @@ import { ShotProfiler } from '../career/ShotProfiler.js';
 import { careerStore } from '../career/CareerStore.js';
 import { getDrill } from '../trainer/DrillData.js';
 import { getChallenge } from '../challenges/ChallengeData.js';
+import { OnlinePanel } from './OnlinePanel.js';
+import { OnlineSession } from '../online/OnlineSession.js';
+import { onlineConfig } from '../online/config.js';
 
 
 export class MenuSystem {
@@ -157,6 +160,10 @@ export class MenuSystem {
       this.lanRoomPanel.destroy?.();
       this.lanRoomPanel = null;
     }
+    if (this.onlinePanel && !except.has(this.onlinePanel)) {
+      this.onlinePanel.destroy?.();
+      this.onlinePanel = null;
+    }
     if (this.matchSetupPanel && !except.has(this.matchSetupPanel)) {
       this.matchSetupPanel.destroy?.();
       this.matchSetupPanel = null;
@@ -248,7 +255,8 @@ export class MenuSystem {
       () => this._showTrainer(),
       () => this._showTournament(),
       () => this._showCareerStats(),
-      () => this._showHighlights()
+      () => this._showHighlights(),
+      () => this._showOnline()
     );
 
     // Create achievement panel (for viewing from menu)
@@ -849,6 +857,23 @@ export class MenuSystem {
     this.loop.start();
   }
 
+  /** The online entry (D063); the session lives on between games of this page. */
+  _showOnline() {
+    this._hideAllPanels(new Set([this.onlinePanel]));
+    if (this.onlinePanel) { this.onlinePanel.destroy(); this.onlinePanel = null; }
+    this.onlinePanel = new OnlinePanel({
+      config: onlineConfig(),
+      createSession: (config) => (this.onlineSession ??= new OnlineSession({ config })),
+      onStart: (controller) => {
+        this.onlinePanel?.destroy();
+        this.onlinePanel = null;
+        this._startOnlineGame(controller);
+      },
+      onBack: () => this._showMainMenu(),
+    });
+    this.onlinePanel.show();
+  }
+
   /** An online match (D063): the controller has its first snapshot; the server decides everything. */
   async _startOnlineGame(controller) {
     const mode = controller.modeId === '9ball' ? '9ball' : '8ball';
@@ -1278,6 +1303,8 @@ export class MenuSystem {
     try { if (this.achievementPanel) this.achievementPanel.destroy(); } catch (e) {}
     try { if (this.trainerPanel) { this.trainerPanel.destroy(); this.trainerPanel = null; } } catch (e) {}
     try { if (this.trainerResult) { this.trainerResult.destroy(); this.trainerResult = null; } } catch (e) {}
+    try { if (this.onlinePanel) { this.onlinePanel.destroy(); this.onlinePanel = null; } } catch (e) {}
+    try { this.onlineSession?.close(); this.onlineSession = null; } catch (e) {}
     try { if (this.lanRoomPanel) { this.lanRoomPanel.destroy(); this.lanRoomPanel = null; } } catch (e) {}
     try { if (this.matchSetupPanel) { this.matchSetupPanel.destroy(); this.matchSetupPanel = null; } } catch (e) {}
     try { if (this.tournamentPanel) { this.tournamentPanel.destroy(); this.tournamentPanel = null; } } catch (e) {}

@@ -101,6 +101,15 @@ test('o id do dispositivo é criado uma vez e reaproveitado', async () => {
   assert.equal(storage.getItem('billiards.online.deviceId'), server.auths[0].id);
 });
 
+test('start de novo reaproveita a conta e o socket (o painel online abre outra vez)', async () => {
+  const server = fakeServer();
+  const { session } = newSession(server);
+  await session.start();
+  assert.deepEqual(await session.start(), { userId: 'u1', username: 'guest' });
+  assert.equal(server.auths.length, 1);
+  assert.equal(server.sockets.length, 1);
+});
+
 test('entrar na partida manda protocolVersion e guarda o matchId', async () => {
   const server = fakeServer();
   const { session, storage } = newSession(server);
