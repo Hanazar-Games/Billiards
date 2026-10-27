@@ -53,9 +53,14 @@ export class OnlinePanel {
     this.view = view;
     this.session = null;
     this.model = { state: 'connecting', username: '', code: '', message: '' };
+    /** The match being entered (a room waiting, a join), until the game starts. */
+    this._entry = null;
+    this._destroyed = false;
+    this._onConnection = null;
   }
 
   _render(changes) {
+    if (this._destroyed) return;
     Object.assign(this.model, changes);
     this.view.render({ ...this.model });
   }
@@ -70,6 +75,7 @@ export class OnlinePanel {
     this._render({ state: 'connecting', message: ONLINE_PANEL_TEXT.connecting });
     try {
       this.session = this.createSession(this.config);
+      this._watchConnection();
       const { username } = await this.session.start();
       this._render({ state: 'lobby', username: username ?? '', message: '' });
     } catch (err) {
@@ -104,11 +110,43 @@ export class OnlinePanel {
       this._render({ state: 'lobby', message: err?.code === 'CANCELLED' ? '' : errorText(err) });
       return;
     }
+    if (this._destroyed) return; // the panel closed while queued: the match goes without us
     await this._enterOrLobby(matchId, mode);
   }
 
   async cancelQueue() {
     await this.session?.cancelQueue();
+  }
+
+  /** Cancelar: out of the queue, or out of the room or match being entered, back to the lobby. */
+  async cancel() {
+    if (this.model.state === 'queue') {
+      await this.cancelQueue();
+      return;
+    }
+    await this._abandonEntry({ leave: true });
+    this._render({ state: 'lobby', code: '', message: '' });
+  }
+
+  /** A connection lost for good stops any wait: nothing starts later on its own. */
+  _watchConnection() {
+    if (this._onConnection || typeof this.session?.addEventListener !== 'function') return;
+    this._onConnection = (e) => {
+      const state = e.detail?.state;
+      if (state !== 'offline' && state !== 'replaced') return;
+      this._abandonEntry({ leave: false });
+      this._render({ state: 'offline', code: '', message: errorText({ code: 'NETWORK' }) });
+    };
+    this.session.addEventListener('connection', this._onConnection);
+  }
+
+  /** Drops the match being entered; `leave` also takes this player out of it on the server. */
+  async _abandonEntry({ leave }) {
+    const entry = this._entry;
+    if (!entry) return;
+    this._entry = null;
+    entry.controller?.dispose();
+    if (leave) await this.session.leaveMatch().catch(() => {});
   }
 
   async createRoom(mode) {
@@ -145,12 +183,26 @@ export class OnlinePanel {
    */
   async _enter(matchId, modeId, { room = false } = {}) {
     this._render({ state: room ? 'room' : 'joining', message: room ? ONLINE_PANEL_TEXT.waiting : this.model.message || ONLINE_PANEL_TEXT.waiting });
-    await this.session.joinMatch(matchId);
+    const entry = { controller: null };
+    this._entry = entry;
+    // Cancelled (or closed, or disconnected) meanwhile: whatever comes later is dropped.
+    const dropped = () => this._entry !== entry;
+    try {
+      await this.session.joinMatch(matchId);
+    } catch (err) {
+      if (dropped()) return;
+      this._entry = null;
+      throw err;
+    }
+    if (dropped()) return;
     const controller = this.createController({ session: this.session, matchId, modeId, tableProfile: getTableProfile('pool9ft') });
+    entry.controller = controller;
     try {
       await controller.whenReady();
     } catch (err) {
       controller.dispose();
+      if (dropped()) return;
+      this._entry = null;
       if (err?.end) {
         // A queue match whose opponent never came (30 s) ends before it starts.
         this.session.forgetMatch();
@@ -159,10 +211,21 @@ export class OnlinePanel {
       }
       throw err;
     }
+    if (dropped()) {
+      controller.dispose();
+      return;
+    }
+    this._entry = null;
     this.onStart(controller);
   }
 
+  /** The panel closes (Voltar, or the game starts): a room or queue left open goes with it. */
   destroy() {
+    if (this.model.state === 'queue') this.cancelQueue().catch(() => {});
+    this._abandonEntry({ leave: true });
+    this._destroyed = true;
+    if (this._onConnection) this.session?.removeEventListener('connection', this._onConnection);
+    this._onConnection = null;
     this.view.destroy();
   }
 }
@@ -246,7 +309,7 @@ export class OnlinePanelView {
     e.queue9.onclick = () => panel.queue('9ball');
     e.create.onclick = () => panel.createRoom(e.roomMode.value);
     e.join.onclick = () => panel.joinByCode(e.code.value);
-    e.cancel.onclick = () => (panel.model.state === 'queue' ? panel.cancelQueue() : panel.onBack());
+    e.cancel.onclick = () => panel.cancel();
     e.back.onclick = () => panel.onBack();
   }
 
@@ -259,7 +322,7 @@ export class OnlinePanelView {
     for (const r of Object.values(e.rows)) r.style.display = lobby ? 'flex' : 'none';
     e.roomCode.textContent = model.state === 'room' ? model.code : '';
     e.roomCode.style.display = model.state === 'room' ? 'block' : 'none';
-    e.cancel.style.display = model.state === 'queue' || model.state === 'room' ? 'block' : 'none';
+    e.cancel.style.display = ['queue', 'room', 'joining'].includes(model.state) ? 'block' : 'none';
     e.back.style.display = lobby || model.state === 'unavailable' || model.state === 'offline' ? 'block' : 'none';
   }
 

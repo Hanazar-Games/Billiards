@@ -11,7 +11,8 @@ class FakeError extends Error { constructor(code) { super(code); this.code = cod
 function fakeSession({ stored = null, joinError = null, usernameError = null } = {}) {
   const calls = [];
   let storedId = stored;
-  return {
+  // An EventTarget, like OnlineSession: the panel listens to its connection events.
+  return Object.assign(new EventTarget(), {
     calls,
     async start() { calls.push(['start']); return { userId: 'u1', username: 'guest_1' }; },
     async setUsername(name) { calls.push(['setUsername', name]); if (usernameError) throw new FakeError(usernameError); return name.toLowerCase(); },
@@ -22,8 +23,19 @@ function fakeSession({ stored = null, joinError = null, usernameError = null } =
     async joinMatch(id) { calls.push(['joinMatch', id]); if (joinError) { const code = joinError; joinError = null; if (code === 'MATCH_ENDED') storedId = null; throw new FakeError(code); } storedId = id; },
     storedMatchId() { return storedId; },
     forgetMatch() { calls.push(['forgetMatch']); storedId = null; },
+    async leaveMatch() { calls.push(['leaveMatch']); storedId = null; },
     close() { calls.push(['close']); },
-  };
+  });
+}
+
+/** Lets the panel's promise chains run. */
+const settle = async () => { for (let i = 0; i < 10; i++) await new Promise((r) => setImmediate(r)); };
+
+/** whenReady() that resolves only when the test says so. */
+function gate() {
+  let release;
+  const ready = () => new Promise((resolve) => { release = resolve; });
+  return { ready, release: () => release() };
 }
 
 function setup({ config = CONFIG, session = fakeSession(), ready = () => Promise.resolve() } = {}) {
@@ -138,4 +150,60 @@ test('adversário que não aparece: o painel volta ao saguão com aviso', async 
   assert.equal(last().state, 'lobby');
   assert.ok(session.calls.some(([c]) => c === 'forgetMatch'));
   assert.equal(controllers[0].disposed, true);
+});
+
+test('cancelar a sala sai da partida e o jogo não começa depois', async () => {
+  const { ready, release } = gate();
+  const { panel, session, started, controllers, last } = setup({ ready });
+  await panel.show();
+  const creating = panel.createRoom('8ball');
+  await settle();
+  assert.equal(last().state, 'room');
+  await panel.cancel();
+  assert.equal(session.calls.filter(([c]) => c === 'leaveMatch').length, 1);
+  assert.equal(session.storedMatchId(), null);
+  assert.equal(controllers[0].disposed, true);
+  assert.equal(last().state, 'lobby');
+  release();
+  await creating;
+  assert.deepEqual(started, []);
+  assert.equal(last().state, 'lobby');
+});
+
+test('sair do painel com a sala aberta ou na fila não deixa partida para trás', async () => {
+  const room = gate();
+  const a = setup({ ready: room.ready });
+  await a.panel.show();
+  const creating = a.panel.createRoom('8ball');
+  await settle();
+  a.panel.destroy();
+  await settle();
+  assert.equal(a.session.calls.filter(([c]) => c === 'leaveMatch').length, 1);
+  room.release();
+  await creating;
+  assert.deepEqual(a.started, []);
+
+  const b = setup();
+  await b.panel.show();
+  const queued = b.panel.queue('8ball');
+  await settle();
+  b.panel.destroy();
+  await queued;
+  assert.deepEqual(b.session.calls.filter(([c]) => c === 'cancelQueue').length, 1);
+  assert.deepEqual(b.started, []);
+});
+
+test('conexão perdida durante a espera mostra o aviso e não começa o jogo', async () => {
+  const { ready, release } = gate();
+  const { panel, session, started, controllers, last } = setup({ ready });
+  await panel.show();
+  const creating = panel.createRoom('8ball');
+  await settle();
+  session.dispatchEvent(new CustomEvent('connection', { detail: { state: 'offline' } }));
+  assert.equal(last().state, 'offline');
+  assert.equal(last().message, 'Sem conexão com o servidor');
+  assert.equal(controllers[0].disposed, true);
+  release();
+  await creating;
+  assert.deepEqual(started, []);
 });
