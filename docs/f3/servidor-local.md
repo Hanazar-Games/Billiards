@@ -5,7 +5,7 @@ O servidor do jogo roda no Nakama 3.41.0 com PostgreSQL 16 e o serviço de simul
 ## Requisitos
 
 - Docker com o Compose v2 (Docker Desktop no Windows e no macOS).
-- Node ≥ 22.12 para gerar o módulo e subir o servidor. Os testes são `.ts` e precisam de um Node que execute TypeScript sem flag: o Node 24, o mesmo do CI. O Node 22 do servidor de testes só roda o `infra:up`.
+- Node ≥ 22.12 para gerar o módulo e subir o servidor. Os testes são `.ts` e precisam de um Node que execute TypeScript sem flag: o Node 24, o mesmo do CI. Com o Node 22, todo teste que é ou importa um `.ts` falha com `ERR_UNKNOWN_FILE_EXTENSION`.
 
 Sem Docker, o `npm test` da raiz continua funcionando: o pacote `services/nakama` roda só os testes unitários, e o `services/sim` testa o servidor HTTP dentro do próprio processo. Os testes de integração precisam do Docker e rodam também no GitHub Actions, a cada push na branch de trabalho (D051).
 
@@ -33,6 +33,15 @@ Para rodar o servidor em outra máquina da rede (por exemplo, `server`) e testar
    cp infra/.env.example infra/.env     # depois edite: NAKAMA_BIND=0.0.0.0 e uma NAKAMA_CONSOLE_PASSWORD só sua
    PUPPETEER_SKIP_DOWNLOAD=1 npm ci     # sem baixar o Chrome dos testes de navegador
    npm run infra:up
+   ```
+
+   Para rodar também os testes no servidor, instale o Node 24 com o `nvm`. Ele não vem pelo `apt`: é instalado por um script, só para o seu usuário, e o Node do sistema continua lá. Depois, reinstale as dependências e rode as suítes sem navegador (o servidor não tem Chrome):
+
+   ```bash
+   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+   source ~/.bashrc && nvm install 24
+   PUPPETEER_SKIP_DOWNLOAD=1 npm ci
+   npm test -w packages/protocol -w packages/modes -w packages/sim -w services/sim -w services/nakama
    ```
 
    Pare antes qualquer outro Nakama que use as portas 7350 e 7351. Com `NAKAMA_BIND=0.0.0.0`, a API e o console ficam visíveis para toda a rede. Por isso, troque a senha do console. As outras chaves podem ficar com os valores de desenvolvimento enquanto o servidor for só de testes.

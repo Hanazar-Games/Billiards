@@ -54,7 +54,7 @@
    - Um `playback` pode vir com a trajetória vazia (a tacada de força 0, durante o 1 s de folga): aplicar `table` direto.
    - Segredos de produção: `--runtime.env "SIM_SECRET=${SIM_SECRET}"` é expandido pelo Compose e pelo shell; um segredo com `$`, crase ou `"` quebra o comando e aparece nos argumentos do processo. Resolver na implantação.
    - O `shot_request` conta no limite de 5 mensagens por segundo (as outras, fora a mira): o excedente é descartado sem resposta. Um cliente humano não chega perto, mas um bot precisa de pausa entre as tacadas.
-2. **O usuário atualiza o `server`** e roda a integração de lá (opcional): `git pull`, acrescentar `SIM_SECRET=dev-sim-secret` ao `infra/.env` (o Compose exige a variável, até no `infra:down`), `npm run infra:up` e, nesta máquina, `NAKAMA_HOST=server npm run test:integration -w services/nakama`.
+2. **O usuário atualiza o `server`** e roda a integração de lá (opcional; as suítes sem navegador já passam lá com o Node 24, em 2026-10-27): `git pull`, acrescentar `SIM_SECRET=dev-sim-secret` ao `infra/.env` (o Compose exige a variável, até no `infra:down`), `npm run infra:up` e, nesta máquina, `NAKAMA_HOST=server npm run test:integration -w services/nakama`.
 3. **O usuário confirma o F1-09** no navegador, quando quiser, seguindo `docs/f1/roteiro-teste-manual.md` (`npm run dev`, Treino livre, `await __referenceShot('draw-ref')` no console). Em 2026-10-25 o usuário preferiu adiar. Se a branca voltar como esperado, marcar `passes: true` e registrar a data; se não, abrir uma decisão nova sobre o recuo (a D041 aceitou a sensação medida).
 4. No ambiente local, rode `bash harness/init.sh` (Node ≥ 22.12), porque o hook SessionStart só roda na nuvem. Os testes de navegador precisam de Chromium. O Puppeteer baixa um na instalação, a menos que `PUPPETEER_SKIP_DOWNLOAD` esteja definido. Sem esse download, aponte `PUPPETEER_EXECUTABLE_PATH` para o Chrome do sistema.
 
@@ -350,3 +350,9 @@
   - **D062** (`de2e6bc`) repete a D060 e a D061 com as correções; as duas passaram a `superseded`.
 - Suítes: modes 70, protocol 40, nakama-module 90, sim-service 10, sim 61 e `test:local-match` 12, todas verdes; `tsc` limpo. Integração no GitHub Actions: execução **40408461222**, 32 testes passaram e nenhum falhou.
 - Ficaram para depois, como a revisão pediu, os menores adiados: vida do `lastResult`, mapeamento dos erros do sim e novas tentativas em 4xx, tempo da fila de chamadas, ordem do zerar das vezes perdidas, `ABORTED` com os dois fora e lacunas de teste.
+
+### 2026-10-27 — sessão 2, continuação (testes no `server`)
+
+- O `npm test` no `server` falhou com o Node 22.22.1 do sistema: todo teste que é ou importa um `.ts` dá `ERR_UNKNOWN_FILE_EXTENSION`. As suítes em JavaScript passaram.
+- O usuário instalou o Node 24 pelo `nvm`, que não vem pelo `apt`. Com ele, as suítes sem navegador passaram lá: protocol 40, modes 70, sim 61, sim-service 10 e nakama-module 90. As de navegador do cliente ficam de fora, porque o servidor não tem Chrome.
+- `docs/f3/servidor-local.md` ganhou os passos do `nvm` e o comando das suítes sem navegador.
