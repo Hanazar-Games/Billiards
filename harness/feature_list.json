@@ -287,6 +287,63 @@
     "passes": true
   },
   {
+    "id": "F4-08",
+    "phase": "F4",
+    "description": "Cliente online: entrada como convidado, fila 1×1 e sala privada pelo código",
+    "verification": [
+      "a fila junta os dois navegadores numa partida de 9-ball",
+      "PROTOCOL_MISMATCH pede para atualizar a página"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F4-09",
+    "phase": "F4",
+    "description": "OnlineMatchController e Game: tacadas decididas pelo servidor",
+    "verification": [
+      "a tacada do adversário é reproduzida e a mesa termina na oficial",
+      "a tacada local só se move quando o servidor responde"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F4-10",
+    "phase": "F4",
+    "description": "Dois navegadores jogam uma partida online 1×1 completa (marco da F4)",
+    "verification": [
+      "dois navegadores jogam uma partida online inteira de 8-ball"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F4-11",
+    "phase": "F4",
+    "description": "Reconexão no cliente",
+    "verification": [
+      "queda no meio da reprodução: o navegador volta e termina no mesmo estado",
+      "recarregar a página no meio da partida volta para a mesma partida"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F4-12",
+    "phase": "F4",
+    "description": "APIs nativas fora do uso do jogo recusadas (D064)",
+    "verification": [
+      "APIs nativas fora do uso do jogo são recusadas"
+    ],
+    "passes": false
+  },
+  {
+    "id": "F4-13",
+    "phase": "F4",
+    "description": "Servidor de produção com TLS",
+    "verification": [
+      "o Nakama de produção responde por HTTPS e WSS (a integração e o test:online contra o domínio de produção)"
+    ],
+    "passes": false
+  },
+  {
     "id": "F5-01",
     "phase": "F5",
     "description": "Interface de toque: mira, força, efeito e câmera",

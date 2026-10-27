@@ -17,6 +17,9 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    # The Pages path comes from the repository name (D066), for the build and its check.
+    env:
+      PAGES_BASE_PATH: /${{ github.event.repository.name }}/
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -27,7 +30,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Install dependencies
         run: npm ci
@@ -44,7 +47,9 @@ jobs:
       - name: Build Pages artifact
         run: npm run build:pages
         env:
-          PAGES_BASE_PATH: /Billiards/
+          # The online client's server (D065): repository variables, empty until the deploy exists.
+          VITE_NAKAMA_URL: ${{ vars.NAKAMA_URL }}
+          VITE_NAKAMA_SERVER_KEY: ${{ vars.NAKAMA_SERVER_KEY }}
 
       - name: Verify Pages artifact
         run: npm run test:pages

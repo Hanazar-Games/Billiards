@@ -8,7 +8,7 @@ import { browserOptions, prepareBrowserPage } from './browser-options.js';
 import { VERSION_TAG } from '../src/core/Version.js';
 
 const dist = resolve(process.env.DIST_DIR || 'dist');
-const base = process.env.PAGES_URL ? new URL(process.env.PAGES_URL).pathname : '/Billiards/';
+const base = process.env.PAGES_URL ? new URL(process.env.PAGES_URL).pathname : (process.env.PAGES_BASE_PATH || '/Billiards/');
 const pages = process.argv.includes('--pages');
 
 test('production artifact on a GitHub Pages project path', { timeout: process.env.CI ? 240000 : 120000 }, async t => {

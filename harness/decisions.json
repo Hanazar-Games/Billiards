@@ -897,7 +897,8 @@
       "Fechar tudo o que não for usado já na F3",
       "Deixar aberto até haver abuso"
     ],
-    "status": "open",
+    "status": "superseded",
+    "supersededBy": "D064",
     "source": "revisão final da F3",
     "refs": [
       "spec §9.2",
@@ -1117,7 +1118,7 @@
       "Remover o LAN já na F4-B",
       "Só 8-ball online até a F9"
     ],
-    "status": "open",
+    "status": "accepted",
     "source": "plano da F4-B (proposta, aguardando a revisão do usuário)",
     "refs": [
       "spec §5.3",
@@ -1137,7 +1138,7 @@
       "Fechar só chat e escrita no armazenamento",
       "Deixar aberto até haver abuso"
     ],
-    "status": "open",
+    "status": "accepted",
     "source": "plano da F4-B (proposta, aguardando a revisão do usuário)",
     "refs": [
       "spec §9.2",
@@ -1158,7 +1159,7 @@
       "Cloudflare Tunnel no server da rede",
       "Heroic Cloud para o Nakama"
     ],
-    "status": "open",
+    "status": "accepted",
     "source": "plano da F4-B (proposta, aguardando a revisão do usuário)",
     "refs": [
       "spec §5.1",
@@ -1178,7 +1179,7 @@
       "Um workflow separado para o teste de navegador online",
       "Rodar o test:online só manualmente"
     ],
-    "status": "open",
+    "status": "accepted",
     "source": "plano da F4-B (proposta, aguardando a revisão do usuário)",
     "refs": [
       "D051",
