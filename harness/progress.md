@@ -2,6 +2,7 @@
 
 ## Estado atual
 
+- **F4-B em revisão:** o plano [`2026-10-27-f4b-cliente-online-implantacao.md`](../docs/superpowers/plans/2026-10-27-f4b-cliente-online-implantacao.md) tem 10 tarefas e espera a revisão do usuário, junto com as decisões D063 a D066 (`open`). Ele cobre o cliente online (`OnlineSession`, `OnlineMatchController`, o caminho online do `Game`, telas em PT-BR, presença do adversário), dois navegadores de ponta a ponta, o fechamento da D053 (D064), a produção com TLS pelo Caddy (D065) e a CI (D066). Itens novos: F4-08 a F4-13.
 - **F4-A concluída** (plano [`2026-10-26-f4a-partida-online-servidor.md`](../docs/superpowers/plans/2026-10-26-f4a-partida-online-servidor.md), execução por subagentes, D054 a D059 e D062 `accepted`; a D060 e a D061 passaram a `superseded` pela D062). O servidor autoritativo da partida online 1×1 está pronto e verificado com bots:
   - contrato em `packages/protocol` (operações, leitores, quantização, envelope binário, trajetória v1), mesa autoritativa em `packages/modes` (`rackTable`, `placeCueBall`, `respotBalls`, `isCueBallPlacementValid`), `services/sim` (HTTP com segredo e versões N e N−1, em contêiner próprio) e a partida em `services/nakama` (snapshot, tacada, regras, cronômetro, reconexão, W.O., desistência e histórico);
   - `docs/protocol.md` descreve o protocolo v1 (as operações, o envelope, a trajetória, a quantização, os motivos de recusa, os prazos, a reconexão e o `match_history`), e um teste confere que ele cita toda operação e recusa;
@@ -46,7 +47,7 @@
 
 ## Próximo passo
 
-1. **Escrever o plano da F4-B** (cliente online: `OnlineMatchController`, telas de entrada, fila e sala; implantação na VPS com TLS; D053) com `superpowers:writing-plans`, e pedir a revisão do usuário antes de implementar. Notas da F4-A para ele:
+1. **O usuário revisa o plano da F4-B** ([`2026-10-27-f4b-cliente-online-implantacao.md`](../docs/superpowers/plans/2026-10-27-f4b-cliente-online-implantacao.md)) e as decisões D063 a D066, e escolhe a forma de execução. A produção (Tarefa 9) precisa de uma máquina com Docker e de um domínio do usuário, ou da alternativa com Cloudflare Tunnel (D065). As notas da F4-A para o cliente, abaixo, já estão no plano:
    - O cliente tem de tratar um `offsetMs` além do último quadro da trajetória (até 1 s de folga, `docs/protocol.md` seção 10): vai direto ao estado final.
    - O cliente lê o `match_history` sem `user_id` e percorre a listagem pelo cursor (seção 11 do protocolo); o Nakama 3.41 recusa o UUID zero como `user_id` numa leitura de cliente.
    - A bola na mão na `kitchen` (resolvido na revisão final, D062): a linha da cabeceira entra, e o `z = −69,85` quantizado vale; o cliente pode prender a branca exatamente na linha.
@@ -358,3 +359,8 @@
 - `docs/f3/servidor-local.md` ganhou os passos do `nvm` e o comando das suítes sem navegador.
 - A integração da F4-A também passou contra a pilha nova do `server` (Nakama, PostgreSQL e `sim`), com 32 testes passando e nenhum falhando em 220 s. Isso inclui o tempo esgotado, o W.O. e a partida inteira de 8-ball entre bots, que levou 17 s. Rodar a integração nesta máquina sem `NAKAMA_HOST` aponta para `127.0.0.1`, onde não há Nakama, e todo arquivo falha depois de 60 s de espera. O `servidor-local.md` agora mostra a sintaxe do cmd.
 - Com `NAKAMA_HOST=server`, a integração também passou a partir desta máquina Windows contra o `server`.
+
+### 2026-10-27 — sessão 2, continuação (plano da F4-B)
+
+- Plano da F4-B escrito com `superpowers:writing-plans`: 10 tarefas, itens F4-08 a F4-13 e decisões D063 a D066 propostas (`open`).
+- Achados do levantamento, já no plano: o `deploy.yml` da `main` roda o `npm test` com o Node 22 (que não executa os testes `.ts`) e publica no caminho `/Billiards/` do repositório original; a Tarefa 1 corrige os dois (D066) antes do merge do PR.

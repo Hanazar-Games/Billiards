@@ -1105,5 +1105,86 @@
       "services/nakama/src/game/intake.ts",
       "packages/protocol/src/messages.ts"
     ]
+  },
+  {
+    "id": "D063",
+    "date": "2026-10-27",
+    "title": "Forma do cliente online (F4-B)",
+    "decision": "OnlineMatchController com a mesma interface do LocalMatchController, mais eventos para o que o servidor manda sem pedido (tacada do adversário, tempo esgotado, escolha, volta, fim). O Game aplica a mesa oficial (table do shot_result) no fim de cada tacada online e não repõe bolas sozinho. Endereço do servidor em VITE_NAKAMA_URL e chave em VITE_NAKAMA_SERVER_KEY; sem endereço, o build de produção mostra o online como indisponível. O cliente reconecta sozinho durante os 60 s da reserva e guarda o matchId para voltar depois de recarregar a página. Fila e sala para 8-ball e 9-ball. Telas novas em PT-BR. O LAN fica como está até a F5, que o remove (spec §5.3).",
+    "rationale": "A spec pede que os dois controladores entreguem ao Game a mesma coisa (§5.3); a diferença do online é o que chega sem pedido. Remover o LAN agora mexeria em muito do Game junto com o caminho online.",
+    "alternatives": [
+      "Um Game separado para o online",
+      "Remover o LAN já na F4-B",
+      "Só 8-ball online até a F9"
+    ],
+    "status": "open",
+    "source": "plano da F4-B (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "spec §5.3",
+      "spec §6.3",
+      "spec §7.4",
+      "docs/protocol.md",
+      "docs/superpowers/plans/2026-10-27-f4b-cliente-online-implantacao.md"
+    ]
+  },
+  {
+    "id": "D064",
+    "date": "2026-10-27",
+    "title": "APIs nativas do Nakama: o que fica aberto (fecha a D053)",
+    "decision": "Ficam abertas só as APIs nativas que o jogo usa: autenticação por dispositivo, e-mail e Google (já validadas); SessionRefresh, SessionLogout, GetAccount e GetUsers; vínculo e desvínculo de dispositivo, e-mail e Google; as RPCs; ReadStorageObjects e ListStorageObjects; ListNotifications e DeleteNotifications; no socket, a fila e a partida (MatchmakerAdd, MatchmakerRemove, MatchJoin, MatchLeave, MatchDataSend). O resto é recusado por hook: escrita e remoção no armazenamento, amigos, grupos, canais e mensagens diretas, status, Party*, MatchCreate, placares e torneios, validação de compras, exclusão nativa de conta e vínculo de métodos sem validação de nome.",
+    "rationale": "Cada API aberta é uma porta para contornar as regras do servidor (§9.2). Fechar por hook é barato, e reabrir é uma linha quando uma fase precisar (grupos na F7, compras na F8).",
+    "alternatives": [
+      "Fechar só chat e escrita no armazenamento",
+      "Deixar aberto até haver abuso"
+    ],
+    "status": "open",
+    "source": "plano da F4-B (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "spec §9.2",
+      "D024",
+      "D053",
+      "services/nakama/src/registry.ts",
+      "docs/superpowers/plans/2026-10-27-f4b-cliente-online-implantacao.md"
+    ]
+  },
+  {
+    "id": "D065",
+    "date": "2026-10-27",
+    "title": "Implantação de produção com TLS",
+    "decision": "infra/docker-compose.prod.yml sobrepõe o compose de desenvolvimento e acrescenta o Caddy (caddy:2.10.0-alpine) nas portas 80 e 443, encaminhando o domínio para nakama:7350. O Nakama só publica o console em 127.0.0.1:7351 (acesso por túnel SSH); PostgreSQL e sim não publicam portas. Os segredos ficam no infra/.env da máquina, cada um casando com ^[A-Za-z0-9_-]{24,}$, conferidos pelo infra/check-env.mjs antes de subir. O cliente segue no GitHub Pages, gerado com as variáveis do repositório NAKAMA_URL e NAKAMA_SERVER_KEY. A máquina e o domínio são do usuário. Alternativa: o server da rede atrás de um Cloudflare Tunnel, sem o Caddy.",
+    "rationale": "O Caddy obtém e renova o certificado sozinho, e o mesmo compose roda em qualquer máquina com Docker e domínio. O padrão dos segredos resolve a expansão do SIM_SECRET pelo Compose e pelo shell, ponto aberto da F4-A.",
+    "alternatives": [
+      "Nginx com Certbot",
+      "Cloudflare Tunnel no server da rede",
+      "Heroic Cloud para o Nakama"
+    ],
+    "status": "open",
+    "source": "plano da F4-B (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "spec §5.1",
+      "spec §5.4",
+      "spec §9.4",
+      "D049",
+      "docs/superpowers/plans/2026-10-27-f4b-cliente-online-implantacao.md"
+    ]
+  },
+  {
+    "id": "D066",
+    "date": "2026-10-27",
+    "title": "CI do cliente online",
+    "decision": "O deploy.yml passa para o Node 24, e o caminho base do Pages vem do nome do repositório. O teste com dois navegadores (test:online) roda no job de integração, que passa a instalar o Chrome e ganha timeout-minutes 35. O npm test da raiz continua sem Docker.",
+    "rationale": "Com o Node 22, o npm test do deploy.yml não executa os testes .ts, e a publicação quebraria no merge para a main; o caminho /Billiards/ vem do repositório original. A partida entre dois navegadores precisa do Nakama e do Chrome juntos, o que só o job de integração tem.",
+    "alternatives": [
+      "Um workflow separado para o teste de navegador online",
+      "Rodar o test:online só manualmente"
+    ],
+    "status": "open",
+    "source": "plano da F4-B (proposta, aguardando a revisão do usuário)",
+    "refs": [
+      "D051",
+      ".github/workflows/deploy.yml",
+      ".github/workflows/integration.yml",
+      "docs/superpowers/plans/2026-10-27-f4b-cliente-online-implantacao.md"
+    ]
   }
 ]
